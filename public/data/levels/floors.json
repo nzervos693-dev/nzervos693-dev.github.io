@@ -183,8 +183,10 @@
           ],
           "buildSpots": {
             "shownOnlyInBuildMode": true,
-            "window": [ { "id": "w1", "x": 230 }, { "id": "w2", "x": 350 } ],
-            "floor": [ { "id": "s1", "x": 126 }, { "id": "s2", "x": 222 }, { "id": "s3", "x": 318 }, { "id": "s4", "x": 414 } ]
+            "rule": "A spot sits on a layer (window = wall, floor = floor), is >= 96 px from every same-layer fixture/object center and from other spots. requiresEmptySlot: the spot is usable only once the object at that x/layer is gone (s1 = chair slot, s2 = table slot, both dismantled in the tutorial). The wall layer (fridge 168, drawer 270, workbench 372) and floor x 372 (bed) leave no free window room in this apartment; the other 2 floor and 2 window spots are in f15_right.",
+            "requiresEmptySlot": true,
+            "window": [],
+            "floor": [ { "id": "s1", "x": 168 }, { "id": "s2", "x": 270 } ]
           },
           "objects": [
             { "id": "f15L-01", "objectId": "chair", "x": 168, "layer": "floor", "room": "kitchen" },
@@ -213,6 +215,15 @@
             { "id": "bedroom", "kind": "bedroom", "xMin": 420, "xMax": 570 },
             { "id": "bathroom", "kind": "bathroom", "xMin": 570, "xMax": 720 }
           ],
+          "buildSpots": {
+            "shownOnlyInBuildMode": true,
+            "availableWhen": "apartment_cleared",
+            "countsAsHome": true,
+            "requiresEmptySlot": true,
+            "rule": "Extra home spots once this flat is cleared. Each reuses a slot of salvageable furniture (floor: bed_frame 468, wardrobe 570; wall: window_pane 468, curtains 570) and is usable once that object is dismantled. All >= 96 px from same-layer objects and each other; 468 is 96 px from the home bed/workbench at 372.",
+            "window": [ { "id": "w1", "x": 468 }, { "id": "w2", "x": 570 } ],
+            "floor": [ { "id": "s3", "x": 468 }, { "id": "s4", "x": 570 } ]
+          },
           "objects": [
             { "id": "f15R-01", "objectId": "bed_frame", "x": 468, "layer": "floor", "room": "bedroom" },
             { "id": "f15R-02", "objectId": "wardrobe", "x": 570, "layer": "floor", "room": "bedroom" },

@@ -7,7 +7,7 @@ import { now, offlineInfo, elapsedInfo } from '../core/clock.js';
 import { offlineCapMs } from '../core/balance.js';
 import { lifecycle } from '../core/lifecycle.js';
 import {
-  buildTower, floorAtY, floorTopY, floorLineY, roomAt, homeSpot, isInHome, worldHeight,
+  buildTower, floorAtY, floorTopY, floorLineY, roomAt, homeSpot, worldHeight,
 } from '../gameplay/layout.js';
 import { createGameState, normalizeGameState, enterRoom, heroCtx, takeFromPile, objState } from '../gameplay/gameState.js';
 import { tickNeeds, applyItem, itemEffect, speedMult } from '../gameplay/needs.js';
@@ -21,8 +21,18 @@ import { spawnDueWanderers, dropLostWanderTime } from '../gameplay/wanderers.js'
 import { livingSurvivors, gameOverStats } from '../gameplay/death.js';
 import { limitWalk, planRoute, stairSeconds, stepToward, hitJammedDoor, doorStopX } from '../gameplay/routing.js';
 import { listActions, buildSpec, noiseFor, completeAction, heroHasTool } from '../gameplay/actions.js';
-import { pastKeepThreshold, spendToolUse } from '../gameplay/salvage.js';
+import { pastKeepThreshold, spendToolUse, energyTimeMult } from '../gameplay/salvage.js';
 import { reportLines } from '../gameplay/report.js';
+import {
+  recipeRows, USE_NAMES, craftCheck, costLines, effectText, performCraft, recipeKind,
+} from '../gameplay/crafting.js';
+import {
+  freeSpots, secureCandidates, builtActions, useBuilt, removeObject, dismantleRefund, deliver,
+} from '../gameplay/building.js';
+import { tickProducers } from '../gameplay/producers.js';
+import { barricadeMaxHp, damageBarricade, barricadeLevel, latchBreach } from '../gameplay/barricade.js';
+import { getDefense } from '../gameplay/defense.js';
+import { atHome } from '../gameplay/buildSpots.js';
 import TowerView from './TowerView.js';
 import Hud from './Hud.js';
 import ActionMenu from './ActionMenu.js';
@@ -34,6 +44,9 @@ import Zombies from './Zombies.js';
 import Combat from './Combat.js';
 import Throwing from './Throwing.js';
 import GameOverPanel from './GameOverPanel.js';
+import CraftPanel from './CraftPanel.js';
+import FloorPicker from './FloorPicker.js';
+import Placement from './Placement.js';
 import { label, COLORS, CSS } from './ui.js';
 import { playSfx, stopSfx } from './sfx.js';
 import { isAudioUnlocked } from '../core/audio.js';
@@ -63,6 +76,8 @@ const TOAST_PROMPT_LIFT = 140;
  *   'floor-changed' {floor}      'room-entered' {apt, room}
  *   'door-hit' {aptId, hits, needed}   'door-opened' {aptId}
  *   'workbench-open'             'survivor-tap' {id}
+ *   'crafted' {id, kind}  'object-placed' {id, key}  'built-dismantled' {id, key}  'built-used' {id, key, collected, loaded}
+ *   'barricade-built' {level}  'barricade-hit' {hp, zombie}  'barricade-broken'  'floor-secured' {floor}
  *   'hero-dead' {survivors, handled}  'item-used' {id}
  *   'floor-cleared' {floor}      'zombie-killed' {id, type, floor}
  *   'tutorial_open_door' (and any floors.json scriptedSpawns trigger): emit it on `bus` to spawn that
@@ -134,6 +149,13 @@ export default class GameScene extends Phaser.Scene {
       onClose: () => {},
       badge: (slot, i, tab) => (tab === 'bag' && isEquipped(this.state, i) ? `E${slot.uses ?? ''}` : null),
     });
+    this.craftPanel = new CraftPanel(this, {
+      rows: () => this.craftRows(),
+      onCraft: (id) => this.onCraftTap(id),
+      onClose: () => {},
+    });
+    this.floorPicker = new FloorPicker(this);
+    this.placement = new Placement(this);
     this.gameOverPanel = new GameOverPanel(this);
     this.zombies = new Zombies(this);
     this.combat = new Combat(this);
@@ -387,7 +409,12 @@ export default class GameScene extends Phaser.Scene {
   // ---------------------------------------------------------------- taps
 
   onWorldTap(wx, wy) {
-    if (this.gameOver || this.popup.isOpen || this.panel.isOpen) return;
+    if (this.gameOver || this.popup.isOpen || this.panel.isOpen || this.craftPanel.isOpen || this.floorPicker.isOpen) return;
+    if (this.placement.active) {
+      const zt = this.zombies.hitTest(wx, wy); // you can still fight while placing
+      if (zt) this.attackZombie(zt); else this.placement.handleTap(wx, wy);
+      return;
+    }
     if (this.sleeping) { this.wake(); return; }
     this.menu.close();
     if (this.action) {
@@ -403,7 +430,7 @@ export default class GameScene extends Phaser.Scene {
     if (zt) { this.attackZombie(zt); return; }
     this.combat.clear();
     const t = this.view.hitTest(wx, wy);
-    if (t) this.handleTarget(t);
+    if (t) this.handleTarget(t, wx, wy);
     else this.handleGround(wx, wy);
   }
 
@@ -434,7 +461,7 @@ export default class GameScene extends Phaser.Scene {
     this.goTo(floor, x);
   }
 
-  handleTarget(t) {
+  handleTarget(t, wx, wy) {
     const { state, balance } = this;
     switch (t.type) {
       case 'object': {
@@ -457,6 +484,16 @@ export default class GameScene extends Phaser.Scene {
       case 'survivor':
         this.goTo(t.floor, t.x, { t, kind: 'survivor' });
         break;
+      case 'built':
+        this.openMenu(t, builtActions(state, balance, state.build.spots[t.id]), 'build-');
+        break;
+      case 'barricade': {
+        const b = state.build.barricade;
+        const lv = barricadeLevel(balance, b.level);
+        this.toast.show(b.hp > 0 ? `Barricade Lv${b.level}: ${Math.ceil(b.hp)}/${lv.hp} HP, defense +${lv.defense}. Repair it at the workbench.` : `Barricade Lv${b.level} is broken. Repair it at the workbench.`, 3000);
+        this.handleGround(wx, wy); // the hero also walks there: his own barricade is no obstacle
+        break;
+      }
       case 'door':
         this.goTo(t.floor, doorStopX(t.apt), { t, kind: 'door' });
         break;
@@ -464,13 +501,13 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
-  openMenu(t, actions) {
+  openMenu(t, actions, kindPrefix = '') {
     const img = t.sp.img;
     const cam = this.cameras.main;
     this.menu.open(
       { x: t.x, topY: img.y - img.displayHeight, bottomY: img.y, screenTop: cam.scrollY + this.hud.topH + 8, screenBottom: cam.scrollY + this.hud.bottomY - MENU_BOTTOM_MARGIN },
       actions,
-      (kind) => this.goTo(t.floor, t.x, { t, kind }),
+      (kind) => this.goTo(t.floor, t.x, { t, kind: kindPrefix + kind }),
     );
   }
 
@@ -492,8 +529,10 @@ export default class GameScene extends Phaser.Scene {
       case 'sleep': this.startSleep(); break;
       case 'workbench':
         this.bus.emit('workbench-open');
-        this.toast.show('Workbench: crafting is coming soon.');
+        this.openCraft();
         break;
+      case 'build-use': this.useBuiltObject(t); break;
+      case 'build-dismantle': this.beginBuildDismantle(t); break;
       case 'survivor':
         this.bus.emit('survivor-tap', { id: t.id });
         this.toast.show('Someone is hiding here.');
@@ -571,6 +610,7 @@ export default class GameScene extends Phaser.Scene {
 
   finishAction() {
     if (this.action.spec.kind === 'pry') { this.finishPry(); return; }
+    if (this.action.spec.build) { this.finishBuildDismantle(); return; }
     const { spec, t } = this.action;
     this.action = null;
     this.hideBar();
@@ -709,6 +749,8 @@ export default class GameScene extends Phaser.Scene {
     }
     state.times.lastTickAt = t;
     tickNeeds(state.needs, gap / 1000, { sleeping: this.sleeping }, balance);
+    tickProducers(state, balance, gap / 1000);
+    this.view.refreshBuilt();
     this.tickWanderers(t);
     if (this.sleeping && state.needs.energy >= balance.needs.max) {
       this.wake();
@@ -757,7 +799,8 @@ export default class GameScene extends Phaser.Scene {
     if (elapsedMs > 0) {
       const sim = { needs: state.needs, stockpile: state.stockpile, ctx: heroCtx(state, balance) };
       const wander = (_sim, _seconds, atMs) => spawnDueWanderers(state, this.tower, balance, atMs, this.rng, { hero: homeSpot(this.tower) });
-      const report = catchUp(sim, elapsedMs, balance, { startMs: state.times.lastTickAt, awake, stepHooks: [wander] });
+      const produce = (_sim, seconds, _atMs, rep) => tickProducers(state, balance, seconds, rep);
+      const report = catchUp(sim, elapsedMs, balance, { startMs: state.times.lastTickAt, awake, stepHooks: [wander, produce] });
       if (capped) dropLostWanderTime(state, t, balance);
       this.zombies.syncRecords();
       if (elapsedMs >= 60000) {
@@ -771,6 +814,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   onHide() {
+    this.closeBuildUi();
     this.cancelAction();
     this.combat.clear();
     const inFlight = this.throwing.reset();
@@ -795,7 +839,8 @@ export default class GameScene extends Phaser.Scene {
 
   // ---------------------------------------------------------------- inventory
 
-  inHome() { const h = this.state.hero; return isInHome(this.tower, h.floor, h.x); }
+  /** At home: f15_left, plus f15_right once it is cleared (GDD 5.3). */
+  inHome() { const h = this.state.hero; return atHome(this.tower, this.state, this.balance, h.floor, h.x); }
 
   canStoreAll() {
     return this.inHome() && this.state.inventory.some((s) => s && this.balance.items[s.id]?.type !== 'quest');
@@ -1078,6 +1123,7 @@ export default class GameScene extends Phaser.Scene {
     this.dead = true;
     this.panel.close();
     this.popup.close();
+    this.closeBuildUi();
     if (this.heroSprite.texture.key !== 'hero_death') this.heroSprite.setTexture('hero_death', 2);
     this.gameOverPanel.show(gameOverStats(this.state, now()), () => this.newGame());
   }
@@ -1086,6 +1132,183 @@ export default class GameScene extends Phaser.Scene {
   newGame() {
     deleteSave();
     this.scene.restart();
+  }
+
+  // ---------------------------------------------------------------- crafting, building, barricade
+
+  /** Home defense D for attacks (piece 3b): barricade + secured floors + guards + the character. */
+  defense() { return getDefense(this.state, this.balance); }
+
+  /** Close the craft panel, floor picker and placement mode (hide, death). */
+  closeBuildUi() {
+    this.craftPanel.close();
+    this.floorPicker.close();
+    this.placement.stop();
+  }
+
+  openCraft() {
+    this.menu.close();
+    this.craftPanel.open();
+  }
+
+  /** Rows for the Craft panel: group headers and recipe entries with their live state. */
+  craftRows() {
+    const { balance, state, tower } = this;
+    return recipeRows(balance).map((r) => {
+      if (r.type === 'group') return { type: 'group', name: USE_NAMES[r.use] || r.use };
+      const rec = balance.recipes[r.id];
+      const costs = costLines(state, rec.cost).map((l) => ({ ...l, name: balance.items[l.id]?.name || l.id }));
+      return {
+        type: 'recipe',
+        entry: {
+          id: r.id,
+          name: rec.name,
+          kind: recipeKind(rec),
+          check: craftCheck(state, tower, balance, r.id),
+          costs,
+          shortCost: costs.map((l) => `${l.need} ${l.name.toLowerCase()}`).join(', '),
+          effect: effectText(balance, r.id),
+          outputId: Object.keys(rec.output || {})[0] || null,
+        },
+      };
+    });
+  }
+
+  /** Craft button. Placeables ask for a spot first and Secure floor for a floor; nothing is paid before that. */
+  onCraftTap(id) {
+    const { state, tower, balance } = this;
+    const check = craftCheck(state, tower, balance, id);
+    if (!check.ok) { this.deny(check.reason); return; }
+    const rec = balance.recipes[id];
+    if (check.kind === 'place') {
+      const spots = freeSpots(state, tower, balance, rec.buildSpot);
+      this.craftPanel.close();
+      this.placement.start(`Place ${rec.name}: tap a glowing spot`, spots, (key) => this.finishCraft(id, { spot: key }), () => {
+        this.toast.show('Cancelled. Nothing was used.', 1800);
+      });
+    } else if (check.kind === 'secure') {
+      const floors = secureCandidates(state).map((f) => ({ floor: f.floor, text: f.ok ? `Floor ${f.floor}` : `Floor ${f.floor}: ${f.reason}`, enabled: f.ok }));
+      this.floorPicker.open('Secure which floor?', floors, (n) => this.finishCraft(id, { floor: n }));
+    } else this.finishCraft(id, {});
+  }
+
+  /** Pay and apply a craft, then play the feedback. */
+  finishCraft(id, target) {
+    const { state, tower, balance } = this;
+    const h = state.hero;
+    const res = performCraft(state, tower, balance, id, { ...target, loc: { floor: h.floor, x: h.x } });
+    if (!res.ok) { this.deny(res.reason); return; }
+    const rec = balance.recipes[id];
+    playSfx(this, 'craft');
+    let msg = `Made: ${rec.name}`;
+    if (res.kind === 'item') {
+      msg = `Made: ${this.itemList(res.items)}`;
+      if (res.gained.stock.length) msg += '\nBag full: it went to the stockpile.';
+      if (res.gained.piled.length) msg += '\nBag and stockpile full: it is on the floor.';
+    } else if (res.kind === 'repair') {
+      const b = state.build.barricade;
+      msg = `Barricade +${res.restored} HP (${Math.ceil(b.hp)}/${barricadeMaxHp(state, balance)})`;
+    } else if (res.kind === 'barricade') {
+      msg = `${rec.name} built.`;
+      this.bus.emit('barricade-built', { level: rec.effect.level });
+    } else if (res.kind === 'secure') {
+      msg = `Floor ${target.floor} is Secured. Defense +${balance.attacks.securedFloorDefense}.`;
+      this.bus.emit('floor-secured', { floor: target.floor });
+    } else if (res.kind === 'place') {
+      msg = `${rec.name} placed.`;
+      this.bus.emit('object-placed', { id, key: target.spot });
+    }
+    this.bus.emit('crafted', { id, kind: res.kind });
+    this.view.refresh();
+    this.panel.refresh();
+    this.toast.show(msg, 2400);
+    this.save();
+    if (this.craftPanel.isOpen) this.craftPanel.refresh(msg.split('\n')[0]);
+  }
+
+  /** Use on a placed producer: collect what it holds (and load dirty water into the filter). */
+  useBuiltObject(t) {
+    const { state, balance } = this;
+    const p = state.build.spots[t.id];
+    if (!p) return;
+    const h = state.hero;
+    const r = useBuilt(state, balance, p, { floor: h.floor, x: h.x });
+    const parts = [];
+    if (r.collected) parts.push(this.itemList([r.collected], '+'));
+    if (r.loaded) parts.push(`Loaded ${r.loaded} ${balance.items[balance.recipes[p.id].effect.input].name.toLowerCase()}`);
+    if (r.full) parts.push('Bag and stockpile full: the rest stays inside.');
+    if (r.firstHarvest) {
+      const gain = balance.needs.morale.events.firstPlanterHarvest;
+      state.needs.morale = Math.min(balance.needs.max, state.needs.morale + gain);
+      parts.push(`First harvest! +${gain} morale`);
+    }
+    if (!parts.length) { this.toast.show('Nothing to collect yet.'); return; }
+    playSfx(this, r.collected ? 'pickup' : 'craft');
+    this.bus.emit('built-used', { id: p.id, key: t.id, collected: r.collected, loaded: r.loaded });
+    this.view.refreshBuilt();
+    this.panel.refresh();
+    this.toast.show(parts.join('\n'), 2400);
+    this.save();
+  }
+
+  /** Dismantle a crafted placeable: quiet, small time and energy, refunds salvage.refundRatio of the cost. */
+  beginBuildDismantle(t) {
+    const { state, balance } = this;
+    if (!state.build.spots[t.id]) return;
+    const small = balance.salvage;
+    const spec = {
+      kind: 'dismantle', id: t.id, build: true, tool: null, noise: 'quiet',
+      seconds: small.time.small * energyTimeMult(state.needs.energy, balance), energy: small.energy.small,
+    };
+    this.action = { spec, t, elapsed: 0, duration: spec.seconds };
+    this.bus.emit('action-start', { spec, target: t });
+    playSfx(this, 'dismantle_wood');
+    this.setHeroAnim('attack');
+  }
+
+  finishBuildDismantle() {
+    const { spec, t } = this.action;
+    this.action = null;
+    this.hideBar();
+    const { state, balance } = this;
+    const p = removeObject(state, t.id);
+    this.setHeroAnim('idle');
+    if (p) {
+      const items = dismantleRefund(p, balance);
+      const h = state.hero;
+      const res = deliver(state, balance, items, { floor: h.floor, x: h.x });
+      state.needs.energy = Math.max(0, state.needs.energy - spec.energy);
+      this.bus.emit('built-dismantled', { id: p.id, key: t.id });
+      const parts = [items.length ? this.itemList(items, '+') : 'Nothing left to salvage.'];
+      if (res.stock.length) parts.push('Bag full: some went to the stockpile.');
+      if (res.piled.length) parts.push('Bag full: the rest is on the floor.');
+      this.toast.show(parts.join('\n'), 2600);
+      if (items.length) playSfx(this, 'pickup');
+    }
+    this.view.refresh();
+    this.panel.refresh();
+    this.save();
+    this.runQueuedTap();
+  }
+
+  /** A zombie hit the home barricade (called by Zombies). */
+  onBarricadeHit(rt, damage) {
+    const { state, balance } = this;
+    const r = damageBarricade(state, damage);
+    playSfx(this, 'barricade_hit');
+    this.view.shakeBarricade();
+    this.bus.emit('barricade-hit', { hp: r.hp, zombie: rt.rec.id });
+    if (r.broken) {
+      playSfx(this, 'barricade_break');
+      if (latchBreach(state)) { // -10 once; re-armed by a full repair or a new attack (3b: resetBreachLatch)
+        const pen = balance.needs.morale.events.barricadeBreached;
+        state.needs.morale = Math.max(0, Math.min(balance.needs.max, state.needs.morale + pen));
+      }
+      this.toast.show('The barricade broke! Repair it at the workbench.', 3200);
+      this.bus.emit('barricade-broken', {});
+    }
+    this.view.refreshBarricade();
+    if (r.broken) this.save();
   }
 
   // ---------------------------------------------------------------- debug (?debug)
@@ -1161,12 +1384,13 @@ export default class GameScene extends Phaser.Scene {
     this.hud.update({
       needs: this.state.needs,
       floor: this.stair ? this.stair.to : h.floor,
-      canStore: this.canStoreAll() && !this.panel.isOpen && !this.popup.isOpen,
+      canStore: this.canStoreAll() && !this.panel.isOpen && !this.craftPanel.isOpen && !this.popup.isOpen,
       hint: r ? r.apt.name : 'Stairwell',
       weapon: this.hudCombat.weapon,
       canThrow: this.hudCombat.canThrow,
       armed: !!this.throwing.armed,
     });
-    this.toast.setY(this.panel.isOpen ? this.panel.bottomY + TOAST_PANEL_GAP : this.hud.toastY - (this.needPrompt.isOpen ? TOAST_PROMPT_LIFT : 0));
+    const modalBottom = this.craftPanel.isOpen ? this.craftPanel.bottomY : this.panel.isOpen ? this.panel.bottomY : 0;
+    this.toast.setY(modalBottom ? modalBottom + TOAST_PANEL_GAP : this.hud.toastY - (this.needPrompt.isOpen ? TOAST_PROMPT_LIFT : 0));
   }
 }

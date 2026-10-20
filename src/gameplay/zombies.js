@@ -32,6 +32,11 @@ export const zombieTuning = (balance) => ({ ...TUNE_DEFAULTS, ...(balance.zombie
 
 export const STEP_ATTACK = 1;
 export const STEP_AGGRO = 2;
+/** A bite lands on the home barricade (apply damage to it, not to the hero). */
+export const STEP_BARRICADE = 4;
+
+/** Gap a blocked zombie keeps from the home barricade, px. */
+export const BARRICADE_PAD = 12;
 
 /** Side margin kept from the walls and jammed doors, px. */
 const EDGE_PAD = 16;
@@ -123,10 +128,12 @@ export function barrierBetween(tower, doors, floor, x1, x2) {
 }
 
 /**
- * Walkable x range for something standing at x (jammed doors are walls). Writes into `out`.
+ * Walkable x range for something standing at x (jammed doors and a standing barricade are walls
+ * for zombies). Writes into `out`.
+ * @param {{up:boolean, floor:number, x:number}|null} [barricade] home barricade (up = built and above 0 HP)
  * @returns {{min:number,max:number}} out
  */
-export function movementBounds(tower, doors, floor, x, out) {
+export function movementBounds(tower, doors, floor, x, out, barricade = null) {
   out.min = EDGE_PAD;
   out.max = tower.floorWidth - EDGE_PAD;
   const f = tower.floors.get(floor);
@@ -135,6 +142,10 @@ export function movementBounds(tower, doors, floor, x, out) {
     if (doors[a.id]?.state !== 'jammed') continue;
     if (x >= a.doorX) out.min = Math.max(out.min, a.doorX + DOOR_PAD);
     else out.max = Math.min(out.max, a.doorX - DOOR_PAD);
+  }
+  if (barricade && barricade.up && barricade.floor === floor) {
+    if (x >= barricade.x) out.min = Math.max(out.min, barricade.x + BARRICADE_PAD);
+    else out.max = Math.min(out.max, barricade.x - BARRICADE_PAD);
   }
   return out;
 }
@@ -192,13 +203,31 @@ export function stepZombie(z, ai, env, dt) {
   if (fighting && !here) { ai.mode = 'return'; ai.wanderTo = null; }
   else if (!fighting && here && sees(z, env)) { startChase(ai, env.tune); out |= STEP_AGGRO; }
 
-  const b = movementBounds(env.tower, env.doors, z.floor, z.x, env.bounds);
+  const b = movementBounds(env.tower, env.doors, z.floor, z.x, env.bounds, env.barricade);
   ai.moving = false;
 
   if (ai.mode === 'chase' || ai.mode === 'attack') {
     const dx = env.heroX - z.x;
     const dist = Math.abs(dx);
     if (dist > 1) ai.facing = dx < 0 ? -1 : 1;
+    const bar = env.barricade;
+    if (bar && bar.up && bar.floor === z.floor) {
+      const zIn = z.x >= bar.x;
+      const hIn = env.heroX >= bar.x; // the hero standing exactly on the barricade counts as inside
+      if (zIn !== hIn) {
+        // the barricade is between us and the hero: walk up to it; only a zombie outside hits it
+        ai.moving = moveTo(z, env.heroX, spec.speed, dt, b);
+        if (zIn) { ai.mode = 'chase'; return out; }
+        if (Math.abs(z.x - bar.x) <= env.attackRange) {
+          ai.mode = 'attack';
+          if (ai.cd <= 0) {
+            ai.cd = spec.attackIntervalSeconds;
+            out |= STEP_BARRICADE;
+          }
+        } else ai.mode = 'chase';
+        return out;
+      }
+    }
     const holding = ai.mode === 'attack' && dist <= env.attackRange;
     if (!holding && dist > env.attackRange * 0.8) {
       ai.mode = 'chase';

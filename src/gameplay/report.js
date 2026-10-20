@@ -1,3 +1,5 @@
+import { productionLines } from './producers.js';
+
 /**
  * Text for the "While you were away" popup. Pure.
  */
@@ -31,5 +33,6 @@ export function reportLines(report, balance, capped = false) {
   for (const [id, qty] of Object.entries(report.used)) {
     lines.push(`Used ${qty} x ${balance.items?.[id]?.name || id}`);
   }
+  lines.push(...productionLines(report.production, balance));
   return lines;
 }

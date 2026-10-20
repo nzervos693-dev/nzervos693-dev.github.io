@@ -6,7 +6,7 @@
  * Env: E2E_URL (use a running server), E2E_SHOTS (screenshot dir).
  */
 import { chromium } from 'playwright-core';
-import { spawn } from 'node:child_process';
+import { serve } from './server.mjs';
 import { mkdirSync } from 'node:fs';
 
 const PORT = 4179;
@@ -16,8 +16,8 @@ mkdirSync(shots, { recursive: true });
 let server = null;
 let url = process.env.E2E_URL;
 if (!url) {
-  server = spawn('npx', ['vite', 'preview', '--outDir', 'dist-e2e', '--port', String(PORT), '--strictPort'], { stdio: 'ignore' });
-  url = `http://localhost:${PORT}/`;
+  server = await serve('dist-e2e', PORT);
+  url = server.url;
 }
 const fail = [];
 const check = (ok, msg) => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${msg}`); if (!ok) fail.push(msg); };
@@ -62,6 +62,6 @@ try {
   fail.push(String(e));
   console.error(e);
 } finally {
-  server?.kill();
+  server?.close();
 }
 process.exit(fail.length ? 1 : 0);

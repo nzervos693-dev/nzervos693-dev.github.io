@@ -22,8 +22,9 @@ const randInt = (rng, lo, hi) => lo + Math.floor(rng() * (hi - lo + 1));
  * Pick a spawn x away from the hero (when he is on that floor).
  * @param {{floor:number, x:number}|null} hero
  */
-export function pickSpawnX(rng, tower, floor, hero, minHeroDistance) {
-  const segs = spawnSegments(tower, floor);
+export function pickSpawnX(rng, tower, floor, hero, minHeroDistance, state = null) {
+  const segs = spawnSegments(tower, floor, state);
+  if (!segs.length) return null;
   const total = segs.reduce((n, [a, b]) => n + (b - a), 0);
   const pick = () => {
     let r = rng() * total;
@@ -48,17 +49,32 @@ export function pickSpawnX(rng, tower, floor, hero, minHeroDistance) {
 /** Margin kept from the home apartment walls, px. */
 const HOME_MARGIN = 20;
 
-/** x ranges where a wanderer may appear: the floor minus the stairwell and, on the home floor, the home apartment. */
-export function spawnSegments(tower, floor) {
+/** Home apartments on a floor that wanderers keep out of: the hero's, plus countsAsHome ones once cleared (latched). */
+function homeRanges(tower, floor, state) {
+  if (floor !== tower.homeFloor) return [];
+  return [...tower.apartments.values()].filter((a) => a.floor === floor
+    && (a.isHome || (a.buildSpots?.countsAsHome && state?.flags?.aptCleared?.[a.id])));
+}
+
+/**
+ * x ranges where a wanderer may appear: the floor minus the stairwell and the home apartment(s).
+ * Empty when nothing is left (every apartment of the floor counts as home).
+ */
+export function spawnSegments(tower, floor, state = null) {
   const lo = tower.stairwell.xMax + 60;
   const hi = tower.floorWidth - 40;
-  if (floor !== tower.homeFloor || !tower.home) return [[lo, hi]];
-  const a = tower.home.xMin - HOME_MARGIN;
-  const b = tower.home.xMax + HOME_MARGIN;
-  const segs = [];
-  if (a > lo) segs.push([lo, a]);
-  if (hi > b) segs.push([Math.max(lo, b), hi]);
-  return segs.length ? segs : [[hi, hi]];
+  let segs = [[lo, hi]];
+  for (const a of homeRanges(tower, floor, state)) {
+    const from = a.xMin - HOME_MARGIN;
+    const to = a.xMax + HOME_MARGIN;
+    segs = segs.flatMap(([x0, x1]) => {
+      const out = [];
+      if (from > x0) out.push([x0, Math.min(x1, from)]);
+      if (x1 > to) out.push([Math.max(x0, to), x1]);
+      return out;
+    }).filter(([x0, x1]) => x1 > x0);
+  }
+  return segs;
 }
 
 /**
@@ -101,7 +117,8 @@ export function spawnDueWanderers(state, tower, balance, atMs, rng, opts = {}) {
         if (countAlive(state, n) >= tune.maxWanderersPerFloor) break;
         state.counters.wander = (state.counters.wander || 0) + 1;
         const id = `wander:${state.counters.wander}`;
-        const x = pickSpawnX(rng, tower, n, opts.hero || null, tune.wanderSpawnMinHeroDistancePx);
+        const x = pickSpawnX(rng, tower, n, opts.hero || null, tune.wanderSpawnMinHeroDistancePx, state);
+        if (x == null) break; // nowhere outside the home apartments
         const z = makeZombie(id, 'walker', n, x, balance, { roam: true });
         state.zombies[id] = z;
         made.push(z);

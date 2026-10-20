@@ -38,7 +38,7 @@ export function buildTower(floorsData, balance) {
       if (a.isHome) home = apt;
       return apt;
     });
-    floors.set(f.number, { ...f, apartments: apts, stairwell: layout.stairwell });
+    floors.set(f.number, { ...f, apartments: apts, stairwell: { ...layout.stairwell, ...(f.stairwell || {}) } });
   }
   return {
     layout,
@@ -48,6 +48,8 @@ export function buildTower(floorsData, balance) {
     apartments,
     home,
     homeFloor: balance.home.floor,
+    /** Where the home barricade stands (x on the home floor), from floors.json stairwell.barricadeX. */
+    barricadeX: floors.get(balance.home.floor)?.stairwell.barricadeX ?? layout.stairwell.xMax - 20,
     floorMin: w.floorMin,
     floorMax: w.floorMax,
     floorWidth: w.floorWidthPx,
@@ -104,3 +106,6 @@ export const isInHome = (tower, floor, x) =>
 
 /** Wall-layer objects float this far above the floor line (counter height). */
 export const WALL_LIFT = 28 * ART_SCALE;
+
+/** World y of the centre of a 96 px build-spot target (window spots sit at wall height). */
+export const spotCenterY = (tower, floor, kind) => floorLineY(tower, floor) - (kind === 'window' ? WALL_LIFT : 0) - 48;

@@ -6,8 +6,9 @@
 import { floorAtY, floorLineY } from '../gameplay/layout.js';
 import {
   makeAi, stepZombie, hearNoise, startChase, resetZombie, roomRefAt, movementBounds, zombieTuning,
-  STEP_ATTACK, STEP_AGGRO,
+  STEP_ATTACK, STEP_AGGRO, STEP_BARRICADE,
 } from '../gameplay/zombies.js';
+import { barricadeUp } from '../gameplay/barricade.js';
 import { hitZombie, burnZombie } from '../gameplay/combat.js';
 import ZombieView, { BODY_CENTER } from './ZombieView.js';
 import { playSfx } from './sfx.js';
@@ -26,10 +27,13 @@ export default class Zombies {
     this.list = [];
     this.byId = new Map();
     this.bounds = { min: 0, max: 0 };
+    /** The home barricade as zombies see it (refreshed every frame): a wall while up. */
+    this.barricade = { up: false, floor: scene.tower.homeFloor, x: scene.tower.barricadeX };
     this.env = {
       tower: scene.tower, doors: scene.state.doors, heroFloor: null, heroX: 0, heroRoom: null,
       types: scene.balance.zombies.types, aggroRadius: scene.balance.zombies.aggroRadius,
       attackRange: scene.balance.zombies.attackRange, tune: this.tune, rng: scene.rng, bounds: this.bounds,
+      barricade: this.barricade,
     };
     for (const id in scene.state.zombies) {
       const rec = scene.state.zombies[id];
@@ -77,6 +81,7 @@ export default class Zombies {
   /** Per-frame AI and sprite sync. */
   update(dt) {
     const { scene, env } = this;
+    this.barricade.up = barricadeUp(scene.state);
     env.heroFloor = scene.zombieTargetFloor();
     env.heroX = scene.state.hero.x;
     env.heroRoom = env.heroFloor == null ? null : roomRefAt(scene.tower, env.heroFloor, env.heroX);
@@ -88,6 +93,7 @@ export default class Zombies {
       if (active) {
         const flags = stepZombie(rt.rec, rt.ai, env, dt);
         if (flags & STEP_AGGRO) scene.onZombieAggro(rt);
+        if (flags & STEP_BARRICADE) scene.onBarricadeHit(rt, env.types[rt.rec.type].damage);
         if (flags & STEP_ATTACK) scene.onZombieBite(rt, env.types[rt.rec.type].damage);
       }
       this.view.sync(rt);
@@ -105,7 +111,8 @@ export default class Zombies {
   /** A hero weapon hit. @returns {boolean} killed */
   hurt(rt, damage, fromX) {
     const { scene } = this;
-    movementBounds(scene.tower, scene.state.doors, rt.rec.floor, rt.rec.x, this.bounds);
+    this.barricade.up = barricadeUp(scene.state);
+    movementBounds(scene.tower, scene.state.doors, rt.rec.floor, rt.rec.x, this.bounds, this.barricade);
     const killed = hitZombie(rt.rec, rt.ai, damage, fromX, this.bounds, scene.balance, this.tune);
     this.view.flash(rt);
     this.view.spark(rt.rec.x + (fromX < rt.rec.x ? -10 : 10), rt.y - BODY_CENTER - 6);

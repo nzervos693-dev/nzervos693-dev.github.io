@@ -7,6 +7,9 @@ import { frameOf, propSprite } from './art.js';
 import {
   ART_SCALE, FLOOR_LINE, WALL_LIFT, floorTopY, floorLineY, floorAtY, roomKey, worldHeight,
 } from '../gameplay/layout.js';
+import { homeSpots } from '../gameplay/buildSpots.js';
+import { barricadeMaxHp } from '../gameplay/barricade.js';
+import { isProducerRecipe } from '../gameplay/producers.js';
 import { COLORS, CSS, FONT } from './ui.js';
 
 const ROOM_BG = { kitchen: 'wall_tile', bathroom: 'wall_tile', living: 'wall_wallpaper', bedroom: 'wall_wallpaper' };
@@ -34,6 +37,8 @@ export default class TowerView {
     this.pileSprites = new Map(); // pile id -> container
     this.floorLabels = new Map(); // floor -> status text
     this.pulsing = [];
+    this.built = new Map(); // spot key -> { img, badge, x }
+    this.barricade = null; // { img, text }
     this.build();
     this.refresh();
   }
@@ -148,6 +153,93 @@ export default class TowerView {
     }
     this.refreshPiles();
     this.refreshFloorLabels();
+    this.refreshBuilt();
+  }
+
+  /** Sync placed objects (rain collector, filter, planter, bed) and the barricade with state.build. */
+  refreshBuilt() {
+    const { scene, state, tower, balance } = this;
+    const spots = state.build.spots;
+    for (const [key, e] of this.built) {
+      if (spots[key]) continue;
+      const pi = this.pulsing.indexOf(e.img);
+      if (pi >= 0) this.pulsing.splice(pi, 1);
+      e.img.destroy();
+      e.badge.destroy();
+      this.built.delete(key);
+    }
+    let layout = null;
+    for (const key in spots) {
+      const p = spots[key];
+      let e = this.built.get(key);
+      if (!e) {
+        layout ||= homeSpots(tower, balance);
+        const sp = layout.find((s) => s.key === key);
+        if (!sp) continue;
+        const wall = sp.kind === 'window';
+        const line = floorLineY(tower, sp.floor);
+        const bottom = line - (wall ? WALL_LIFT : 0);
+        const img = scene.add.image(sp.x, bottom, 'build', frameOf('build', p.id)).setOrigin(0.5, 1).setScale(ART_SCALE)
+          .setDepth(wall ? D.wall : D.prop);
+        const badge = scene.add.text(sp.x + 40, bottom - 96, '', {
+          fontFamily: FONT, fontSize: '20px', color: CSS.amber, backgroundColor: '#0d0f12', padding: { x: 5, y: 2 },
+        }).setOrigin(0.5).setDepth(D.marker).setVisible(false);
+        e = { img, badge, x: sp.x, floor: sp.floor, wall };
+        this.built.set(key, e);
+        this.pulsing.push(img);
+      }
+      const text = this.badgeText(p);
+      if (e.badge.text !== text) e.badge.setText(text).setVisible(text !== '');
+    }
+    this.refreshBarricade();
+  }
+
+  /** Short status shown on a producer: stored/max, filter queue, water warning. */
+  badgeText(p) {
+    const recipe = this.balance.recipes[p.id];
+    if (!isProducerRecipe(recipe)) return '';
+    const e = recipe.effect;
+    const parts = [];
+    if (p.stored > 0) parts.push(`${p.stored}/${e.maxStored}`);
+    if (e.type === 'converter' && p.queue > 0) parts.push(`in ${p.queue}`);
+    if (p.waiting) parts.push('water?');
+    return parts.join(' ');
+  }
+
+  /** Barricade sprite: built level, damaged frame under 50% HP, faded when broken. */
+  refreshBarricade() {
+    const { scene, state, tower, balance } = this;
+    const b = state.build.barricade;
+    if (!b || b.level <= 0) {
+      if (this.barricade) { this.barricade.img.setVisible(false); this.barricade.text.setVisible(false); }
+      return;
+    }
+    if (!this.barricade) {
+      const line = floorLineY(tower, tower.homeFloor);
+      const img = scene.add.image(tower.barricadeX, line, 'build', 0).setOrigin(0.5, 1).setScale(ART_SCALE).setDepth(D.prop + 1);
+      const text = scene.add.text(tower.barricadeX, line - 100, '', {
+        fontFamily: FONT, fontSize: '18px', color: CSS.text, stroke: '#0d0f12', strokeThickness: 4,
+      }).setOrigin(0.5, 1).setDepth(D.marker);
+      this.barricade = { img, text, key: '' };
+    }
+    const max = barricadeMaxHp(state, balance);
+    const damaged = b.hp < max * 0.5;
+    const name = `barricade_lv${b.level}`;
+    const sheet = damaged ? 'build_damaged' : 'build';
+    const frame = frameOf(sheet, damaged ? `${name}_damaged` : name);
+    const k = `${sheet}:${frame}`;
+    if (this.barricade.key !== k) { this.barricade.key = k; this.barricade.img.setTexture(sheet, frame); }
+    this.barricade.img.setVisible(true).setAlpha(b.hp > 0 ? 1 : 0.5);
+    this.barricade.text.setVisible(true).setText(b.hp > 0 ? `${Math.ceil(b.hp)}/${max}` : 'BROKEN');
+  }
+
+  /** Shake the barricade when a zombie hits it. */
+  shakeBarricade() {
+    const e = this.barricade;
+    if (!e || e.shaking) return;
+    e.shaking = true;
+    const x0 = this.tower.barricadeX;
+    this.scene.tweens.add({ targets: e.img, x: x0 + 4, yoyo: true, duration: 50, repeat: 1, onComplete: () => { e.img.setX(x0); e.shaking = false; } });
   }
 
   /** Floor state under the floor number: INFESTED (red), CLEARED (green), SECURED (amber). */
@@ -230,6 +322,14 @@ export default class TowerView {
       if (sp.survivor) out.push({ type: 'survivor', id: sp.survivor.id, floor, x: sp.cx, cy: sp.cy, halfW: sp.halfW, sp });
       else if (sp.quest) { if (!os.taken) out.push({ type: 'quest', id, floor, x: sp.cx, cy: sp.cy, halfW: sp.halfW, sp }); }
       else if (!os.dismantled) out.push({ type: 'object', id, floor, x: sp.cx, cy: sp.cy, halfW: sp.halfW, sp });
+    }
+    for (const [key, e] of this.built) {
+      if (e.floor === floor) out.push({ type: 'built', id: key, floor, x: e.x, cy: e.wall ? floorLineY(tower, floor) - WALL_LIFT - 48 : floorLineY(tower, floor) - 48, halfW: 48, sp: { img: e.img } });
+    }
+    const bar = state.build.barricade;
+    if (floor === tower.homeFloor && bar.level > 0) {
+      // narrow on purpose: taps beside the sprite are plain walking taps (the stairwell landing)
+      out.push({ type: 'barricade', id: 'barricade', floor, x: tower.barricadeX, cy: floorLineY(tower, floor) - 48, halfW: 24 });
     }
     for (const p of state.piles) {
       if (p.floor === floor) out.push({ type: 'pile', id: p.id, floor, x: p.x, cy: floorLineY(tower, floor) - 48, halfW: 48, pile: p });

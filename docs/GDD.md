@@ -197,8 +197,13 @@ Each need is 0-100. Drain is per real hour.
   done +10, talk to a survivor +5 (once per survivor per 12 h,
   `talkCooldownHours`), "comfort" item (cigarettes, chocolate) +10 (stored
 on the item, `consumables.<id>.morale`), Hot stew
-  +5 (M2), first harvest of each planter +5, attack repelled +5, barricade
-  breached -10, survivor dies -20.
+  +5 (M2), first planter harvest +5 (once per game, not per planter),
+  attack repelled +5, barricade breached -10, survivor dies -20.
+- **Breach penalty latch**: -10 applies when the barricade goes from
+  above 0 HP to 0 HP, then latches; it cannot apply again until the
+  barricade is repaired to full HP or a new attack begins. Offline: at
+  most once per attack. (A small repair then re-break in the same attack
+  costs nothing.)
 - **Sick** (status, M2): no regen, energy drain x1.5; lasts **24 h**
   (`status.sickHours`). Antibiotics (loot only) cure it at once; Herbal
   remedy removes **12 h** (`status.remedyHours`). Not stackable. Causes:
@@ -223,7 +228,13 @@ on the item, `consumables.<id>.morale`), Hot stew
   visible at once.
 - Hero walk speed **120 px/s** (`hero.walkSpeed`); stairs take **1.2 s per
   floor** (`hero.stairSecondsPerFloor`).
-- Hero's apartment is on **floor 15**.
+- Hero's apartment is on **floor 15** (`f15_left`). **Home** = `f15_left`
+  plus, once it is Cleared (its zombie dead and all its containers
+  searched), the apartment across the hall `f15_right` (`countsAsHome`,
+  permanent). Every rule that says "home apartment" or "at home" (stockpile
+  access and "Store all", comfort, Lit, night Dim, no wanderer spawns,
+  residents "at home") means either home apartment once `f15_right`
+  counts as home; before that, `f15_left` only.
 - Floor states: **Infested** (zombies, dark rooms) -> **Cleared** (no
   zombies, all containers searched) -> **Secured** (Secure floor recipe).
   Unexplored rooms are dark (contents hidden) until entered.
@@ -397,8 +408,9 @@ Water from salvage comes as consumable items: **Dirty water** (+20 water,
 | 19 | Toolbox | S | - | Quiet | Search (tape, metal) | 1 metal |
 | 20 | Oil lamp | S | - | Quiet | - | 1 glass + 1 metal, 50% +1 fuel |
 
-Window panes exist only outside the home apartment (home windows hold the
-window build spots; `objects.window_pane.allowedInHome` false).
+Window panes never appear in `f15_left` (`objects.window_pane.allowedInHome`
+false refers to `f15_left`); `f15_right` has one, and dismantling it frees
+a home window spot (5.6 Build spots).
 
 **Later v1 objects** (size, tool, noise, primary: yield; "-" = none):
 - **M2**: bookshelf (L, saw, noisy: 6 wood + 3 paper); kitchen counter (L,
@@ -421,8 +433,10 @@ window build spots; `objects.window_pane.allowedInHome` false).
   water: 1 container + 1 plastic).
 
 **Recipes** (workbench, instant once the hero is at it; materials are taken
-from carried inventory first, then the stockpile; a recipe appears when one
-of its materials is first collected; WB = workbench level needed):
+from carried inventory first, then the stockpile; in M1 all 14 M1 recipes
+are listed from the start, greyed while unaffordable; from M2, a new
+milestone's recipe appears in the list when one of its materials is first
+collected; WB = workbench level needed):
 
 | Use | Recipe | Cost | Effect | WB | MS |
 |---|---|---|---|---|---|
@@ -486,13 +500,19 @@ M1 recipe rules (numbers in `recipes.<id>` and `barricade.*`):
 - **Build spots** (`recipes.<id>.buildSpot`): rain collector `window`;
   water filter, planter and survivor bed `floor`; barricades `stairwell`;
   secure floor `cleared_floor`; everything else `none` (goes to inventory).
+- **Paying for placeables**: crafting a placeable enters spot-pick mode
+  (free spots of its type highlighted); the cost is taken only when a spot
+  is tapped. Cancel (tap Workbench/elsewhere, or no free spot) is free and
+  takes nothing. No free spot = recipe greyed "No free spot".
 - **Barricade**: Lv2 needs Lv1 built (`barricade.levels[].requiresLevel`)
   and replaces it at full Lv2 HP. At 0 HP the barricade gives no defense
   and zombies pass; Repair still works on it.
 - **Repair**: each craft spends 1 wood and restores 20 HP
   (`barricade.repairHpPerWood`), capped at max HP; greyed at full HP.
 - **Secure floor**: crafting opens a list of Cleared floors (96 px rows);
-  the tapped floor becomes Secured. Greyed if no floor is Cleared.
+  the tapped floor becomes Secured. Greyed if no floor is Cleared. A floor
+  with any living wanderer (5.3) is listed greyed with "Wanderers on floor
+  N" and cannot be picked until they are dead.
 - **Producers**: `effect.intervalHours`, `effect.maxStored`,
   `effect.waterPerUnit` (planter: 1 water per crop, taken from
   `effect.waterItems`, dirty first); the water filter uses
@@ -500,14 +520,20 @@ M1 recipe rules (numbers in `recipes.<id>` and `barricade.*`):
   the placeable (up to `effect.maxStored`; filter 6) until collected with
   *Use*; when full, production pauses.
 
-**Build spots**: placeables go in fixed, tappable spots. Home apartment:
-**2 window** and **4 floor** spots (`home.windowSpots`, `home.floorSpots`),
+**Build spots**: placeables go in fixed, tappable spots on slots freed by
+dismantling objects (a spot is usable only once its object is gone).
+Home total **2 window** and **4 floor** spots (`home.windowSpots`,
+`home.floorSpots`): `f15_left` has **2 floor** spots (the chair and table
+slots); `f15_right` has **2 floor + 2 window** spots (window pane and
+curtains -> window; bed frame and wardrobe -> floor), usable only once it
+counts as home (5.3). So the rain collector needs `f15_right` Cleared;
+early water comes from draining (toilet tank, sink pipes, water heater).
 +2 floor spots with Workbench Lv2 (`home.workbenchLv2FloorSpots`). Wall items
 (string lights, decorations) need no spot, max 1 of each per apartment.
 Defense items (barricade, nail board, tripwire, electric fence) sit at the
 home stairwell, max 1 each. From M2, each Secured floor adds **2 window + 2
 floor** spots (`home.securedFloorSpots`); placeables there work like home
-ones, but comfort and light count only in the home apartment.
+ones, but comfort and light count only at home (5.3).
 
 **Storage pressure**: a fully dismantled apartment rarely fits in 8 carry
 slots, so the player chooses what to carry, what to leave as a pile, and
@@ -616,7 +642,8 @@ when to return. Offline production with a full stockpile is lost (reported).
   sleep energy regen **+30%** (`stove.sleepBonus`), stove recipes work.
 - **Oil lamp**: holds **2 fuel**, burns **1 per 12 h** (`lamp.fuelHours`);
   Lit while burning. **String lights**: Lit while powered.
-- A **Lit** home apartment gives comfort +2 (once, however many sources).
+- Any **Lit** home apartment gives comfort +2 (once, however many sources
+  or apartments).
 
 **Power** (M3)
 - Supply = running generators (+3 each, `power.generatorOutput`) + solar
@@ -630,7 +657,8 @@ when to return. Offline production with a full stockpile is lost (reported).
   supply returns (crossed bolt icon). Music player and radio fall back to
   batteries if any are in the stockpile.
 
-**Comfort** (morale): comfort points counted over the home apartment: Lit
+**Comfort** (morale): comfort points counted over home (both apartments
+once `f15_right` counts, 5.3; each source counted once): Lit
 +2, lit stove +1, reading nook +1, decorations +1, running music player +1,
 fed dog at home +1 (max 7). Morale drain/h = 1 - 0.25 x comfort, clamped to **-0.5..1**
 (`comfort.perPoint`, `comfort.minDrain`), so 4 comfort stops the drain and
@@ -692,7 +720,7 @@ random Infested floor. Some scans unlock a short radio note.
 - Changing the clock or time zone only changes the phase; elapsed time still
   follows 5.1. Days survived is unchanged (24 real hours each).
 - **At night**: every room on Infested **and Cleared** floors is Dim (5.3),
-  and the home apartment is Dim unless Lit (5.10). Secured floors never are.
+  and each home apartment is Dim unless that apartment is Lit (5.10). Secured floors never are.
   Zombie aggro radius x**1.25** (`night.aggroMult`; 250 px, 150 with Quiet
   shoes) and speed x**1.15** (`night.zombieSpeedMult`). Attacks starting at
   night are x**1.2** (5.8).

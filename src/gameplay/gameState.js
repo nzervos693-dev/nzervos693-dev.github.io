@@ -3,6 +3,7 @@
  */
 import { initNeeds, NEED_KEYS } from './needs.js';
 import { createSlots, normalizeSlots, addAll, addItem } from './inventory.js';
+import { homeSpots } from './buildSpots.js';
 import { homeSpot, roomKey } from './layout.js';
 import { mergeItems } from './rng.js';
 import { initZombies } from './zombies.js';
@@ -59,6 +60,7 @@ export function createGameState(balance, tower, nowMs) {
     wanderAt: {},
     equipped: null,
     piles: [],
+    build: { spots: {}, barricade: { level: 0, hp: 0 } },
     rooms: {},
     notes: [],
     survivors: {},
@@ -106,9 +108,48 @@ export function normalizeGameState(raw, balance, tower, nowMs) {
     if (!s.doors[apt.id]) s.doors[apt.id] = { state: apt.doorState || 'open', hits: 0 };
   }
   for (const [n, f] of tower.floors) if (!s.floorStates[n]) s.floorStates[n] = f.startState || 'Infested';
+  s.build = normalizeBuild(s.build, balance, tower, s);
   initZombies(s, tower, balance);
   if (tower.home) for (const r of tower.home.rooms) s.rooms[roomKey(tower.home, r)] = true;
   return s;
+}
+
+/**
+ * Complete and sanitise state.build: drop records of unknown recipes; refund (to the stockpile, else a
+ * pile) records whose spot no longer exists in floors.json; clamp producer numbers; reset an unknown
+ * barricade level and clamp its HP to 0..max of its level.
+ */
+function normalizeBuild(raw, balance, tower, s) {
+  const b = raw && typeof raw === 'object' ? raw : {};
+  const spots = b.spots && typeof b.spots === 'object' ? b.spots : {};
+  const valid = new Set(homeSpots(tower, balance).map((x) => x.key));
+  const num = (v, lo, hi) => (Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : lo);
+  for (const k of Object.keys(spots)) {
+    const p = spots[k];
+    const recipe = p && balance.recipes[p.id];
+    if (!recipe) { delete spots[k]; continue; }
+    const e = recipe.effect;
+    const producer = e?.type === 'producer' || e?.type === 'converter';
+    if (producer) {
+      p.stored = Math.floor(num(p.stored, 0, e.maxStored));
+      p.queue = Math.floor(num(p.queue, 0, e.queueMax ?? 0));
+      p.progress = num(p.progress, 0, Infinity);
+    }
+    if (valid.has(k)) continue;
+    // the spot is gone (level data changed): give the materials back
+    const items = Object.entries(recipe.cost)
+      .map(([id, qty]) => ({ id, qty: Math.floor(qty * balance.salvage.refundRatio) }));
+    if (producer) items.push({ id: e.produces, qty: p.stored }, { id: e.input, qty: p.queue });
+    const spot = homeSpot(tower);
+    const left = addAll(s.stockpile, items.filter((i) => i.id && i.qty > 0), balance);
+    if (left.length) addPile(s, spot.floor, spot.x, left);
+    console.warn(`Removed ${p.id} from unknown build spot ${k}`);
+    delete spots[k];
+  }
+  const bc = b.barricade || {};
+  const lv = balance.barricade.levels.find((l) => l.level === bc.level);
+  const barricade = lv ? { level: lv.level, hp: num(bc.hp, 0, lv.hp) } : { level: 0, hp: 0 };
+  return { ...b, spots, barricade, breachLatched: !!b.breachLatched };
 }
 
 /** Per-object state (searched, drained, dismantled, leftover loot), created lazily. */
