@@ -6,11 +6,14 @@
 - [x] Interview the Creative Director and fill GDD sections 1–12 (game-designer)
 - [ ] Creative Director: answer GDD section 12 open questions
 - [x] Set up Vite + Phaser, folder layout, scaling, core systems (engine-programmer)
-- [ ] Unit tests and browser smoke test set up (qa-tester)
+- [x] Unit tests and browser smoke test set up (qa-tester)
 - [x] GitHub Pages auto-deploy, share playtest link (engine-programmer) — live at https://nzervos693-dev.github.io, confirmed on phone
 - [ ] Core loop with touch controls (gameplay-programmer)
-- [ ] First 1–3 levels or a first difficulty curve (level-designer)
-- [ ] Placeholder art: player, background, one obstacle/enemy (art-generator)
+  - [x] Piece 1: tower, movement, salvage, inventory, needs, offline
+  - [ ] Piece 2: zombies, tap combat, door hits
+  - [ ] Piece 3: crafting, barricades, attacks, Mara, tutorial
+- [x] Floors 13–17 and loot tables (level-designer)
+- [x] Placeholder art (art-generator)
 - [ ] Basic sounds: tap, hit, pickup, lose (audio-designer)
 - [ ] QA pass (qa-tester)
 - [ ] Creative Director playtest on phone
