@@ -10,7 +10,7 @@
 - [x] GitHub Pages auto-deploy, share playtest link (engine-programmer) — live at https://nzervos693-dev.github.io, confirmed on phone
 - [ ] Core loop with touch controls (gameplay-programmer)
   - [x] Piece 1: tower, movement, salvage, inventory, needs, offline
-  - [ ] Piece 2: zombies, tap combat, door hits
+  - [x] Piece 2: zombies, tap combat, door hits, sound
   - [ ] Piece 3: crafting, barricades, attacks, Mara, tutorial
 - [x] Floors 13–17 and loot tables (level-designer)
 - [x] Placeholder art (art-generator)
