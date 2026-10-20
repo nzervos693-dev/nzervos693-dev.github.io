@@ -1,0 +1,424 @@
+{
+ "version": 1,
+ "milestone": "M1",
+ "note": "Placeholder art. Native pixels; scale 3x with pixelArt. Frames are horizontal strips. Paths are relative to the site root.",
+ "files": [
+  {
+   "key": "hero",
+   "path": "assets/art/hero.png",
+   "frameWidth": 16,
+   "frameHeight": 24,
+   "frames": 9,
+   "names": [
+    "idle_0",
+    "idle_1",
+    "walk_0",
+    "walk_1",
+    "walk_2",
+    "walk_3",
+    "attack_0",
+    "attack_1",
+    "attack_2"
+   ],
+   "animations": [
+    {
+     "name": "idle",
+     "frames": [
+      0,
+      1
+     ],
+     "fps": 2,
+     "repeat": -1
+    },
+    {
+     "name": "walk",
+     "frames": [
+      2,
+      3,
+      4,
+      5
+     ],
+     "fps": 8,
+     "repeat": -1
+    },
+    {
+     "name": "attack",
+     "frames": [
+      6,
+      7,
+      8
+     ],
+     "fps": 12,
+     "repeat": 0
+    }
+   ],
+   "note": "faces right; flip in game for left"
+  },
+  {
+   "key": "mara",
+   "path": "assets/art/mara.png",
+   "frameWidth": 16,
+   "frameHeight": 24,
+   "frames": 2,
+   "names": [
+    "idle_0",
+    "idle_1"
+   ],
+   "animations": [
+    {
+     "name": "idle",
+     "frames": [
+      0,
+      1
+     ],
+     "fps": 2,
+     "repeat": -1
+    }
+   ],
+   "note": "nurse; faces right"
+  },
+  {
+   "key": "zombie_walker",
+   "path": "assets/art/zombie_walker.png",
+   "frameWidth": 16,
+   "frameHeight": 24,
+   "frames": 9,
+   "names": [
+    "walk_0",
+    "walk_1",
+    "walk_2",
+    "walk_3",
+    "attack_0",
+    "attack_1",
+    "death_0",
+    "death_1",
+    "death_2"
+   ],
+   "animations": [
+    {
+     "name": "walk",
+     "frames": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack",
+     "frames": [
+      4,
+      5
+     ],
+     "fps": 6,
+     "repeat": -1
+    },
+    {
+     "name": "death",
+     "frames": [
+      6,
+      7,
+      8
+     ],
+     "fps": 6,
+     "repeat": 0
+    }
+   ],
+   "note": "faces right; Walker: upright, arms out"
+  },
+  {
+   "key": "zombie_crawler",
+   "path": "assets/art/zombie_crawler.png",
+   "frameWidth": 16,
+   "frameHeight": 24,
+   "frames": 9,
+   "names": [
+    "walk_0",
+    "walk_1",
+    "walk_2",
+    "walk_3",
+    "attack_0",
+    "attack_1",
+    "death_0",
+    "death_1",
+    "death_2"
+   ],
+   "animations": [
+    {
+     "name": "walk",
+     "frames": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack",
+     "frames": [
+      4,
+      5
+     ],
+     "fps": 6,
+     "repeat": -1
+    },
+    {
+     "name": "death",
+     "frames": [
+      6,
+      7,
+      8
+     ],
+     "fps": 6,
+     "repeat": 0
+    }
+   ],
+   "note": "faces right; low sprite (bottom 12 rows)"
+  },
+  {
+   "key": "floor_bg",
+   "path": "assets/art/floor_bg.png",
+   "frameWidth": 240,
+   "frameHeight": 80,
+   "frames": 4,
+   "names": [
+    "wall_concrete",
+    "wall_wallpaper",
+    "wall_tile",
+    "slab_only"
+   ],
+   "animations": [],
+   "note": "one floor = 240x80 native (720x240 game px); slab at top 4 rows and bottom 10 rows; floor walking line at y=70"
+  },
+  {
+   "key": "stairwell",
+   "path": "assets/art/stairwell.png",
+   "frameWidth": 40,
+   "frameHeight": 80,
+   "frames": 1,
+   "names": [
+    "segment"
+   ],
+   "animations": [],
+   "note": "stairwell cutaway, repeats vertically per floor; not salvage"
+  },
+  {
+   "key": "door",
+   "path": "assets/art/door.png",
+   "frameWidth": 16,
+   "frameHeight": 32,
+   "frames": 2,
+   "names": [
+    "closed",
+    "open"
+   ],
+   "animations": [],
+   "note": "apartment door frame; open shows dark corridor"
+  },
+  {
+   "key": "window",
+   "path": "assets/art/window.png",
+   "frameWidth": 32,
+   "frameHeight": 32,
+   "frames": 1,
+   "names": [
+    "night_neutral"
+   ],
+   "animations": [],
+   "note": "large prop; tower skyline tint added by game"
+  },
+  {
+   "key": "tower_edge",
+   "path": "assets/art/tower_edge.png",
+   "frameWidth": 16,
+   "frameHeight": 80,
+   "frames": 1,
+   "names": [
+    "edge_right"
+   ],
+   "animations": [],
+   "note": "right exterior edge of the tower; flip for left"
+  },
+  {
+   "key": "props_s",
+   "path": "assets/art/props_s.png",
+   "frameWidth": 16,
+   "frameHeight": 16,
+   "frames": 13,
+   "names": [
+    "chair",
+    "curtains",
+    "potted_plant",
+    "microwave",
+    "tv",
+    "sink_pipes",
+    "toilet_tank",
+    "kitchen_drawer",
+    "window_pane",
+    "bathroom_cabinet",
+    "toolbox",
+    "oil_lamp",
+    "debris"
+   ],
+   "animations": [],
+   "note": "small/medium salvage props 16x16 + debris pile; draw on floor line"
+  },
+  {
+   "key": "props_l",
+   "path": "assets/art/props_l.png",
+   "frameWidth": 32,
+   "frameHeight": 32,
+   "frames": 9,
+   "names": [
+    "table",
+    "kitchen_cupboard",
+    "wardrobe",
+    "bed_frame",
+    "sofa",
+    "interior_door",
+    "fridge",
+    "water_heater",
+    "debris"
+   ],
+   "animations": [],
+   "note": "large/medium salvage props 32x32 + large debris; draw on floor line (bottom)"
+  },
+  {
+   "key": "build",
+   "path": "assets/art/build.png",
+   "frameWidth": 32,
+   "frameHeight": 32,
+   "frames": 8,
+   "names": [
+    "barricade_lv1",
+    "barricade_lv2",
+    "rain_collector",
+    "water_filter",
+    "planter",
+    "survivor_bed",
+    "workbench",
+    "hero_bed"
+   ],
+   "animations": [],
+   "note": "home build items; barricade Lv1/Lv2 fill the stairwell opening; workbench; hero_bed = own bed of the hero (survivor_bed is separate)"
+  },
+  {
+   "key": "icons",
+   "path": "assets/art/icons.png",
+   "frameWidth": 8,
+   "frameHeight": 8,
+   "frames": 30,
+   "names": [
+    "wood",
+    "metal",
+    "cloth",
+    "plastic",
+    "parts",
+    "seeds",
+    "glass",
+    "duct_tape",
+    "chemicals",
+    "fuel",
+    "canned_food",
+    "dry_snack",
+    "planter_crop",
+    "water_bottle",
+    "chocolate",
+    "medkit",
+    "kitchen_knife",
+    "medical_bag",
+    "dirty_water",
+    "clean_water",
+    "bandage",
+    "spiked_bat",
+    "molotov",
+    "crowbar",
+    "wrench",
+    "bar_health",
+    "bar_food",
+    "bar_water",
+    "bar_energy",
+    "bar_morale"
+   ],
+   "animations": [],
+   "note": "8x8: 10 M1 materials, items, weapons/tools, HUD need bars"
+  },
+  {
+   "key": "buttons",
+   "path": "assets/art/buttons.png",
+   "frameWidth": 32,
+   "frameHeight": 32,
+   "frames": 10,
+   "names": [
+    "search",
+    "dismantle",
+    "drain",
+    "use",
+    "craft",
+    "search_pressed",
+    "dismantle_pressed",
+    "drain_pressed",
+    "use_pressed",
+    "craft_pressed"
+   ],
+   "animations": [],
+   "note": "action buttons 32x32 native (96 game px): frames 0-4 normal, 5-9 pressed (Search, Dismantle, Drain, Use, Craft)"
+  },
+  {
+   "key": "fx_dust",
+   "path": "assets/art/fx_dust.png",
+   "frameWidth": 16,
+   "frameHeight": 16,
+   "frames": 4,
+   "names": [
+    "puff_0",
+    "puff_1",
+    "puff_2",
+    "puff_3"
+   ],
+   "animations": [
+    {
+     "name": "puff",
+     "frames": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "fps": 12,
+     "repeat": 0
+    }
+   ],
+   "note": "dust puff when an object is dismantled; no outline"
+  },
+  {
+   "key": "fx_spark",
+   "path": "assets/art/fx_spark.png",
+   "frameWidth": 16,
+   "frameHeight": 16,
+   "frames": 3,
+   "names": [
+    "spark_0",
+    "spark_1",
+    "spark_2"
+   ],
+   "animations": [
+    {
+     "name": "hit",
+     "frames": [
+      0,
+      1,
+      2
+     ],
+     "fps": 18,
+     "repeat": 0
+    }
+   ],
+   "note": "hit spark; no outline"
+  }
+ ]
+}
