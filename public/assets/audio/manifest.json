@@ -1,0 +1,293 @@
+{
+  "_doc": "key -> files (ogg only, Android target), volume (0..1 for scene.sound.play), loop, event",
+  "sounds": {
+    "ui_tap": {
+      "files": [
+        "ui_tap.ogg"
+      ],
+      "volume": 0.5,
+      "loop": false,
+      "duration": 0.09,
+      "event": "Any button or menu tap"
+    },
+    "step_1": {
+      "files": [
+        "step_1.ogg"
+      ],
+      "volume": 0.45,
+      "loop": false,
+      "duration": 0.2,
+      "event": "Hero walking tap-move (alternate with step_2)"
+    },
+    "step_2": {
+      "files": [
+        "step_2.ogg"
+      ],
+      "volume": 0.45,
+      "loop": false,
+      "duration": 0.2,
+      "event": "Hero walking tap-move (alternate with step_1)"
+    },
+    "stairs": {
+      "files": [
+        "stairs.ogg"
+      ],
+      "volume": 0.5,
+      "loop": false,
+      "duration": 1,
+      "event": "Hero changes floor via stairs"
+    },
+    "search": {
+      "files": [
+        "search.ogg"
+      ],
+      "volume": 0.5,
+      "loop": false,
+      "duration": 0.8,
+      "event": "Search / scavenge rummage (start of search)"
+    },
+    "dismantle_wood": {
+      "files": [
+        "dismantle_wood.ogg"
+      ],
+      "volume": 0.8,
+      "loop": false,
+      "duration": 0.75,
+      "event": "Dismantle a wooden object (creak then crack)"
+    },
+    "dismantle_metal": {
+      "files": [
+        "dismantle_metal.ogg"
+      ],
+      "volume": 0.5,
+      "loop": false,
+      "duration": 0.7,
+      "event": "Dismantle a metal object (clank, clank)"
+    },
+    "drain": {
+      "files": [
+        "drain.ogg"
+      ],
+      "volume": 0.5,
+      "loop": false,
+      "duration": 0.8,
+      "event": "Drain / collect water (glug)"
+    },
+    "pickup": {
+      "files": [
+        "pickup.ogg"
+      ],
+      "volume": 0.5,
+      "loop": false,
+      "duration": 0.25,
+      "event": "Item added to inventory"
+    },
+    "eat": {
+      "files": [
+        "eat.ogg"
+      ],
+      "volume": 0.75,
+      "loop": false,
+      "duration": 0.6,
+      "event": "Use food item (eat)"
+    },
+    "drink": {
+      "files": [
+        "drink.ogg"
+      ],
+      "volume": 0.5,
+      "loop": false,
+      "duration": 0.7,
+      "event": "Use drink item (drink / gulps)"
+    },
+    "door_hit": {
+      "files": [
+        "door_hit.ogg"
+      ],
+      "volume": 0.7,
+      "loop": false,
+      "duration": 0.45,
+      "event": "Jammed or locked door hit / zombie pounds a door"
+    },
+    "door_open": {
+      "files": [
+        "door_open.ogg"
+      ],
+      "volume": 0.5,
+      "loop": false,
+      "duration": 0.9,
+      "event": "Door opens (floor door or apartment)"
+    },
+    "swing": {
+      "files": [
+        "swing.ogg"
+      ],
+      "volume": 0.4,
+      "loop": false,
+      "duration": 0.3,
+      "event": "Melee swing starts (before hit/miss)"
+    },
+    "hit_flesh": {
+      "files": [
+        "hit_flesh.ogg"
+      ],
+      "volume": 0.65,
+      "loop": false,
+      "duration": 0.3,
+      "event": "Player melee or thrown hit lands on a zombie"
+    },
+    "zombie_groan_1": {
+      "files": [
+        "zombie_groan_1.ogg"
+      ],
+      "volume": 0.55,
+      "loop": false,
+      "duration": 1.3,
+      "event": "Zombie idle / spotted you (ambient groan)"
+    },
+    "zombie_groan_2": {
+      "files": [
+        "zombie_groan_2.ogg"
+      ],
+      "volume": 0.55,
+      "loop": false,
+      "duration": 1.6,
+      "event": "Zombie idle / aggro (lower, longer groan)"
+    },
+    "zombie_hit": {
+      "files": [
+        "zombie_hit.ogg"
+      ],
+      "volume": 0.65,
+      "loop": false,
+      "duration": 0.4,
+      "event": "Zombie attacks / bites the hero"
+    },
+    "zombie_death": {
+      "files": [
+        "zombie_death.ogg"
+      ],
+      "volume": 0.65,
+      "loop": false,
+      "duration": 1.1,
+      "event": "Zombie killed (falls)"
+    },
+    "hero_hurt": {
+      "files": [
+        "hero_hurt.ogg"
+      ],
+      "volume": 0.65,
+      "loop": false,
+      "duration": 0.35,
+      "event": "Hero takes damage"
+    },
+    "heartbeat": {
+      "files": [
+        "heartbeat.ogg"
+      ],
+      "volume": 0.6,
+      "loop": true,
+      "duration": 1,
+      "event": "Low health loop: play looped while health is low, stop on recovery"
+    },
+    "siren": {
+      "files": [
+        "siren.ogg"
+      ],
+      "volume": 0.22,
+      "loop": false,
+      "duration": 2.4,
+      "event": "Attack warning (scheduled/scripted attack incoming); play once per warning"
+    },
+    "barricade_hit": {
+      "files": [
+        "barricade_hit.ogg"
+      ],
+      "volume": 0.7,
+      "loop": false,
+      "duration": 0.55,
+      "event": "Zombies hit a barricade"
+    },
+    "craft": {
+      "files": [
+        "craft.ogg"
+      ],
+      "volume": 0.55,
+      "loop": false,
+      "duration": 0.8,
+      "event": "Craft / build completes (hammer taps)"
+    },
+    "survivor_blip": {
+      "files": [
+        "survivor_blip.ogg"
+      ],
+      "volume": 0.4,
+      "loop": false,
+      "duration": 0.3,
+      "event": "Survivor dialogue line text tick (play per word/line, vary playbackRate)"
+    },
+    "error": {
+      "files": [
+        "error.ogg"
+      ],
+      "volume": 0.35,
+      "loop": false,
+      "duration": 0.3,
+      "event": "Denied: action impossible, inventory full, locked"
+    },
+    "amb_tower": {
+      "files": [
+        "amb_tower.ogg"
+      ],
+      "volume": 0.3,
+      "loop": true,
+      "duration": 16,
+      "event": "Tower ambience bed: loop quietly from first tap on the game scene"
+    },
+    "weapon_break": {
+      "files": [
+        "weapon_break.ogg"
+      ],
+      "volume": 0.65,
+      "loop": false,
+      "duration": 0.5,
+      "event": "Weapon durability hits zero and it breaks"
+    },
+    "glass_shatter": {
+      "files": [
+        "glass_shatter.ogg"
+      ],
+      "volume": 0.55,
+      "loop": false,
+      "duration": 0.9,
+      "event": "Glass breaks (molotov lands, window smash)"
+    },
+    "fire_whoosh": {
+      "files": [
+        "fire_whoosh.ogg"
+      ],
+      "volume": 0.6,
+      "loop": false,
+      "duration": 1.2,
+      "event": "Molotov ignites / fire bursts"
+    },
+    "alert_sting": {
+      "files": [
+        "alert_sting.ogg"
+      ],
+      "volume": 0.5,
+      "loop": false,
+      "duration": 0.7,
+      "event": "Zombie notices the hero (aggro sting)"
+    },
+    "barricade_break": {
+      "files": [
+        "barricade_break.ogg"
+      ],
+      "volume": 0.75,
+      "loop": false,
+      "duration": 0.9,
+      "event": "A barricade is destroyed"
+    }
+  }
+}
