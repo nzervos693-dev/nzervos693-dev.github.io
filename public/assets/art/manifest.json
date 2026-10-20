@@ -419,6 +419,119 @@
     }
    ],
    "note": "hit spark; no outline"
+  },
+  {
+   "key": "hero_death",
+   "path": "assets/art/hero_death.png",
+   "frameWidth": 16,
+   "frameHeight": 24,
+   "frames": 3,
+   "names": [
+    "death_0",
+    "death_1",
+    "death_2"
+   ],
+   "animations": [
+    {
+     "name": "death",
+     "frames": [
+      0,
+      1,
+      2
+     ],
+     "fps": 6,
+     "repeat": 0
+    }
+   ],
+   "note": "hero death one-shot; faces right; last frame stays"
+  },
+  {
+   "key": "mara_death",
+   "path": "assets/art/mara_death.png",
+   "frameWidth": 16,
+   "frameHeight": 24,
+   "frames": 3,
+   "names": [
+    "death_0",
+    "death_1",
+    "death_2"
+   ],
+   "animations": [
+    {
+     "name": "death",
+     "frames": [
+      0,
+      1,
+      2
+     ],
+     "fps": 6,
+     "repeat": 0
+    }
+   ],
+   "note": "Mara death one-shot; faces right; last frame stays"
+  },
+  {
+   "key": "fx_fire",
+   "path": "assets/art/fx_fire.png",
+   "frameWidth": 16,
+   "frameHeight": 16,
+   "frames": 3,
+   "names": [
+    "flame_0",
+    "flame_1",
+    "flame_2"
+   ],
+   "animations": [
+    {
+     "name": "burn",
+     "frames": [
+      0,
+      1,
+      2
+     ],
+     "fps": 10,
+     "repeat": -1
+    }
+   ],
+   "note": "molotov fire patch; seamless horizontal tile (16 px period), flames rise from bottom row; no outline"
+  },
+  {
+   "key": "fx_noise",
+   "path": "assets/art/fx_noise.png",
+   "frameWidth": 16,
+   "frameHeight": 16,
+   "frames": 3,
+   "names": [
+    "ring_0",
+    "ring_1",
+    "ring_2"
+   ],
+   "animations": [
+    {
+     "name": "ring",
+     "frames": [
+      0,
+      1,
+      2
+     ],
+     "fps": 10,
+     "repeat": 0
+    }
+   ],
+   "note": "expanding noise ring, one-shot; no outline; tint/scale in game"
+  },
+  {
+   "key": "build_damaged",
+   "path": "assets/art/build_damaged.png",
+   "frameWidth": 32,
+   "frameHeight": 32,
+   "frames": 2,
+   "names": [
+    "barricade_lv1_damaged",
+    "barricade_lv2_damaged"
+   ],
+   "animations": [],
+   "note": "damaged barricade lv1 (0) and lv2 (1), same footprint as build.png barricade frames"
   }
  ]
 }

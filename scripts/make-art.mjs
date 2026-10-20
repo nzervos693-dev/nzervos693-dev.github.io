@@ -94,6 +94,7 @@ class Cv {
     for (const [x, y] of add) this.px(x, y, 'O');
     return this;
   }
+  clear(x, y, w, h) { for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) { const x0 = x + i, y0 = y + j; if (x0 >= 0 && y0 >= 0 && x0 < this.w && y0 < this.h) this.d.fill(0, (y0 * this.w + x0) * 4, (y0 * this.w + x0) * 4 + 4); } }
   blit(src, dx, dy) {
     for (let y = 0; y < src.h; y++) for (let x = 0; x < src.w; x++) {
       const s = (y * src.w + x) * 4;
@@ -369,21 +370,23 @@ sheet('props_l', 32, 32, [
 ], { outline: true, note: 'large/medium salvage props 32x32 + large debris; draw on floor line (bottom)' });
 
 // ---------- build items 32x32 ----------
-sheet('build', 32, 32, [
-  ['barricade_lv1', (c) => {
+const barLv1 = (c) => {
     c.rect(2, 3, 28, 4, 'R'); c.rect(2, 13, 28, 4, 'R'); c.rect(2, 23, 28, 4, 'R');
     [3, 13, 23].forEach((y) => c.rect(2, y, 28, 1, 'WOOD'));
     c.line(4, 28, 27, 4, 'WOODD'); c.line(5, 28, 28, 4, 'WOODD'); c.line(4, 4, 27, 28, 'WOODD');
     [[4, 5], [26, 5], [4, 15], [26, 15], [4, 25], [26, 25], [15, 15]].forEach(([x, y]) => c.px(x, y, 'METAL'));
-  }],
-  ['barricade_lv2', (c) => {
+};
+const barLv2 = (c) => {
     c.rect(1, 2, 30, 28, 'WOODD'); c.rect(2, 3, 28, 5, 'R'); c.rect(2, 13, 28, 5, 'R'); c.rect(2, 23, 28, 5, 'R');
     c.rect(2, 3, 28, 1, 'WOOD'); c.rect(2, 13, 28, 1, 'WOOD'); c.rect(2, 23, 28, 1, 'WOOD');
     c.rect(2, 8, 8, 5, 'METAL'); c.rect(22, 18, 8, 5, 'METAL'); c.rect(11, 8, 8, 5, 'L'); c.rect(3, 18, 8, 5, 'L');
     c.rect(2, 8, 28, 1, 'METAL'); [[3, 9], [8, 9], [24, 19], [28, 19], [13, 9], [5, 19]].forEach(([x, y]) => c.px(x, y, 'S'));
     c.rect(1, 17, 30, 1, 'L'); c.rect(1, 28, 30, 1, 'L'); // duct tape strips
     c.line(2, 29, 29, 3, 'WOOD');
-  }],
+};
+sheet('build', 32, 32, [
+  ['barricade_lv1', barLv1],
+  ['barricade_lv2', barLv2],
   ['rain_collector', (c) => {
     c.rect(3, 6, 26, 3, 'METAL'); c.rect(2, 8, 28, 4, 'L'); c.rect(4, 8, 24, 2, 'BLUE'); c.rect(6, 12, 20, 2, 'W');
     c.rect(14, 14, 4, 5, 'L'); c.rect(8, 19, 16, 11, 'BLUE'); c.rect(8, 19, 16, 2, 'X'); c.rect(9, 22, 3, 6, 'H5f8f9a'); c.rect(8, 29, 16, 1, 'W'); c.px(16, 17, 'BLUE'); c.rect(4, 2, 3, 4, 'METAL');
@@ -491,6 +494,59 @@ sheet('fx_spark', 16, 16, [
   }],
   ['spark_2', (c) => { [[3, 3], [12, 4], [4, 12], [12, 12], [8, 1], [1, 8], [14, 8], [8, 14]].forEach(([x, y]) => c.px(x, y, 'A')); c.px(5, 5, 'X'); c.px(10, 10, 'X'); }],
 ], { animations: [anim('hit', [0, 1, 2], 18, 0)], note: 'hit spark; no outline' });
+
+
+// ---------- Floor 15 additions ----------
+function lyingHuman(c, { skin, shirt, pants, hair }) { // fallen backwards, head left, 16x24 (bottom rows)
+  c.rect(1, 18, 5, 5, skin); c.rect(1, 18, 2, 5, hair); c.px(4, 20, 'O'); c.rect(6, 19, 5, 4, shirt); c.px(8, 20, 'A');
+  c.rect(11, 20, 4, 3, pants); c.px(15, 22, 'S'); c.rect(5, 22, 3, 1, 'B');
+}
+const deathFrames = (o, lyOpts) => [
+  ['death_0', (c) => human(c, { ...o, bob: 2, headDx: -1, legB: [-1, 0], legF: [1, 0], armF: [-2, 2], armB: [-2, 3] })],
+  ['death_1', (c) => human(c, { ...o, bob: 5, headDx: -2, legB: [-1, 0], legF: [-2, 0], armF: [-3, 1], armB: [-3, 2], mouth: 'open' })],
+  ['death_2', (c) => lyingHuman(c, lyOpts)],
+];
+sheet('hero_death', 16, 24, deathFrames({}, { skin: 'SK', shirt: 'T', pants: 'PANT', hair: 'S' }),
+  { outline: true, animations: [anim('death', [0, 1, 2], 6, 0)], note: 'hero death one-shot; faces right; last frame stays' });
+sheet('mara_death', 16, 24, deathFrames(mara, { skin: 'SK', shirt: 'X', pants: 'T', hair: 'WOODD' }),
+  { outline: true, animations: [anim('death', [0, 1, 2], 6, 0)], note: 'Mara death one-shot; faces right; last frame stays' });
+
+// molotov fire patch: tile horizontally (16 px period, no outline so tiles join seamlessly)
+sheet('fx_fire', 16, 16, [0, 1, 2].map((i) => [`flame_${i}`, (c) => {
+  for (let x = 0; x < 16; x++) {
+    const t = (x / 16) * Math.PI * 2;
+    const ph = i * (Math.PI * 2 / 3);
+    const h = Math.round(7 + 2.2 * Math.sin(t * 2 + ph) + 1.6 * Math.sin(t * 3 - ph * 2 + 1) + 0.8 * Math.sin(t + ph));
+    const top = 15 - h;
+    c.rect(x, top, 1, 16 - top, 'RED');
+    const h2 = Math.max(2, h - 3);
+    c.rect(x, 15 - h2, 1, h2 + 1, 'A');
+    if (h > 7 && (x + i) % 2 === 0) c.rect(x, 15 - Math.max(1, h2 - 3), 1, Math.max(1, h2 - 3) + 1, 'Hd8c27a');
+    c.px(x, 15, 'B');
+  }
+}]), { animations: [anim('burn', [0, 1, 2], 10, -1)], note: 'molotov fire patch; seamless horizontal tile (16 px period), flames rise from bottom row; no outline' });
+
+sheet('fx_noise', 16, 16, [[3, 'X'], [5, 'L'], [7, 'W']].map(([r, col], i) => [`ring_${i}`, (c) => {
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+    const d = Math.hypot(x - 7.5, y - 7.5);
+    if (d <= r + 0.5 && d > r - (i === 2 ? 0.9 : 1.4)) c.px(x, y, col);
+  }
+}]), { animations: [anim('ring', [0, 1, 2], 10, 0)], note: 'expanding noise ring, one-shot; no outline; tint/scale in game' });
+
+const splinter = (c, pts) => pts.forEach(([x, y]) => c.px(x, y, 'WOODD'));
+sheet('build_damaged', 32, 32, [
+  ['barricade_lv1_damaged', (c) => {
+    barLv1(c);
+    c.clear(10, 12, 7, 6); c.clear(20, 22, 6, 5); c.clear(3, 2, 4, 3); // broken planks / gaps
+    splinter(c, [[9, 14], [17, 16], [19, 24], [26, 25], [7, 4]]);
+  }],
+  ['barricade_lv2_damaged', (c) => {
+    barLv2(c);
+    c.clear(12, 9, 8, 5); c.clear(4, 19, 6, 5); c.clear(24, 3, 5, 4); // blown-out sections
+    c.line(12, 9, 19, 13, 'O'); c.line(4, 19, 9, 23, 'O');
+    splinter(c, [[11, 11], [20, 12], [10, 21], [23, 6], [29, 7]]);
+  }],
+], { outline: true, note: 'damaged barricade lv1 (0) and lv2 (1), same footprint as build.png barricade frames' });
 
 // ---------- manifest ----------
 const list = Object.values(files);
