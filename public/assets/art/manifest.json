@@ -78,6 +78,57 @@
    "note": "nurse; faces right"
   },
   {
+   "key": "mara_play",
+   "path": "assets/art/mara_play.png",
+   "frameWidth": 16,
+   "frameHeight": 24,
+   "frames": 9,
+   "names": [
+    "idle_0",
+    "idle_1",
+    "walk_0",
+    "walk_1",
+    "walk_2",
+    "walk_3",
+    "attack_0",
+    "attack_1",
+    "attack_2"
+   ],
+   "animations": [
+    {
+     "name": "idle",
+     "frames": [
+      0,
+      1
+     ],
+     "fps": 2,
+     "repeat": -1
+    },
+    {
+     "name": "walk",
+     "frames": [
+      2,
+      3,
+      4,
+      5
+     ],
+     "fps": 8,
+     "repeat": -1
+    },
+    {
+     "name": "attack",
+     "frames": [
+      6,
+      7,
+      8
+     ],
+     "fps": 12,
+     "repeat": 0
+    }
+   ],
+   "note": "Mara playable (pass the torch); same layout as hero; faces right"
+  },
+  {
    "key": "zombie_walker",
    "path": "assets/art/zombie_walker.png",
    "frameWidth": 16,

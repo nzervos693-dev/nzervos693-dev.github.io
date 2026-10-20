@@ -203,6 +203,18 @@ sheet('mara', 16, 24, [
   ['idle_1', (c) => human(c, { ...mara, bob: 1, armF: [0, 3], armB: [0, 3] })],
 ], { outline: true, animations: [anim('idle', [0, 1], 2)], note: 'nurse; faces right' });
 
+// Mara as playable character (same layout/animations as hero)
+sheet('mara_play', 16, 24, [
+  ['idle_0', (c) => human(c, { ...mara, bob: 0 })],
+  ['idle_1', (c) => human(c, { ...mara, bob: 1, armF: [0, 3], armB: [0, 3] })],
+  ...[0, 1, 2, 3].map((i) => [`walk_${i}`, (c) => human(c, { ...mara, ...walkPose(i) })]),
+  ['attack_0', (c) => human(c, { ...mara, bob: 0, headDx: -1, legB: [-1, 0], legF: [0, 0], armF: [-2, -2], armB: [-1, 3], weapon: [-3, -6] })],
+  ['attack_1', (c) => human(c, { ...mara, bob: 1, headDx: 1, legB: [-1, 0], legF: [2, 0], armF: [4, 1], armB: [-1, 3], weapon: [2, 5] })],
+  ['attack_2', (c) => human(c, { ...mara, bob: 0, legB: [0, 0], legF: [1, 0], armF: [3, 4], armB: [0, 4], weapon: [1, 4] })],
+], { outline: true, animations: [
+  anim('idle', [0, 1], 2), anim('walk', [2, 3, 4, 5], 8), anim('attack', [6, 7, 8], 12, 0)],
+  note: 'Mara playable (pass the torch); same layout as hero; faces right' });
+
 // zombies
 const zWalk = { skin: 'Z', shirt: 'H4a2a2a', sleeve: 'Z', pants: 'WOODD', hair: 'ZD', hairStyle: 'bald', eye: 'RED', headDx: 1, patch: 'B', mouth: null };
 function lying(c) { // fallen backwards, head left
