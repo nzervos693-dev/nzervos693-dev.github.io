@@ -33,3 +33,12 @@ describe('edge cases', () => {
     expect(elapsedSince(9e12, 5000, H)).toBe(0);
   });
 });
+
+import { DEFAULT_BALANCE } from '../src/core/balance.js';
+describe('bundled balance', () => {
+  it('offlineCapMs works with the bundled default', () => {
+    expect(DEFAULT_BALANCE.version).toBeDefined();
+    expect(offlineCapMs(DEFAULT_BALANCE)).toBeGreaterThan(0);
+    expect(offlineCapMs()).toBeGreaterThan(0);
+  });
+});

@@ -5,18 +5,24 @@
  *   getBalance().time.offlineCapHours
  *   offlineCapMs()         // offline catch-up cap in ms (default 12 h)
  *
- * Falls back to built-in defaults if the file can't be fetched.
+ * The JSON is bundled into the build as the default; fetch only refreshes it.
  */
-export const DEFAULT_BALANCE = { version: 1, time: { offlineCapHours: 12 } };
+import bundled from '../../public/data/balance.json';
+
+// The bundled copy is the source of truth at build time, so the game never
+// depends on a network fetch. loadBalance() additionally tries to pick up a
+// newer copy from the server (e.g. a hotfix) and silently keeps the bundled one on failure.
+export const DEFAULT_BALANCE = bundled;
 let balance = DEFAULT_BALANCE;
 
 export async function loadBalance(url = `${import.meta.env.BASE_URL}data/balance.json`) {
   try {
     const res = await fetch(url);
     if (!res.ok) throw new Error(String(res.status));
-    balance = await res.json();
+    const fresh = await res.json();
+    if (fresh && typeof fresh === 'object') balance = fresh;
   } catch (e) {
-    console.warn('balance.json failed to load, using defaults', e);
+    console.warn('balance.json fetch failed, using bundled copy', e);
     balance = DEFAULT_BALANCE;
   }
   return balance;
