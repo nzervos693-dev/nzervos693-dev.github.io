@@ -196,6 +196,7 @@ Each need is 0-100. Drain is per real hour.
   room zombies are drawn only within **150 px** of the hero
   (`light.dimVisionPx`), and search and dismantle take **+50%** time
   (`light.dimTimeMult`). A carried Flashlight with charge removes both (5.11).
+  At night more rooms are Dim (5.12).
 - Cleared-but-unsecured floors get **1-2 wandering walkers every 12 h**
   (`world.wandererIntervalHours`); otherwise killed zombies stay dead.
 - Some apartment doors are jammed: **3 hits** (`world.jammedDoorHits`) to
@@ -432,7 +433,8 @@ when to return. Offline production with a full stockpile is lost (reported).
     material stack of 2-4 instead.
   - **Tender** (M1): rain collector, filter, planter and herb box output
     +50%.
-  - **Medic** (M2): residents' health regen x2 and Sick lasts half as long.
+  - **Medic** (M2): residents' health regen x2, Sick lasts half as long and
+    Infection timers of residents at home run at half speed (5.14).
   - **Cook** (M2): offline, keeps the stove fed from stockpile wood/paper
     and cooks 1 Hot stew every 12 h if 2 crops + 1 clean water are stocked.
   - **Mechanic** (M3): generator fuel use -50%; offline, repairs the
@@ -448,9 +450,11 @@ when to return. Offline production with a full stockpile is lost (reported).
   tutorial ends.
 - Attack strength A = **30 + 3 x days survived**, capped at **150**
   (`attacks.baseStrength`, `attacks.perDay`, `attacks.cap`); x**1.1** while
-  a generator is running (`power.generatorAttackMult`).
+  a generator is running (`power.generatorAttackMult`); x**1.2** if it
+  starts at night (`night.attackMult`, 5.12). Multipliers stack after the cap.
 - **Online (telegraphed)**: 60 s warning (`attacks.warningSeconds`; 90 s with
-  Tripwire chimes, `traps.chimeWarningSeconds`): red countdown banner,
+  Tripwire chimes, `traps.chimeWarningSeconds`; +30 s if the dog is home,
+  `dog.warningSeconds`, 5.13): red countdown banner,
   distant moans, flickering lights. Then ceil(A / 10) zombies climb to the
   home floor and hit the barricade; the player fights until all are dead. A
   fallen barricade lets them into the apartment.
@@ -462,11 +466,12 @@ when to return. Offline production with a full stockpile is lost (reported).
   secured floors x 5 + 10 (the active character) + Nail board **10**
   (`traps.nailDefense`; it breaks after the attack) + Tripwire chimes **5**
   (`traps.chimeDefense`) + powered Electric fence **20**
-  (`traps.fenceDefense`).
+  (`traps.fenceDefense`) + dog at home and fed **5** (`dog.defense`).
   - D >= A: repelled. Barricade loses A x 0.5 HP.
   - D < A: breached. Barricade HP -> 0, shortfall S = A - D. Each resident
-    takes S / 2 damage (health floor 10), and S / 10 random stockpile
-    stacks are lost (rounded down); lockbox contents are never lost.
+    takes S / 2 damage (health floor 10) and rolls a bite (5.14), and S / 10
+    random stockpile stacks are lost (rounded down); lockbox contents are
+    never lost.
   - At most **2** attacks resolve per catch-up (`attacks.maxOfflineResolves`).
 - Report lists each attack: time, strength vs defense, damage, losses.
 
@@ -499,8 +504,8 @@ when to return. Offline production with a full stockpile is lost (reported).
   batteries if any are in the stockpile.
 
 **Comfort** (morale): comfort points counted over the home apartment: Lit
-+2, lit stove +1, reading nook +1, decorations +1, running music player +1
-(max 6). Morale drain/h = 1 - 0.25 x comfort, clamped to **-0.5..1**
++2, lit stove +1, reading nook +1, decorations +1, running music player +1,
+fed dog at home +1 (max 7). Morale drain/h = 1 - 0.25 x comfort, clamped to **-0.5..1**
 (`comfort.perPoint`, `comfort.minDrain`), so 4 comfort stops the drain and
 6 slowly raises morale. Applies to everyone at home.
 
@@ -551,6 +556,86 @@ random Infested floor. Some scans unlock a short radio note.
   (`gear.toolWrapUses`) and is one noise step quieter (Loud -> Noisy ->
   Quiet).
 
+### 5.12 Day and night (M2)
+- Phase follows the **device's local clock** (`new Date().getHours()`).
+  **Night 20:00-06:00** (`night.startHour`, `night.endHour`), day otherwise.
+  **Dusk 19:00-20:00 / dawn 06:00-07:00** (`night.transitionMinutes` 60)
+  only fade the visuals; gameplay switches exactly at 20:00 and 06:00.
+- Changing the clock or time zone only changes the phase; elapsed time still
+  follows 5.1. Days survived is unchanged (24 real hours each).
+- **At night**: every room on Infested **and Cleared** floors is Dim (5.3),
+  and the home apartment is Dim unless Lit (5.10). Secured floors never are.
+  Zombie aggro radius x**1.25** (`night.aggroMult`; 250 px, 150 with Quiet
+  shoes) and speed x**1.15** (`night.zombieSpeedMult`). Attacks starting at
+  night are x**1.2** (5.8).
+- **Night rewards**: each search has a **30%** chance of +1 loot roll
+  (`night.bonusLootChance`); sleep energy regen **+20%**
+  (`night.sleepBonus`, adds to the stove's +30%).
+- **Fairness**: nothing is locked by time of day. The flashlight (cheap, M2)
+  and Lit home cancel all night Dim; a night-only player pays only the
+  zombie speed/aggro and attack risk and gets the loot bonus.
+- **Offline**: each 10-min catch-up step uses the local hour of its own
+  timestamp (night attacks offline also get x1.2). Fuel, power and
+  production are not affected by the phase.
+- **Show**: sky behind the tower fades navy at night; unlit apartment
+  windows go dark; HUD sun/moon icon next to the day counter. One-line hint
+  the first night: "Night. They hear you from further away."
+
+### 5.13 The dog (M2)
+- A dog (working name **Scout**) is shut in a bathroom on **floor 18**;
+  whining plays while the hero is on floors 17-19. *Use* -> **Offer food**
+  (1 canned food, dry snack or planter crop from carried items) recruits it
+  at once; no quest, no survivor bed. Zombies ignore the dog: it never takes
+  damage, cannot be bitten and cannot die.
+- **Action menu** on the dog: **Pet** (primary) and **Follow / Stay home**
+  (toggle, replaces Dismantle). Pet: wag animation, **+3 morale** once per
+  **4 h** (`dog.petMorale`, `dog.petCooldownHours`); taps in between only
+  wag. On background or pass the torch, the dog goes home, mode kept, and
+  stays with the new character.
+- **Following**: walks 40 px behind the hero, uses stairs with them. When a
+  zombie that is not drawn (Dim, dark unentered room) and not aggroed comes
+  within **300 px** on the same floor (`dog.barkRadiusPx`), the dog growls:
+  bark SFX, a red arrow on that screen edge and the zombie's silhouette
+  drawn for **2 s** (`dog.revealSeconds`); once per zombie per **15 s**
+  (`dog.barkCooldownSeconds`). The growl is not noise and never aggroes.
+- **Staying home**: comfort +1, attack warning +30 s, offline defense +5
+  (5.8, 5.10).
+- **Upkeep**: 1 food item + 1 water item (dirty is fine, no penalty) from the
+  stockpile every **24 h** (`dog.upkeepHours`), online and offline. A missed
+  meal makes it **Hungry** (no growls, comfort, warning or defense) until
+  fed. After **3** missed meals in a row (`dog.leaveAfterMisses`) it runs
+  back to floor 18 (morale -10, reported); Offer food recruits it again.
+
+### 5.14 Infection (M2)
+- Each zombie hit on the active character has a **2%** chance to infect
+  (`infection.biteChance`), x**0.5** with body armor
+  (`infection.armorMult`). Offline breaches (5.8): each resident rolls
+  **10%** (`infection.breachBiteChance`). Residents are never bitten in other
+  cases (online attacks, Scavenger job). Already Infected = no roll.
+- **Stages** (real time, online and offline; `infection.stageHours`
+  [12, 24, 12]): **Bitten** (0-12 h) no effect; **Fever** (12-36 h) no
+  regen, energy drain x1.5; **Turning** (36-48 h) also -3 health/h
+  (`infection.turningDamage`). At 48 h, or health 0 while Infected, the
+  character dies and **turns**.
+- **Treatment** (on yourself from Inventory; on survivors from the
+  Survivors screen while the hero is home, using stockpile items):
+  Antibiotics cure Bitten and Fever (and Sick, one status per pill,
+  Infection first); **Antiviral** (rare loot, floors 1-7 and 23-30 and supply
+  caches, M3) cures any stage; Herbal remedy sets the timer back **6 h**
+  (`infection.remedyHours`, not below 0, never cures). Medic: half speed at
+  home (5.7). No amputation.
+- **Offline cannot kill**: catch-up stops the timer **6 h** before turning
+  (`infection.offlineMinHoursLeft`); Turning damage respects the health
+  floor 10. The report warns "Mara is turning: 6 h left".
+- **Turning**: pass the torch (5.7) as usual. The body becomes a **Turned**
+  zombie at that spot (home apartment if at home): Walker stats with **45
+  HP** (`infection.turnedHp`), tinted green, holding the dropped bag; killing
+  it drops the bag. Survivor death morale -20 applies. Shown off-screen as a
+  fade to black, no gore.
+- **Show**: grey bite icon with hours left next to the health bar. First
+  bite hint: "Bitten. Antibiotics, within 36 hours." Mara's medical bag
+  quest reward includes **1 antibiotics** from M2 so a cure always exists.
+
 ## 6. Progression and difficulty
 - **Long-term goal**: reclaim all 30 floors (all Secured), build the Radio
   set and the Rooftop beacon, then choose to leave or stay (section 1).
@@ -576,7 +661,10 @@ random Infested floor. Some scans unlock a short radio note.
 | Tools | Crowbar, wrench | + saw, flashlight, tool wraps |
 | Materials | 10: wood, metal, cloth, plastic, parts, seeds, glass, duct tape, chemicals, fuel | 19: + paper, meds, herbs, batteries (M2); rope, wire, rubber, leather, container (M3) |
 | Dismantlable objects | 20 (M1 table) | ~43 (+ later table) |
-| Consumables | canned food, dry snack, water bottle, clean water, dirty water, planter crop, bandage, medkit (loot), chocolate, molotov | + hot stew, jarred veg, herbal remedy, antibiotics, noise lure |
+| Consumables | canned food, dry snack, water bottle, clean water, dirty water, planter crop, bandage, medkit (loot), chocolate, molotov | + hot stew, jarred veg, herbal remedy, antibiotics, noise lure (M2); antiviral (M3) |
+| Statuses | - (bites only do damage) | Sick, Infected (M2) |
+| Day/night | - | real local clock (M2) |
+| Pet | - | the dog, floor 18 (M2) |
 | Recipes | 14 (see 5.6) | ~47 workbench + 3 stove |
 | Gear | - | padded jacket, leather armor, quiet shoes |
 | Survivors | 1 | 4 |
@@ -621,7 +709,8 @@ game-designer and level-designer for v1.
 - 1 px near-black outline on characters and interactables only.
   Dismantled objects leave a 3-frame dust puff and a faint floor mark.
 - Lit apartments get a warm amber overlay; Dim rooms a dark vignette; the
-  flashlight a cone. Fire: 3-frame flame loop (molotov, stove).
+  flashlight a cone. Fire: 3-frame flame loop (molotov, stove). Night: navy
+  sky tint behind the tower. Dog 16x16 art px (idle, walk, wag).
 - Palette: near-black/outline `#0d0f12`, shadow concrete `#1f242b`, wall
   concrete `#3a4048`, light concrete `#6b7178`, rust brown `#6e3b23`, dried
   blood `#7a1f1f`, warning red (UI, attack) `#c0392b`, lamp amber
@@ -641,7 +730,8 @@ game-designer and level-designer for v1.
   barricade hit/break, hammer, eat, drink, attack siren, lamp buzz, UI tap,
   wood crack, metal clang, cloth rip, water pour, noise alert sting, glass
   shatter, fire whoosh, stove crackle, generator hum, alarm clock ring,
-  chimes, electric zap, radio static, elevator motor.
+  chimes, electric zap, radio static, elevator motor, dog whine/growl/bark,
+  night wind ambience, bite sting.
 
 ## 11. Scope for version 1
 **In**: everything in sections 1-10 for the Version 1 column of section 7,
@@ -658,20 +748,21 @@ Later milestones deliver everything tagged with their number in sections
 5-7:
 - **M2 "Fire and medicine"**: floors 8-22, runners; paper, meds, herbs,
   batteries; Dim rooms, flashlight, saw; stove, cooking, spoilage, light,
-  comfort, hygiene and sickness, medicine; Workbench Lv2; survivors 2-3,
-  Medic and Cook; ~12 notes.
+  comfort, hygiene and sickness, medicine; day/night on the device clock;
+  the dog; infection (antibiotics, Turned zombie); Workbench Lv2; survivors
+  2-3, Medic and Cook; ~12 notes.
 - **M3 "Power and defense"**: all 30 floors, brutes; rope, wire, rubber,
   leather, container; power, traps, Barricade Lv3, gear, tool wraps, water
-  tank, lockbox; survivor 4, Mechanic.
+  tank, lockbox; antiviral loot; survivor 4, Mechanic.
 - **M4 "Beacon"**: roof, radio set, supply caches, elevator, Rooftop beacon,
   leave/stay ending, remaining notes, balancing pass.
 
 **Out of version 1**: ads, in-app purchases, accounts, cloud saves,
 multiplayer or any online feature, push notifications, leaderboards,
 multiple save slots, recipes beyond the lists in 5.6, free placement of
-builds, outside-the-tower areas (zip-lines, other buildings), day/night
-cycle tied to the clock, weather and temperature, vehicles, voice acting,
-pets and disguises (unless decided otherwise, see open questions).
+builds, outside-the-tower areas (zip-lines, other buildings), weather and
+temperature, vehicles, voice acting, more than one pet, zombie smell and
+disguises, amputation.
 
 ## 12. Decisions and open questions
 
@@ -692,17 +783,14 @@ pets and disguises (unless decided otherwise, see open questions).
   and frozen) or stay and hold the tower (sandbox continues) (section 1).
 - **Dirty water**: keeps the health cost (-8 health per drink).
 - **Loud dismantle**: aggros the same floor only; no pull from other floors.
+- **Day/night** follows the real device clock; night raises risk and
+  reward but never blocks progress (5.12).
+- **Pet**: one dog that barks (growls) to warn of zombies (5.13).
+- **Bites can infect**; untreated infection turns the character (5.14).
+  Zombies sense by sight and noise only (no smell, no disguises).
 
 ### Open questions
 1. **Backstory names** ("grey fever", "river docks" group): keep, rename,
    or also name the city/tower?
-2. **Day/night**: light currently matters through dark interiors (Dim rooms,
-   Lit home), not time of day. (a) keep it that way; (b) add a day/night
-   cycle on the real clock where zombies are more active at night; (c) a
-   short in-game cycle (e.g. 1 real hour = 1 day).
-3. **Pets**: (a) none; (b) one findable dog or cat as a comfort +1 that
-   eats food; (c) a dog companion that barks at zombies in Dim rooms.
-4. **Zombie senses and bites**: (a) as written: sight and noise only, bites
-   only do damage; (b) add smell, enabling a gore-cloak disguise for
-   stealth; (c) bites can infect (Sick-like status that kills unless
-   treated), raising the stakes of melee.
+2. **Dog's name**: keep the working name "Scout", pick another, or let the
+   player name it on recruit (adds a text-entry screen)?
