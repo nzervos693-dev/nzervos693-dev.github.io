@@ -1,0 +1,369 @@
+{
+  "version": 1,
+  "milestone": "M1",
+  "layout": {
+    "coordinates": "x is game px inside the 720-wide floor; sizes come from balance.world (stairwell 0-120, left apartment 120-420, right apartment 420-720). Floor height is 240; layer sets the vertical band.",
+    "layers": {
+      "floor": "furniture standing on the floor (lower band)",
+      "wall": "wall-mounted or counter-height things (upper band): cupboards, drawers, microwaves, windows, curtains, lamps, cabinets",
+      "door": "interior doors on a room boundary (x 270 left apartment, x 570 right apartment). Interior doors never block walking; they are only salvage. No object on any layer is within 48 px of an interior door's x."
+    },
+    "slots": {
+      "left": [168, 270, 372],
+      "right": [468, 570, 672],
+      "rule": "Objects in the same layer are >= 96 px apart (controls.minHitAreaPx), including across the wall between apartments (372 to 468). At most one object per slot per layer."
+    },
+    "stairwell": { "xMin": 0, "xMax": 120, "entryX": 60 },
+    "doorX": { "left": 130, "right": 430 },
+    "rooms": "A room is an x range inside an apartment; an object belongs to the room containing its x (boundary x goes to the first room). Unentered rooms are dark.",
+    "doorStates": "open | jammed (3 hits or crowbar 1 s). 'locked' is reserved, unused in M1.",
+    "zombieRule": "Left-apartment zombies stand at x >= 240, right-apartment zombies at x >= 500, so nothing waits on the stairwell entry; aggro radius 200 from the hero.",
+    "fixedLoot": "fixedLoot is a guaranteed list of {id, qty} given on first Search. If fixedLoot is present the object makes 0 table rolls unless 'rolls' [min,max] is given, then those rolls are added from its lootTable. Without fixedLoot the container uses balance.scavenge.lootRolls.",
+    "foundNote": "Optional {id, text}: shown the first time the object is searched."
+  },
+  "floors": [
+    {
+      "number": 13,
+      "startState": "Infested",
+      "purpose": "Mara's floor. Teaches the first walkers and the survivor quest. Harder than 14 and 16: two walkers and a crawler.",
+      "difficulty": 4,
+      "expectedMinutes": 3,
+      "apartments": [
+        {
+          "id": "f13_left",
+          "name": "Mara's flat",
+          "flavour": "Scrubs drying on the radiator. A bathroom door pulled shut from the inside.",
+          "side": "left",
+          "doorState": "jammed",
+          "rooms": [
+            { "id": "living", "kind": "living", "xMin": 120, "xMax": 270 },
+            { "id": "bathroom", "kind": "bathroom", "xMin": 270, "xMax": 420 }
+          ],
+          "objects": [
+            { "id": "f13L-01", "objectId": "sofa", "x": 168, "layer": "floor", "room": "living" },
+            { "id": "f13L-02", "objectId": "kitchen_cupboard", "x": 168, "layer": "wall", "room": "living" },
+            { "id": "f13L-04", "objectId": "interior_door", "x": 270, "layer": "door", "room": "living" },
+            {
+              "id": "f13L-05", "objectId": "bathroom_cabinet", "x": 372, "layer": "wall", "room": "bathroom",
+              "fixedLoot": [ { "id": "chemicals", "qty": 1 }, { "id": "bandage", "qty": 1 } ],
+              "rolls": [0, 1]
+            }
+          ],
+          "survivors": [
+            { "id": "mara", "x": 345, "layer": "floor", "room": "bathroom" }
+          ],
+          "zombies": [
+            { "type": "walker", "x": 255 }
+          ],
+          "questItems": []
+        },
+        {
+          "id": "f13_right",
+          "name": "Kowalski flat",
+          "flavour": "Breakfast still on the counter. A suitcase gone from the hall.",
+          "side": "right",
+          "doorState": "open",
+          "rooms": [
+            { "id": "kitchen", "kind": "kitchen", "xMin": 420, "xMax": 570 },
+            { "id": "bathroom", "kind": "bathroom", "xMin": 570, "xMax": 720 }
+          ],
+          "objects": [
+            {
+              "id": "f13R-01", "objectId": "fridge", "x": 468, "layer": "floor", "room": "kitchen",
+              "foundNote": { "id": "note_13_bus", "text": "Bus leaves at six. Took the kids. Take what you need." }
+            },
+            { "id": "f13R-02", "objectId": "interior_door", "x": 570, "layer": "door", "room": "kitchen" },
+            { "id": "f13R-03", "objectId": "water_heater", "x": 672, "layer": "floor", "room": "bathroom" },
+            { "id": "f13R-04", "objectId": "microwave", "x": 468, "layer": "wall", "room": "kitchen" },
+            { "id": "f13R-06", "objectId": "sink_pipes", "x": 672, "layer": "wall", "room": "bathroom" }
+          ],
+          "survivors": [],
+          "zombies": [
+            { "type": "walker", "x": 520 },
+            { "type": "crawler", "x": 625 }
+          ],
+          "questItems": []
+        }
+      ]
+    },
+    {
+      "number": 14,
+      "startState": "Infested",
+      "purpose": "Easy first outing. One crawler per flat, tool-free metal for the first crowbar and wrench, Mara's medical bag.",
+      "difficulty": 2,
+      "expectedMinutes": 2,
+      "apartments": [
+        {
+          "id": "f14_left",
+          "name": "Dr. Imani's flat",
+          "flavour": "A hospital lanyard on the sofa arm. Tidy, like someone left in a hurry on purpose.",
+          "side": "left",
+          "doorState": "open",
+          "rooms": [
+            { "id": "living", "kind": "living", "xMin": 120, "xMax": 300 },
+            { "id": "bedroom", "kind": "bedroom", "xMin": 300, "xMax": 420 }
+          ],
+          "objects": [
+            { "id": "f14L-01", "objectId": "sofa", "x": 168, "layer": "floor", "room": "living" },
+            {
+              "id": "f14L-02", "objectId": "wardrobe", "x": 372, "layer": "floor", "room": "bedroom",
+              "foundNote": { "id": "note_14_bag", "text": "Mara, your bag is in the living room. Stay off the clinic stairs. - Imani" }
+            },
+            { "id": "f14L-03", "objectId": "curtains", "x": 168, "layer": "wall", "room": "living" },
+            { "id": "f14L-04", "objectId": "oil_lamp", "x": 270, "layer": "wall", "room": "living" },
+            { "id": "f14L-05", "objectId": "kitchen_cupboard", "x": 372, "layer": "wall", "room": "bedroom" }
+          ],
+          "survivors": [],
+          "zombies": [
+            { "type": "crawler", "x": 340 }
+          ],
+          "questItems": [
+            { "id": "f14L-bag", "itemId": "medical_bag", "name": "Medical bag", "questId": "medical_bag", "x": 270, "layer": "floor", "room": "living" }
+          ]
+        },
+        {
+          "id": "f14_right",
+          "name": "Park flat",
+          "flavour": "Door stuck in its frame. Inside: a tidy kitchen and a toolbox left open on the floor.",
+          "side": "right",
+          "doorState": "jammed",
+          "rooms": [
+            { "id": "kitchen", "kind": "kitchen", "xMin": 420, "xMax": 570 },
+            { "id": "living", "kind": "living", "xMin": 570, "xMax": 720 }
+          ],
+          "objects": [
+            { "id": "f14R-01", "objectId": "table", "x": 468, "layer": "floor", "room": "kitchen" },
+            {
+              "id": "f14R-02", "objectId": "toolbox", "x": 570, "layer": "floor", "room": "kitchen",
+              "fixedLoot": [ { "id": "duct_tape", "qty": 2 } ],
+              "rolls": [0, 1]
+            },
+            { "id": "f14R-03", "objectId": "potted_plant", "x": 672, "layer": "floor", "room": "living" },
+            {
+              "id": "f14R-04", "objectId": "kitchen_cupboard", "x": 468, "layer": "wall", "room": "kitchen",
+              "fixedLoot": [ { "id": "seeds", "qty": 1 }, { "id": "canned_food", "qty": 1 } ],
+              "rolls": [0, 1]
+            },
+            { "id": "f14R-05", "objectId": "kitchen_drawer", "x": 570, "layer": "wall", "room": "kitchen" },
+            { "id": "f14R-06", "objectId": "microwave", "x": 672, "layer": "wall", "room": "living" }
+          ],
+          "survivors": [],
+          "zombies": [
+            { "type": "crawler", "x": 600 }
+          ],
+          "questItems": []
+        }
+      ]
+    },
+    {
+      "number": 15,
+      "startState": "Infested",
+      "purpose": "Home floor. Left flat is the hero's apartment with the tutorial chain (bed, fridge, chair, table, drawer, workbench, door, crawler). Right flat is a first jammed door and one crawler.",
+      "difficulty": 1,
+      "expectedMinutes": 2,
+      "stairwell": { "barricadeX": 100 },
+      "scriptedSpawns": [
+        { "id": "tutorial_crawler", "type": "crawler", "x": 40, "trigger": "tutorial_open_door", "note": "Spawns in the stairwell/corridor outside the home barricade (x 100) when the hero first opens the home door. The hero is on the inside (x > 100)." }
+      ],
+      "apartments": [
+        {
+          "id": "f15_left",
+          "name": "Your apartment",
+          "flavour": "Pills on the nightstand, the radio muttering static. Something scratches at the door.",
+          "side": "left",
+          "isHome": true,
+          "doorState": "open",
+          "rooms": [
+            { "id": "kitchen", "kind": "kitchen", "xMin": 120, "xMax": 270 },
+            { "id": "living", "kind": "living", "xMin": 270, "xMax": 420 }
+          ],
+          "fixtures": [
+            { "id": "bed", "kind": "bed", "x": 372, "layer": "floor" },
+            { "id": "workbench", "kind": "workbench", "x": 372, "layer": "wall" }
+          ],
+          "buildSpots": {
+            "shownOnlyInBuildMode": true,
+            "window": [ { "id": "w1", "x": 230 }, { "id": "w2", "x": 350 } ],
+            "floor": [ { "id": "s1", "x": 126 }, { "id": "s2", "x": 222 }, { "id": "s3", "x": 318 }, { "id": "s4", "x": 414 } ]
+          },
+          "objects": [
+            { "id": "f15L-01", "objectId": "chair", "x": 168, "layer": "floor", "room": "kitchen" },
+            { "id": "f15L-02", "objectId": "table", "x": 270, "layer": "floor", "room": "kitchen" },
+            {
+              "id": "f15L-03", "objectId": "fridge", "x": 168, "layer": "wall", "room": "kitchen",
+              "fixedLoot": [ { "id": "canned_food", "qty": 2 } ]
+            },
+            {
+              "id": "f15L-05", "objectId": "kitchen_drawer", "x": 270, "layer": "wall", "room": "kitchen",
+              "fixedLoot": [ { "id": "metal", "qty": 2 } ],
+              "foundNote": { "id": "hint_nails", "text": "A tin of nails." }
+            }
+          ],
+          "survivors": [],
+          "zombies": [],
+          "questItems": []
+        },
+        {
+          "id": "f15_right",
+          "name": "Hollis flat",
+          "flavour": "Door jammed shut. A child's drawing on the bedroom wall.",
+          "side": "right",
+          "doorState": "jammed",
+          "rooms": [
+            { "id": "bedroom", "kind": "bedroom", "xMin": 420, "xMax": 570 },
+            { "id": "bathroom", "kind": "bathroom", "xMin": 570, "xMax": 720 }
+          ],
+          "objects": [
+            { "id": "f15R-01", "objectId": "bed_frame", "x": 468, "layer": "floor", "room": "bedroom" },
+            { "id": "f15R-02", "objectId": "wardrobe", "x": 570, "layer": "floor", "room": "bedroom" },
+            { "id": "f15R-03", "objectId": "potted_plant", "x": 672, "layer": "floor", "room": "bathroom" },
+            { "id": "f15R-04", "objectId": "window_pane", "x": 468, "layer": "wall", "room": "bedroom" },
+            { "id": "f15R-05", "objectId": "curtains", "x": 570, "layer": "wall", "room": "bedroom" },
+            {
+              "id": "f15R-06", "objectId": "bathroom_cabinet", "x": 672, "layer": "wall", "room": "bathroom",
+              "foundNote": { "id": "note_15_radio", "text": "Radio said stay indoors. Then: go to the stadium. Now it only hisses." }
+            }
+          ],
+          "survivors": [],
+          "zombies": [
+            { "type": "crawler", "x": 672 }
+          ],
+          "questItems": []
+        }
+      ]
+    },
+    {
+      "number": 16,
+      "startState": "Infested",
+      "purpose": "Easy again, after the harder 13. Introduces the toilet tank drain (dirty water) and a wardrobe next to a toolbox, a good place to use the new crowbar.",
+      "difficulty": 2,
+      "expectedMinutes": 2,
+      "apartments": [
+        {
+          "id": "f16_left",
+          "name": "Nguyen flat",
+          "flavour": "TV on a stand, a dead plant, the bathroom door ajar.",
+          "side": "left",
+          "doorState": "open",
+          "rooms": [
+            { "id": "living", "kind": "living", "xMin": 120, "xMax": 270 },
+            { "id": "bathroom", "kind": "bathroom", "xMin": 270, "xMax": 420 }
+          ],
+          "objects": [
+            { "id": "f16L-01", "objectId": "tv", "x": 168, "layer": "floor", "room": "living" },
+            { "id": "f16L-02", "objectId": "potted_plant", "x": 270, "layer": "floor", "room": "living" },
+            { "id": "f16L-03", "objectId": "toilet_tank", "x": 372, "layer": "floor", "room": "bathroom" },
+            { "id": "f16L-04", "objectId": "kitchen_cupboard", "x": 168, "layer": "wall", "room": "living" },
+            { "id": "f16L-05", "objectId": "oil_lamp", "x": 270, "layer": "wall", "room": "living" },
+            {
+              "id": "f16L-06", "objectId": "bathroom_cabinet", "x": 372, "layer": "wall", "room": "bathroom",
+              "fixedLoot": [ { "id": "chemicals", "qty": 1 } ],
+              "rolls": [0, 1]
+            }
+          ],
+          "survivors": [],
+          "zombies": [
+            { "type": "crawler", "x": 340 }
+          ],
+          "questItems": []
+        },
+        {
+          "id": "f16_right",
+          "name": "Garcia studio",
+          "flavour": "Kitchen and bed in one room. A bedroom door shut hard.",
+          "side": "right",
+          "doorState": "open",
+          "rooms": [
+            { "id": "kitchen", "kind": "kitchen", "xMin": 420, "xMax": 570 },
+            { "id": "bedroom", "kind": "bedroom", "xMin": 570, "xMax": 720 }
+          ],
+          "objects": [
+            { "id": "f16R-01", "objectId": "table", "x": 468, "layer": "floor", "room": "kitchen" },
+            {
+              "id": "f16R-02", "objectId": "toolbox", "x": 570, "layer": "floor", "room": "kitchen",
+              "fixedLoot": [ { "id": "fuel", "qty": 1 } ],
+              "rolls": [1, 2]
+            },
+            { "id": "f16R-03", "objectId": "wardrobe", "x": 672, "layer": "floor", "room": "bedroom" },
+            { "id": "f16R-04", "objectId": "kitchen_cupboard", "x": 468, "layer": "wall", "room": "kitchen" },
+            {
+              "id": "f16R-05", "objectId": "kitchen_drawer", "x": 570, "layer": "wall", "room": "kitchen",
+              "foundNote": { "id": "note_16_fever", "text": "Marcus caught the fever. Slept two days. Then he woke up hungry. Shut him in the bedroom." }
+            },
+            { "id": "f16R-06", "objectId": "curtains", "x": 672, "layer": "wall", "room": "bedroom" }
+          ],
+          "survivors": [],
+          "zombies": [
+            { "type": "crawler", "x": 610 }
+          ],
+          "questItems": []
+        }
+      ]
+    },
+    {
+      "number": 17,
+      "startState": "Infested",
+      "purpose": "Top floor of the slice and the toughest: three walkers. Rewards with the richest metal (fridge, sink pipes) for Barricade Lv2 and Secure floor.",
+      "difficulty": 5,
+      "expectedMinutes": 3,
+      "apartments": [
+        {
+          "id": "f17_left",
+          "name": "Adeyemi flat",
+          "flavour": "A bedroom with the bed pushed against the door, then pulled back.",
+          "side": "left",
+          "doorState": "open",
+          "rooms": [
+            { "id": "bedroom", "kind": "bedroom", "xMin": 120, "xMax": 270 },
+            { "id": "living", "kind": "living", "xMin": 270, "xMax": 420 }
+          ],
+          "objects": [
+            { "id": "f17L-01", "objectId": "bed_frame", "x": 168, "layer": "floor", "room": "bedroom" },
+            { "id": "f17L-02", "objectId": "table", "x": 270, "layer": "floor", "room": "bedroom" },
+            { "id": "f17L-03", "objectId": "tv", "x": 372, "layer": "floor", "room": "living" },
+            { "id": "f17L-04", "objectId": "window_pane", "x": 168, "layer": "wall", "room": "bedroom" },
+            { "id": "f17L-05", "objectId": "microwave", "x": 270, "layer": "wall", "room": "bedroom" },
+            { "id": "f17L-06", "objectId": "oil_lamp", "x": 372, "layer": "wall", "room": "living" }
+          ],
+          "survivors": [],
+          "zombies": [
+            { "type": "walker", "x": 300 }
+          ],
+          "questItems": []
+        },
+        {
+          "id": "f17_right",
+          "name": "Reyes flat",
+          "flavour": "Door jammed from the inside. A full fridge hums nowhere.",
+          "side": "right",
+          "doorState": "jammed",
+          "rooms": [
+            { "id": "kitchen", "kind": "kitchen", "xMin": 420, "xMax": 570 },
+            { "id": "bathroom", "kind": "bathroom", "xMin": 570, "xMax": 720 }
+          ],
+          "objects": [
+            { "id": "f17R-01", "objectId": "fridge", "x": 468, "layer": "floor", "room": "kitchen" },
+            { "id": "f17R-02", "objectId": "table", "x": 570, "layer": "floor", "room": "kitchen" },
+            {
+              "id": "f17R-03", "objectId": "toolbox", "x": 672, "layer": "floor", "room": "bathroom",
+              "fixedLoot": [ { "id": "fuel", "qty": 1 } ],
+              "rolls": [1, 1]
+            },
+            {
+              "id": "f17R-04", "objectId": "kitchen_cupboard", "x": 468, "layer": "wall", "room": "kitchen",
+              "foundNote": { "id": "note_17_stadium", "text": "The stadium went quiet on the radio last night. Nobody is coming." }
+            },
+            { "id": "f17R-05", "objectId": "sink_pipes", "x": 570, "layer": "wall", "room": "kitchen" },
+            { "id": "f17R-06", "objectId": "bathroom_cabinet", "x": 672, "layer": "wall", "room": "bathroom" }
+          ],
+          "survivors": [],
+          "zombies": [
+            { "type": "walker", "x": 520 },
+            { "type": "walker", "x": 620 }
+          ],
+          "questItems": []
+        }
+      ]
+    }
+  ]
+}

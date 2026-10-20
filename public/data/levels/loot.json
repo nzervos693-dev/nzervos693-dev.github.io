@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "milestone": "M1",
+  "description": "Roll tables named by balance.objects.<id>.primary.lootTable. Each search makes balance.scavenge.lootRolls rolls (or the object's 'rolls' override); each roll picks one entry by weight and a quantity in [qtyMin, qtyMax]. Weights are relative, they do not need to sum to 100.",
+  "tables": {
+    "kitchen_cupboard": {
+      "entries": [
+        { "id": "canned_food", "qtyMin": 1, "qtyMax": 2, "weight": 28 },
+        { "id": "dry_snack", "qtyMin": 1, "qtyMax": 2, "weight": 24 },
+        { "id": "chemicals", "qtyMin": 1, "qtyMax": 1, "weight": 20 },
+        { "id": "water_bottle", "qtyMin": 1, "qtyMax": 1, "weight": 12 },
+        { "id": "seeds", "qtyMin": 1, "qtyMax": 1, "weight": 8 },
+        { "id": "chocolate", "qtyMin": 1, "qtyMax": 1, "weight": 5 },
+        { "id": "plastic", "qtyMin": 1, "qtyMax": 1, "weight": 3 }
+      ]
+    },
+    "wardrobe": {
+      "entries": [
+        { "id": "cloth", "qtyMin": 1, "qtyMax": 3, "weight": 45 },
+        { "id": "metal", "qtyMin": 1, "qtyMax": 1, "weight": 12 },
+        { "id": "plastic", "qtyMin": 1, "qtyMax": 1, "weight": 10 },
+        { "id": "bandage", "qtyMin": 1, "qtyMax": 1, "weight": 8 },
+        { "id": "duct_tape", "qtyMin": 1, "qtyMax": 1, "weight": 8 },
+        { "id": "dry_snack", "qtyMin": 1, "qtyMax": 1, "weight": 8 },
+        { "id": "chocolate", "qtyMin": 1, "qtyMax": 1, "weight": 6 },
+        { "id": "kitchen_knife", "qtyMin": 1, "qtyMax": 1, "weight": 3 }
+      ]
+    },
+    "fridge": {
+      "entries": [
+        { "id": "canned_food", "qtyMin": 1, "qtyMax": 2, "weight": 30 },
+        { "id": "water_bottle", "qtyMin": 1, "qtyMax": 1, "weight": 20 },
+        { "id": "dry_snack", "qtyMin": 1, "qtyMax": 2, "weight": 15 },
+        { "id": "clean_water", "qtyMin": 1, "qtyMax": 1, "weight": 10 },
+        { "id": "chocolate", "qtyMin": 1, "qtyMax": 1, "weight": 8 }
+      ]
+    },
+    "kitchen_drawer": {
+      "entries": [
+        { "id": "metal", "qtyMin": 1, "qtyMax": 2, "weight": 30 },
+        { "id": "duct_tape", "qtyMin": 1, "qtyMax": 1, "weight": 28 },
+        { "id": "fuel", "qtyMin": 1, "qtyMax": 1, "weight": 10 },
+        { "id": "parts", "qtyMin": 1, "qtyMax": 1, "weight": 8 },
+        { "id": "glass", "qtyMin": 1, "qtyMax": 1, "weight": 6 },
+        { "id": "kitchen_knife", "qtyMin": 1, "qtyMax": 1, "weight": 6 },
+        { "id": "plastic", "qtyMin": 1, "qtyMax": 1, "weight": 6 }
+      ]
+    },
+    "bathroom_cabinet": {
+      "entries": [
+        { "id": "chemicals", "qtyMin": 1, "qtyMax": 1, "weight": 28 },
+        { "id": "bandage", "qtyMin": 1, "qtyMax": 1, "weight": 28 },
+        { "id": "cloth", "qtyMin": 1, "qtyMax": 1, "weight": 12 },
+        { "id": "plastic", "qtyMin": 1, "qtyMax": 1, "weight": 10 },
+        { "id": "glass", "qtyMin": 1, "qtyMax": 1, "weight": 9 },
+        { "id": "medkit", "qtyMin": 1, "qtyMax": 1, "weight": 3 }
+      ]
+    },
+    "toolbox": {
+      "entries": [
+        { "id": "metal", "qtyMin": 1, "qtyMax": 2, "weight": 35 },
+        { "id": "duct_tape", "qtyMin": 1, "qtyMax": 2, "weight": 30 },
+        { "id": "parts", "qtyMin": 1, "qtyMax": 1, "weight": 15 },
+        { "id": "fuel", "qtyMin": 1, "qtyMax": 1, "weight": 8 },
+        { "id": "plastic", "qtyMin": 1, "qtyMax": 1, "weight": 7 }
+      ]
+    }
+  }
+}
