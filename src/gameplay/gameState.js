@@ -5,6 +5,7 @@ import { initNeeds, NEED_KEYS } from './needs.js';
 import { createSlots, normalizeSlots, addAll, addItem } from './inventory.js';
 import { homeSpot, roomKey } from './layout.js';
 import { mergeItems } from './rng.js';
+import { initZombies } from './zombies.js';
 
 export const STATE_VERSION = 1;
 /**
@@ -54,6 +55,9 @@ export function createGameState(balance, tower, nowMs) {
     objects: {},
     doors: {},
     floorStates: {},
+    zombies: {},
+    wanderAt: {},
+    equipped: null,
     piles: [],
     rooms: {},
     notes: [],
@@ -89,17 +93,20 @@ export function normalizeGameState(raw, balance, tower, nowMs) {
       if (!ok) console.warn('Dropping unknown pile item from save', e?.id);
       return ok;
     }) })).filter((p) => p.items.length);
-  s.counters = { pile: 0, ...(s.counters || {}) };
+  s.counters = { pile: 0, wander: 0, ...(s.counters || {}) };
   s.rooms = s.rooms || {};
   s.notes = Array.isArray(s.notes) ? s.notes : [];
   s.survivors = s.survivors || {};
   s.flags = s.flags || {};
-  s.stats = { objectsSalvaged: 0, ...(s.stats || {}) };
+  s.stats = { objectsSalvaged: 0, zombiesKilled: 0, ...(s.stats || {}) };
+  s.wanderAt = s.wanderAt && typeof s.wanderAt === 'object' ? s.wanderAt : {};
+  s.equipped = s.equipped && Number.isInteger(s.equipped.slot) && typeof s.equipped.id === 'string' ? s.equipped : null;
   s.times = { startedAt: nowMs, lastTickAt: nowMs, ...(s.times || {}) };
   for (const apt of tower.apartments.values()) {
     if (!s.doors[apt.id]) s.doors[apt.id] = { state: apt.doorState || 'open', hits: 0 };
   }
   for (const [n, f] of tower.floors) if (!s.floorStates[n]) s.floorStates[n] = f.startState || 'Infested';
+  initZombies(s, tower, balance);
   if (tower.home) for (const r of tower.home.rooms) s.rooms[roomKey(tower.home, r)] = true;
   return s;
 }

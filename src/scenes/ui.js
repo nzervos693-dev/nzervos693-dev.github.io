@@ -4,6 +4,7 @@
  */
 import Phaser from 'phaser';
 import { frameOf } from './art.js';
+import { playSfx } from './sfx.js';
 
 export const COLORS = {
   ink: 0x0d0f12, shadow: 0x1f242b, wall: 0x3a4048, light: 0x6b7178,
@@ -55,7 +56,7 @@ export function button(scene, o) {
   bg.on('pointerout', () => c.setScale(1));
   bg.on('pointerup', () => {
     c.setScale(1);
-    if (enabled) o.onTap?.();
+    if (enabled) { playSfx(scene, 'ui_tap'); o.onTap?.(); }
   });
   c.setEnabled = (e) => {
     enabled = e;

@@ -205,7 +205,9 @@ on the item, `consumables.<id>.morale`), Hot stew
   hygiene checks (5.10). Shown as a green icon next to the health bar.
 - **Auto-use offline**: below **40** food or water (`needs.autoUseThreshold`)
   the character eats/drinks the smallest fitting stockpile item, spoiling
-  items first, clean water before dirty. Online: only a one-time "You're
+  items first, clean water before dirty. Comfort items (chocolate) are
+  skipped unless the need is below **20** (`needs.onlinePromptThreshold`)
+  and nothing else fits (last resort). Online: only a one-time "You're
   starving: eat?" when food or water first drops below **20**
   (`needs.onlinePromptThreshold`); it re-arms once the need is back above 20.
 - **Offline safety**: catch-up never kills; health floors at **10**
@@ -231,7 +233,8 @@ on the item, `consumables.<id>.morale`), Hot stew
   (`light.dimTimeMult`). A carried Flashlight with charge removes both (5.11).
   At night more rooms are Dim (5.12).
 - Cleared-but-unsecured floors get **1-2 wandering walkers every 12 h**
-  (`world.wanderersPerInterval`, `world.wandererIntervalHours`); otherwise
+  (`world.wanderersPerInterval`, `world.wandererIntervalHours`; cap and
+  spawn rules in 5.4, never inside the home apartment); otherwise
   killed zombies stay dead.
 - Some apartment doors are jammed: **3 hits** (`world.jammedDoorHits`) to
   open, or 1 s with a crowbar (`world.jammedDoorCrowbarSeconds`, uses 1
@@ -246,6 +249,35 @@ on the item, `consumables.<id>.morale`), Hot stew
   (`zombies.aggroRadius`, 120 px with Quiet shoes) on the same floor, or
   from noise (salvage, molotovs, noise lures) on the same floor. They never
   use stairs except during attacks.
+- **Roaming**: an aggroed zombie chases the hero anywhere on its own floor
+  (both apartments and the stairwell landing) but never takes the stairs.
+  When the hero leaves the floor, it walks back to its spawn point.
+- **Idle wander**: a non-aggroed zombie picks a random point within
+  **60 px** of its spawn (`zombies.tuning.wanderRadiusPx`), walks there at
+  **x0.4** its speed (`zombies.tuning.wanderSpeedMult`), then pauses
+  **1-3 s** (`zombies.tuning.wanderPauseSeconds`) and repeats.
+- **Bite wind-up**: in attack range a zombie winds up for **0.6 s**
+  (`zombies.tuning.attackWindupSeconds`) before each bite lands.
+- **Hit stun**: each hero hit stops the zombie for **0.25 s**
+  (`zombies.tuning.hitStunSeconds`).
+- **Corpse**: a killed zombie stays on screen **1.5 s**
+  (`zombies.tuning.corpseSeconds`), then disappears.
+- **Jammed doors**: a closed jammed door blocks zombie sight and movement
+  and stops weapon hits (no hitting through it). Noise passes through:
+  zombies on the other side aggro and bang on the door (SFX) but cannot
+  open it.
+- **What interrupts actions** (search, dismantle, drain): a zombie seeing the hero (aggro by sight/radius or room
+  entry), a zombie bite, or standing in fire. A zombie alerted only by
+  noise does **not** interrupt until it sees the hero.
+- **Weapon durability**: an equipped weapon stays in its carry slot (no
+  separate weapon slot). It loses **1 durability per hit on a zombie**;
+  missed swings and hits on jammed doors cost energy only (0.5 per swing),
+  never durability.
+- **Wanderers** (5.3): at most **3** wandering zombies alive per floor
+  (`zombies.tuning.maxWanderersPerFloor`); extra spawns are skipped. They
+  spawn at least **200 px** from the hero
+  (`zombies.tuning.wanderSpawnMinHeroDistancePx`), never inside the home
+  apartment.
 
 | Weapon | Damage | Range px | Cooldown s | Durability (hits) | Source |
 |---|---|---|---|---|---|
@@ -272,14 +304,15 @@ on the item, `consumables.<id>.morale`), Hot stew
   tables (level-designer; `objects.<id>.primary.lootTable` names the table,
   `lootTags` are design hints). Search takes **2 s**
   (`scavenge.searchSeconds`) with a progress ring, costs **1 energy**
-  (`scavenge.searchEnergy`); zombie aggro interrupts it.
+  (`scavenge.searchEnergy`); a zombie seeing or biting the hero, or fire,
+  interrupts it (noise-only alerts do not, 5.4).
 - Hero carries **8 slots** (`inventory.carrySlots`). Items stack to **10**
   (`inventory.itemStack`); materials stack to **20**
   (`inventory.materialStack`); weapons and tools never stack (1 per slot,
   `inventory.toolStack`). Tools, throwables and the flashlight use carry
   slots; equipped armor and shoes do not (5.11).
 - Home stockpile: **40 slots** (`inventory.stockpileSlots`), +20 per
-  storage shelf built. Entering the home apartment offers "Store all".
+  storage shelf built (`inventory.shelfSlots`, M2). Entering the home apartment offers "Store all".
 - Full inventory: search loot stays in the container (dot marker);
   dismantle yield drops as a tappable **material pile** (never despawns).
 
@@ -330,8 +363,8 @@ Water from salvage comes as consumable items: **Dirty water** (+20 water,
   (`salvage.noiseRadius`); *Loud* aggros every zombie on the same floor.
   Noise never reaches other floors. Tool wraps make a dismantle one step
   quieter (5.11).
-- An unsearched container is searched first (+2 s). A zombie hit or aggro
-  interrupts; progress is lost unless past 50% (`salvage.keepProgressRatio`).
+- An unsearched container is searched first (+2 s). A zombie bite, a
+  zombie seeing the hero, or fire interrupts (noise-only alerts do not, 5.4); progress is lost unless past 50% (`salvage.keepProgressRatio`).
 - Yield is fixed per object plus listed chances. The object is removed for
   good (saved) and never respawns: each floor is a finite stock.
 - Crafted placeables can be dismantled for **50%** of their cost, rounded

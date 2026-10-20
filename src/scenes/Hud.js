@@ -5,7 +5,7 @@
 import { getSafeArea, onSafeAreaChange } from '../core/safeArea.js';
 import { isMuted, toggleMute, onMuteChange } from '../core/audio.js';
 import { NEED_KEYS } from '../gameplay/needs.js';
-import { frameOf } from './art.js';
+import { frameOf, hasFrame } from './art.js';
 import { button, label, COLORS, CSS, DEPTH } from './ui.js';
 
 const BAR_FRAME = { health: 'bar_health', food: 'bar_food', water: 'bar_water', energy: 'bar_energy', morale: 'bar_morale' };
@@ -15,7 +15,7 @@ export default class Hud {
   /**
    * @param {Phaser.Scene} scene
    * @param {object} balance
-   * @param {{onHome:Function,onBag:Function,onStoreAll:Function}} cb
+   * @param {{onHome:Function,onBag:Function,onStoreAll:Function,onThrow:Function}} cb
    */
   constructor(scene, balance, cb) {
     this.scene = scene;
@@ -47,6 +47,10 @@ export default class Hud {
     this.hintText = this.add(label(scene, 0, 0, '', 20, CSS.dim).setOrigin(1, 0.5));
     this.homeBtn = this.add(button(scene, { text: 'Home', onTap: () => this.cb.onHome(), size: 22 }));
     this.bagBtn = this.add(button(scene, { text: 'Bag', onTap: () => this.cb.onBag(), size: 22 }));
+    this.throwBtn = this.add(button(scene, { text: 'Throw', onTap: () => this.cb.onThrow(), size: 20, icon: { key: 'icons', name: 'molotov', scale: 5 } }));
+    this.throwBtn.setVisible(false);
+    // equipped weapon: tap opens the bag (96x96)
+    this.weaponBtn = this.add(button(scene, { text: '', onTap: () => this.cb.onBag(), size: 20, icon: { key: 'icons', name: 'kitchen_knife', scale: 5 } }));
     this.soundBtn = this.add(button(scene, { text: '', onTap: () => toggleMute(), size: 20 }));
     this.storeBtn = this.add(button(scene, { w: 240, text: 'Store all', onTap: () => this.cb.onStoreAll(), size: 26, fill: COLORS.teal }));
     this.storeBtn.setVisible(false);
@@ -83,6 +87,8 @@ export default class Hud {
     const by = this.bottomY + 16 + 48;
     this.homeBtn.setPosition(left + 48 + 8, by);
     this.bagBtn.setPosition(left + 48 + 8 + 120, by);
+    this.throwBtn.setPosition(left + 48 + 8 + 240, by);
+    this.weaponBtn.setPosition(left + 48 + 8 + 360, by);
     this.soundBtn.setPosition(right - 48 - 8, by);
     this.storeBtn.setPosition(w / 2, this.bottomY - 64);
     this.last = {};
@@ -95,7 +101,8 @@ export default class Hud {
 
   /**
    * Refresh bars, floor text and Store all visibility.
-   * @param {{needs:object, floor:number, canStore:boolean, hint:string}} s
+   * @param {{needs:object, floor:number, canStore:boolean, hint:string,
+   *   weapon:{id:string,name:string,uses:number|null}, canThrow:boolean, armed:boolean}} s
    */
   update(s) {
     for (const k of NEED_KEYS) {
@@ -115,5 +122,27 @@ export default class Hud {
       this.hintText.setText(s.hint);
     }
     this.storeBtn.setVisible(s.canStore);
+    this.updateCombat(s);
+  }
+
+  /** Equipped weapon icon and the Throw button (only redrawn when they change). */
+  updateCombat(s) {
+    const wk = `${s.weapon.id}:${s.weapon.uses}`;
+    if (this.last.weapon !== wk) {
+      this.last.weapon = wk;
+      const has = hasFrame('icons', s.weapon.id);
+      this.weaponBtn.img.setVisible(has);
+      if (has) this.weaponBtn.img.setFrame(frameOf('icons', s.weapon.id));
+      this.weaponBtn.setLabel(has ? (s.weapon.uses == null ? '' : `${s.weapon.uses}`) : s.weapon.name);
+    }
+    if (this.last.canThrow !== s.canThrow) {
+      this.last.canThrow = s.canThrow;
+      this.throwBtn.setVisible(s.canThrow);
+    }
+    if (this.last.armed !== s.armed) {
+      this.last.armed = s.armed;
+      this.throwBtn.bg.setFillStyle(s.armed ? COLORS.rust : COLORS.wall);
+      this.throwBtn.setLabel(s.armed ? 'Armed' : 'Throw');
+    }
   }
 }

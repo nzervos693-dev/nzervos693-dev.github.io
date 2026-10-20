@@ -1,5 +1,5 @@
 /*
- * E2E smoke test (not part of `npm test`). Run: npm run build && npm run test:e2e
+ * E2E smoke test (not part of `npm test`). Run: npm run test:e2e (builds dist-e2e with debug hooks)
  * Boots the built game at 360x800 with touch, asserts no console errors and that
  * the home floor rendered. Needs a Chromium: set PLAYWRIGHT_BROWSERS_PATH or run
  * `npx playwright-core install chromium`.
@@ -16,7 +16,7 @@ mkdirSync(shots, { recursive: true });
 let server = null;
 let url = process.env.E2E_URL;
 if (!url) {
-  server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore' });
+  server = spawn('npx', ['vite', 'preview', '--outDir', 'dist-e2e', '--port', String(PORT), '--strictPort'], { stdio: 'ignore' });
   url = `http://localhost:${PORT}/`;
 }
 const fail = [];
@@ -27,7 +27,7 @@ async function waitForServer() {
     try { if ((await fetch(url)).ok) return; } catch { /* retry */ }
     await new Promise((r) => setTimeout(r, 200));
   }
-  throw new Error('preview server did not start (run npm run build first)');
+  throw new Error('preview server did not start (run npm run build:e2e first)');
 }
 
 try {

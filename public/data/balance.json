@@ -133,6 +133,16 @@
   "zombies": {
     "aggroRadius": 200,
     "attackRange": 30,
+    "tuning": {
+      "attackWindupSeconds": 0.6,
+      "wanderSpeedMult": 0.4,
+      "wanderRadiusPx": 60,
+      "wanderPauseSeconds": [1, 3],
+      "hitStunSeconds": 0.25,
+      "corpseSeconds": 1.5,
+      "maxWanderersPerFloor": 3,
+      "wanderSpawnMinHeroDistancePx": 200
+    },
     "types": {
       "crawler": { "name": "Crawler", "hp": 15, "speed": 25, "damage": 5, "attackIntervalSeconds": 1.5 },
       "walker": { "name": "Walker", "hp": 30, "speed": 40, "damage": 8, "attackIntervalSeconds": 1.5 }
@@ -160,7 +170,8 @@
     "itemStack": 10,
     "materialStack": 20,
     "toolStack": 1,
-    "stockpileSlots": 40
+    "stockpileSlots": 40,
+    "shelfSlots": 20
   },
   "salvage": {
     "time": { "small": 2, "medium": 4, "large": 8 },

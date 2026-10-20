@@ -11,7 +11,8 @@
     "icons": "node scripts/make-icons.mjs",
     "art": "node scripts/make-art.mjs",
     "audio": "node scripts/make-audio.mjs",
-    "test:e2e": "node tests/e2e/smoke.mjs"
+    "build:e2e": "vite build --mode e2e --outDir dist-e2e",
+    "test:e2e": "npm run build:e2e && node tests/e2e/smoke.mjs && node tests/e2e/combat.mjs"
   },
   "engines": {
     "node": ">=20.19"

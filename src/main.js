@@ -27,6 +27,7 @@ const game = new Phaser.Game({
   pixelArt: true,
   roundPixels: true,
   input: { activePointers: 3 },
+  fps: { smoothStep: false }, // game time = real time, no delta smoothing
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
   scene: [BootScene, GameScene],
 });

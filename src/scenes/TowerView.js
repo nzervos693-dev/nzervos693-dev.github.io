@@ -32,6 +32,7 @@ export default class TowerView {
     this.roomItems = new Map(); // roomKey -> display objects hidden until entered
     this.doorSprites = new Map(); // aptId -> image
     this.pileSprites = new Map(); // pile id -> container
+    this.floorLabels = new Map(); // floor -> status text
     this.pulsing = [];
     this.build();
     this.refresh();
@@ -50,6 +51,7 @@ export default class TowerView {
       crop('wall_concrete', 0, tower.stairwell.xMax);
       scene.add.image(0, top, 'stairwell', 0).setOrigin(0).setScale(s).setDepth(D.bg + 1);
       scene.add.text(14, top + 20, `${n}`, { fontFamily: FONT, fontSize: '28px', color: CSS.amber }).setDepth(D.bg + 2);
+      this.floorLabels.set(n, scene.add.text(14, top + 58, '', { fontFamily: FONT, fontSize: '15px', color: CSS.red, stroke: '#0d0f12', strokeThickness: 3 }).setDepth(D.bg + 2));
       for (const apt of f.apartments) {
         for (const room of apt.rooms) {
           crop(ROOM_BG[room.kind] || 'wall_concrete', room.xMin, room.xMax);
@@ -145,6 +147,18 @@ export default class TowerView {
       this.doorSprites.get(apt.id)?.setFrame(frameOf('door', state.doors[apt.id]?.state === 'jammed' ? 'closed' : 'open'));
     }
     this.refreshPiles();
+    this.refreshFloorLabels();
+  }
+
+  /** Floor state under the floor number: INFESTED (red), CLEARED (green), SECURED (amber). */
+  refreshFloorLabels() {
+    for (const [n, t] of this.floorLabels) {
+      const st = this.state.floorStates[n] || 'Infested';
+      const text = st.toUpperCase();
+      if (t.text !== text) t.setText(text);
+      const color = st === 'Infested' ? CSS.red : st === 'Secured' ? CSS.amber : '#7fbf7f';
+      if (t.style.color !== color) t.setColor(color);
+    }
   }
 
   refreshPiles() {

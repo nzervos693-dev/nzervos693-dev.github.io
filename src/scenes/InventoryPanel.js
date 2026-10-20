@@ -16,7 +16,9 @@ const STOCK_ROWS = 5;
  * Rules live in GameScene; this is only view + taps. The cell objects are built
  * once per tab/page; `refresh()` only updates the cells and detail row in place.
  *
- * ctrl: { bag(): slots, stock(): slots, describe(slot, tab): {name, effect, canUse, canStore, canTake},
+ * ctrl: { bag(): slots, stock(): slots,
+ *         describe(slot, tab): {name, effect, canUse, useLabel?, canStore, canTake},
+ *         badge?(slot, index, tab): string|null (replaces the count under the icon, e.g. "E" for equipped),
  *         onUse(tab, i), onStore(i), onTake(i), onClose() }
  */
 export default class InventoryPanel {
@@ -144,7 +146,8 @@ export default class InventoryPanel {
       const sel = cell.slotIndex === this.selected;
       cell.img.setVisible(!!s);
       if (s) cell.img.setFrame(frameOf('icons', s.id));
-      cell.setLabel(s ? (s.qty > 1 ? `${s.qty}` : s.uses != null ? `${s.uses}` : '') : '');
+      const badge = s ? this.ctrl.badge?.(s, cell.slotIndex, this.tab) : null;
+      cell.setLabel(s ? (badge ?? (s.qty > 1 ? `${s.qty}` : s.uses != null ? `${s.uses}` : '')) : '');
       cell.bg.setFillStyle(s ? (sel ? COLORS.rust : COLORS.wall) : COLORS.ink, s ? 1 : 0.6);
       cell.bg.setStrokeStyle(sel ? 4 : 3, sel ? COLORS.amber : s ? COLORS.ink : COLORS.wall);
     }
@@ -162,7 +165,7 @@ export default class InventoryPanel {
     this.nameText.setText(d.name);
     this.effectText.setText(d.effect || '');
     const acts = [];
-    if (d.canUse) acts.push(['Use', () => this.ctrl.onUse(this.tab, this.selected)]);
+    if (d.canUse) acts.push([d.useLabel || 'Use', () => this.ctrl.onUse(this.tab, this.selected)]);
     if (d.canStore) acts.push(['Store', () => this.ctrl.onStore(this.selected)]);
     if (d.canTake) acts.push(['Take', () => this.ctrl.onTake(this.selected)]);
     acts.forEach(([text, fn], n) => {
