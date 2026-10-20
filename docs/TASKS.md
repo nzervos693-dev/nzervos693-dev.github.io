@@ -3,7 +3,8 @@
 > Maintained by the Producer (main Claude Code session).
 
 ## Milestone 1 – Playable on your phone
-- [ ] Interview the Creative Director and fill GDD sections 1–5, 9 and 11 (game-designer)
+- [x] Interview the Creative Director and fill GDD sections 1–12 (game-designer)
+- [ ] Creative Director: answer GDD section 12 open questions
 - [ ] Set up Vite + Phaser, folder layout, scaling, core systems (engine-programmer)
 - [ ] Unit tests and browser smoke test set up (qa-tester)
 - [ ] GitHub Pages auto-deploy, share playtest link (engine-programmer)
