@@ -1,18 +1,22 @@
 import Phaser from 'phaser';
 import { loadBalance } from '../core/balance.js';
+import { queueArt, registerAnimations } from './art.js';
 
-// Loads balance (save is loaded in main.js), builds placeholder textures, then starts GameScene.
+// Loads art by manifest and balance (save is loaded in main.js), then starts GameScene.
 export default class BootScene extends Phaser.Scene {
   constructor() { super('Boot'); }
 
-  create() {
-    // 96x96 amber placeholder button texture (96 game px ~ 48 CSS px minimum tap target)
-    const g = this.add.graphics();
-    g.fillStyle(0xffb020).fillRect(0, 0, 96, 96);
-    g.lineStyle(4, 0x14110f).strokeRect(2, 2, 92, 92);
-    g.generateTexture('placeholder-button', 96, 96);
-    g.destroy();
+  preload() {
+    const { width, height } = this.scale;
+    const label = this.add.text(width / 2, height / 2, 'Loading...', {
+      fontFamily: 'monospace', fontSize: '32px', color: '#d8d4c8',
+    }).setOrigin(0.5);
+    this.load.on('complete', () => label.destroy());
+    queueArt(this);
+  }
 
+  create() {
+    registerAnimations(this);
     loadBalance().finally(() => this.scene.start('Game'));
   }
 }

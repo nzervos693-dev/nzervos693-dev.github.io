@@ -33,4 +33,5 @@ const game = new Phaser.Game({
 
 initSafeArea(game);
 initAudio(game);
-initLifecycle(game);
+// Save and reset hero position when the app is hidden (GameScene listens).
+initLifecycle(game, { onHide: () => game.events.emit('floor15:hide') });
