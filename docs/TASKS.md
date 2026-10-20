@@ -5,9 +5,9 @@
 ## Milestone 1 – Playable on your phone
 - [x] Interview the Creative Director and fill GDD sections 1–12 (game-designer)
 - [ ] Creative Director: answer GDD section 12 open questions
-- [ ] Set up Vite + Phaser, folder layout, scaling, core systems (engine-programmer)
+- [x] Set up Vite + Phaser, folder layout, scaling, core systems (engine-programmer)
 - [ ] Unit tests and browser smoke test set up (qa-tester)
-- [ ] GitHub Pages auto-deploy, share playtest link (engine-programmer)
+- [x] GitHub Pages auto-deploy workflow (engine-programmer) — needs Pages source set to GitHub Actions + merge to main
 - [ ] Core loop with touch controls (gameplay-programmer)
 - [ ] First 1–3 levels or a first difficulty curve (level-designer)
 - [ ] Placeholder art: player, background, one obstacle/enemy (art-generator)
