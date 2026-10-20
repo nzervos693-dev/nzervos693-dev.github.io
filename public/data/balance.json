@@ -384,6 +384,11 @@
         "role": "nurse",
         "floor": 13,
         "hidingIn": "bathroom",
+        "trait": {
+          "id": "steady_hands",
+          "name": "Steady hands",
+          "bandageHealMult": 1.5
+        },
         "quest": {
           "id": "medical_bag",
           "summary": "Fetch Mara's medical bag from floor 14.",

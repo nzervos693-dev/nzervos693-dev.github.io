@@ -488,7 +488,24 @@ when to return. Offline production with a full stockpile is lost (reported).
   food + 1 water item every 12 h** (`survivors.upkeepHours`,
   `survivors.upkeepFood`, `survivors.upkeepWater`); if missing: -10 health,
   morale -5 (`survivors.missedUpkeepHealth`, `survivors.missedUpkeepMorale`).
-  Named survivors live in `survivors.roster.<id>`.
+  Named survivors live in `survivors.roster.<id>`; a survivor's trait lives
+  in `survivors.roster.<id>.trait`.
+- **Mara's trait, Steady hands** (M1): while Mara is recruited and alive
+  (and, from M2, not Turned), **every bandage used heals x1.5**
+  (`survivors.roster.mara.trait.bandageHealMult`): 15 -> **22** health
+  (round down). Rules:
+  - Applies to every bandage use by anyone, anywhere: the active character
+    tapping *Use* and offline auto-use. No
+    position check, no need for Mara to be at home or active, and it works
+    whatever job she has (Guard, Scavenger, Tender).
+  - Applies when Mara herself is the active character (after pass the
+    torch).
+  - Bandages only: medkits, herbal remedies and regen are unchanged.
+  - Not active before recruitment (talking to her or carrying her medical
+    bag does nothing); ends the moment she dies or turns.
+  - UI: the bandage's *Use* button and item info show the real amount
+    ("+22 health" while the trait is active); the Survivors screen shows
+    "Steady hands: bandages heal +50%" under Mara's name.
 - Jobs (Survivors screen, one each):
   - **Guard** (M1): +15 defense (`survivors.guardDefense`).
   - **Scavenger** (M1): offline only, 1 loot roll from a cleared floor every
@@ -869,11 +886,9 @@ disguises, amputation.
 - **Bites can infect**; untreated infection turns the character (5.14).
   Zombies sense by sight and noise only (no smell, no disguises).
 - **Dog's name**: **Scout**, fixed (no player naming, no text entry).
+- **Mara's trait**: **Steady hands**, bandages heal +50% while she is
+  recruited and alive; active in M1 (5.7).
 
 ### Open questions
 1. **Backstory names** ("grey fever", "river docks" group): keep, rename,
    or also name the city/tower?
-2. **Mara's trait**: section 5.7 gives each survivor one trait, but Mara's
-   is not defined. Default until answered: no trait in M1. Options: (a) *Steady hands*: bandages heal +50% when she
-   is the active character or at home; (b) *Light sleeper*: +15 s attack
-   warning while she is home; (c) no trait in M1, decide for M2.
