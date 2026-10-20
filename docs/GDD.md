@@ -128,6 +128,25 @@ unless the player dragged in the last 2 s.
 All numbers below are starting values and live in
 `public/data/balance.json` (key in brackets). Programmers must not
 hard-code them. "M1-M4" marks the milestone a feature arrives in (section 11).
+Lists are keyed by stable snake_case ids: `materials.<id>`,
+`objects.<id>`, `recipes.<id>` (cost, output, effect numbers, `buildSpot`),
+`consumables.<id>`, `combat.weapons.<id>`, `zombies.types.<id>`,
+`barricade.levels`, `survivors.roster.<id>`. **`items.<id>` is the lookup
+registry**: every id usable in a cost, yield, output or loot table has an
+entry there (`type` material/consumable/water/weapon/tool/throwable/quest,
+`name`, `stack` material = 20, item = 10, tool = 1 per slot); the detailed
+blocks above hold the stats. Recipe ids are their own namespace and may
+equal their output's item id. Two-number arrays (e.g. `[1, 3]`) are
+inclusive min/max ranges. A `null` durability means never breaks. Sizes are `small`/`medium`/`large`, noise
+`quiet`/`noisy`/`loud`.
+
+**Controls numbers**: drag threshold 16 px (`controls.dragThresholdPx`),
+Home double tap 1 s (`controls.homeDoubleTapSeconds`), camera follow pause
+2 s (`controls.cameraFollowPauseSeconds`), buttons and hit areas 96 px
+(`controls.buttonSizePx`, `controls.minHitAreaPx`), 1 buffered attack tap
+(`controls.attackBuffer`). M1 floors 13-17 (`world.floorMin`,
+`world.floorMax`); floor layout sizes in `world.*Px`; home floor 15
+(`home.floor`).
 
 ### 5.1 Time and the idle simulation
 - Game time = real time, from `Date.now()` deltas, never frame counts.
@@ -157,16 +176,29 @@ Each need is 0-100. Drain is per real hour.
 | Energy | 100 | 6 awake (`needs.energy.drain`) | -10 (regen, asleep) | Bed: +25/h online (+30% with a lit stove, 5.10) |
 | Morale | 60 | 1 (`needs.morale.drain`), less with comfort (5.10) | same | Events (see below), comfort |
 
-- **Regen** +2 health/h (`needs.health.regen`) while food, water > 50,
-  energy > 20 and not Sick. Each empty need costs **5 health/h**
-  (`needs.emptyNeedDamage`).
-- **Energy < 20**: speed and damage -30% (`needs.energy.lowPenalty`).
-  **Morale < 25**: damage -20%, energy drain x1.5, survivors refuse quests;
-  **> 75**: damage +10%.
-- **Morale events**: survivor recruited +15, quest done +10, talk to a
-  survivor +5 (once per survivor per 12 h), "comfort" item (cigarettes,
-  chocolate) +10, Hot stew +5, first harvest of each planter +5, attack
-  repelled +5, barricade breached -10, survivor dies -20.
+- Start values `needs.<need>.start`; every need maxes at 100 (`needs.max`).
+  Bed sleep +25 energy/h (`needs.energy.sleepRegen`); offline (asleep)
+  +10/h (`needs.energy.offlineRegen`). Food/water/morale drain the same
+  online and offline.
+- Item restore values live in `consumables.<id>` (food/water/health/morale)
+  and `water.dirty` / `water.clean`. **Chocolate**: +10 morale, +5 food.
+- **Regen** +2 health/h (`needs.health.regen`) while food, water > 50
+  (`needs.health.regenMinFoodWater`), energy > 20
+  (`needs.health.regenMinEnergy`) and not Sick. Each empty need costs
+  **5 health/h** (`needs.emptyNeedDamage`).
+- **Energy < 20** (`needs.energy.lowThreshold`): speed and damage -30%
+  (`needs.energy.lowPenalty`).
+  **Morale < 25** (`needs.morale.lowThreshold`): damage -20%
+  (`needs.morale.lowDamagePenalty`), energy drain x1.5
+  (`needs.morale.lowEnergyDrainMult`), survivors refuse quests;
+  **> 75** (`needs.morale.highThreshold`): damage +10%
+  (`needs.morale.highDamageBonus`).
+- **Morale events** (`needs.morale.events.*`): survivor recruited +15, quest
+  done +10, talk to a survivor +5 (once per survivor per 12 h,
+  `talkCooldownHours`), "comfort" item (cigarettes, chocolate) +10 (stored
+on the item, `consumables.<id>.morale`), Hot stew
+  +5 (M2), first harvest of each planter +5, attack repelled +5, barricade
+  breached -10, survivor dies -20.
 - **Sick** (status, M2): no regen, energy drain x1.5; lasts **24 h**
   (`status.sickHours`). Antibiotics (loot only) cure it at once; Herbal
   remedy removes **12 h** (`status.remedyHours`). Not stackable. Causes:
@@ -174,7 +206,8 @@ Each need is 0-100. Drain is per real hour.
 - **Auto-use offline**: below **40** food or water (`needs.autoUseThreshold`)
   the character eats/drinks the smallest fitting stockpile item, spoiling
   items first, clean water before dirty. Online: only a one-time "You're
-  starving: eat?".
+  starving: eat?" when food or water first drops below **20**
+  (`needs.onlinePromptThreshold`); it re-arms once the need is back above 20.
 - **Offline safety**: catch-up never kills; health floors at **10**
   (`needs.offlineHealthFloor`). Death only happens while playing.
 - Fairness: 12 h offline drains at most 36 food / 48 water, so 80/80 never
@@ -198,13 +231,17 @@ Each need is 0-100. Drain is per real hour.
   (`light.dimTimeMult`). A carried Flashlight with charge removes both (5.11).
   At night more rooms are Dim (5.12).
 - Cleared-but-unsecured floors get **1-2 wandering walkers every 12 h**
-  (`world.wandererIntervalHours`); otherwise killed zombies stay dead.
+  (`world.wanderersPerInterval`, `world.wandererIntervalHours`); otherwise
+  killed zombies stay dead.
 - Some apartment doors are jammed: **3 hits** (`world.jammedDoorHits`) to
-  open, or 1 s with a crowbar.
+  open, or 1 s with a crowbar (`world.jammedDoorCrowbarSeconds`, uses 1
+  crowbar use).
 
 ### 5.4 Combat
 - Each tap on a zombie in range = one attack (weapon damage, range,
-  cooldown). Hits knock back **12 px** and flash white 80 ms.
+  cooldown). Hits knock back **12 px** and flash white 80 ms
+  (`combat.knockbackPx`, `combat.hitFlashMs`). Weapon rows live in
+  `combat.weapons.<id>`, zombie rows in `zombies.types.<id>`.
 - Zombies aggro when the hero enters their room or comes within **200 px**
   (`zombies.aggroRadius`, 120 px with Quiet shoes) on the same floor, or
   from noise (salvage, molotovs, noise lures) on the same floor. They never
@@ -231,12 +268,15 @@ Each need is 0-100. Drain is per real hour.
 - Armor (5.11) reduces damage taken; throwables (5.11) add area damage.
 
 ### 5.5 Scavenging and inventory
-- Containers have 1-3 loot rolls from per-container tables (level-designer).
-  Search takes **2 s** (`scavenge.searchSeconds`) with a progress ring,
-  costs **1 energy**; zombie aggro interrupts it.
+- Containers have 1-3 loot rolls (`scavenge.lootRolls`) from per-container
+  tables (level-designer; `objects.<id>.primary.lootTable` names the table,
+  `lootTags` are design hints). Search takes **2 s**
+  (`scavenge.searchSeconds`) with a progress ring, costs **1 energy**
+  (`scavenge.searchEnergy`); zombie aggro interrupts it.
 - Hero carries **8 slots** (`inventory.carrySlots`). Items stack to **10**
   (`inventory.itemStack`); materials stack to **20**
-  (`inventory.materialStack`). Tools, throwables and the flashlight use carry
+  (`inventory.materialStack`); weapons and tools never stack (1 per slot,
+  `inventory.toolStack`). Tools, throwables and the flashlight use carry
   slots; equipped armor and shoes do not (5.11).
 - Home stockpile: **40 slots** (`inventory.stockpileSlots`), +20 per
   storage shelf built. Entering the home apartment offers "Store all".
@@ -282,20 +322,22 @@ Water from salvage comes as consumable items: **Dirty water** (+20 water,
 - **Tools** must be carried (no weapon slot used): **Crowbar** (doors,
   wardrobes, bed frames), **Wrench** (pipes, water heater, fridge, washing
   machine, electrical panel), **Saw** (M2: bookshelves, counters). Each tool
-  has **20 uses** (`salvage.toolUses`).
+  has **20 uses** (`salvage.toolUses`). Every action that needs a tool
+  (dismantle, wrench Drain, crowbar on a jammed door) uses 1 use when it
+  completes; at 0 uses the tool breaks (toast).
 - **Noise**, fired when dismantling starts and shown by a floating "!":
   *Quiet* none; *Noisy* aggros zombies within **400 px** on the same floor
   (`salvage.noiseRadius`); *Loud* aggros every zombie on the same floor.
   Noise never reaches other floors. Tool wraps make a dismantle one step
   quieter (5.11).
 - An unsearched container is searched first (+2 s). A zombie hit or aggro
-  interrupts; progress is lost unless past 50%.
+  interrupts; progress is lost unless past 50% (`salvage.keepProgressRatio`).
 - Yield is fixed per object plus listed chances. The object is removed for
   good (saved) and never respawns: each floor is a finite stock.
 - Crafted placeables can be dismantled for **50%** of their cost, rounded
-  down (`salvage.refundRatio`), quiet, 2 s.
-- **Drain** (primary action, quiet, 2 s) works once per object; it can
-  still be dismantled after.
+  down (`salvage.refundRatio`), quiet, Small time and energy (2 s / 1).
+- **Drain** (primary action, quiet, Small time and energy: 2 s / 1) works
+  once per object; it can still be dismantled after.
 
 **Milestone 1 objects** (level-designer places them):
 
@@ -323,7 +365,7 @@ Water from salvage comes as consumable items: **Dirty water** (+20 water,
 | 20 | Oil lamp | S | - | Quiet | - | 1 glass + 1 metal, 50% +1 fuel |
 
 Window panes exist only outside the home apartment (home windows hold the
-window build spots).
+window build spots; `objects.window_pane.allowedInHome` false).
 
 **Later v1 objects** (size, tool, noise, primary: yield; "-" = none):
 - **M2**: bookshelf (L, saw, noisy: 6 wood + 3 paper); kitchen counter (L,
@@ -407,6 +449,24 @@ Milestone 1 recipes (14): spiked bat, molotov, crowbar, wrench, bandage,
 rain collector, water filter, purify water, planter, barricade Lv1, Lv2,
 repair, secure floor, survivor bed.
 
+M1 recipe rules (numbers in `recipes.<id>` and `barricade.*`):
+- **Build spots** (`recipes.<id>.buildSpot`): rain collector `window`;
+  water filter, planter and survivor bed `floor`; barricades `stairwell`;
+  secure floor `cleared_floor`; everything else `none` (goes to inventory).
+- **Barricade**: Lv2 needs Lv1 built (`barricade.levels[].requiresLevel`)
+  and replaces it at full Lv2 HP. At 0 HP the barricade gives no defense
+  and zombies pass; Repair still works on it.
+- **Repair**: each craft spends 1 wood and restores 20 HP
+  (`barricade.repairHpPerWood`), capped at max HP; greyed at full HP.
+- **Secure floor**: crafting opens a list of Cleared floors (96 px rows);
+  the tapped floor becomes Secured. Greyed if no floor is Cleared.
+- **Producers**: `effect.intervalHours`, `effect.maxStored`,
+  `effect.waterPerUnit` (planter: 1 water per crop, taken from
+  `effect.waterItems`, dirty first); the water filter uses
+  `effect.queueMax` (dirty water loaded via *Use*). Output always stays in
+  the placeable (up to `effect.maxStored`; filter 6) until collected with
+  *Use*; when full, production pauses.
+
 **Build spots**: placeables go in fixed, tappable spots. Home apartment:
 **2 window** and **4 floor** spots (`home.windowSpots`, `home.floorSpots`),
 +2 floor spots with Workbench Lv2 (`home.workbenchLv2FloorSpots`). Wall items
@@ -424,15 +484,19 @@ when to return. Offline production with a full stockpile is lost (reported).
 - Few, named, hand-written characters (dialogue, one trait, one recruitment
   quest), each on a specific floor. Recruit: talk -> quest -> free Survivor
   bed -> they move in.
-- Survivors have Health and use **1 food + 1 water item every 12 h**
-  (`survivors.upkeepHours`); if missing: -10 health, morale -5.
+- Survivors have Health (start 100, `survivors.startHealth`) and use **1
+  food + 1 water item every 12 h** (`survivors.upkeepHours`,
+  `survivors.upkeepFood`, `survivors.upkeepWater`); if missing: -10 health,
+  morale -5 (`survivors.missedUpkeepHealth`, `survivors.missedUpkeepMorale`).
+  Named survivors live in `survivors.roster.<id>`.
 - Jobs (Survivors screen, one each):
   - **Guard** (M1): +15 defense (`survivors.guardDefense`).
   - **Scavenger** (M1): offline only, 1 loot roll from a cleared floor every
     2 h (`survivors.scavengeIntervalHours`); from M2, 50% of rolls are a
     material stack of 2-4 instead.
   - **Tender** (M1): rain collector, filter, planter and herb box output
-    +50%.
+    +50% (`survivors.tenderOutputMult` 1.5: their `intervalHours` are
+    divided by 1.5).
   - **Medic** (M2): residents' health regen x2, Sick lasts half as long and
     Infection timers of residents at home run at half speed (5.14).
   - **Cook** (M2): offline, keeps the stove fed from stockpile wood/paper
@@ -447,15 +511,25 @@ when to return. Offline production with a full stockpile is lost (reported).
 ### 5.8 Attacks
 - Scheduled every **8 h +/- 2 h** (`attacks.intervalHours`,
   `attacks.jitterHours`). First attack is scripted, **10 min** after the
-  tutorial ends.
-- Attack strength A = **30 + 3 x days survived**, capped at **150**
+  tutorial ends (`attacks.firstAttackDelayMinutes`): fixed strength **20**,
+  1 crawler + 1 walker (`attacks.scripted`), so a Lv1 barricade plus the
+  active character (D = 20) repels it even offline. No scheduled attack
+  can happen before the scripted one is resolved; the first scheduled
+  attack is set 8 h +/- 2 h after it ends. In M1 scheduled attacks are all walkers
+  (`attacks.scheduledZombieType`). Days survived = whole 24 h periods since
+  New game.
+- Attack strength A = **25 + 3 x days survived**, capped at **150**
   (`attacks.baseStrength`, `attacks.perDay`, `attacks.cap`); x**1.1** while
   a generator is running (`power.generatorAttackMult`); x**1.2** if it
   starts at night (`night.attackMult`, 5.12). Multipliers stack after the cap.
+  First-night fairness: on day 0, Lv1 barricade + active character + one
+  Secured floor (D = 25) holds A = 25. The intended next steps are
+  Barricade Lv2 or Mara as Guard, which keep pace for several days.
 - **Online (telegraphed)**: 60 s warning (`attacks.warningSeconds`; 90 s with
   Tripwire chimes, `traps.chimeWarningSeconds`; +30 s if the dog is home,
   `dog.warningSeconds`, 5.13): red countdown banner,
-  distant moans, flickering lights. Then ceil(A / 10) zombies climb to the
+  distant moans, flickering lights. Then ceil(A / 10)
+  (`attacks.strengthPerZombie`) zombies climb to the
   home floor and hit the barricade; the player fights until all are dead. A
   fallen barricade lets them into the apartment.
 - **Traps online**: Nail board deals **10** damage to each zombie when it
@@ -463,13 +537,16 @@ when to return. Offline production with a full stockpile is lost (reported).
   zombies (`traps.nailUses`). A powered Electric fence deals **5** damage to
   a zombie each time it hits the barricade (`traps.fenceDamage`).
 - **Offline (auto-resolve)**: defense D = barricade defense + guards x 15 +
-  secured floors x 5 + 10 (the active character) + Nail board **10**
+  secured floors x 5 (`attacks.securedFloorDefense`) + 10 (the active
+  character, `attacks.characterDefense`) + Nail board **10**
   (`traps.nailDefense`; it breaks after the attack) + Tripwire chimes **5**
   (`traps.chimeDefense`) + powered Electric fence **20**
   (`traps.fenceDefense`) + dog at home and fed **5** (`dog.defense`).
-  - D >= A: repelled. Barricade loses A x 0.5 HP.
+  - D >= A: repelled. Barricade loses A x 0.5 HP
+    (`attacks.repelBarricadeLossRatio`).
   - D < A: breached. Barricade HP -> 0, shortfall S = A - D. Each resident
-    takes S / 2 damage (health floor 10) and rolls a bite (5.14), and S / 10
+    takes S / 2 damage (`attacks.breachDamageRatio`, health floor 10) and
+    rolls a bite (5.14, M2), and S / 10 (`attacks.breachStackDivisor`)
     random stockpile stacks are lost (rounded down); lockbox contents are
     never lost.
   - At most **2** attacks resolve per catch-up (`attacks.maxOfflineResolves`).
@@ -540,7 +617,8 @@ random Infested floor. Some scans unlock a short radio note.
   bottom bar. Tap it to arm the first throwable type (a 300 px range circle
   appears, `throw.rangePx`); tap again to cycle to the next type, past the
   last type disarms. While armed, the next tap on the hero's floor within
-  range throws it (lands 0.5 s later); a tap out of range, on another floor
+  range throws it (lands 0.5 s later, `throw.landSeconds`);
+  a tap out of range, on another floor
   or on Home disarms and keeps the item.
 - **Molotov**: a fire patch **120 px** wide for **4 s** (`molotov.widthPx`,
   `molotov.seconds`), **15 damage/s** to zombies inside
@@ -673,7 +751,9 @@ random Infested floor. Some scans unlock a short radio note.
 | Attacks | 1 scripted + scheduled walker attacks | Full scaling, traps |
 
 Milestone 1 survivor: **Mara, floor 13, a nurse hiding in a bathroom;
-quest: fetch her medical bag from floor 14**. Other survivors are written by
+quest: fetch her medical bag from floor 14** (`items.medical_bag`, quest
+item: takes 1 carry slot, never stacks, cannot be stored in the stockpile
+or dropped; handed over by *Use* on Mara). Other survivors are written by
 game-designer and level-designer for v1.
 
 ## 8. Screens and flow
@@ -788,9 +868,12 @@ disguises, amputation.
 - **Pet**: one dog that barks (growls) to warn of zombies (5.13).
 - **Bites can infect**; untreated infection turns the character (5.14).
   Zombies sense by sight and noise only (no smell, no disguises).
+- **Dog's name**: **Scout**, fixed (no player naming, no text entry).
 
 ### Open questions
 1. **Backstory names** ("grey fever", "river docks" group): keep, rename,
    or also name the city/tower?
-2. **Dog's name**: keep the working name "Scout", pick another, or let the
-   player name it on recruit (adds a text-entry screen)?
+2. **Mara's trait**: section 5.7 gives each survivor one trait, but Mara's
+   is not defined. Default until answered: no trait in M1. Options: (a) *Steady hands*: bandages heal +50% when she
+   is the active character or at home; (b) *Light sleeper*: +15 s attack
+   warning while she is home; (c) no trait in M1, decide for M2.
