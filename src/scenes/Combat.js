@@ -9,6 +9,7 @@ import { speedMult } from '../gameplay/needs.js';
 import { heroWeapon, swingDamage, spendSwingEnergy, spendWeaponUse } from '../gameplay/combat.js';
 import { isAware } from '../gameplay/zombies.js';
 import { playSfx } from './sfx.js';
+import { hitSoundKey, isSmallHit } from '../gameplay/hitfx.js';
 
 /** Stand a little inside the weapon range so knockback or jitter does not break the swing. */
 const RANGE_SLACK = 4;
@@ -20,6 +21,8 @@ export default class Combat {
     this.cd = 0;
     /** @type {{type:'zombie', id:string}|{type:'door', apt:object}|null} */
     this.order = null;
+    /** Last sound variant per class, to avoid an immediate repeat. */
+    this.lastHit = {};
   }
 
   /** Drop the pending attack (new tap elsewhere, hide, death). */
@@ -98,8 +101,8 @@ export default class Combat {
     if (!rt) { s.applyDoorHit(apt); return; }
     // the first hit on a zombie that has not noticed the hero deals x3 (GDD 5.4); no damage numbers
     const dmg = swingDamage(w, state.needs, balance, { unaware: !isAware(rt.ai), panic: s.panic.level });
-    playSfx(s, 'hit_flesh');
-    const killed = s.zombies.hurt(rt, dmg, h.x);
+    playSfx(s, hitSoundKey(w.id, this.lastHit));
+    const killed = s.zombies.hurt(rt, dmg, h.x, isSmallHit(w.id));
     const wear = spendWeaponUse(state, balance);
     if (wear?.broke) {
       s.toast.show(`Your ${balance.combat.weapons[wear.id].name.toLowerCase()} broke. Back to fists.`);

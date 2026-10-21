@@ -12,6 +12,7 @@ import { barricadeUp, barricadeDamage } from '../gameplay/barricade.js';
 import { hitZombie, burnZombie } from '../gameplay/combat.js';
 import ZombieView, { BODY_CENTER } from './ZombieView.js';
 import { playSfx } from './sfx.js';
+import { HIT_FX, wantsDecal } from '../gameplay/hitfx.js';
 
 /** Tap hit box half width / half height (96x96 hit area). */
 const HIT_HALF_W = 48;
@@ -83,6 +84,7 @@ export default class Zombies {
   /** Per-frame AI and sprite sync. */
   update(dt) {
     const { scene, env } = this;
+    this.view.update(dt);
     this.barricade.up = barricadeUp(scene.state);
     env.heroFloor = scene.zombieTargetFloor();
     env.heroX = scene.state.hero.x;
@@ -120,14 +122,21 @@ export default class Zombies {
   }
 
   /** A hero weapon hit. @returns {boolean} killed */
-  hurt(rt, damage, fromX) {
+  hurt(rt, damage, fromX, small = false) {
     const { scene } = this;
     this.barricade.up = barricadeUp(scene.state);
     movementBounds(scene.tower, scene.state.doors, rt.rec.floor, rt.rec.x, this.bounds, this.barricade);
     const killed = hitZombie(rt.rec, rt.ai, damage, fromX, this.bounds, scene.balance, this.tune);
     this.view.flash(rt);
-    this.view.spark(rt.rec.x + (fromX < rt.rec.x ? -10 : 10), rt.y - BODY_CENTER - 6);
-    if (killed) this.kill(rt);
+    const dir = fromX < rt.rec.x ? 1 : -1; // the spray flies away from the hero
+    this.view.bloodSplash(rt.rec.x - dir * 10, rt.y - BODY_CENTER - 6, dir, small);
+    if (wantsDecal(killed)) this.view.addDecal(rt.rec.floor, rt.rec.x);
+    if (killed) {
+      this.kill(rt);
+      if (Math.random() < HIT_FX.dripChance) {
+        scene.time.delayedCall(HIT_FX.dripDelayMs, () => playSfx(scene, 'blood_drip', { volume: HIT_FX.dripVolume }));
+      }
+    }
     return killed;
   }
 

@@ -4,11 +4,17 @@
  */
 import { floorLineY, roomKey, ART_SCALE } from '../gameplay/layout.js';
 import { roomRefAt } from '../gameplay/zombies.js';
+import { HIT_FX, decalAlpha } from '../gameplay/hitfx.js';
 
 const ZOMBIE_DEPTH = 15;
 const SPARK_DEPTH = 25;
 const SPARK_POOL = 6;
 const SPARK_SCALE = 4;
+const BLOOD_POOL = 6;
+const DECAL_DEPTH = 11;
+const DECAL_FRAMES = 4;
+/** Impact point inside the 24x24 splash and 16x16 spatter frames (art px). */
+const BLOOD_ORIGIN = { fx_blood: [4 / 24, 0.5], fx_blood_small: [3 / 16, 0.5] };
 const CORPSE_FADE_MS = 800;
 /** Vertical centre of a standing zombie above the floor line, px. */
 export const BODY_CENTER = 36;
@@ -34,6 +40,18 @@ export default class ZombieView {
       this.sparks.push(sp);
     }
     this.nextSpark = 0;
+    this.blood = { fx_blood: [], fx_blood_small: [] };
+    this.nextBlood = { fx_blood: 0, fx_blood_small: 0 };
+    for (const key in this.blood) {
+      for (let i = 0; i < BLOOD_POOL; i++) {
+        const sp = scene.add.sprite(0, 0, key, 0).setScale(SPARK_SCALE).setDepth(SPARK_DEPTH).setVisible(false);
+        sp.on('animationcomplete', () => sp.setVisible(false));
+        this.blood[key].push(sp);
+      }
+    }
+    /** @type {Map<number, {sprite:object, born:number}[]>} decals per floor, oldest first (cosmetic, not saved) */
+    this.decals = new Map();
+    this.clock = 0;
   }
 
   /** Sprite parts for a zombie record. */
@@ -76,6 +94,42 @@ export default class ZombieView {
     const sp = this.sparks[this.nextSpark];
     this.nextSpark = (this.nextSpark + 1) % this.sparks.length;
     sp.setPosition(x, y).setVisible(true).play('fx_spark_hit');
+  }
+
+  /**
+   * Blood splash at a world position (pooled); the spray flies toward `dir` (+1 right, -1 left).
+   * @param {boolean} small fists / weak hits use the small spatter
+   */
+  bloodSplash(x, y, dir, small) {
+    const key = small ? 'fx_blood_small' : 'fx_blood';
+    const pool = this.blood[key];
+    const sp = pool[this.nextBlood[key]];
+    this.nextBlood[key] = (this.nextBlood[key] + 1) % pool.length;
+    const [ox, oy] = BLOOD_ORIGIN[key];
+    sp.setFlipX(dir < 0).setOrigin(dir < 0 ? 1 - ox : ox, oy).setPosition(x, y).setVisible(true)
+      .play(small ? 'fx_blood_small_spatter' : 'fx_blood_splash');
+  }
+
+  /** Leave a blood decal on the floor under x; the oldest on that floor is reused past the cap. */
+  addDecal(floor, x) {
+    let list = this.decals.get(floor);
+    if (!list) { list = []; this.decals.set(floor, list); }
+    let d;
+    if (list.length >= HIT_FX.decalMaxPerFloor) d = list.shift();
+    else d = { sprite: this.scene.add.sprite(0, 0, 'blood_decal', 0).setOrigin(0.5, 1).setScale(ART_SCALE).setDepth(DECAL_DEPTH), born: 0 };
+    d.born = this.clock;
+    const jitter = (Math.random() * 2 - 1) * HIT_FX.decalJitterPx;
+    d.sprite.setFrame(Math.floor(Math.random() * DECAL_FRAMES)).setFlipX(Math.random() < 0.5)
+      .setPosition(x + jitter, floorLineY(this.tower, floor)).setAlpha(decalAlpha(0)).setVisible(true);
+    list.push(d);
+  }
+
+  /** Slowly fade decals (dt in seconds; paused time does not count). */
+  update(dt) {
+    this.clock += dt;
+    for (const list of this.decals.values()) {
+      for (const d of list) d.sprite.setAlpha(decalAlpha(this.clock - d.born));
+    }
   }
 
   /** Death animation, then the corpse lingers `corpseMs` and fades out. */
