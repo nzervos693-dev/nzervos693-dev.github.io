@@ -1,0 +1,571 @@
+{
+  "version": 1,
+  "milestone": "M2",
+  "format": {
+    "summary": "Input for the seeded floor generator (GDD 5.15). Numbers (chances, counts, widths) live in balance.json under generator.* and world.*; this file holds shapes, pools and text only.",
+    "slots": "A room of N modules has 2N floor slots and 2N wall slots, named floor0..floor(2N-1) and wall0..wall(2N-1), numbered outward from the room's door side. A slot's distance from the unit's front door edge is d = (first module index of the room * 240) + 240 * floor(k/2) + (k even ? 72 : 168), using balance.world.moduleWidthPx and slotOffsetsPx. World x: left wing x = 1440 - d, right wing x = 1680 + d. This keeps every same-layer pair >= 96 px apart and every slot >= 72 px from any doorway (min 48, world.doorwayClearancePx), because doorways are only at multiples of 240 from the front door.",
+    "generationOrder": "Forced wings first: floor 15 left = your_flat, floor 13 Mara's flat, floor 14 bag flat (chosen from its template list in floorOverrides). Then roll the other wing by template weight, honouring balance generator.maxSameTemplatePerFloor, floorOverrides excludeTemplates and the flat-wing guarantee.",
+    "unitModules": "Every template's room modules sum to balance.world.modulesPerWing (6). Front door is at d = 0.",
+    "roomTypes.always": "Objects placed before pool fill. {object, layer, count?} puts count (default 1) in random free slots of that layer. {object, layer, slots:'all'} fills every slot of the layer. {oneOf:[{object,weight}], layer} picks one by weight. Pool fill then visits each remaining slot with chance generator.slotFillChance and a weighted pick from that layer's pool.",
+    "roomTypes.pools": "Per layer: [{object, weight, max?}]. max = most copies per unit (not per room); copies placed by 'always' count toward max. When a max is used up, remove it from the pool for the rest of the unit and keep the other weights.",
+    "templates.rooms": "[{ref, type, modules, position?}] position 'first' or 'last' pins the room to the front-door end or the far end; others are shuffled between them. adjacent: [[refA, refB]] means those rooms must be neighbours. Room instance ids use the room's final index: f<floor><L|R>-<roomIndex>-<slot>, e.g. f14R-2-wall1.",
+    "templates.allowedConditions": "Conditions the generator may roll for this unit (conditions themselves: balance.generator.conditions). The start flat is normal only; offices and service units are never burned.",
+    "templates.lootBias": "Optional map of item id to a weight multiplier applied to every loot table roll made inside the unit (elderly flat favours medicine, tins, seeds).",
+    "templates.roomOverrides": "Optional per room ref: replaces 'always' entries of that room type (elderly bathroom always has a medicine cabinet).",
+    "authored": "Only your_flat. A fully fixed layout: authored.doorsAfterRoom lists rooms followed by an interior door at their far boundary; objects list {object, layer, slot, fixedLoot?, rolls?, foundNote?}. Nothing is randomised, no pools are used, no zombies. 'workbench' is a fixture (GDD 5.15 Generator edge rules), not a salvage object.",
+    "fixedLoot": "As in floors.json: [{id, qty}] guaranteed on first search. With fixedLoot the container makes 0 table rolls unless 'rolls' [min,max] is given. fixedLoot ignores the condition's emptyChance and is never removed or charred by a condition.",
+    "guarantees": "Applied after filling and after conditions (GDD 5.15 steps 8-9). Each guaranteed object is exempt from ransack removal, charring and emptiness.",
+    "zombies": "Crawler/walker choice uses balance generator.zombieTypeWeights. Room zombieWeight (0 = never) weights which room gets a zombie; counts, group chance, per-room cap and the 'not in the first module' rule come from balance.generator.",
+    "notes": "notes[] are found notes (GDD 5.16). Each id is used at most once per game. containers lists the object ids that may hold it; unitTypes limits by unit type (flat, office, service). Pick 1-2 per floor (notesPerFloor) in a container that exists; a note is delivered on first search even if the container has no other loot."
+  },
+  "notesPerFloor": [1, 2],
+  "roomTypes": {
+    "hallway": {
+      "name": "Hallway",
+      "hasWindow": false,
+      "zombieWeight": 1,
+      "always": [],
+      "pools": {
+        "floor": [
+          { "object": "chair", "weight": 2 },
+          { "object": "potted_plant", "weight": 2 },
+          { "object": "toolbox", "weight": 1, "max": 1 }
+        ],
+        "wall": [
+          { "object": "oil_lamp", "weight": 1 }
+        ]
+      }
+    },
+    "living": {
+      "name": "Living room",
+      "hasWindow": true,
+      "zombieWeight": 3,
+      "always": [
+        { "object": "sofa", "layer": "floor" }
+      ],
+      "pools": {
+        "floor": [
+          { "object": "table", "weight": 3 },
+          { "object": "chair", "weight": 3 },
+          { "object": "tv", "weight": 2, "max": 1 },
+          { "object": "potted_plant", "weight": 2 }
+        ],
+        "wall": [
+          { "object": "window_pane", "weight": 3 },
+          { "object": "curtains", "weight": 3 },
+          { "object": "oil_lamp", "weight": 1 }
+        ]
+      }
+    },
+    "kitchen": {
+      "name": "Kitchen",
+      "hasWindow": true,
+      "zombieWeight": 2,
+      "always": [
+        { "object": "fridge", "layer": "floor" },
+        { "object": "kitchen_cupboard", "layer": "wall" }
+      ],
+      "pools": {
+        "floor": [
+          { "object": "table", "weight": 2 },
+          { "object": "chair", "weight": 2 },
+          { "object": "sink_pipes", "weight": 2, "max": 1 }
+        ],
+        "wall": [
+          { "object": "kitchen_drawer", "weight": 3 },
+          { "object": "microwave", "weight": 2, "max": 1 },
+          { "object": "kitchen_cupboard", "weight": 2 },
+          { "object": "window_pane", "weight": 1 }
+        ]
+      }
+    },
+    "bedroom": {
+      "name": "Bedroom",
+      "hasWindow": true,
+      "zombieWeight": 3,
+      "always": [
+        { "object": "bed_frame", "layer": "floor" }
+      ],
+      "pools": {
+        "floor": [
+          { "object": "wardrobe", "weight": 3, "max": 1 },
+          { "object": "chair", "weight": 1 },
+          { "object": "mattress", "weight": 1 }
+        ],
+        "wall": [
+          { "object": "curtains", "weight": 3 },
+          { "object": "window_pane", "weight": 2 },
+          { "object": "oil_lamp", "weight": 1 }
+        ]
+      }
+    },
+    "kids_room": {
+      "name": "Kids' room",
+      "hasWindow": true,
+      "zombieWeight": 2,
+      "always": [
+        { "oneOf": [ { "object": "bed_frame", "weight": 60 }, { "object": "mattress", "weight": 40 } ], "layer": "floor" },
+        { "object": "toy_box", "layer": "floor" }
+      ],
+      "pools": {
+        "floor": [],
+        "wall": [
+          { "object": "curtains", "weight": 3 },
+          { "object": "window_pane", "weight": 1 }
+        ]
+      }
+    },
+    "bathroom": {
+      "name": "Bathroom",
+      "hasWindow": false,
+      "zombieWeight": 1,
+      "always": [
+        { "object": "toilet_tank", "layer": "floor" },
+        { "oneOf": [ { "object": "bathroom_cabinet", "weight": 50 }, { "object": "medicine_cabinet", "weight": 50 } ], "layer": "wall" }
+      ],
+      "pools": {
+        "floor": [
+          { "object": "sink_pipes", "weight": 2, "max": 1 },
+          { "object": "water_heater", "weight": 1, "max": 1 },
+          { "object": "laundry_basket", "weight": 2 }
+        ],
+        "wall": [
+          { "object": "bathroom_cabinet", "weight": 1, "max": 1 }
+        ]
+      }
+    },
+    "studio": {
+      "name": "Studio",
+      "hasWindow": true,
+      "zombieWeight": 3,
+      "always": [
+        { "oneOf": [ { "object": "bed_frame", "weight": 70 }, { "object": "mattress", "weight": 30 } ], "layer": "floor" },
+        { "object": "sofa", "layer": "floor" },
+        { "object": "fridge", "layer": "floor" },
+        { "object": "kitchen_cupboard", "layer": "wall" }
+      ],
+      "pools": {
+        "floor": [
+          { "object": "table", "weight": 2 },
+          { "object": "chair", "weight": 2 },
+          { "object": "tv", "weight": 1, "max": 1 },
+          { "object": "potted_plant", "weight": 1 }
+        ],
+        "wall": [
+          { "object": "kitchen_drawer", "weight": 2 },
+          { "object": "window_pane", "weight": 2 },
+          { "object": "curtains", "weight": 2 }
+        ]
+      }
+    },
+    "laundry": {
+      "name": "Laundry room",
+      "hasWindow": false,
+      "zombieWeight": 2,
+      "always": [
+        { "object": "washing_machine", "layer": "floor", "count": 2 }
+      ],
+      "pools": {
+        "floor": [
+          { "object": "washing_machine", "weight": 2 },
+          { "object": "laundry_basket", "weight": 3 }
+        ],
+        "wall": [
+          { "object": "utility_shelf", "weight": 2 }
+        ]
+      }
+    },
+    "reception": {
+      "name": "Reception",
+      "hasWindow": true,
+      "zombieWeight": 2,
+      "always": [
+        { "object": "desk", "layer": "floor" }
+      ],
+      "pools": {
+        "floor": [
+          { "object": "chair", "weight": 3 },
+          { "object": "sofa", "weight": 1 },
+          { "object": "potted_plant", "weight": 2 }
+        ],
+        "wall": [
+          { "object": "window_pane", "weight": 2 }
+        ]
+      }
+    },
+    "office": {
+      "name": "Office",
+      "hasWindow": true,
+      "zombieWeight": 3,
+      "always": [
+        { "object": "desk", "layer": "floor" }
+      ],
+      "pools": {
+        "floor": [
+          { "object": "filing_cabinet", "weight": 3 },
+          { "object": "chair", "weight": 2 },
+          { "object": "potted_plant", "weight": 1 }
+        ],
+        "wall": [
+          { "object": "window_pane", "weight": 2 },
+          { "object": "curtains", "weight": 1 }
+        ]
+      }
+    },
+    "break_room": {
+      "name": "Break room",
+      "hasWindow": false,
+      "zombieWeight": 2,
+      "always": [
+        { "object": "kitchen_cupboard", "layer": "wall" },
+        { "object": "table", "layer": "floor" }
+      ],
+      "pools": {
+        "floor": [
+          { "object": "chair", "weight": 3 },
+          { "object": "fridge", "weight": 1, "max": 1 }
+        ],
+        "wall": [
+          { "object": "microwave", "weight": 2, "max": 1 },
+          { "object": "kitchen_drawer", "weight": 2 }
+        ]
+      }
+    },
+    "storage": {
+      "name": "Storage cages",
+      "hasWindow": false,
+      "zombieWeight": 3,
+      "always": [
+        { "object": "storage_cage", "layer": "floor", "slots": "all" }
+      ],
+      "pools": {
+        "floor": [],
+        "wall": [
+          { "object": "utility_shelf", "weight": 2 }
+        ]
+      }
+    },
+    "janitor": {
+      "name": "Janitor's closet",
+      "hasWindow": false,
+      "zombieWeight": 2,
+      "always": [
+        { "object": "utility_shelf", "layer": "wall" }
+      ],
+      "pools": {
+        "floor": [
+          { "object": "toolbox", "weight": 2, "max": 1 },
+          { "object": "laundry_basket", "weight": 1 }
+        ],
+        "wall": [
+          { "object": "utility_shelf", "weight": 1 }
+        ]
+      }
+    },
+    "utility": {
+      "name": "Boiler room",
+      "hasWindow": false,
+      "zombieWeight": 3,
+      "always": [
+        { "object": "water_heater", "layer": "floor" }
+      ],
+      "pools": {
+        "floor": [
+          { "object": "toolbox", "weight": 2, "max": 1 },
+          { "object": "storage_cage", "weight": 1 }
+        ],
+        "wall": [
+          { "object": "utility_shelf", "weight": 2 }
+        ]
+      }
+    }
+  },
+  "templates": {
+    "your_flat": {
+      "name": "Your flat",
+      "type": "flat",
+      "weight": 0,
+      "allowedConditions": ["normal"],
+      "rooms": [
+        { "ref": "hallway", "type": "hallway", "modules": 1, "position": "first" },
+        { "ref": "living", "type": "living", "modules": 2 },
+        { "ref": "kitchen", "type": "kitchen", "modules": 1 },
+        { "ref": "bedroom", "type": "bedroom", "modules": 1 },
+        { "ref": "bathroom", "type": "bathroom", "modules": 1, "position": "last" }
+      ],
+      "fixedOrder": true,
+      "unitName": "Your apartment",
+      "flavour": ["Pills on the nightstand, the radio muttering static. Something scratches at the door."],
+      "authored": {
+        "doorsAfterRoom": ["hallway", "kitchen", "bedroom"],
+        "frontDoor": "open",
+        "rooms": {
+          "hallway": {
+            "objects": [
+              { "object": "potted_plant", "layer": "floor", "slot": "floor1" }
+            ]
+          },
+          "living": {
+            "objects": [
+              { "object": "chair", "layer": "floor", "slot": "floor0" },
+              { "object": "table", "layer": "floor", "slot": "floor1" },
+              { "object": "sofa", "layer": "floor", "slot": "floor3" },
+              { "object": "window_pane", "layer": "wall", "slot": "wall0" },
+              { "object": "workbench", "layer": "wall", "slot": "wall2", "fixture": true },
+              { "object": "curtains", "layer": "wall", "slot": "wall3" }
+            ]
+          },
+          "kitchen": {
+            "objects": [
+              { "object": "fridge", "layer": "floor", "slot": "floor0", "fixedLoot": [ { "id": "canned_food", "qty": 1 } ] },
+              {
+                "object": "kitchen_drawer", "layer": "wall", "slot": "wall0",
+                "fixedLoot": [ { "id": "metal", "qty": 2 } ],
+                "foundNote": { "id": "hint_nails", "text": "A tin of nails." }
+              },
+              { "object": "kitchen_cupboard", "layer": "wall", "slot": "wall1", "fixedLoot": [ { "id": "chemicals", "qty": 1 } ] }
+            ]
+          },
+          "bedroom": {
+            "objects": [
+              { "object": "bed_frame", "layer": "floor", "slot": "floor0" },
+              { "object": "wardrobe", "layer": "floor", "slot": "floor1" },
+              { "object": "curtains", "layer": "wall", "slot": "wall0" }
+            ]
+          },
+          "bathroom": {
+            "objects": [
+              { "object": "toilet_tank", "layer": "floor", "slot": "floor0" },
+              { "object": "sink_pipes", "layer": "floor", "slot": "floor1" },
+              { "object": "bathroom_cabinet", "layer": "wall", "slot": "wall0", "fixedLoot": [ { "id": "bandage", "qty": 1 } ] }
+            ]
+          }
+        }
+      }
+    },
+    "family_flat": {
+      "name": "Family flat",
+      "type": "flat",
+      "weight": 25,
+      "allowedConditions": ["normal", "ransacked", "burned"],
+      "nameFormat": "{surname} flat",
+      "rooms": [
+        { "ref": "hallway", "type": "hallway", "modules": 1, "position": "first" },
+        { "ref": "living", "type": "living", "modules": 1 },
+        { "ref": "kitchen", "type": "kitchen", "modules": 1 },
+        { "ref": "bedroom", "type": "bedroom", "modules": 1 },
+        { "ref": "kids", "type": "kids_room", "modules": 1 },
+        { "ref": "bathroom", "type": "bathroom", "modules": 1 }
+      ],
+      "adjacent": [["kitchen", "living"]],
+      "flavour": [
+        "Toys lined up by the door, as if someone was coming back.",
+        "Crayon on the wall, at exactly the height of a four-year-old.",
+        "Three toothbrushes in a cup. A fourth on the floor."
+      ]
+    },
+    "couple_flat": {
+      "name": "Couple's flat",
+      "type": "flat",
+      "weight": 25,
+      "allowedConditions": ["normal", "ransacked", "burned"],
+      "nameFormat": "{surname} flat",
+      "rooms": [
+        { "ref": "hallway", "type": "hallway", "modules": 1, "position": "first" },
+        { "ref": "living", "type": "living", "modules": 2 },
+        { "ref": "kitchen", "type": "kitchen", "modules": 1 },
+        { "ref": "bedroom", "type": "bedroom", "modules": 1 },
+        { "ref": "bathroom", "type": "bathroom", "modules": 1 }
+      ],
+      "adjacent": [["kitchen", "living"]],
+      "flavour": [
+        "The TV is still on standby. Nobody's watched it in a week.",
+        "Two mugs on the table. One is still half full.",
+        "A wedding photo, face down."
+      ]
+    },
+    "shared_flat": {
+      "name": "Shared flat",
+      "type": "flat",
+      "weight": 15,
+      "allowedConditions": ["normal", "ransacked", "burned"],
+      "nameFormat": "{surname} flat",
+      "rooms": [
+        { "ref": "hallway", "type": "hallway", "modules": 1, "position": "first" },
+        { "ref": "kitchen", "type": "kitchen", "modules": 1 },
+        { "ref": "bed1", "type": "bedroom", "modules": 1 },
+        { "ref": "bed2", "type": "bedroom", "modules": 1 },
+        { "ref": "bed3", "type": "bedroom", "modules": 1 },
+        { "ref": "bathroom", "type": "bathroom", "modules": 1 }
+      ],
+      "flavour": [
+        "Three names on the fridge rota. The last chore was never ticked.",
+        "Someone's bike in the hall. Someone else's boots on the stairs.",
+        "A shared flat, shared bills, three doors that all stay shut."
+      ]
+    },
+    "studio_laundry": {
+      "name": "Studio and laundry",
+      "type": "flat",
+      "weight": 12,
+      "allowedConditions": ["normal", "ransacked", "burned"],
+      "nameFormat": "Studio and laundry",
+      "rooms": [
+        { "ref": "laundry", "type": "laundry", "modules": 2, "position": "first" },
+        { "ref": "studio", "type": "studio", "modules": 3 },
+        { "ref": "bathroom", "type": "bathroom", "modules": 1, "position": "last" }
+      ],
+      "flavour": [
+        "Warm lint smell. The last cycle never finished.",
+        "One person's whole life in one room, the bed made.",
+        "A sock on the floor of the laundry. Just the one."
+      ]
+    },
+    "elderly_flat": {
+      "name": "Old couple's flat",
+      "type": "flat",
+      "weight": 13,
+      "allowedConditions": ["normal", "ransacked", "burned"],
+      "nameFormat": "{surname} flat",
+      "rooms": [
+        { "ref": "hallway", "type": "hallway", "modules": 1, "position": "first" },
+        { "ref": "living", "type": "living", "modules": 2 },
+        { "ref": "kitchen", "type": "kitchen", "modules": 1 },
+        { "ref": "bedroom", "type": "bedroom", "modules": 1 },
+        { "ref": "bathroom", "type": "bathroom", "modules": 1 }
+      ],
+      "adjacent": [["bedroom", "bathroom"]],
+      "lootBias": { "canned_food": 2, "dry_snack": 1.5, "seeds": 2, "bandage": 2, "medkit": 2, "chemicals": 1.5 },
+      "roomOverrides": {
+        "bathroom": {
+          "always": [
+            { "object": "toilet_tank", "layer": "floor" },
+            { "object": "medicine_cabinet", "layer": "wall" }
+          ]
+        }
+      },
+      "flavour": [
+        "A pill organiser with the days of the week. Thursday is still full.",
+        "Knitting on the armchair. The needles are still in it.",
+        "Tins lined up by date. Someone planned for a long winter."
+      ]
+    },
+    "office": {
+      "name": "Small office",
+      "type": "office",
+      "weight": 6,
+      "allowedConditions": ["normal", "ransacked"],
+      "names": ["Hartley Insurance", "Brightway Accounting", "Delta Print and Copy", "Moreno Dental Supplies"],
+      "rooms": [
+        { "ref": "reception", "type": "reception", "modules": 1, "position": "first" },
+        { "ref": "office1", "type": "office", "modules": 2 },
+        { "ref": "office2", "type": "office", "modules": 1 },
+        { "ref": "break", "type": "break_room", "modules": 1 },
+        { "ref": "bathroom", "type": "bathroom", "modules": 1, "position": "last" }
+      ],
+      "flavour": [
+        "A phone off the hook. The screen says 14 missed calls.",
+        "Coats still on the hooks. Nobody made it to lunch.",
+        "The coffee machine light is still on. Somehow."
+      ]
+    },
+    "storage_utility": {
+      "name": "Storage and boiler rooms",
+      "type": "service",
+      "weight": 4,
+      "allowedConditions": ["normal", "ransacked"],
+      "names": ["Resident storage", "Basement storage", "Maintenance level"],
+      "rooms": [
+        { "ref": "storage", "type": "storage", "modules": 3, "position": "first" },
+        { "ref": "janitor", "type": "janitor", "modules": 1 },
+        { "ref": "utility", "type": "utility", "modules": 2, "position": "last" }
+      ],
+      "flavour": [
+        "Padlocks, numbered tags, a smell of damp cardboard.",
+        "A boiler ticking as it cools. It's been cooling for days.",
+        "Mop bucket still full. Grey water, grey light."
+      ]
+    }
+  },
+  "surnames": ["Hollis", "Kowalski", "Park", "Brandt", "Okafor", "Reyes", "Lindqvist", "Marsh", "Dubois", "Ito", "Varga", "Costa", "Berg", "Haddad", "Whitlock", "Sandoval"],
+  "reservedSurnames": ["Novak"],
+  "floorOverrides": {
+    "15": {
+      "left": { "template": "your_flat", "frontDoor": "open", "condition": "normal", "zombies": 0 },
+      "right": { "excludeTemplates": ["storage_utility"] },
+      "note": "Right wing is generated normally, 0-2 zombies per balance.generator.zombiesPerWingByDistance. The tutorial crawler on the landing is scripted in balance.attacks / scripted spawns, not here."
+    },
+    "13": {
+      "mara": {
+        "wing": "random",
+        "unit": { "type": "flat", "allowedConditions": ["normal", "ransacked"] },
+        "room": "bathroom",
+        "interiorDoorBeforeRoom": { "state": "jammed" },
+        "noZombiesInRoom": true,
+        "survivor": "mara",
+        "foundNote": {
+          "container": "wall-layer cabinet in her bathroom (bathroom_cabinet or medicine_cabinet)",
+          "id": "note_mara_bag",
+          "text": "Left my bag at the Novaks', 14. Couldn't go back."
+        }
+      }
+    },
+    "14": {
+      "bag": {
+        "wing": "random",
+        "unit": { "type": "flat", "templates": ["family_flat", "couple_flat", "shared_flat", "elderly_flat"] },
+        "unitName": "Novak flat",
+        "room": "bedroom",
+        "container": "wardrobe",
+        "placeWardrobeIfMissing": true,
+        "fixedLoot": [ { "id": "medical_bag", "qty": 1 } ],
+        "exemptFromCondition": true,
+        "note": "Unit may roll any condition; the wardrobe is never removed, charred or empty."
+      }
+    }
+  },
+  "guarantees": {
+    "food": {
+      "perFloor": 1,
+      "countStartFlat": false,
+      "candidateObjects": ["fridge", "kitchen_cupboard", "utility_shelf"],
+      "preferUnitType": "flat",
+      "preferConditions": ["normal", "ransacked"],
+      "fixedLootChoices": [
+        { "id": "canned_food", "qty": 1, "weight": 60 },
+        { "id": "dry_snack", "qty": 1, "weight": 40 }
+      ],
+      "exemptFromCondition": true,
+      "ifNoCandidate": "set one wall slot of a kitchen or break_room to kitchen_cupboard (swap out a pool object)"
+    },
+    "water": {
+      "perFloor": 1,
+      "countStartFlat": true,
+      "candidateObjects": ["toilet_tank"],
+      "preferUnitType": "flat",
+      "exemptFromCondition": true,
+      "note": "Every bathroom has a toilet_tank as an 'always' object. The generator only has to make sure at least one toilet_tank on the floor is not charred (burned units char 70% of objects); if all are, restore one."
+    },
+    "flatWings": {
+      "perFloor": 1,
+      "note": "Roll wing A by weight among all templates; if it is not type flat, wing B must be a flat. Never two non-flat wings."
+    }
+  },
+  "emptyContainerLines": "See loot.json emptyLines.",
+  "notes": [
+    { "id": "note_stadium", "text": "Gone to the stadium. Feed the cat if you see this.", "containers": ["kitchen_drawer", "desk"], "unitTypes": ["flat", "office"] },
+    { "id": "note_dad", "text": "Don't let them in. Even if it's Dad.", "containers": ["wardrobe", "desk"], "unitTypes": ["flat"] },
+    { "id": "note_water", "text": "Water stopped on Tuesday. Filled the bath. Don't drink it.", "containers": ["kitchen_drawer"], "unitTypes": ["flat"] },
+    { "id": "note_cough", "text": "Day 4. Sam's cough is worse. The pharmacy was already empty.", "containers": ["wardrobe", "desk"], "unitTypes": ["flat"] },
+    { "id": "note_tins", "text": "If you're reading this, take the tins. We won't be needing them.", "containers": ["kitchen_drawer"], "unitTypes": ["flat"] },
+    { "id": "note_stairs", "text": "Elevator is dead. Stairs are not safe. Neither is staying.", "containers": ["desk", "filing_cabinet"], "unitTypes": ["flat", "office"] },
+    { "id": "note_rent", "text": "Rent due the first. I keep thinking about that.", "containers": ["desk", "kitchen_drawer"], "unitTypes": ["flat", "office"] },
+    { "id": "note_knock", "text": "They knock slowly now. That's worse.", "containers": ["wardrobe"], "unitTypes": ["flat"] },
+    { "id": "note_meeting", "text": "Meeting moved to Monday. Nobody came.", "containers": ["filing_cabinet", "desk"], "unitTypes": ["office"] },
+    { "id": "note_back_five", "text": "Back in five minutes. - J.", "containers": ["desk"], "unitTypes": ["office"] },
+    { "id": "note_rice", "text": "Boiled the last of the rice. Mum won't eat.", "containers": ["kitchen_drawer"], "unitTypes": ["flat"] },
+    { "id": "note_floor17", "text": "Floor 17 was quiet. Then it wasn't.", "containers": ["filing_cabinet", "wardrobe"], "unitTypes": ["flat", "office"] },
+    { "id": "note_chalk", "text": "Marked the empty flats with chalk. The chalk ran out.", "containers": ["wardrobe", "filing_cabinet"], "unitTypes": ["flat", "office"] },
+    { "id": "note_radio", "text": "Left the radio on for the neighbours. Someone should turn it off.", "containers": ["desk", "kitchen_drawer"], "unitTypes": ["flat", "office"] }
+  ]
+}
