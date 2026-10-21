@@ -45,7 +45,7 @@ export function button(scene, o) {
   }
   const txt = scene.add.text(0, o.icon || o.frame ? h / 2 - 16 : 0, o.text || '', {
     fontFamily: FONT, fontSize: `${o.size ?? 18}px`, color: CSS.text, align: 'center',
-    stroke: '#0d0f12', strokeThickness: 4,
+    stroke: '#0d0f12', strokeThickness: 4, wordWrap: { width: w - 8 },
   }).setOrigin(0.5);
   kids.push(txt);
   c.add(kids);

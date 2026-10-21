@@ -125,6 +125,21 @@ try {
   check(await until(page, () => window.__floor15.state.objects['f15L-05']?.searched, null, 15000), 'drawer searched');
   check(await bagCount(page, 'wood') === 6 && await bagCount(page, 'metal') === 2, `bag holds 6 wood + 2 metal (${await bagCount(page, 'wood')}/${await bagCount(page, 'metal')})`);
 
+  // ---- quick nap at the hero bed: menu, 5 s fade, energy up, cooldown label; a tap cancels a second try
+  const bed = await g(page, () => { const sp = window.__floor15.view.sprites.get('fixture:bed'); return { x: sp.cx, y: sp.cy }; });
+  await g(page, () => { window.__floor15.state.needs.energy = 40; window.__floor15.zombies.resetAll(); }); // noise from dismantling may have aggroed zombies
+  await tapWorld(page, bed.x, bed.y);
+  check(await until(page, () => window.__floor15.menu.isOpen, null, 10000), 'bed tap opens the Sleep / Nap menu');
+  check(await tapMenu(page, 'Nap'), 'Nap button tapped');
+  check(await until(page, () => window.__floor15.action?.spec.kind === 'nap', null, 15000), 'nap starts at the bed');
+  check(await until(page, () => window.__floor15.state.lastNapAt > 0, null, 12000), 'nap finished and started the cooldown');
+  const napE = await g(page, () => window.__floor15.state.needs.energy);
+  check(napE >= 69 && napE <= 71, `nap gave about +30 energy (${napE})`);
+  await tapWorld(page, bed.x, bed.y);
+  check(await until(page, () => window.__floor15.menu.isOpen, null, 10000), 'bed menu opens again');
+  check(await g(page, () => window.__floor15.menu.c.list.some((o) => o.list?.some((k) => k.type === 'Text' && /^Nap \((4h|3h \d+m)\)$/.test(k.text)))), 'Nap button shows the cooldown');
+  await g(page, () => window.__floor15.menu.close());
+
   // ---- craft Barricade Lv1 at the workbench
   await tapWorld(page, 372, line - 84 - 48);
   await craftViaPanel(page, 'barricade_lv1');

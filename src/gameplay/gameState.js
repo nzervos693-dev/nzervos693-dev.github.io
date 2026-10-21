@@ -55,6 +55,7 @@ export function createGameState(balance, tower, nowMs) {
     inventory: createSlots(balance.inventory.carrySlots),
     stockpile: createSlots(balance.inventory.stockpileSlots),
     needs: initNeeds(balance),
+    lastNapAt: null,
     objects: {},
     doors: {},
     floorStates: {},
@@ -112,6 +113,7 @@ export function normalizeGameState(raw, balance, tower, nowMs) {
   s.attacks = { scriptedDone: false, nextAt: null, kind: 'scripted', current: null, ...(s.attacks || {}) };
   if (oldSave) startAttackClock(s, balance, nowMs);
   s.flags = s.flags || {};
+  s.lastNapAt = Number.isFinite(s.lastNapAt) ? s.lastNapAt : null;
   s.stats = { objectsSalvaged: 0, zombiesKilled: 0, ...(s.stats || {}) };
   s.wanderAt = s.wanderAt && typeof s.wanderAt === 'object' ? s.wanderAt : {};
   s.equipped = s.equipped && Number.isInteger(s.equipped.slot) && typeof s.equipped.id === 'string' ? s.equipped : null;

@@ -1,4 +1,5 @@
 import { button, label, CSS, DEPTH } from './ui.js';
+import { hasFrame } from './art.js';
 
 /**
  * Up to two 96x96 buttons above (or below) an object, in tower space.
@@ -33,7 +34,7 @@ export default class ActionMenu {
       const x = cx - total / 2 + 48 + i * (96 + gap);
       const b = button(scene, {
         x, y: cy, text: a.label, fixed: false, size: 16,
-        frame: { key: 'buttons', name: a.kind === 'take' ? 'search' : a.kind },
+        frame: hasFrame('buttons', a.kind === 'take' ? 'search' : a.kind) ? { key: 'buttons', name: a.kind === 'take' ? 'search' : a.kind } : undefined,
         onTap: () => { this.close(); onPick(a.kind); },
       });
       b.setEnabled(a.enabled);

@@ -57,7 +57,15 @@
       "sleepRegen": 25,
       "offlineRegen": 10,
       "lowThreshold": 20,
-      "lowPenalty": 0.3
+      "lowPenalty": 0.3,
+      "nap": {
+        "durationSeconds": 5,
+        "energy": 30,
+        "foodCost": 5,
+        "waterCost": 5,
+        "morale": 2,
+        "cooldownHours": 4
+      }
     },
     "morale": {
       "start": 60,

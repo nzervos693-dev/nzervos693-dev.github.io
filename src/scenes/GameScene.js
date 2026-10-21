@@ -29,6 +29,7 @@ import {
 } from '../gameplay/tutorial.js';
 import { torchLine } from '../gameplay/storyText.js';
 import { limitWalk, planRoute, stairSeconds, stepToward, hitJammedDoor, doorStopX } from '../gameplay/routing.js';
+import { napAction, completeNap, napConfig } from '../gameplay/nap.js';
 import { listActions, buildSpec, noiseFor, completeAction, heroHasTool } from '../gameplay/actions.js';
 import { pastKeepThreshold, spendToolUse, energyTimeMult } from '../gameplay/salvage.js';
 import { reportLines, attackLines, formatDuration } from '../gameplay/report.js';
@@ -61,7 +62,7 @@ import SurvivorsPanel from './SurvivorsPanel.js';
 import TutorialView from './TutorialView.js';
 import AttackDirector from './AttackDirector.js';
 import { debugOn, skipFrontEnd, attacksOn, exposeScene } from './debug.js';
-import { label, COLORS, CSS } from './ui.js';
+import { label, COLORS, CSS, DEPTH } from './ui.js';
 import { playSfx, stopSfx } from './sfx.js';
 import { isAudioUnlocked } from '../core/audio.js';
 
@@ -195,6 +196,7 @@ export default class GameScene extends Phaser.Scene {
     this.attacks = new AttackDirector(this);
     this.attacks.enabled = this.attacksEnabled;
     this.bus.on('noise', (n) => this.zombies.onNoise(n));
+    this.bus.on('attack-warning', () => { if (this.action?.spec.kind === 'nap') this.cancelAction(); });
     this.bus.on('hero-dead', (p) => this.offerTorch(p));
     for (const f of this.tower.floors.values()) {
       for (const sp of f.scriptedSpawns || []) this.bus.on(sp.trigger, () => this.spawnScripted(sp.trigger));
@@ -248,6 +250,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   createActionBar() {
+    this.napFade = this.add.rectangle(0, 0, this.scale.width, this.scale.height, 0x000000, 1).setOrigin(0).setScrollFactor(0).setDepth(DEPTH.menu - 1).setAlpha(0).setVisible(false);
     this.barBg = this.add.rectangle(0, 0, BAR_W + 8, 22, COLORS.ink).setDepth(40).setVisible(false);
     this.barFill = this.add.rectangle(0, 0, BAR_W, 14, COLORS.amber).setOrigin(0, 0.5).setDepth(41).setVisible(false);
   }
@@ -475,7 +478,7 @@ export default class GameScene extends Phaser.Scene {
     this.menu.close();
     if (this.action) {
       const progress = this.action.elapsed / this.action.duration;
-      if (pastKeepThreshold(progress, this.balance)) {
+      if (this.action.spec.kind !== 'nap' && pastKeepThreshold(progress, this.balance)) {
         this.queuedTap = { wx, wy }; // past 50%: it completes, then this tap runs
         return;
       }
@@ -529,6 +532,10 @@ export default class GameScene extends Phaser.Scene {
         break;
       }
       case 'fixture':
+        if (t.id === 'bed') {
+          this.openMenu(t, [{ kind: 'sleep', label: 'Sleep', enabled: true }, this.napButton()]);
+          break;
+        }
         this.goTo(t.floor, t.x, { t, kind: t.id === 'bed' ? 'sleep' : 'workbench' });
         break;
       case 'quest':
@@ -583,6 +590,7 @@ export default class GameScene extends Phaser.Scene {
     this.heroSprite.setFlipX(t.x < this.state.hero.x ? true : t.x > this.state.hero.x ? false : this.heroSprite.flipX);
     switch (kind) {
       case 'sleep': this.startSleep(); break;
+      case 'nap': this.startNap(t); break;
       case 'workbench':
         this.bus.emit('workbench-open');
         this.openCraft();
@@ -642,6 +650,7 @@ export default class GameScene extends Phaser.Scene {
     this.barBg.setPosition(x, y).setVisible(true);
     this.barFill.setPosition(x - BAR_W / 2, y).setVisible(true);
     this.barFill.width = BAR_W * p;
+    if (a.spec.kind === 'nap') this.napFade.setVisible(true).setAlpha(1 - Math.abs(2 * p - 1));
     if (a.elapsed >= a.duration) this.finishAction();
   }
 
@@ -653,6 +662,7 @@ export default class GameScene extends Phaser.Scene {
     this.action = null;
     this.queuedTap = null;
     this.hideBar();
+    this.napFade.setVisible(false);
   }
 
   runQueuedTap() {
@@ -662,6 +672,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   finishAction() {
+    if (this.action.spec.kind === 'nap') { this.finishNap(); return; }
     if (this.action.spec.kind === 'pry') { this.finishPry(); return; }
     if (this.action.spec.build) { this.finishBuildDismantle(); return; }
     const { spec, t } = this.action;
@@ -777,6 +788,39 @@ export default class GameScene extends Phaser.Scene {
     this.setHeroAnim('idle');
     this.zzz.setVisible(true);
     this.toast.show('Sleeping. Tap anywhere to wake up.');
+  }
+
+  /** Nap button state for the hero bed (GDD 5.2). */
+  napButton() {
+    return napAction(this.state, now(), this.balance, { unsafe: this.napUnsafe() });
+  }
+
+  /** Attack warning or fight, or any zombie on the home floor is chasing or biting. */
+  napUnsafe() {
+    if (this.attacks.phase !== 'idle') return true;
+    const home = this.tower.homeFloor;
+    return this.zombies.list.some((rt) => !rt.dying && !rt.rec.dead && rt.rec.floor === home
+      && (rt.ai.mode === 'chase' || rt.ai.mode === 'attack'));
+  }
+
+  startNap(t) {
+    const nb = this.napButton();
+    if (!nb.enabled) { this.deny(nb.reason); return; }
+    const spec = { kind: 'nap', id: 'bed', seconds: napConfig(this.balance).durationSeconds, energy: 0, tool: null, noise: 'quiet' };
+    this.action = { spec, t, elapsed: 0, duration: spec.seconds };
+    this.bus.emit('action-start', { spec, target: t });
+    this.setHeroAnim('idle');
+  }
+
+  finishNap() {
+    this.action = null;
+    this.hideBar();
+    this.napFade.setVisible(false);
+    const r = completeNap(this.state, now(), this.balance);
+    this.setHeroAnim('idle');
+    this.bus.emit('nap-done', r);
+    this.toast.show(`Quick nap: +${Math.round(r.energy)} energy.`);
+    this.save();
   }
 
   wake() {
@@ -1084,6 +1128,7 @@ export default class GameScene extends Phaser.Scene {
   interruptAction() {
     const a = this.action;
     if (!a) return;
+    if (a.spec.kind === 'nap') { this.cancelAction(); this.toast.show('Nap interrupted!', 1600); return; }
     if (a.duration > 0 && pastKeepThreshold(a.elapsed / a.duration, this.balance)) this.finishAction();
     else {
       this.cancelAction();

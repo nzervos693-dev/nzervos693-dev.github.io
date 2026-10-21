@@ -109,9 +109,10 @@ One thumb, taps and vertical drags only. No hold-to-act, no multi-touch.
 
 **Action menu**: up to 2 buttons, each **96x96 game px** (icon + label),
 side by side above the object (below it if it would leave the screen):
-**Primary** (*Search* containers, *Drain* water sources, *Use* bed,
+**Primary** (*Search* containers, *Drain* water sources, *Use*
 workbench, planter, collector, survivor, stove, generator, radio, elevator;
-only if available) and **Dismantle**. If a needed tool is missing,
+only if available) and **Dismantle**. Exception: the **hero bed** (home,
+floor 15) shows **Sleep** and **Nap** (5.2) and has no Dismantle. If a needed tool is missing,
 Dismantle is greyed with "Needs crowbar" and does nothing. A button tap
 sends the hero; the action starts on arrival. A tap elsewhere closes the
 menu and counts as a normal tap. Objects with exactly one action skip the
@@ -173,7 +174,7 @@ Each need is 0-100. Drain is per real hour.
 | Health | 100 | 0 (see below) | 0 | Bandage +15, Medkit +40, Herbal remedy +5, regen |
 | Food | 80 | 3 (`needs.food.drain`) | 3 | Canned food +30, Dry snack +15, Planter crop +20, Jarred veg +25, Hot stew +45 |
 | Water | 80 | 4 (`needs.water.drain`) | 4 | Water bottle +35, Clean water +20, Dirty water +20 (-8 health) |
-| Energy | 100 | 6 awake (`needs.energy.drain`) | -10 (regen, asleep) | Bed: +25/h online (+30% with a lit stove, 5.10) |
+| Energy | 100 | 6 awake (`needs.energy.drain`) | -10 (regen, asleep) | Bed: +25/h online (+30% with a lit stove, 5.10); Nap +30 (every 4 h) |
 | Morale | 60 | 1 (`needs.morale.drain`), less with comfort (5.10) | same | Events (see below), comfort |
 
 - Start values `needs.<need>.start`; every need maxes at 100 (`needs.max`).
@@ -198,7 +199,8 @@ Each need is 0-100. Drain is per real hour.
   `talkCooldownHours`), "comfort" item (cigarettes, chocolate) +10 (stored
 on the item, `consumables.<id>.morale`), Hot stew
   +5 (M2), first planter harvest +5 (once per game, not per planter),
-  attack repelled +5, barricade breached -10, survivor dies -20.
+  attack repelled +5, quick nap +2 (`needs.energy.nap.morale`), barricade
+  breached -10, survivor dies -20.
 - **Breach penalty latch**: -10 applies when the barricade goes from
   above 0 HP to 0 HP, then latches; it cannot apply again until the
   barricade is repaired to full HP or a new attack begins. Offline: at
@@ -219,8 +221,33 @@ on the item, `consumables.<id>.morale`), Hot stew
   (`needs.offlineHealthFloor`). Death only happens while playing.
 - Fairness: 12 h offline drains at most 36 food / 48 water, so 80/80 never
   wakes to an empty need.
-- **Sleep**: tap bed -> sleep (+25 energy/h); any tap wakes. Closed app =
-  characters at home are asleep.
+- **Sleep**: hero bed -> *Sleep* (+25 energy/h); any tap wakes. Closed app =
+  characters at home are asleep (offline +10/h, unchanged by the nap).
+- **Quick nap** (`needs.energy.nap`): hero bed -> *Nap*. The active
+  character walks to the bed, lies down, the screen fades to black over
+  **5 s** (`durationSeconds`) and back. On completion: energy **+30**
+  (`energy`, capped at 100; no stove or night bonus), food **-5** and water
+  **-5** (`foodCost`, `waterCost`, floored at 0; the time "passed"), morale
+  **+2** (`morale`), and the cooldown of **4 h** real time starts
+  (`cooldownHours`).
+  - **Who**: whoever is the active character (hero, or Mara or any survivor
+    after pass the torch). Only the hero bed offers Nap; survivor beds do
+    not. The cooldown is one timer per save (stored as `lastNapAt`, a
+    `Date.now()` timestamp), so pass the torch does not reset it. It runs
+    online and offline.
+  - **Button states**: ready = "Nap". Cooldown = greyed "Nap (2h 10m)",
+    remaining time rounded **up** to the minute, hours dropped under 1 h
+    ("Nap (45m)"). Energy at 100 = greyed "Nap (rested)". Unsafe = greyed
+    "Nap (not safe)": during an attack warning or attack (5.8), or while
+    any zombie on floor 15 is aggroed. Tapping a greyed button shows its
+    reason as a toast and does nothing.
+  - **Interrupts** (cancel the nap): the usual action interrupts (5.4: a
+    zombie sees the character, a bite, fire), an attack warning starting,
+    any tap, or the app going to background. A cancelled nap gives nothing,
+    costs nothing and does **not** start the cooldown; the fade snaps back.
+  - Needs drain normally during the 5 s. Remaining cooldown =
+    clamp(cooldownHours - (now - lastNapAt), 0, cooldownHours), so a clock
+    set backward never makes it longer than 4 h.
 
 ### 5.3 Movement and the tower
 - 30 floors, each **720x240 game px**: stairwell (120 px wide, left, with
@@ -1018,6 +1045,8 @@ disguises, amputation.
 - **Dog's name**: **Scout**, fixed (no player naming, no text entry).
 - **Mara's trait**: **Steady hands**, bandages heal +50% while she is
   recruited and alive; active in M1 (5.7).
+- **Quick nap** at the hero bed: +30 energy, -5 food, -5 water, +2 morale,
+  5 s fade, 4 h real-time cooldown; offline sleep unchanged (5.2).
 
 ### Decided (Producer approved, M1; Creative Director may revisit at playtest)
 - Scavenger job works only during offline catch-up; no online scavenging
