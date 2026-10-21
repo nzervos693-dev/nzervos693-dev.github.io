@@ -1470,31 +1470,54 @@ flavour lines, notes; level-designer). Numbers in `balance.generator.*`.
   `#` = void (structure, not walkable, rare). Every room is one
   4-connected area.
 - **Doorways**: listed edges between two rooms, each 1 tile wide; every
-  room is reachable from the front door through doorways; at most 3
-  doorways per room. The **front door** is one listed edge on the
-  corridor side, into the template's `first` room (usually the hallway).
+  room is reachable from the front door through doorways; at most **3
+  interior doorways** per room (`generator.maxInteriorDoorwaysPerRoom`;
+  the front door does not count, so a hallway may have 3 interior
+  doorways plus the front door). The **front door** is one listed edge on
+  the corridor side, into the template's `first` room (usually the
+  hallway).
 - **Windows** are not drawn: every room of a `light: "grey"` type must touch
   the unit's exterior edge (north edge for NW/NE, south for SW/SE, and the
   x = 0 / x = 30 floor ends where a slot touches them; small units only have
   their far edge). The generator puts **1 window per 3 exterior edge tiles**
   of that room, at least 1, centred (`generator.windowEveryTiles`).
-- **Room sizes** (tiles, inclusive, `generator.roomSizeTiles`; the short
-  side first): hallway 1x2 - 2x6; living 4x4 - 6x6; kitchen 3x3 - 4x5;
-  bedroom 3x3 - 4x5; kids_room 3x3 - 4x4; bathroom 2x2 - 3x3; studio 4x5 -
-  6x7; laundry 3x4 - 6x6; reception 3x3 - 4x5; office 3x4 - 5x6;
-  break_room 3x3 - 4x4; storage 3x4 - 6x6; janitor 2x2 - 3x3;
-  utility 3x3 - 4x5. Claustrophobia rule: no room larger than 36 tiles
-  (`generator.maxRoomTiles`), hallways 1-2
+  Counted **per exterior edge run**: each straight run of the room's
+  exterior wall (e.g. its north run and its west run in a corner room) gets
+  max(1, floor(run length / 3)) windows, spread evenly and centred on that
+  run; runs are never summed across a corner. Example: a 5x5 NW corner
+  bedroom has a 5-tile north run (1 window) and a 5-tile west run
+  (1 window) = 2 windows. Blueprints that list windows by hand must follow
+  the same count.
+- **Room sizes** (tiles, inclusive, `generator.roomSizeTiles`; written
+  short side x long side, min - max; a room fits if its short side and
+  its long side are each inside their range): hallway 1x2 - 2x10; living
+  4x4 - 6x7; kitchen 3x3 - 5x6; bedroom 3x3 - 5x6; kids_room 3x3 - 5x5;
+  bathroom 2x2 - 4x5; studio 4x5 - 6x7; laundry 3x4 - 6x10; reception
+  3x3 - 4x5; office 3x4 - 5x6; break_room 3x3 - 4x5; storage 3x4 - 6x9;
+  janitor 2x2 - 4x5; utility 2x3 - 4x10. These ranges were widened to fit
+  the hand-drawn blueprints, which fill the 12x10 / 6x10 slots with no
+  dead space; they are a validation range for blueprints, not random
+  sizes. **The hard rule is the area cap**: no room larger than **36
+  tiles** (`generator.maxRoomTiles`), even where the ranges would allow
+  it (e.g. a 6x7 studio = 42 is not allowed; 6x6 or 5x7 is). A blueprint
+  failing the cap is invalid; one outside a range by a row is a warning
+  to review. Claustrophobia rule: the 36-tile cap, hallways 1-2
   tiles wide, at least one 1-wide pinch (a 1-tile corridor or a doorway
   between two rooms with a door) on the way from the front door to the
   farthest room of every apartment.
 - **At least 2 blueprints per template** (`your_flat` has exactly 1), so
   the same template doesn't always look the same.
-- **Mirroring**: the generator mirrors a blueprint in x with chance
-  **0.5** (`generator.mirrorXChance`) and always in y for south slots, so
-  the front door faces the corridor. Mirroring keeps the tile chars,
-  doorways and the "mounted only on north/west walls" rule (recomputed
-  after mirroring).
+- **Mirroring by slot side**: apartment blueprints are drawn for NW with
+  the service riser (void column x = 11) against the stairwell core and
+  windows on the W and N edges, so they can't mirror freely. Apartments
+  are **x-mirrored in the east slots (NE, SE) and never in the west slots
+  (NW, SW)**, so the riser always meets the core and the W windows land
+  on the floor's exterior end. **Small units** (slot S, windows only on
+  their far edge) mirror in x freely with chance **0.5**
+  (`generator.mirrorXChance`, small units only). Every south slot (SW,
+  SE) is also mirrored in y so the front door faces the corridor.
+  Mirroring keeps the tile chars, doorways and the "mounted only on
+  north/west walls" rule (recomputed after mirroring).
 
 **Seed and saving**
 - New game draws `worldSeed` (random 32-bit integer) and saves it. Each
@@ -1592,7 +1615,7 @@ flavour lines, notes; level-designer). Numbers in `balance.generator.*`.
 | `shared_flat` | apartment | Shared flat | hallway (first), kitchen, bedroom x3, bathroom | 15 | flat |
 | `elderly_flat` | apartment | Old couple's flat | hallway (first), living, kitchen, bedroom, bathroom; bedroom next to bathroom; containers favour medicine, tins, seeds | 13 | flat |
 | `office` | apartment | Small office | reception (first), office x2, break_room, bathroom | 6 | office |
-| `studio` | small | Studio | studio (first), bathroom | 40 | flat |
+| `studio` | small | Studio | hallway (first), studio, bathroom | 40 | flat |
 | `laundry_room` | small | The building's laundry | laundry (first), janitor | 30 | service |
 | `storage_utility` | small | Storage and boiler rooms | storage (first), utility | 30 | service |
 
@@ -1902,7 +1925,13 @@ setting; CD decision, 12) (`vision.soundRipple.*`):
    - Front door: the step completes when the hero is within **1.5 tiles**
      of the start flat's front door on floor 15 (`tutorial.doorTriggerTiles`,
      inclusive, walking or running); the door opens onto the corridor and
-     a crawler drags itself in (tap it).
+     a crawler drags itself in (tap it). The crawler spawns on a
+     **corridor tile**, not the landing: the walkable corridor tile
+     **3 tiles** (path distance, `tutorial.crawlerSpawnCorridorTiles`)
+     from the corridor tile just outside the start flat's front door,
+     on the side away from the stairwell; if that tile is blocked, the
+     nearest free corridor tile at path distance 2-4. It spawns facing
+     the door and is drawn only once the door is open.
    - After that: "Anything here can be taken apart." Later systems get one
      thought the first time ("Bleach. That'll make the water safe." on
      first chemicals; "Nobody lives here now. It could be mine." the first

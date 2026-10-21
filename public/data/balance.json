@@ -53,7 +53,8 @@
   },
   "tutorial": {
     "doorTriggerPx": 60,
-    "doorTriggerTiles": 1.5
+    "doorTriggerTiles": 1.5,
+    "crawlerSpawnCorridorTiles": 3
   },
   "hero": {
     "walkSpeed": 100,
@@ -183,21 +184,22 @@
     "doorwayClearanceTiles": 1,
     "placementTriesPerPick": 10,
     "maxRoomTiles": 36,
+    "maxInteriorDoorwaysPerRoom": 3,
     "roomSizeTiles": {
-      "hallway": [[1, 2], [2, 6]],
-      "living": [[4, 4], [6, 6]],
-      "kitchen": [[3, 3], [4, 5]],
-      "bedroom": [[3, 3], [4, 5]],
-      "kids_room": [[3, 3], [4, 4]],
-      "bathroom": [[2, 2], [3, 3]],
+      "hallway": [[1, 2], [2, 10]],
+      "living": [[4, 4], [6, 7]],
+      "kitchen": [[3, 3], [5, 6]],
+      "bedroom": [[3, 3], [5, 6]],
+      "kids_room": [[3, 3], [5, 5]],
+      "bathroom": [[2, 2], [4, 5]],
       "studio": [[4, 5], [6, 7]],
-      "laundry": [[3, 4], [6, 6]],
+      "laundry": [[3, 4], [6, 10]],
       "reception": [[3, 3], [4, 5]],
       "office": [[3, 4], [5, 6]],
-      "break_room": [[3, 3], [4, 4]],
-      "storage": [[3, 4], [6, 6]],
-      "janitor": [[2, 2], [3, 3]],
-      "utility": [[3, 3], [4, 5]]
+      "break_room": [[3, 3], [4, 5]],
+      "storage": [[3, 4], [6, 9]],
+      "janitor": [[2, 2], [4, 5]],
+      "utility": [[2, 3], [4, 10]]
     },
     "zombiesPerUnitByDistance": { "0": [0, 1], "1": [0, 2], "2": [1, 2] },
     "zombiesPerFloorCap": 6,
