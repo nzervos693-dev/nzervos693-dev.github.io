@@ -494,37 +494,54 @@ def('heartbeat_soft', 'Low-health loop: soft heartbeat felt more than heard (rep
   return lp(o, 140);
 }, { loop: true, noFade: true, norm: 0.6 });
 
-// Sparse sad piano-like piece, A minor, 16 bars at 52 bpm (~74 s), seamless via tail fold.
-def('music_sad', 'Sparse melancholic piano piece; at most once per 8-12 min on moments (first claim, after attack, survivor joins). Never in danger', 0.22, () => {
-  const bpm = 52, beat = 60 / bpm, bars = 16, L = bars * 4 * beat, r = rng(571);
-  const hz = (m) => 440 * Math.pow(2, (m - 69) / 12);
-  const o = buf(L + 7);
+// Three short sparse melancholic pieces (one-shot, not looped). Timbres: piano, cello-ish, guitar-ish.
+const hzOf = (m) => 440 * Math.pow(2, (m - 69) / 12);
+function musicPiece(seed, bpm, bars, timbre, chords, melody, arp) {
+  const beat = 60 / bpm, r = rng(seed), L = bars * 4 * beat, o = buf(L + 5);
   const note = (m, at, g, dec = 1) => {
-    const f = hz(m), d = 1.8 * dec * Math.pow(220 / f, 0.35);
-    for (const det of [1, 1.003]) for (let k = 1; k <= 6; k++) {
+    const f = hzOf(m), s0 = Math.round(at * SR);
+    if (timbre === 'cello') {
+      const dur = 3.2 * dec; let ph = 0;
+      for (let i = 0; i < dur * SR && s0 + i < o.length; i++) {
+        const t = i / SR; ph += f * (1 + 0.004 * Math.sin(TAU * 5 * t) * Math.min(1, t / 0.6)) / SR;
+        o[s0 + i] += (saw(ph) * 0.6 + Math.sin(TAU * ph) * 0.4) * g * 0.5 * Math.min(1, t / 0.35) * Math.exp(-Math.max(0, t - 0.5) / (1.2 * dec));
+      }
+      return;
+    }
+    const guitar = timbre === 'guitar', d = (guitar ? 0.7 : 1.8) * dec * Math.pow(220 / f, 0.35);
+    for (const det of guitar ? [1] : [1, 1.003]) for (let k = 1; k <= (guitar ? 8 : 6); k++) {
       const fk = f * k * Math.sqrt(1 + 0.0004 * k * k) * det;
       if (fk > 5000) break;
-      const dk = d / (1 + 0.6 * (k - 1)), a = g / Math.pow(k, 1.25) * 0.5;
-      const n = Math.round(Math.min(6, dk * 6) * SR), s = Math.round(at * SR);
-      for (let i = 0; i < n && s + i < o.length; i++) { const t = i / SR; o[s + i] += Math.sin(TAU * fk * t) * a * Math.exp(-t / dk) * Math.min(1, t / 0.006); }
+      const dk = d / (1 + (guitar ? 0.9 : 0.6) * (k - 1)), amp = g / Math.pow(k, guitar ? 1.0 : 1.25) * 0.5;
+      const n = Math.round(Math.min(6, dk * 6) * SR);
+      for (let i = 0; i < n && s0 + i < o.length; i++) { const t = i / SR; o[s0 + i] += Math.sin(TAU * fk * t) * amp * Math.exp(-t / dk) * Math.min(1, t / (guitar ? 0.002 : 0.006)); }
     }
-    const h = lp(nburst(0.03, Math.round(m * 7), 0.006, 0.05 * g), 1500); mix(o, h, at);
+    mix(o, lp(nburst(0.03, Math.round(m * 7), 0.006, 0.05 * g), 1500), at);
   };
-  const chords = [[45, 52, 57, 60], [41, 48, 53, 57], [48, 55, 60, 64], [43, 50, 55, 59], [45, 52, 57, 60], [41, 48, 53, 57], [38, 45, 50, 57], [40, 47, 52, 56]];
   chords.forEach((c, ci) => {
     const t0 = ci * 2 * 4 * beat;
     note(c[0], t0 + (r() - 0.5) * 0.04, 0.9, 1.5);
     note(c[1], t0 + 4 * beat, 0.6, 1.5);
-    note(c[2], t0 + 1.5 * beat + r() * 0.05, 0.35);
-    note(c[3], t0 + 2.5 * beat + r() * 0.05, 0.3);
-    if (ci % 2 === 1) note(c[2], t0 + 6 * beat, 0.3);
+    for (const [bt, idx, g] of arp) note(c[idx], t0 + bt * beat + r() * 0.05, g);
   });
-  [[0, 2, 76], [1, 1, 72], [2, 2, 69], [3, 0, 72], [4, 2, 71], [5, 1, 67], [6, 2, 72], [7, 1, 71],
-   [8, 2, 69], [9, 2, 72], [10, 1, 69], [11, 2, 65], [12, 2, 74], [13, 1, 72], [14, 2, 68], [15, 1.5, 69]]
-    .forEach(([b, bt, m]) => note(m, (b * 4 + bt) * beat + (r() - 0.5) * 0.06, 0.75, 1.3));
-  const wet = reverb(lp(o, 3500), 4, 1.3, 0.86, 1.3);
-  return wrapFold(wet, L);
-}, { loop: true, noFade: true, norm: 0.7 });
+  melody.forEach(([b, bt, m, g = 0.75]) => note(m, (b * 4 + bt) * beat + (r() - 0.5) * 0.06, g, 1.3));
+  const w = reverb(lp(o, timbre === 'guitar' ? 3000 : 3500), 3, 1.3, 0.86, 1.3);
+  const e = Math.round(0.4 * SR); for (let i = 0; i < e; i++) w[w.length - 1 - i] *= i / e;
+  return w;
+}
+const MUSIC_EVT = 'Sparse sad piece, one-shot; at most once per 8-12 min on moments (first claim, after attack ends, survivor joins). Never in danger';
+def('music_sad_1', MUSIC_EVT + '. Piano, A minor, ~55 s', 0.22, () => musicPiece(571, 52, 12, 'piano',
+  [[45, 52, 57, 60], [41, 48, 53, 57], [48, 55, 60, 64], [43, 50, 55, 59], [41, 48, 53, 57], [45, 52, 57, 60]],
+  [[0, 2, 76], [1, 1, 72], [2, 2, 69], [3, 0, 72], [4, 2, 71], [5, 1, 67], [6, 2, 72], [7, 1, 71], [8, 2, 69], [9, 1, 65], [10, 2, 72], [11, 1.5, 69, 0.6]],
+  [[1.5, 2, 0.35], [2.5, 3, 0.3]]), { norm: 0.7 });
+def('music_sad_2', MUSIC_EVT + '. Cello-like, D minor, ~42 s', 0.2, () => musicPiece(581, 46, 8, 'cello',
+  [[38, 45, 50, 53], [34, 41, 46, 50], [43, 50, 55, 58], [33, 40, 45, 49]],
+  [[0, 0.5, 62, 0.8], [1, 2, 65, 0.8], [2, 0.5, 62, 0.8], [3, 2, 58, 0.8], [4, 0.5, 67, 0.8], [5, 2, 65, 0.8], [6, 0.5, 64, 0.8], [7, 2, 61, 0.7]],
+  []), { norm: 0.7 });
+def('music_sad_3', MUSIC_EVT + '. Soft fingerpicked guitar-like, E minor, ~32 s', 0.2, () => musicPiece(591, 60, 8, 'guitar',
+  [[40, 47, 52, 55], [36, 43, 48, 52], [43, 50, 55, 59], [38, 45, 50, 54]],
+  [[0, 3, 71, 0.5], [2, 3, 72, 0.5], [4, 3, 74, 0.5], [6, 3, 69, 0.5], [7, 2, 66, 0.5]],
+  [[1, 2, 0.4], [2, 3, 0.4], [3, 2, 0.4], [4, 1, 0.35], [5, 2, 0.4], [6, 3, 0.4], [7, 2, 0.35]]), { norm: 0.7 });
 
 // ================= M2 stage 1b: remaining GDD 10 sounds =================
 def('amb_rain', 'Ambience bed C: soft rain on windows. Loop; louder near windows, off/very low in sealed rooms', 0.18, () => {
@@ -604,6 +621,9 @@ for (const [key, d] of Object.entries(S)) {
     '-ac', '1', '-ar', String(SR), '-c:a', 'libvorbis', '-q:a', '2', join(OUT, key + '.ogg')]);
   manifest.sounds[key] = { files: [key + '.ogg'], volume: d.volume, loop: d.loop, duration: +(x.length / SR).toFixed(2), event: d.event, ...(d.deprecated ? { deprecated: true, deprecatedReason: d.deprecated } : {}) };
 }
+// Compatibility alias: music_sad -> music_sad_1 (same file). Remove once code uses music_sad_1..3.
+manifest.sounds.music_sad = { ...manifest.sounds.music_sad_1, alias: 'music_sad_1', deprecated: true, deprecatedReason: 'alias of music_sad_1; use music_sad_1..3' };
+rmSync(join(OUT, 'music_sad.ogg'), { force: true });
 rmSync(tmp, { recursive: true, force: true });
 writeFileSync(join(OUT, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
 console.log(`audio: ${Object.keys(S).length} sounds -> ${OUT} (ogg)`);

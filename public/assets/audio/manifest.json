@@ -454,14 +454,32 @@
       "duration": 1.1,
       "event": "Low-health loop: soft heartbeat felt more than heard (replaces heartbeat)"
     },
-    "music_sad": {
+    "music_sad_1": {
       "files": [
-        "music_sad.ogg"
+        "music_sad_1.ogg"
       ],
       "volume": 0.22,
-      "loop": true,
-      "duration": 73.85,
-      "event": "Sparse melancholic piano piece; at most once per 8-12 min on moments (first claim, after attack, survivor joins). Never in danger"
+      "loop": false,
+      "duration": 63.38,
+      "event": "Sparse sad piece, one-shot; at most once per 8-12 min on moments (first claim, after attack ends, survivor joins). Never in danger. Piano, A minor, ~55 s"
+    },
+    "music_sad_2": {
+      "files": [
+        "music_sad_2.ogg"
+      ],
+      "volume": 0.2,
+      "loop": false,
+      "duration": 49.74,
+      "event": "Sparse sad piece, one-shot; at most once per 8-12 min on moments (first claim, after attack ends, survivor joins). Never in danger. Cello-like, D minor, ~42 s"
+    },
+    "music_sad_3": {
+      "files": [
+        "music_sad_3.ogg"
+      ],
+      "volume": 0.2,
+      "loop": false,
+      "duration": 40,
+      "event": "Sparse sad piece, one-shot; at most once per 8-12 min on moments (first claim, after attack ends, survivor joins). Never in danger. Soft fingerpicked guitar-like, E minor, ~32 s"
     },
     "amb_rain": {
       "files": [
@@ -570,6 +588,18 @@
       "loop": false,
       "duration": 1.2,
       "event": "Low-spirits moodle appears: sigh"
+    },
+    "music_sad": {
+      "files": [
+        "music_sad_1.ogg"
+      ],
+      "volume": 0.22,
+      "loop": false,
+      "duration": 63.38,
+      "event": "Sparse sad piece, one-shot; at most once per 8-12 min on moments (first claim, after attack ends, survivor joins). Never in danger. Piano, A minor, ~55 s",
+      "alias": "music_sad_1",
+      "deprecated": true,
+      "deprecatedReason": "alias of music_sad_1; use music_sad_1..3"
     }
   }
 }
