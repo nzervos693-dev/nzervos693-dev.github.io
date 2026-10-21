@@ -151,6 +151,22 @@ describe('zombie behaviour', () => {
     expect(ai.mode).toBe('idle');
     expect(Math.floor(z.x)).toBe(2);
   });
+  it('a stale path with a diagonal that a door change made illegal is dropped, not walked', () => {
+    const g = ascii(room(8, 6));
+    const { z, ai, env } = setup(g, 2, 2, 0);
+    ai.path = [{ x: 2, y: 2 }, { x: 3, y: 3 }, { x: 4, y: 3 }];
+    ai.pathI = 1;
+    ai.leg = false;
+    ai.mode = 'chase';
+    ai.noticed = true;
+    ai.last = { x: 6, y: 3 };
+    g.setEdge(3, 3, 'W', 1); // a wall now stands next to the diagonal's corner
+    hero(env, 7, 3);
+    env.heroActive = false;
+    stepIsoZombie(z, ai, env, 0.05);
+    expect(Math.floor(z.x)).toBeLessThanOrEqual(2);
+    expect(Math.floor(z.y)).toBe(2);
+  });
   it('one zombie per tile: a second zombie waits', () => {
     const g = ascii(room(12, 3));
     const a = setup(g, 3, 1, 0);

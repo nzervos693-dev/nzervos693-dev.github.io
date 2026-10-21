@@ -192,6 +192,15 @@ export function loadIsoFloor(data, number, balance = {}) {
       zombies.push({ id: z.id, type: z.type, x: z.tile[0], y: z.tile[1], facing: gridFacing(z.facing), room: z.room, unit: u.id });
     }
   }
+  // the stash (home.stash): a pile of bags and boxes on its own tile, a fixture that blocks walking
+  const st = f.home?.stash;
+  if (st) {
+    objects.push({
+      id: 'stash', objectId: 'toolbox', tile: st.tile, span: [1, 1], facing: 'S', unit: f.home.unit, tiles: [{ x: st.tile[0], y: st.tile[1] }],
+      facingAngle: gridFacing('S'), mounted: false, blocks: true, fixture: true, stash: true, slots: st.slots, roomIndex: roomAt(st.tile[0], st.tile[1]),
+    });
+    grid.setObstacle(st.tile[0], st.tile[1], true);
+  }
   // the workbench fixture is not a salvage object (no balance.objects entry)
   const objectById = new Map(objects.map((o) => [o.id, o]));
 

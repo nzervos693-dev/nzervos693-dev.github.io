@@ -61,6 +61,12 @@ describe('iso loader', () => {
     expect(floor.zombies.length).toBeGreaterThan(2);
     for (const z of floor.zombies) expect(floor.grid.isWalkable(z.x, z.y)).toBe(true);
   });
+  it('the home stash is a fixture object on its data tile', () => {
+    const s = floor.objectById.get('stash');
+    expect(s.stash).toBe(true);
+    expect(s.tile).toEqual(floor.home.stash.tile);
+    expect(floor.grid.isWalkable(s.tile[0], s.tile[1])).toBe(false);
+  });
   it('light: corridor ends are grey, middle dim', () => {
     expect(floor.light[10 * 30 + 1]).toBe('grey');
     expect(floor.light[10 * 30 + 15]).toBe('dim');

@@ -7,13 +7,14 @@ import { angleToSpriteFacing, depthKey, LAYER } from '../iso/projection.js';
 import { frameOf } from './art.js';
 import { isoDepth } from './IsoWorldView.js';
 import { HIT_FX, decalAlpha } from '../gameplay/hitfx.js';
-import { tintOf } from '../gameplay/isoView.js';
+import { tintOf, shade } from '../gameplay/isoView.js';
 
 const S = 3;
 const ORIGIN_Y = 30 / 32;
 const BLOOD_POOL = 6;
 const SHOVE_DECAY = 1 / 0.12;
 const ZOMBIE_MIN_BRIGHT = 0.6;
+const CORPSE_FADE_SECONDS = 0.8;
 
 const keyCache = {};
 /** Animation key `${sheet}_${anim}_${dir}`, cached so the per-frame sync allocates no strings. */
@@ -46,6 +47,7 @@ export default class IsoActors {
       }
     }
     this.decals = [];
+    this.corpses = [];
     this.clock = 0;
     this.pos = { x: 0, y: 0 };
   }
@@ -131,7 +133,7 @@ export default class IsoActors {
     }
     if (this.scene.time.now < rt.flashUntil) sp.setTintFill(0xffffff);
     else {
-      const b = Math.max(ZOMBIE_MIN_BRIGHT, this.world.bright[this.world.tileIdx(Math.floor(rec.x), Math.floor(rec.y))]);
+      const b = Math.max(ZOMBIE_MIN_BRIGHT, shade(this.world.bright[this.world.tileIdx(Math.floor(rec.x), Math.floor(rec.y))]));
       sp.setTint(tintOf(b, false));
     }
   }
@@ -177,6 +179,7 @@ export default class IsoActors {
   /** Fade stains (dt in seconds of online play) and hide those on tiles out of sight. */
   update(dt) {
     this.clock += dt;
+    this.updateCorpses(dt);
     for (let i = 0; i < this.decals.length; i++) {
       const d = this.decals[i];
       const a = decalAlpha(this.clock - d.born);
@@ -184,18 +187,28 @@ export default class IsoActors {
     }
   }
 
-  /** Death animation, then the corpse lingers `corpseMs` and fades out. */
-  die(rt, corpseMs, onGone) {
+  /**
+   * Death animation, then the corpse lingers `corpseMs` and fades out. Corpses are never drawn on tiles that
+   * are not Visible (GDD 5.17), so update() re-checks the vision every frame.
+   */
+  die(rt, corpseMs) {
     const { sp } = rt;
     rt.dying = true;
-    sp.clearTint().setAlpha(1).setVisible(this.vision.isVisible(rt.rec.x, rt.rec.y));
+    sp.clearTint().setAlpha(1);
     const dir = angleToSpriteFacing(this.iso, rt.ai.facing);
-    const key = `${rt.sheet}_death_${dir}`;
+    const key = animKey(rt.sheet, 'death', dir);
     if (this.scene.anims.exists(key)) sp.play(key);
-    this.scene.time.delayedCall(corpseMs, () => {
-      if (!sp.active) return;
-      this.scene.tweens.add({ targets: sp, alpha: 0, duration: 800, onComplete: () => { sp.destroy(); onGone?.(); } });
-    });
+    this.corpses.push({ sp, rec: rt.rec, t: 0, hold: corpseMs / 1000, fade: CORPSE_FADE_SECONDS });
+  }
+
+  updateCorpses(dt) {
+    for (let i = this.corpses.length - 1; i >= 0; i--) {
+      const c = this.corpses[i];
+      c.t += dt;
+      const a = c.t < c.hold ? 1 : 1 - (c.t - c.hold) / c.fade;
+      if (a <= 0 || !c.sp.active) { c.sp.destroy(); this.corpses.splice(i, 1); continue; }
+      c.sp.setAlpha(a).setVisible(this.vision.isVisible(c.rec.x, c.rec.y));
+    }
   }
 
   destroyZombie(rt) { rt.sp?.destroy(); }

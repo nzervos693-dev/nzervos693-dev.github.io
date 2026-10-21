@@ -71,6 +71,8 @@ const OCCLUSION_EVERY = 0.1;
 const BLOCKED_GIVE_UP = 0.6;
 const APPROACH_REPLAN = 0.4;
 const FLOOR = 15;
+/** Half width (px) of the strip over a door's art that always counts as the door when tapped. */
+const DOOR_TAP_HALF_W = 22;
 
 /**
  * Isometric play scene (Stage A: floor 15 only). Orchestrates the iso core (grid, vision, camera), the
@@ -331,7 +333,8 @@ export default class IsoGameScene extends Phaser.Scene {
 
   /** Is a visible pixel of the candidate's sprite (or, for doors, the door's art area) under the point? */
   pixelHit(c, px, py) {
-    if (c.kind === 'door') return Math.abs(px - c.x) <= 30 && py >= c.y - 70 && py <= c.y + 40;
+    // a door is also solid over its door strip (a cut door shows only a low stub, but its leaf is tapped where it was)
+    if (c.kind === 'door' && Math.abs(px - c.x) <= DOOR_TAP_HALF_W && py >= c.y - 60 && py <= c.y + 50) return true;
     if (c.kind === 'pile') return Math.abs(px - c.x) <= 36 && Math.abs(py - c.y) <= 30;
     const sp = c.sp;
     if (!sp) return false;
@@ -534,7 +537,7 @@ export default class IsoGameScene extends Phaser.Scene {
     if (door.state === 'open') acts.push({ kind: 'close', label: 'Close', enabled: true });
     if (door.kind === 'interior' && !this.state.objects[door.id]?.dismantled) {
       const def = this.balance.objects.interior_door;
-      const need = def.tool && !heroHasTool(this.state, def.tool);
+      const need = door.state !== 'broken' && def.tool && !heroHasTool(this.state, def.tool);
       acts.push({ kind: 'dismantle', label: 'Dismantle', enabled: !need, reason: need ? `Needs ${def.tool}` : undefined });
     }
     if (!acts.length) return;
@@ -652,7 +655,7 @@ export default class IsoGameScene extends Phaser.Scene {
       this.view.refreshDoors(true);
       this.updateVision(true);
       this.save();
-    } else this.toast.show('The door is stuck. Hit it again.');
+    } else this.toast.show('The door is stuck.');
   }
 
   /** A zombie bangs on a door (damage already x0.4). Rattles, makes noise for the ripple, may break it. */
@@ -683,7 +686,9 @@ export default class IsoGameScene extends Phaser.Scene {
       playSfx(this, sound, { volume: vol * (los ? 1 : this.balance.audio.occludedVolumeMult * 1.6), pan: Math.max(-1, Math.min(1, (sx * 48) / this.balance.audio.panWidthPx)) });
     }
     this.soundEvent(door.id, { x: Math.floor(mid.x), y: Math.floor(mid.y) }, 'loud', this.balance.audio.doorBangHearTiles);
-    if (broke) { this.view.refreshDoors(true); this.updateVision(true); this.save(); } else this.view.refreshDoors();
+    // not forced: a door the hero cannot see keeps the state he last saw
+    this.view.refreshDoors();
+    if (broke) { this.updateVision(true); this.save(); }
   }
 
   /**
@@ -744,14 +749,16 @@ export default class IsoGameScene extends Phaser.Scene {
   }
 
   beginDoorDismantle(door) {
-    const def = this.balance.objects.interior_door;
     const o = { id: door.id, objectId: 'interior_door' };
     if (this.state.objects[door.id]?.dismantled) return;
-    if (def.tool && !heroHasTool(this.state, def.tool)) { this.toast.show(`Needs ${def.tool}`); return; }
+    let def = this.balance.objects.interior_door;
+    // a broken door is only splinters: no tool needed, yields doors.brokenYield
+    if (door.state === 'broken') def = { ...def, tool: null, noise: 'quiet', yield: this.balance.doors.brokenYield, chanceYield: [] };
+    else if (def.tool && !heroHasTool(this.state, def.tool)) { this.toast.show(`Needs ${def.tool}`); return; }
     const spec = buildSpec('dismantle', def, door.id, this.state, this.balance);
     spec.seconds *= lightTimeMult(this.heroLight(), this.balance);
     this.faceDoor(door);
-    this.action = { spec, o, door, elapsed: 0, duration: spec.seconds };
+    this.action = { spec, o, door, def, elapsed: 0, duration: spec.seconds };
     this.noise(door.x + 0.5, door.y + 0.5, spec.noise, noiseTiles(spec.noise, this.balance), door.id);
     playSfx(this, 'dismantle_wood');
     this.heroAnimNow = 'attack';
@@ -804,11 +811,11 @@ export default class IsoGameScene extends Phaser.Scene {
     if (kind === 'pry') { this.finishPry(); return; }
     if (kind === 'door-open') { this.finishDoorOpen(); return; }
     if (kind === 'door-close') { this.finishDoorClose(); return; }
-    const { spec, o, door } = this.action;
+    const { spec, o, door, def: actionDef } = this.action;
     this.action = null;
     this.hideBar();
     this.heroAnimNow = null;
-    const def = this.objectDef(o);
+    const def = actionDef ?? this.objectDef(o);
     const unit = this.world.units.find((u) => u.id === o.unit) ?? null;
     const tile = this.heroTile();
     const res = completeAction(this.state, spec, o, def, {
@@ -976,9 +983,10 @@ export default class IsoGameScene extends Phaser.Scene {
   }
 
   onZombieAggro(rt, byNoise) {
-    playSfx(this, this.rng() < 0.5 ? 'zombie_groan_1' : 'zombie_groan_2', { volume: 0.7 });
-    if (byNoise) this.soundEvent(rt.rec.id, { x: Math.floor(rt.rec.x), y: Math.floor(rt.rec.y) }, 'noisy', this.balance.audio.zombieHearRadiusTiles);
-    else this.interruptAction();
+    // the groan has distance, pan and wall muffling like every zombie voice, and shares the voice cap
+    this.soundscape.zombieVoice(rt, this.rng() < 0.5 ? 'zombie_groan_1' : 'zombie_groan_2');
+    this.soundEvent(rt.rec.id, { x: Math.floor(rt.rec.x), y: Math.floor(rt.rec.y) }, 'noisy', this.balance.audio.zombieHearRadiusTiles); // a Visible source never ripples
+    if (!byNoise) this.interruptAction();
   }
 
   onZombieBite(rt, damage) {

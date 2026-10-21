@@ -12,7 +12,7 @@ import { pickByRect, nearestInteractable, screenToTile, pointInTileDiamond, hitR
 /**
  * Doors and objects under the point (GDD 4 step 4): the padded rects that contain it; of those, the
  * front-most one whose artwork really is under the finger (ctx.pixelHit, if given) wins, so a chair beside
- * a bed does not steal taps on the bed just because its padded rect overlaps. With no solid hit the
+ * a bed, or furniture behind a door, does not steal taps just because its padded rect overlaps. With no solid hit the
  * nearest anchor wins (forgiveness for taps in the padding).
  * @returns {Candidate|null}
  */
@@ -22,12 +22,10 @@ export function pickInteractable(cfg, ctx, px, py) {
   if (!hits.length) return null;
   if (hits.length === 1) return hits[0];
   if (ctx.pixelHit) {
-    // solid art under the finger: furniture before doors (a door is a thin strip of wall), then front-most
+    // the front-most candidate whose art is under the finger wins (a door beats furniture drawn behind it,
+    // furniture drawn in front of a door beats the door)
     let best = null;
-    for (const c of hits) {
-      if (!ctx.pixelHit(c, px, py)) continue;
-      if (!best || (best.kind === 'door' && c.kind !== 'door') || ((best.kind === 'door') === (c.kind === 'door') && (c.depth ?? 0) > (best.depth ?? 0))) best = c;
-    }
+    for (const c of hits) if (ctx.pixelHit(c, px, py) && (!best || (c.depth ?? 0) > (best.depth ?? 0))) best = c;
     if (best) return best;
   }
   let near = null;

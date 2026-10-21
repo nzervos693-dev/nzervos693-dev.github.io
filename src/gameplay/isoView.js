@@ -13,6 +13,21 @@ export function tileBrightness(cfg, vis, seen, light, close) {
   return 1 - a;
 }
 
+/**
+ * Readability curve (code side, BUG-044): the overlay alphas of balance.vision give a physically "right" but
+ * unreadable brightness (the base art is already dark), so the tint uses b^SHADE_GAMMA. Remembered tiles
+ * (b = 1 - memory alpha) end up about 2-3x the unknown background, dark rooms stay darker than dim ones.
+ */
+export const SHADE_GAMMA = 0.4;
+/** Tint brightness of Remembered tiles (of the lifted art): dim but readable, cool and desaturated by tintOf. */
+export const REMEMBERED_SHADE = 0.28;
+
+/** Tint brightness for a tile brightness from tileBrightness(). 0 stays 0 (unknown: not drawn). */
+export function shade(b, remembered = false) {
+  if (b <= 0) return 0;
+  return remembered ? REMEMBERED_SHADE : Math.pow(b, SHADE_GAMMA);
+}
+
 /** Multiply tint (0xRRGGBB) for a brightness; remembered tiles get a cool, desaturated cast. */
 export function tintOf(b, remembered) {
   const v = Math.max(0, Math.min(1, b)) * 255;

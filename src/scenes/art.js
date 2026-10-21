@@ -49,3 +49,9 @@ export function propSprite(objectId) {
   if (hasFrame('props_l', objectId)) return { key: 'props_l', frame: frameOf('props_l', objectId), size: 32 };
   return null;
 }
+
+/** Frame size of a sheet in the manifest: {frameWidth, frameHeight} or null. */
+export const sheetDef = (key) => {
+  const f = files.get(key);
+  return f ? { frameWidth: f.frameWidth, frameHeight: f.frameHeight } : null;
+};

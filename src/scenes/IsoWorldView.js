@@ -16,7 +16,7 @@ import { LAYER, depthKey, wallDepthKey, footprintDepthKey } from '../iso/project
 import { FLOOR_BY_TYPE, FINISH_BY_TYPE } from '../iso/loader.js';
 import { VIS } from '../iso/vision.js';
 import {
-  tileBrightness, tintOf, activeRooms, wallIsCut, doorFrameName, barricadeArtStage, propOrientation,
+  tileBrightness, tintOf, shade, activeRooms, wallIsCut, doorFrameName, barricadeArtStage, propOrientation,
 } from '../gameplay/isoView.js';
 import { barricadeStage, barricadeMaxHp } from '../gameplay/barricade.js';
 import { opaqueBounds } from './spriteAlpha.js';
@@ -27,6 +27,7 @@ export const DEPTH_DIV = 1000;
 export const isoDepth = (key) => key / DEPTH_DIV;
 const PROP_ORIGIN = [0.5, 48 / 56];
 const BIG_ORIGIN = [0.5, 52 / 72];
+const DOOR_ORIGIN = [0, 0];
 const WALL_H = 120; // game px (40 art px)
 const EPS = 0.004;
 
@@ -55,7 +56,7 @@ export default class IsoWorldView {
     this.occAlpha = this.balance.iso.occluderFadeAlpha;
     this.tall = new Set(this.balance.iso.tallObjects);
     this.stages = this.balance.doors.visualStages;
-    this.entries = []; // everything tinted by tile brightness: {sprites:[], tiles:[], hideWhenDark}
+    this.entries = []; // everything tinted by tile brightness: {sprites:[], tiles:[], b, rem, hidden, forceHide}
     this.walls = [];
     this.doors = new Map(); // door id -> entry
     this.props = [];
@@ -82,7 +83,7 @@ export default class IsoWorldView {
 
   /** Register sprites to be tinted by the best brightness of `tiles`. */
   track(sprites, tiles) {
-    const e = { sprites, tiles, b: -1, hidden: false, forceHide: false };
+    const e = { sprites, tiles, b: -1, rem: false, hidden: false, forceHide: false, fh: false };
     this.entries.push(e);
     return e;
   }
@@ -137,7 +138,8 @@ export default class IsoWorldView {
       if (w.kind === 'door') {
         const door = f.grid.doors.get(f.grid.edgeId(w.x, w.y, w.side));
         rec.door = door;
-        const e = { door, w, rec, shown: null };
+        const [ta, tb] = f.grid.doorTiles(door);
+        const e = { door, w, rec, shown: null, ia: this.tileIdx(ta.x, ta.y), ib: this.tileIdx(tb.x, tb.y) };
         this.doors.set(door.id, e);
         rec.doorEntry = e;
       }
@@ -159,7 +161,6 @@ export default class IsoWorldView {
       rec.py = py;
       rec.depth = depth;
       rec.entry = this.track(sprites, tiles);
-      rec.entry.hideWhenDark = true;
       this.walls.push(rec);
       if (w.kind === 'window' && w.curtains) this.addCurtains(w, tiles);
     }
@@ -200,21 +201,11 @@ export default class IsoWorldView {
       const tall = this.tall.has(o.objectId);
       const rec = { o, sp, pf, tiles, tall, a: 1, aT: 1, depth, cx: sp.x, cy: sp.y, big: pf.big };
       rec.entry = this.track([sp], tiles);
-      rec.entry.hideWhenDark = true;
       this.props.push(rec);
       this.propById.set(o.id, rec);
       return rec;
     };
     for (const o of f.objects) mk(o);
-    // the stash (home): a pile of bags and boxes on the data's stash tile
-    const st = f.home?.stash;
-    if (st) {
-      const o = { id: 'stash', objectId: 'toolbox', tile: st.tile, span: [1, 1], facing: 'S', tiles: [{ x: st.tile[0], y: st.tile[1] }], fixture: true, stash: true, blocks: true };
-      f.grid.setObstacle(st.tile[0], st.tile[1], true);
-      mk(o);
-      f.objects.push(o);
-      f.objectById.set(o.id, o);
-    }
   }
 
   buildStairs() {
@@ -228,7 +219,7 @@ export default class IsoWorldView {
       // 2x2 pieces from the landing end (south) toward the north; the odd row stays flat landing
       for (let y = maxY - 2; y >= minY; y -= 2) {
         const sp = this.img('iso_stairs', frameBase, (minX - y) * 48, (minX + y + 2) * 24, 0.5, 44 / 64, isoDepth(depthKey(minX + 1, y + 1, LAYER.OBJECT)));
-        this.track([sp], [this.tileIdx(minX, y), this.tileIdx(minX + 1, y + 1)]).hideWhenDark = true;
+        this.track([sp], [this.tileIdx(minX, y), this.tileIdx(minX + 1, y + 1)]);
       }
     };
     place(f.stairwell.downFlight, 'stairs_down_ne');
@@ -250,7 +241,7 @@ export default class IsoWorldView {
       const x = mx - total / 2 + 15 + i * 36; // flat on screen: a simple stencil
       const im = this.scene.add.image(x, my, 'stencil_digits', frameOf('stencil_digits', text[i])).setScale(S).setAlpha(0.6).setDepth(isoDepth(wallDepthKey(sn.x, sn.y, 'N')) + EPS * 2);
       const tiles = [this.tileIdx(sn.x, sn.y), this.tileIdx(sn.x + 1, sn.y)];
-      this.track([im], tiles).hideWhenDark = true;
+      this.track([im], tiles);
     }
   }
 
@@ -261,8 +252,7 @@ export default class IsoWorldView {
     const g = this.floor.grid;
     const bar = this.state.build.barricade;
     for (const e of this.doors.values()) {
-      const [a, b] = g.doorTiles(e.door);
-      const seen = this.vision.isVisible(a.x, a.y) || this.vision.isVisible(b.x, b.y);
+      const seen = this.vision.visible[e.ia] !== 0 || this.vision.visible[e.ib] !== 0;
       if (!seen && !force) continue;
       const d = e.door;
       const key = `${d.state}|${Math.round(d.hp)}|${d.barricade ? Math.round(d.barricade.hp) : -1}`;
@@ -312,7 +302,7 @@ export default class IsoWorldView {
       const ty = Math.floor(p.y);
       ps.sp.setPosition((tx - ty) * 48, (tx + ty + 1) * 24).setDepth(isoDepth(depthKey(tx, ty, LAYER.OBJECT, 5)));
       ps.pile = p;
-      if (!ps.entry) { ps.entry = this.track([ps.sp], [this.tileIdx(tx, ty)]); ps.entry.hideWhenDark = true; } else ps.entry.tiles[0] = this.tileIdx(tx, ty);
+      if (!ps.entry) { ps.entry = this.track([ps.sp], [this.tileIdx(tx, ty)]); } else ps.entry.tiles[0] = this.tileIdx(tx, ty);
       ps.entry.forceHide = false;
     }
     this.dirty = true;
@@ -402,11 +392,13 @@ export default class IsoWorldView {
         e.b = -1;
         continue;
       }
+      // only re-tint what changed
+      if (!e.hidden && Math.abs(b - e.b) < 0.002 && isRem === e.rem) continue;
       e.hidden = false;
-      const tint = tintOf(b, isRem);
-      for (let m = 0; m < s.length; m++) s[m].setTint(tint);
+      const tint = tintOf(shade(b, isRem), isRem);
+      for (let m = 0; m < s.length; m++) s[m].setTint(tint).setVisible(true);
       e.b = b;
-      for (let m = 0; m < s.length; m++) s[m].setVisible(true);
+      e.rem = isRem;
     }
     // wall alphas and barricade visibility (override visibility set above)
     for (let k = 0; k < this.walls.length; k++) {
@@ -433,7 +425,6 @@ export default class IsoWorldView {
    * @param {number} count
    */
   updateOcclusion(actors, count) {
-    let key = '';
     for (let k = 0; k < this.walls.length; k++) {
       const w = this.walls[k];
       let occ = false;
@@ -449,7 +440,6 @@ export default class IsoWorldView {
       for (let a = 0; a < count && !occ; a++) occ = this.propCovers(p, actors[a]);
       p.aT = occ ? this.occAlpha : 1;
     }
-    return key;
   }
 
   /** Does wall rec `w` (full height, drawn after the actor) overlap the actor's body? */
@@ -501,11 +491,10 @@ export default class IsoWorldView {
     out.length = 0;
     const g = this.floor.grid;
     for (const e of this.doors.values()) {
-      const [a, b] = g.doorTiles(e.door);
-      const st = this.stateOfTiles([this.tileIdx(a.x, a.y), this.tileIdx(b.x, b.y)]);
-      if (st === 'unknown') continue;
+      if (this.vision.visible[e.ia] === 0 && this.vision.seen[e.ia] === 0 && this.vision.visible[e.ib] === 0 && this.vision.seen[e.ib] === 0) continue;
       const m = this.doorMid(e.door);
-      out.push({ id: e.door.id, kind: 'door', x: m.x, y: m.y - 40, w: 96, h: 96, depth: e.rec.depth, ax: m.x, ay: m.y - 40, door: e.door });
+      const sp = e.rec.cut && e.rec.stub ? e.rec.stub : e.rec.full; // the door art a finger can actually touch
+      out.push({ id: e.door.id, kind: 'door', x: m.x, y: m.y - 40, w: 96, h: 96, depth: e.rec.depth, ax: m.x, ay: m.y - 40, door: e.door, sp, origin: DOOR_ORIGIN });
     }
     for (const p of this.props) {
       if (p.gone) continue;

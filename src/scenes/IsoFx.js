@@ -4,8 +4,6 @@
  * soundRipple() in src/iso/vision.js.
  */
 import Phaser from 'phaser';
-import { frameOf } from './art.js';
-import { angleToGridVec } from '../iso/projection.js';
 
 const S = 3;
 const VIGNETTE_W = 144;
@@ -40,6 +38,14 @@ export function makeVignette(scene, cfg) {
   return scene.add.image(w / 2, h / 2, key).setDisplaySize(w, h).setScrollFactor(0).setDepth(VIGNETTE_DEPTH);
 }
 
+const ARC_STEPS = 10;
+const ARC_LAYERS = 3;
+
+/**
+ * Sound ripple: a soft dark arc (overlay colour #0b0c0e, no icon) of vision.soundRipple.arcDegrees and
+ * thicknessTiles just outside the vision area, drifting outward while it fades in and out. Drawn as three
+ * stacked, narrowing strips for soft edges. Peak alpha comes straight from balance (alpha.noisy / alpha.loud).
+ */
 export class SoundRipples {
   /**
    * @param {Phaser.Scene} scene @param {object} cfg visionConfig(balance).soundRipple
@@ -49,18 +55,16 @@ export class SoundRipples {
     this.cfg = cfg;
     this.active = [];
     this.pool = [];
-    for (let i = 0; i < (cfg.maxActive ?? 2); i++) {
-      this.pool.push(scene.add.image(0, 0, 'iso_fx', frameOf('iso_fx', 'ripple_2')).setScale(S * 1.6).setVisible(false).setDepth(940).setTint(0xa09a8c));
-    }
+    for (let i = 0; i < (cfg.maxActive ?? 2); i++) this.pool.push(scene.add.graphics().setDepth(940).setVisible(false));
     this.lastBySource = new Map();
     this.clock = 0;
-    this.gridVec = { x: 0, y: 0 };
+    this.pts = Array.from({ length: (ARC_STEPS + 1) * 2 }, () => ({ x: 0, y: 0 }));
   }
 
   /**
    * Start a ripple. Ignored inside the per-source cooldown; with all slots busy the oldest is replaced.
    * @param {string} source stable id of the sound source (door id, zombie id)
-   * @param {{x:number,y:number}} sourceTile @param {{angle:number, radiusTiles:number, alpha:number}} info from soundRipple()
+   * @param {{x:number,y:number}} sourceTile @param {{angle:number, radiusTiles:number, alpha:number, arcDegrees:number}} info from soundRipple()
    */
   trigger(source, sourceTile, info) {
     const last = this.lastBySource.get(source);
@@ -68,15 +72,46 @@ export class SoundRipples {
     this.lastBySource.set(source, this.clock);
     let r;
     if (this.active.length >= this.pool.length) r = this.active.shift();
-    else r = { sp: this.pool.find((p) => !this.active.some((a) => a.sp === p)) };
+    else r = { g: this.pool.find((p) => !this.active.some((a) => a.g === p)) };
     r.t = 0;
     r.dur = this.cfg.durationSeconds ?? 0.9;
     r.fadeIn = this.cfg.fadeInSeconds ?? 0.15;
     r.info = info;
     r.source = sourceTile;
-    r.sp.setVisible(true);
+    r.g.setVisible(true);
     this.active.push(r);
     return true;
+  }
+
+  draw(r, heroPos, alpha, dist) {
+    const g = r.g;
+    const half = (r.info.arcDegrees ?? 40) / 2;
+    const thick = this.cfg.thicknessTiles ?? 0.4;
+    g.clear();
+    for (let l = 0; l < ARC_LAYERS; l++) {
+      const w = thick * (1 - l / ARC_LAYERS); // widest first, narrower on top: soft edge
+      const inner = dist + (thick - w) / 2;
+      const outer = inner + w;
+      let n = 0;
+      for (let i = 0; i <= ARC_STEPS; i++) {
+        const a = ((r.info.angle - half + (2 * half * i) / ARC_STEPS) * Math.PI) / 180;
+        const c = Math.cos(a);
+        const s = Math.sin(a);
+        const p = this.pts[n++];
+        const gx = heroPos.x + c * inner;
+        const gy = heroPos.y + s * inner;
+        p.x = (gx - gy) * 48; p.y = (gx + gy) * 24;
+      }
+      for (let i = ARC_STEPS; i >= 0; i--) {
+        const a = ((r.info.angle - half + (2 * half * i) / ARC_STEPS) * Math.PI) / 180;
+        const p = this.pts[n++];
+        const gx = heroPos.x + Math.cos(a) * outer;
+        const gy = heroPos.y + Math.sin(a) * outer;
+        p.x = (gx - gy) * 48; p.y = (gx + gy) * 24;
+      }
+      g.fillStyle(0x0b0c0e, alpha / ARC_LAYERS);
+      g.fillPoints(this.pts, true);
+    }
   }
 
   /**
@@ -89,19 +124,14 @@ export class SoundRipples {
     for (let i = this.active.length - 1; i >= 0; i--) {
       const r = this.active[i];
       r.t += dt;
-      if (r.t >= r.dur || sourceVisible(r.source.x, r.source.y)) { r.sp.setVisible(false); this.active.splice(i, 1); continue; }
-      const k = r.t / r.dur;
+      if (r.t >= r.dur || sourceVisible(r.source.x, r.source.y)) { r.g.clear().setVisible(false); this.active.splice(i, 1); continue; }
       const a = r.t < r.fadeIn ? r.t / r.fadeIn : 1 - (r.t - r.fadeIn) / (r.dur - r.fadeIn);
-      angleToGridVec(r.info.angle, this.gridVec);
-      const dist = r.info.radiusTiles + drift * k;
-      const gx = heroPos.x + this.gridVec.x * dist;
-      const gy = heroPos.y + this.gridVec.y * dist;
-      r.sp.setPosition((gx - gy) * 48, (gx + gy) * 24 - 24).setAlpha(Math.max(0, a) * r.info.alpha * 2);
+      this.draw(r, heroPos, Math.max(0, a) * r.info.alpha, r.info.radiusTiles + drift * (r.t / r.dur));
     }
   }
 
   clear() {
-    for (const r of this.active) r.sp.setVisible(false);
+    for (const r of this.active) r.g.clear().setVisible(false);
     this.active.length = 0;
   }
 }

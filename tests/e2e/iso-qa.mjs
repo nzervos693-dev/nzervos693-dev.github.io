@@ -170,7 +170,7 @@ try {
   }
   check(taps >= 60 && good / taps >= 0.9, `a real tap on a visible object pixel opens the right target on ${(100 * good / taps).toFixed(0)}% of ${taps} taps (want 90%+)${wrong.length ? ' misses: ' + wrong.slice(0, 6).join(', ') : ''}`);
 
-  // ---- the home front door and the stash next to it (KNOWN BUG-042: the stash steals the door's left half)
+  // ---- the home front door and the stash next to it (BUG-042)
   await boot();
   await E(() => { const g = window.__floor15; g.debugGoto(6, 8); g.hero.facing = 90; g.updateVision(true); });
   await sleep(800);
@@ -183,7 +183,7 @@ try {
     await sleep(200);
     if ((await E(() => window.__floor15.pending?.kind)) === 'door-open') doorHits++;
   }
-  known(doorHits === 4, 'BUG-042', `taps across the home front door open it (${doorHits}/4; the stash toolbox beside it takes the left side)`);
+  check(doorHits === 4, `taps across the home front door open it (${doorHits}/4; BUG-042 fixed)`);
 
   // ---- Home: once re-centres, twice walks to the bed (through the front door)
   await boot();
@@ -242,14 +242,14 @@ try {
   const food1 = await E(() => window.__floor15.state.needs.food);
   check(food1 < food0 - 3 && (await E(() => window.__floor15.popup.isOpen)), `2 h away are counted (food ${Math.round(food0)} -> ${Math.round(food1)}) and the away report shows`);
 
-  // ---- a corpse is not drawn once its tile leaves the view (GDD 5.17) (KNOWN BUG-043)
+  // ---- a corpse is not drawn once its tile leaves the view (GDD 5.17) (BUG-043)
   await boot();
   await E(() => { const g = window.__floor15; for (const rt of g.zombies.list) rt.ai.pause = 9999; g.debugGoto(3, 17); g.hero.facing = 90; g.updateVision(true); const z = g.zombies.get('f15SW-z1'); z.rec.x = 3.5; z.rec.y = 19.5; });
   await sleep(1000);
   await E(() => { const g = window.__floor15; g.zombies.hurt(g.zombies.get('f15SW-z1'), 999, false); g.hero.facing = 270; g.updateVision(true); });
   await sleep(600);
   const corpse = await E(() => window.__floor15.children.list.filter((c) => c.texture?.key === 'iso_walker' && c.visible).length);
-  known(corpse === 0, 'BUG-043', `no corpse is drawn after the hero turns away (${corpse} drawn)`);
+  check(corpse === 0, `no corpse is drawn after the hero turns away (${corpse} drawn; BUG-043 fixed)`);
 
   // ---- lethal bite and killing blow in the same frame: game over once, floor Cleared
   await boot();

@@ -4,7 +4,7 @@ import data from '../public/data/levels/floors_iso.json';
 import { loadIsoFloor } from '../src/iso/loader.js';
 import { VisionMap, VIS, visionConfig } from '../src/iso/vision.js';
 import {
-  tileBrightness, tintOf, activeRooms, wallIsCut, rectsOverlap, doorStage, doorFrameName, barricadeArtStage, propOrientation,
+  shade, REMEMBERED_SHADE, tileBrightness, tintOf, activeRooms, wallIsCut, rectsOverlap, doorStage, doorFrameName, barricadeArtStage, propOrientation,
 } from '../src/gameplay/isoView.js';
 
 const floor = loadIsoFloor(data, 15, balance);
@@ -69,5 +69,18 @@ describe('view helpers', () => {
     expect(propOrientation([2, 1], 'S')).toEqual({ suffix: 'a', flip: false });
     expect(propOrientation([1, 2], 'S')).toEqual({ suffix: 'b', flip: false });
     expect(propOrientation([1, 1], 'N')).toEqual({ suffix: 'a', flip: true });
+  });
+});
+
+describe('readability curve', () => {
+  it('unknown stays black; remembered is dim but above black; visible keeps its order', () => {
+    expect(shade(0)).toBe(0);
+    expect(shade(0.18, true)).toBe(REMEMBERED_SHADE);
+    const grey = shade(tileBrightness(cfg, VIS.FULL, true, 'grey', false));
+    const dim = shade(tileBrightness(cfg, VIS.FULL, true, 'dim', false));
+    const dark = shade(tileBrightness(cfg, VIS.FULL, true, 'dark', false));
+    expect(grey).toBeGreaterThan(dim);
+    expect(dim).toBeGreaterThan(dark);
+    expect(dark).toBeGreaterThan(REMEMBERED_SHADE);
   });
 });

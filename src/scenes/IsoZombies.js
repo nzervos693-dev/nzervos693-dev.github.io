@@ -89,7 +89,7 @@ export default class IsoZombies {
   kill(rt) {
     rt.dying = true;
     rt.rec.dead = true;
-    this.scene.actors.die(rt, (this.cfg.tune.corpseSeconds ?? 1.5) * 1000, null);
+    this.scene.actors.die(rt, (this.cfg.tune.corpseSeconds ?? 1.5) * 1000);
     playSfx(this.scene, 'zombie_death');
     const i = this.list.indexOf(rt);
     if (i >= 0) this.list.splice(i, 1);

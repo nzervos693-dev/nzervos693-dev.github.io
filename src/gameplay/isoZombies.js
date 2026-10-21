@@ -75,7 +75,7 @@ export function makeIsoAi(rec, rng = Math.random, cfg = null) {
   const rep = cfg?.tune.repathSeconds ?? 0.5;
   return {
     mode: 'idle', cd: 0, stun: 0, pause: 1 + rng() * 3, facing: rec.facing ?? 90, moving: false, noticed: false,
-    unseen: 0, last: null, path: null, pathI: 0, leg: false, repathT: rng() * rep, wanderGoal: null,
+    unseen: 0, last: null, path: null, pathI: 0, leg: false, repathT: rng() * rep, stagger: rng() * rep, wanderGoal: null,
     turnT: -1, turning: 0, windup: 0, noiseBang: 0, blocked: null, waitT: 0, sndT: rng() * 6,
   };
 }
@@ -127,7 +127,7 @@ export function startIsoChase(ai, tune) {
   ai.windup = 0;
   ai.noiseBang = 0;
   ai.path = null;
-  ai.repathT = 0;
+  ai.repathT = ai.stagger ?? 0; // zombies woken together do not all path in the same frame
   ai.cd = Math.max(ai.cd, tune.attackWindupSeconds);
 }
 
@@ -212,6 +212,8 @@ function walkPath(z, ai, env, speed, dt) {
           const e = g.edgeBetween(a.x, a.y, t.x, t.y);
           if (g.moveClass(e) !== MOVE.OPEN) { ai.blocked = g.doors.get(e) ?? null; if (ai.blocked) break; }
         }
+        // a stale path may have a diagonal that a door or wall change made illegal: stop and re-path
+        if (a.x !== t.x && a.y !== t.y && g.stepClass(a.x, a.y, t.x - a.x, t.y - a.y) !== MOVE.OPEN) { ai.path = null; ai.repathT = 0; break; }
         const tx0 = Math.floor(z.x);
         const ty0 = Math.floor(z.y);
         if ((t.x !== tx0 || t.y !== ty0) && (env.occ[t.y * W + t.x] || (env.heroActive && Math.floor(env.heroX) === t.x && Math.floor(env.heroY) === t.y))) {
