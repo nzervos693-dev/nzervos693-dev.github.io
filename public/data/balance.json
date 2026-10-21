@@ -1,6 +1,6 @@
 {
-  "version": 1,
-  "milestone": "M1",
+  "version": 2,
+  "milestone": "M2",
   "time": {
     "tickSeconds": 1,
     "offlineCapHours": 12,
@@ -11,31 +11,64 @@
     "dragThresholdPx": 16,
     "homeDoubleTapSeconds": 1,
     "cameraFollowPauseSeconds": 2,
+    "cameraDeadzoneXPx": 160,
+    "cameraLerp": 0.12,
+    "runDoubleTapSeconds": 0.3,
+    "runDoubleTapMaxDistancePx": 48,
     "buttonSizePx": 96,
     "minHitAreaPx": 96,
     "attackBuffer": 1
   },
   "hero": {
-    "walkSpeed": 120,
-    "stairSecondsPerFloor": 1.2
+    "walkSpeed": 100,
+    "runSpeed": 170,
+    "runNoiseRadiusPx": 250,
+    "stairSecondsPerFloor": 1.4
   },
   "world": {
     "floorMin": 13,
     "floorMax": 17,
-    "floorWidthPx": 720,
+    "floorWidthPx": 3120,
     "floorHeightPx": 240,
-    "stairwellWidthPx": 120,
-    "apartmentWidthPx": 300,
+    "wingWidthPx": 1440,
+    "stairwellWidthPx": 240,
+    "moduleWidthPx": 240,
+    "modulesPerWing": 6,
+    "slotOffsetsPx": [72, 168],
+    "doorwayClearancePx": 48,
     "wandererIntervalHours": 12,
     "wanderersPerInterval": [1, 2],
     "jammedDoorHits": 3,
     "jammedDoorCrowbarSeconds": 1
   },
+  "generator": {
+    "templatesFile": "levels/templates.json",
+    "startFlatTemplate": "your_flat",
+    "interiorDoorChance": 0.5,
+    "frontDoorJammedChance": 0.25,
+    "slotFillChance": 0.6,
+    "maxSameTemplatePerFloor": 1,
+    "conditionWeights": { "normal": 60, "ransacked": 30, "burned": 10 },
+    "conditions": {
+      "normal": { "emptyChance": 0.3 },
+      "ransacked": { "emptyChance": 0.7, "objectRemoveChance": 0.3 },
+      "burned": { "emptyChance": 0.85, "charChance": 0.7, "windowsBroken": true }
+    },
+    "zombiesPerWingByDistance": { "0": [0, 2], "1": [1, 3], "2": [2, 4] },
+    "groupChance": 0.5,
+    "maxZombiesPerRoom": 3,
+    "zombieNoSpawnModulesFromFrontDoor": 1,
+    "guarantees": {
+      "minFlatWingsPerFloor": 1,
+      "minFoodItemsPerFloor": 1,
+      "minDrainableWaterPerFloor": 1
+    }
+  },
   "needs": {
     "max": 100,
     "emptyNeedDamage": 5,
     "autoUseThreshold": 40,
-    "onlinePromptThreshold": 20,
+    "lastResortThreshold": 20,
     "offlineHealthFloor": 10,
     "health": {
       "start": 100,
@@ -82,10 +115,48 @@
         "talkCooldownHours": 12,
         "firstPlanterHarvest": 5,
         "attackRepelled": 5,
+        "firstClaim": 5,
         "barricadeBreached": -10,
         "survivorDies": -20
       }
     }
+  },
+  "moodles": {
+    "iconPx": 48,
+    "maxShown": 6,
+    "levelChangeWobbleSeconds": 0.5,
+    "hungry": { "stat": "food", "below": [60, 40, 20, 1] },
+    "thirsty": { "stat": "water", "below": [60, 40, 20, 1] },
+    "tired": { "stat": "energy", "below": [50, 35, 20, 5] },
+    "injured": { "stat": "health", "below": [80, 60, 35, 15] },
+    "depressed": { "stat": "morale", "below": [50, 35, 25, 10] },
+    "panic": {
+      "aggroedWithinPx": 400,
+      "zombieCountForLevel": [1, 2, 3, 5],
+      "decaySecondsPerLevel": 5,
+      "damagePenalty": [0, 0.1, 0.2, 0.3]
+    }
+  },
+  "light": {
+    "dimVisionPx": 150,
+    "dimTimeMult": 1.5,
+    "lampRadiusPx": 220,
+    "lampFlickerPct": 0.05,
+    "darkOverlayAlpha": 0.97,
+    "dimOverlayAlpha": 0.72,
+    "greyOverlayAlpha": 0.45,
+    "litOverlayAlpha": 0.2,
+    "dustMotesPerRoom": [6, 10],
+    "stairwellFlickerMs": [50, 150]
+  },
+  "lamp": {
+    "fuelSlots": 2,
+    "fuelHours": 12
+  },
+  "comfort": {
+    "perPoint": 0.25,
+    "minDrain": -0.5,
+    "litPoints": 2
   },
   "items": {
     "wood": { "type": "material", "name": "Wood", "stack": "material" },
@@ -130,8 +201,9 @@
   },
   "combat": {
     "energyPerSwing": 0.5,
-    "knockbackPx": 12,
-    "hitFlashMs": 80,
+    "knockbackPx": 8,
+    "hitFlashMs": 60,
+    "unawareHitMult": 3,
     "weapons": {
       "fists": { "name": "Fists", "damage": 5, "rangePx": 40, "cooldownSeconds": 0.4, "durability": null, "source": "default" },
       "kitchen_knife": { "name": "Kitchen knife", "damage": 10, "rangePx": 45, "cooldownSeconds": 0.35, "durability": 40, "source": "loot" },
@@ -139,21 +211,27 @@
     }
   },
   "zombies": {
-    "aggroRadius": 200,
+    "sightRadiusPx": 180,
+    "dimSightRadiusPx": 110,
+    "darkSightRadiusPx": 70,
     "attackRange": 30,
+    "barricadeDamageMult": 0.4,
     "tuning": {
-      "attackWindupSeconds": 0.6,
+      "attackWindupSeconds": 0.9,
       "wanderSpeedMult": 0.4,
       "wanderRadiusPx": 60,
-      "wanderPauseSeconds": [1, 3],
-      "hitStunSeconds": 0.25,
+      "wanderPauseSeconds": [2, 5],
+      "hitStunSeconds": 0.35,
       "corpseSeconds": 1.5,
+      "loseTrackSeconds": 8,
+      "loseTrackDistancePx": 400,
+      "groupSpacingPx": [24, 48],
       "maxWanderersPerFloor": 3,
       "wanderSpawnMinHeroDistancePx": 200
     },
     "types": {
-      "crawler": { "name": "Crawler", "hp": 15, "speed": 25, "damage": 4, "attackIntervalSeconds": 2.0 },
-      "walker": { "name": "Walker", "hp": 30, "speed": 40, "damage": 8, "attackIntervalSeconds": 1.5 }
+      "crawler": { "name": "Crawler", "hp": 20, "speed": 15, "damage": 8, "attackIntervalSeconds": 2.5 },
+      "walker": { "name": "Walker", "hp": 45, "speed": 26, "damage": 14, "attackIntervalSeconds": 2.2 }
     }
   },
   "throw": {
@@ -169,9 +247,10 @@
     "noise": "loud"
   },
   "scavenge": {
-    "searchSeconds": 2,
+    "searchSeconds": 3,
     "searchEnergy": 1,
-    "lootRolls": [1, 3]
+    "lootRolls": [0, 2],
+    "consumableQtyCap": 1
   },
   "inventory": {
     "carrySlots": 10,
@@ -226,7 +305,8 @@
       "yield": { "wood": 6, "metal": 1 }, "chanceYield": []
     },
     "bed_frame": {
-      "name": "Bed frame", "size": "large", "tool": "crowbar", "noise": "noisy", "primary": null,
+      "name": "Bed", "size": "large", "tool": "crowbar", "noise": "noisy", "primary": null,
+      "sleepable": true,
       "yield": { "wood": 3, "metal": 2, "cloth": 2 }, "chanceYield": []
     },
     "sofa": {
@@ -279,7 +359,7 @@
     },
     "window_pane": {
       "name": "Window pane", "size": "small", "tool": null, "noise": "noisy", "primary": null,
-      "yield": { "glass": 2 }, "chanceYield": [], "allowedInHome": false
+      "yield": { "glass": 2 }, "chanceYield": []
     },
     "bathroom_cabinet": {
       "name": "Bathroom cabinet", "size": "small", "tool": null, "noise": "quiet",
@@ -294,6 +374,55 @@
     "oil_lamp": {
       "name": "Oil lamp", "size": "small", "tool": null, "noise": "quiet", "primary": null,
       "yield": { "glass": 1, "metal": 1 }, "chanceYield": [{ "id": "fuel", "qty": 1, "chance": 0.5 }]
+    },
+    "mattress": {
+      "name": "Mattress", "size": "medium", "tool": null, "noise": "quiet", "primary": null,
+      "sleepable": true, "milestone": "M2",
+      "yield": { "cloth": 4 }, "chanceYield": []
+    },
+    "medicine_cabinet": {
+      "name": "Medicine cabinet", "size": "small", "tool": null, "noise": "quiet", "milestone": "M2",
+      "primary": { "type": "search", "lootTable": "medicine_cabinet", "lootTags": ["bandage", "medkit", "chemicals"] },
+      "yield": { "glass": 1, "metal": 1 }, "chanceYield": []
+    },
+    "desk": {
+      "name": "Desk", "size": "medium", "tool": null, "noise": "noisy", "milestone": "M2",
+      "primary": { "type": "search", "lootTable": "desk", "lootTags": ["duct_tape", "parts", "dry_snack"] },
+      "yield": { "wood": 4, "metal": 1 }, "chanceYield": []
+    },
+    "filing_cabinet": {
+      "name": "Filing cabinet", "size": "medium", "tool": "crowbar", "noise": "noisy", "milestone": "M2",
+      "primary": { "type": "search", "lootTable": "filing_cabinet", "lootTags": ["parts", "duct_tape"] },
+      "yield": { "metal": 4 }, "chanceYield": []
+    },
+    "washing_machine": {
+      "name": "Washing machine", "size": "large", "tool": "wrench", "noise": "loud", "milestone": "M2",
+      "primary": { "type": "search", "lootTable": "washing_machine", "lootTags": ["cloth"] },
+      "yield": { "metal": 5, "parts": 2 }, "chanceYield": []
+    },
+    "laundry_basket": {
+      "name": "Laundry basket", "size": "small", "tool": null, "noise": "quiet", "milestone": "M2",
+      "primary": { "type": "search", "lootTable": "laundry_basket", "lootTags": ["cloth"] },
+      "yield": { "plastic": 1, "cloth": 1 }, "chanceYield": []
+    },
+    "storage_cage": {
+      "name": "Storage cage", "size": "medium", "tool": "crowbar", "noise": "noisy", "milestone": "M2",
+      "primary": { "type": "search", "tool": "crowbar", "lootTable": "storage_cage", "lootTags": ["fuel", "duct_tape", "metal", "canned_food"] },
+      "yield": { "metal": 3 }, "chanceYield": []
+    },
+    "toy_box": {
+      "name": "Toy box", "size": "small", "tool": null, "noise": "quiet", "milestone": "M2",
+      "primary": { "type": "search", "lootTable": "toy_box", "lootTags": ["chocolate", "dry_snack"] },
+      "yield": { "plastic": 2 }, "chanceYield": []
+    },
+    "utility_shelf": {
+      "name": "Utility shelf", "size": "medium", "tool": null, "noise": "quiet", "milestone": "M2",
+      "primary": { "type": "search", "lootTable": "utility_shelf", "lootTags": ["chemicals", "duct_tape", "fuel"] },
+      "yield": { "wood": 2, "metal": 1 }, "chanceYield": []
+    },
+    "charred_debris": {
+      "name": "Burned furniture", "size": "medium", "tool": null, "noise": "quiet", "primary": null, "milestone": "M2",
+      "yield": { "wood": 1, "metal": 1 }, "chanceYield": [{ "id": "parts", "qty": 1, "chance": 0.3 }]
     }
   },
   "recipes": {
@@ -348,15 +477,29 @@
       "effect": { "type": "producer", "produces": "planter_crop", "qty": 1, "intervalHours": 6, "maxStored": 3, "waterPerUnit": 1, "waterItems": ["dirty_water", "clean_water"] },
       "buildSpot": "floor"
     },
+    "oil_lamp": {
+      "name": "Oil lamp", "use": "light", "workbenchLevel": 1, "milestone": "M2",
+      "cost": { "glass": 1, "metal": 1, "cloth": 1 },
+      "output": null,
+      "effect": { "type": "light", "fuelItem": "fuel" },
+      "buildSpot": "floor"
+    },
+    "workbench": {
+      "name": "Workbench", "use": "home", "workbenchLevel": 1, "milestone": "M2",
+      "cost": { "wood": 6, "metal": 2 },
+      "output": null,
+      "effect": { "type": "workbench", "maxPerApartment": 1 },
+      "buildSpot": "floor"
+    },
     "barricade_lv1": {
       "name": "Barricade Lv1", "use": "defense", "workbenchLevel": 1,
       "cost": { "wood": 5, "metal": 2 },
-      "output": null, "effect": { "type": "barricade", "level": 1 }, "buildSpot": "stairwell"
+      "output": null, "effect": { "type": "barricade", "level": 1 }, "buildSpot": "front_door"
     },
     "barricade_lv2": {
       "name": "Barricade Lv2", "use": "defense", "workbenchLevel": 1,
       "cost": { "wood": 10, "metal": 5, "duct_tape": 2 },
-      "output": null, "effect": { "type": "barricade", "level": 2 }, "buildSpot": "stairwell"
+      "output": null, "effect": { "type": "barricade", "level": 2 }, "buildSpot": "front_door"
     },
     "barricade_repair": {
       "name": "Repair barricade", "use": "defense", "workbenchLevel": 1,
@@ -376,15 +519,19 @@
   },
   "barricade": {
     "repairHpPerWood": 20,
+    "visualStages": [0.75, 0.5, 0.25, 0],
     "levels": [
       { "level": 1, "hp": 120, "defense": 10, "requiresLevel": 0 },
       { "level": 2, "hp": 250, "defense": 25, "requiresLevel": 1 }
     ]
   },
   "home": {
-    "floor": 15,
-    "windowSpots": 2,
-    "floorSpots": 4
+    "startFloor": 15,
+    "startWing": "left",
+    "maxClaimed": 3,
+    "claimSeconds": 2,
+    "startStashSlots": 40,
+    "claimedStashSlots": 20
   },
   "survivors": {
     "upkeepHours": 12,
@@ -429,7 +576,13 @@
     "perDay": 3,
     "cap": 150,
     "strengthPerZombie": 10,
-    "warningSeconds": 60,
+    "cueSeconds": 15,
+    "cue": {
+      "groanAtSeconds": 15,
+      "stairwellAtSeconds": 8,
+      "flickerFromSeconds": 8,
+      "stairwellAudibleFloors": 2
+    },
     "scheduledZombieType": "walker",
     "characterDefense": 10,
     "securedFloorDefense": 5,
@@ -446,5 +599,11 @@
       "strength": 15,
       "zombies": { "crawler": 2 }
     }
+  },
+  "audio": {
+    "ambientGapSeconds": [20, 60],
+    "distantGroanGapSeconds": [45, 120],
+    "musicCooldownMinutes": [8, 12],
+    "zombieHearRadiusPx": 600
   }
 }
