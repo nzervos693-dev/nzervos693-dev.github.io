@@ -686,6 +686,112 @@ sheet('dust', 8, 8, [0, 1, 2, 3].map((i) => [`mote_${i}`, (c) => {
   if (pos[2]) c.px(pos[2][0], pos[2][1], [189, 184, 171, 70]);
 }]), { animations: [anim('mote', [0, 1, 2, 3], 3)], note: 'slow dust mote loop 8x8, 1-3 faint specks; tint/scale/alpha in game' });
 
+// ---------- Floor 15 non-gamey HUD (GDD 8 muted UI style, GDD 9 UI art) ----------
+const disc = (c, cx, cy, r, col) => { for (let y = 0; y < c.h; y++) for (let x = 0; x < c.w; x++) if (Math.hypot(x + 0.5 - cx, y + 0.5 - cy) <= r) c.px(x, y, col); };
+const gridN = (c, rows, col = 'X') => rows.forEach((r, y) => [...r].forEach((ch, x) => { if (ch === '#') c.px(x, y, col); }));
+const thick = (c, x0, y0, x1, y1, col, dx = 1, dy = 0) => { c.line(x0, y0, x1, y1, col); c.line(x0 + dx, y0 + dy, x1 + dx, y1 + dy, col); };
+
+// hud_icons 16x16: single flat colour UI text #bdb8ab (key X), no outline; alpha is set in game
+sheet('hud_icons', 16, 16, [
+  ['house', (c) => gridN(c, ['................', '.......##.......', '......####......', '.....######.....', '....########....', '...##########...', '..############..', '.##############.', '....########....', '....########....', '....###..###....', '....###..###....', '....###..###....', '....###..###....', '................', '................'])],
+  ['bag', (c) => gridN(c, ['................', '......####......', '.....#....#.....', '.....#....#.....', '....########....', '...##########...', '...##########...', '...##########...', '...###....###...', '...###....###...', '...##########...', '...##########...', '...##########...', '...##########...', '....########....', '................'])],
+  ['hammer', (c) => gridN(c, ['................', '................', '..###########...', '.############...', '.############...', '..###########...', '.......##.......', '.......##.......', '.......##.......', '.......##.......', '.......##.......', '.......##.......', '.......##.......', '.......##.......', '.......##.......', '................'])],
+  ['two_heads', (c) => gridN(c, ['................', '..###......###..', '.#####....#####.', '.#####....#####.', '.#####....#####.', '..###......###..', '................', '.#####....#####.', '#######..#######', '#######..#######', '#######..#######', '#######..#######', '#######..#######', '................', '................', '................'])],
+  ['dots', (c) => { [1, 6, 11].forEach((x) => { c.rect(x, 6, 4, 4, 'X'); c.px(x, 6, null); }); [1, 6, 11].forEach((x) => { c.d.fill(0, (6 * 16 + x) * 4, (6 * 16 + x) * 4 + 4); c.d.fill(0, (6 * 16 + x + 3) * 4, (6 * 16 + x + 3) * 4 + 4); c.d.fill(0, (9 * 16 + x) * 4, (9 * 16 + x) * 4 + 4); c.d.fill(0, (9 * 16 + x + 3) * 4, (9 * 16 + x + 3) * 4 + 4); }); }],
+  ['bottle', (c) => gridN(c, ['................', '.......##.......', '.......##.......', '......####......', '.......##.......', '.......##.......', '.......##.......', '.....######.....', '....########....', '....########....', '....########....', '....#......#....', '....#......#....', '....########....', '.....######.....', '................'])],
+  ['hand', (c) => { c.rect(2, 5, 2, 5, 'X'); c.rect(5, 2, 2, 8, 'X'); c.rect(8, 1, 2, 9, 'X'); c.rect(11, 3, 2, 7, 'X'); c.rect(2, 9, 11, 4, 'X'); c.rect(4, 13, 7, 2, 'X'); c.rect(0, 8, 2, 3, 'X'); c.rect(1, 11, 2, 2, 'X'); }],
+  ['knife', (c) => { for (let i = 0; i < 8; i++) { c.rect(13 - i - 1, 1 + i, 3, 1, 'X'); } c.px(13, 1, null); c.line(3, 7, 9, 13, 'X'); c.line(4, 7, 9, 12, 'X'); c.line(3, 8, 8, 13, 'X'); thick(c, 6, 10, 2, 14, 'X', 1, 0); c.rect(1, 13, 3, 2, 'X'); }],
+  ['bat', (c) => { for (let i = 0; i < 12; i++) { const x = 13 - i, y = 2 + i; if (i < 6) c.rect(x - 1, y - 1, 3, 2, 'X'); else c.rect(x, y, 2, 1, 'X'); } c.rect(11, 1, 3, 1, 'X'); c.rect(14, 2, 1, 3, 'X'); c.rect(1, 13, 3, 2, 'X'); }],
+  ['speaker_on', (c) => { c.rect(1, 6, 3, 4, 'X'); for (let i = 0; i < 4; i++) c.rect(4 + i, 5 - i, 1, 6 + i * 2, 'X'); [[9, 6], [10, 7], [10, 8], [9, 9], [11, 4], [12, 5], [13, 6], [13, 7], [13, 8], [13, 9], [12, 10], [11, 11]].forEach(([x, y]) => c.px(x, y, 'X')); }],
+  ['speaker_off', (c) => { c.rect(1, 6, 3, 4, 'X'); for (let i = 0; i < 4; i++) c.rect(4 + i, 5 - i, 1, 6 + i * 2, 'X'); thick(c, 9, 5, 14, 10, 'X', 0, 1); thick(c, 14, 5, 9, 10, 'X', 0, 1); }],
+], { note: 'HUD pictograms 16x16 (48 game px), flat #bdb8ab, no outline; set alpha in game (0.7, pressed 0.9). Order: house bag hammer two_heads dots bottle hand knife bat speaker_on speaker_off' });
+
+// moodles_l 24x24: same layout as moodles (frame_1..4, then <id>_<1..4>), larger and cleaner
+const PICL = {
+  hungry: (c, col) => {
+    for (let y = 0; y < 24; y++) for (let x = 0; x < 24; x++) { const d = Math.hypot(x + 0.5 - 12, y + 0.5 - 12); if (d <= 5.2 && d >= 3) c.px(x, y, col); }
+    c.rect(3, 4, 1, 5, col); c.rect(5, 4, 1, 5, col); c.rect(3, 8, 3, 2, col); c.rect(4, 10, 1, 9, col);
+    c.rect(19, 4, 2, 9, col); c.rect(20, 13, 1, 6, col); c.px(19, 4, null);
+  },
+  thirsty: (c, col, bg) => {
+    for (let y = 3; y <= 12; y++) c.rect(Math.round(12 - (y - 3) * 0.6), y, Math.round((y - 3) * 1.2) + 1, 1, col);
+    disc(c, 12, 14, 5.8, col); c.rect(9, 12, 1, 4, bg);
+  },
+  tired: (c, col) => {
+    for (let x = 3; x <= 20; x++) { const t = (x + 0.5 - 12) / 9; if (Math.abs(t) > 1) continue; c.rect(x, Math.round(8 + 6 * Math.sqrt(1 - t * t)), 1, 2, col); }
+    [6, 9, 12, 15, 18].forEach((x) => { const t = (x + 0.5 - 12) / 9, y = Math.round(8 + 6 * Math.sqrt(1 - t * t)); c.rect(x, y + 2, 1, 3, col); });
+  },
+  injured: (c, col, bg) => {
+    for (let y = 0; y < 24; y++) for (let x = 0; x < 24; x++) {
+      const a = Math.abs(x + y - 23), b = x - y;
+      if (a <= 4 && Math.abs(b) <= 13) c.px(x, y, col);
+      if (a <= 2 && Math.abs(b) <= 4) c.px(x, y, bg);
+      if (a <= 1 && Math.abs(b) <= 2) c.px(x, y, col);
+    }
+  },
+  depressed: (c, col) => {
+    disc(c, 8, 11, 4, col); disc(c, 13, 9, 5, col); disc(c, 18, 11.5, 3.5, col); c.rect(8, 11, 11, 4, col);
+    [[7, 17], [12, 18], [17, 17]].forEach(([x, y]) => { c.px(x + 1, y, col); c.px(x, y + 1, col); c.px(x, y + 2, col); });
+  },
+  panic: (c, col, bg) => {
+    for (let y = 3; y <= 20; y++) { const hw = Math.round(1 + (y - 3) * 0.5); c.rect(12 - hw, y, hw * 2, 1, col); }
+    c.rect(11, 9, 2, 6, bg); c.rect(11, 17, 2, 2, bg);
+  },
+};
+function moodleFrameL(c, sev, pic) {
+  const bg = MDBG[sev];
+  c.rect(2, 0, 20, 24, 'O'); c.rect(0, 2, 24, 20, 'O'); c.rect(1, 1, 22, 22, 'O');
+  c.rect(1, 2, 22, 20, bg); c.rect(2, 1, 20, 22, bg);
+  if (sev >= 1) { c.rect(2, 1, 20, 1, 'O'); c.rect(2, 22, 20, 1, 'O'); c.rect(1, 2, 1, 20, 'O'); c.rect(22, 2, 1, 20, 'O'); }
+  if (sev >= 2) { c.rect(3, 2, 18, 1, 'WOODD'); c.rect(3, 21, 18, 1, 'WOODD'); c.rect(2, 3, 1, 18, 'WOODD'); c.rect(21, 3, 1, 18, 'WOODD'); }
+  if (sev >= 3) { c.px(3, 5, 'O'); c.px(4, 6, 'O'); c.px(20, 17, 'O'); c.px(19, 18, 'O'); c.px(18, 2, 'B'); c.px(19, 3, 'B'); }
+  if (pic) PICL[pic](c, ['PALE', 'PALE', 'X', 'X'][sev], bg);
+}
+sheet('moodles_l', 24, 24, [
+  ...[0, 1, 2, 3].map((sv) => [`frame_${sv + 1}`, (c) => moodleFrameL(c, sv, null)]),
+  ...Object.keys(PICL).flatMap((n) => [0, 1, 2, 3].map((sv) => [`${n}_${sv + 1}`, (c) => moodleFrameL(c, sv, n)])),
+], { note: 'moodles 24x24 (72 game px), same layout as moodles: frames 0-3 empty backgrounds L1-L4, then hungry/thirsty/tired/injured/depressed/panic x L1-L4 (index = 4 + moodleIndex*4 + level-1); no outline pictograms; wobble in game' });
+
+// stencil_digits 10x16: faded stairwell wall paint, colour #5d6166 (L); set alpha 0.6 in game. Frame n = digit n.
+const SEG = { a: [0, 0, 10, 2], b: [8, 2, 2, 5], c: [8, 7, 2, 5], d: [0, 12, 10, 2], e: [0, 7, 2, 5], f: [0, 2, 2, 5], g: [0, 6, 10, 2] };
+const DIGSEG = ['abcdef', 'bc', 'abged', 'abgcd', 'fgbc', 'afgcd', 'afgedc', 'abc', 'abcdefg', 'abcdfg'];
+sheet('stencil_digits', 10, 16, DIGSEG.map((segs, n) => [String(n), (c) => {
+  reseed(1500 + n * 37);
+  [...segs].forEach((s) => c.rect(...SEG[s], 'L'));
+  for (let i = 0; i < 14; i++) { const x = (rnd() * 10) | 0, y = (rnd() * 14) | 0; if (c.get(x, y)) c.px(x, y, 'W'); } // faded patches
+  const chips = 2;
+  for (let i = 0; i < chips; i++) { // chipped gaps
+    const x = (rnd() * 9) | 0, y = (rnd() * 13) | 0;
+    c.clear(x, y, 1 + ((rnd() * 2) | 0), 1);
+  }
+  for (let i = 0; i < 3; i++) c.clear((rnd() * 10) | 0, (rnd() * 14) | 0, 1, 1);
+  if ('0689'.includes(String(n))) { c.clear(0, 6, 1, 1); c.clear(9, 7, 1, 1); } // stencil bridge breaks
+  const cols = []; // drip from the lowest painted pixel of a random column
+  for (let x = 0; x < 10; x++) { let ly = -1; for (let y = 0; y < 14; y++) if (c.get(x, y)) ly = y; if (ly >= 0) cols.push([x, ly]); }
+  const [dx, ly] = cols[(rnd() * cols.length) | 0];
+  const len = 2 + ((rnd() * 2) | 0);
+  for (let y = ly + 1; y <= Math.min(15, ly + len); y++) c.px(dx, y, y === ly + len ? 'W' : 'L');
+}]), { note: 'stairwell wall stencil digits 10x16 (30x48 game px), frame n = digit n (names "0".."9"); colour #5d6166, draw at alpha 0.6; chipped, one drip each; no outline' });
+
+// panel_button 32x16, 9-slice with 4 px borders (centre and edges are uniform, details live in the corners)
+function panelBtn(base, hi, lo, pressed) {
+  return (c) => {
+    c.rect(0, 0, 32, 16, lo); c.rect(1, 1, 30, 14, base);
+    c.rect(1, 1, 30, 1, pressed ? lo : hi); c.rect(1, 14, 30, 1, pressed ? hi : lo);
+    c.rect(1, 1, 1, 14, pressed ? lo : hi); c.rect(30, 1, 1, 14, pressed ? hi : lo);
+    [[0, 0], [31, 0], [0, 15], [31, 15]].forEach(([x, y]) => c.clear(x, y, 1, 1));
+    [[1, 1], [30, 1], [1, 14], [30, 14]].forEach(([x, y]) => c.px(x, y, lo));
+    [[2, 2], [29, 13]].forEach(([x, y]) => c.px(x, y, lo)); // worn corner specks
+    c.px(3, 12, hi); c.px(28, 3, hi);
+  };
+}
+sheet('panel_button', 32, 16, [
+  ['grey', panelBtn('#23272c', '#2d3238', '#16191d', false)],
+  ['rust', panelBtn('#5a3a2a', '#6b4633', '#3b261c', false)],
+  ['grey_pressed', panelBtn('#1b1e22', '#2d3238', '#0f1114', true)],
+  ['rust_pressed', panelBtn('#4a2f22', '#6b4633', '#2e1d15', true)],
+], { note: 'flat panel buttons 32x16 for 9-slice (slice 4 px each side; centre and edges are uniform): grey #23272c, rust #5a3a2a (confirm action), then pressed variants; frames 0 grey, 1 rust, 2 grey_pressed, 3 rust_pressed; use UI text #bdb8ab or disabled #5d6166 on top' });
+
 // ---------- manifest ----------
 const list = Object.values(files);
 const total = list.reduce((s, f) => s + f.bytes, 0);

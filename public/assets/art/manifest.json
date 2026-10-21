@@ -731,6 +731,103 @@
     }
    ],
    "note": "slow dust mote loop 8x8, 1-3 faint specks; tint/scale/alpha in game"
+  },
+  {
+   "key": "hud_icons",
+   "path": "assets/art/hud_icons.png",
+   "frameWidth": 16,
+   "frameHeight": 16,
+   "frames": 11,
+   "names": [
+    "house",
+    "bag",
+    "hammer",
+    "two_heads",
+    "dots",
+    "bottle",
+    "hand",
+    "knife",
+    "bat",
+    "speaker_on",
+    "speaker_off"
+   ],
+   "animations": [],
+   "note": "HUD pictograms 16x16 (48 game px), flat #bdb8ab, no outline; set alpha in game (0.7, pressed 0.9). Order: house bag hammer two_heads dots bottle hand knife bat speaker_on speaker_off"
+  },
+  {
+   "key": "moodles_l",
+   "path": "assets/art/moodles_l.png",
+   "frameWidth": 24,
+   "frameHeight": 24,
+   "frames": 28,
+   "names": [
+    "frame_1",
+    "frame_2",
+    "frame_3",
+    "frame_4",
+    "hungry_1",
+    "hungry_2",
+    "hungry_3",
+    "hungry_4",
+    "thirsty_1",
+    "thirsty_2",
+    "thirsty_3",
+    "thirsty_4",
+    "tired_1",
+    "tired_2",
+    "tired_3",
+    "tired_4",
+    "injured_1",
+    "injured_2",
+    "injured_3",
+    "injured_4",
+    "depressed_1",
+    "depressed_2",
+    "depressed_3",
+    "depressed_4",
+    "panic_1",
+    "panic_2",
+    "panic_3",
+    "panic_4"
+   ],
+   "animations": [],
+   "note": "moodles 24x24 (72 game px), same layout as moodles: frames 0-3 empty backgrounds L1-L4, then hungry/thirsty/tired/injured/depressed/panic x L1-L4 (index = 4 + moodleIndex*4 + level-1); no outline pictograms; wobble in game"
+  },
+  {
+   "key": "stencil_digits",
+   "path": "assets/art/stencil_digits.png",
+   "frameWidth": 10,
+   "frameHeight": 16,
+   "frames": 10,
+   "names": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9"
+   ],
+   "animations": [],
+   "note": "stairwell wall stencil digits 10x16 (30x48 game px), frame n = digit n (names \"0\"..\"9\"); colour #5d6166, draw at alpha 0.6; chipped, one drip each; no outline"
+  },
+  {
+   "key": "panel_button",
+   "path": "assets/art/panel_button.png",
+   "frameWidth": 32,
+   "frameHeight": 16,
+   "frames": 4,
+   "names": [
+    "grey",
+    "rust",
+    "grey_pressed",
+    "rust_pressed"
+   ],
+   "animations": [],
+   "note": "flat panel buttons 32x16 for 9-slice (slice 4 px each side; centre and edges are uniform): grey #23272c, rust #5a3a2a (confirm action), then pressed variants; frames 0 grey, 1 rust, 2 grey_pressed, 3 rust_pressed; use UI text #bdb8ab or disabled #5d6166 on top"
   }
  ]
 }
