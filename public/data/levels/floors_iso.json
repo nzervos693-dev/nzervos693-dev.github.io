@@ -168,7 +168,7 @@
         "heroStart": { "tile": [2, 2], "facing": "S" },
         "bed": "f15NW-3.0",
         "workbench": "f15NW-11.1",
-        "stash": { "tile": [5, 9], "slots": 40 },
+        "stash": { "tile": [5, 6], "slots": 40 },
         "frontDoor": "f15NW-6.9.S",
         "barricadeSpot": { "x": 6, "y": 9, "side": "S" }
       },
