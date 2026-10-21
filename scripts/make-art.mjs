@@ -792,6 +792,80 @@ sheet('panel_button', 32, 16, [
   ['rust_pressed', panelBtn('#4a2f22', '#6b4633', '#2e1d15', true)],
 ], { note: 'flat panel buttons 32x16 for 9-slice (slice 4 px each side; centre and edges are uniform): grey #23272c, rust #5a3a2a (confirm action), then pressed variants; frames 0 grey, 1 rust, 2 grey_pressed, 3 rust_pressed; use UI text #bdb8ab or disabled #5d6166 on top' });
 
+// ---------- blood FX (own rng so earlier assets stay byte-identical) ----------
+let bseed = 1507;
+const brnd = () => ((bseed = (bseed * 1664525 + 1013904223) >>> 0) / 4294967296);
+const BL = ['#2c0f0f', '#4e1c1a', '#5e2422', '#7a2f2a']; // darkest, dark, mid, wet highlight
+// fw x fh canvas, impact at (ox, oy), spray goes right. frames = number of frames.
+function bloodFx(fw, fh, ox, oy, nFrames, nDrops, reach, seedV) {
+  bseed = seedV;
+  const drops = Array.from({ length: nDrops }, () => ({
+    a: (brnd() - 0.5) * 1.7, v: 0.5 + brnd() * 0.5, big: brnd() < 0.35, k: brnd(),
+  }));
+  const blobR = fw / 6;
+  const out = [];
+  for (let f = 0; f < nFrames; f++) {
+    const p = f / (nFrames - 1); // 0..1
+    out.push([f === 0 && nFrames === 5 ? 'splash_0' : null, (c) => {
+      const put = (x, y, i) => c.px(Math.round(x), Math.round(y), BL[i]);
+      if (f === 0) { // impact burst: irregular blob + short stubs
+        for (let y = -6; y <= 6; y++) for (let x = -5; x <= 6; x++) {
+          const d = Math.hypot(x * 0.9, y) + (brnd() - 0.5) * 1.6;
+          if (d <= blobR) put(ox + x, oy + y, d < blobR * 0.45 ? 2 : 1);
+        }
+        put(ox - 1, oy - 1, 3); put(ox, oy - 2, 3);
+        drops.forEach((d) => { const L = 2 + d.v * 3; for (let s = blobR - 1; s < blobR + L; s++) put(ox + Math.cos(d.a) * s + 1, oy + Math.sin(d.a) * s, d.big ? 1 : 0); });
+        return;
+      }
+      const t = f / (nFrames - 1);
+      if (f <= 2 || nFrames < 5) { // fading remains of the burst at the source
+        const r = Math.max(0, blobR * (1 - t * 1.3));
+        for (let y = -4; y <= 4; y++) for (let x = -3; x <= 4; x++) if (Math.hypot(x, y) <= r) put(ox + x, oy + y, 1);
+      }
+      drops.forEach((d) => {
+        const tt = Math.min(1, t * (1 + d.k * 0.2));
+        const x = ox + 1 + Math.cos(d.a) * d.v * reach * Math.sqrt(tt) * 1.15;
+        const y = oy + Math.sin(d.a) * d.v * reach * Math.sqrt(tt) + tt * tt * reach * 0.55;
+        const fade = t > 0.7 && d.k < 0.5; // some droplets already gone late
+        if (fade) return;
+        const late = t > 0.5;
+        put(x, y, late ? 0 : (d.big ? 1 : 2));
+        if (d.big && !late) { put(x - 1, y, 1); put(x, y - 1, 3); if (t < 0.5) put(x - 1, y - 1, 1); }
+        else if (!late && t < 0.55) put(x - 1, y - d.a * 0.6, 0); // motion trail
+      });
+      if (t > 0.3 && t < 0.8) for (let i = 0; i < 6; i++) { // thin arc dots following the spray
+        const u = i / 5, ax = ox + 2 + u * reach * 0.9 * t, ay = oy - Math.sin(u * Math.PI) * reach * 0.28 * (1 - t * 0.5);
+        if ((i + f) % 2 === 0) put(ax, ay, 1);
+      }
+    }]);
+  }
+  return out.map(([, fn], i) => [`${fn ? '' : ''}${i}`, fn]);
+}
+const bloodNamed = (pfx, frames) => frames.map(([i, fn]) => [`${pfx}_${i}`, fn]);
+sheet('fx_blood', 24, 24, bloodNamed('splash', bloodFx(24, 24, 4, 12, 5, 11, 17, 1507)),
+  { animations: [anim('splash', [0, 1, 2, 3, 4], 16, 0)], note: 'blood splash, faces right (flip in code for left hits); dark blood tones, no outline; impact point at about (4,12)' });
+sheet('fx_blood_small', 16, 16, bloodNamed('spatter', bloodFx(16, 16, 3, 8, 4, 6, 11, 2203)),
+  { animations: [anim('spatter', [0, 1, 2, 3], 16, 0)], note: 'small blood spatter for weak hits (fists), faces right; impact at about (3,8); no outline' });
+
+function decal(seedV, n, wide) {
+  return (c) => {
+    bseed = seedV;
+    const cx = 8, cy = 4;
+    for (let y = 0; y < 8; y++) for (let x = 0; x < 16; x++) {
+      const d = Math.hypot((x + 0.5 - cx) / (wide * 1.0), (y + 0.5 - cy) * 1.7) + (brnd() - 0.5) * 1.5;
+      if (d < 3.2) c.px(x, y, d < 1.6 ? '#3a1413' : '#4e1c1a');
+    }
+    for (let i = 0; i < n; i++) { // satellite droplets
+      const a = brnd() * Math.PI * 2, r = 4 + brnd() * 3.5;
+      const x = cx + Math.cos(a) * r * 1.2, y = cy + Math.sin(a) * r * 0.5;
+      c.px(x, y, brnd() < 0.5 ? '#4e1c1a' : '#2c0f0f');
+    }
+    c.px(cx - 1, cy - 1, '#6a2824'); // dried-wet sheen
+  };
+}
+sheet('blood_decal', 16, 8, [0, 1, 2, 3].map((i) => [`decal_${i}`, decal(900 + i * 37, 3 + i, 1.5 + i * 0.35)]),
+  { note: 'floor/wall blood stains, 4 variants (decal_0..3), dark dried tones, no outline; place occasionally and fade very slowly' });
+
 // ---------- manifest ----------
 const list = Object.values(files);
 const total = list.reduce((s, f) => s + f.bytes, 0);

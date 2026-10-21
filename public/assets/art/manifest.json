@@ -828,6 +828,77 @@
    ],
    "animations": [],
    "note": "flat panel buttons 32x16 for 9-slice (slice 4 px each side; centre and edges are uniform): grey #23272c, rust #5a3a2a (confirm action), then pressed variants; frames 0 grey, 1 rust, 2 grey_pressed, 3 rust_pressed; use UI text #bdb8ab or disabled #5d6166 on top"
+  },
+  {
+   "key": "fx_blood",
+   "path": "assets/art/fx_blood.png",
+   "frameWidth": 24,
+   "frameHeight": 24,
+   "frames": 5,
+   "names": [
+    "splash_0",
+    "splash_1",
+    "splash_2",
+    "splash_3",
+    "splash_4"
+   ],
+   "animations": [
+    {
+     "name": "splash",
+     "frames": [
+      0,
+      1,
+      2,
+      3,
+      4
+     ],
+     "fps": 16,
+     "repeat": 0
+    }
+   ],
+   "note": "blood splash, faces right (flip in code for left hits); dark blood tones, no outline; impact point at about (4,12)"
+  },
+  {
+   "key": "fx_blood_small",
+   "path": "assets/art/fx_blood_small.png",
+   "frameWidth": 16,
+   "frameHeight": 16,
+   "frames": 4,
+   "names": [
+    "spatter_0",
+    "spatter_1",
+    "spatter_2",
+    "spatter_3"
+   ],
+   "animations": [
+    {
+     "name": "spatter",
+     "frames": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "fps": 16,
+     "repeat": 0
+    }
+   ],
+   "note": "small blood spatter for weak hits (fists), faces right; impact at about (3,8); no outline"
+  },
+  {
+   "key": "blood_decal",
+   "path": "assets/art/blood_decal.png",
+   "frameWidth": 16,
+   "frameHeight": 8,
+   "frames": 4,
+   "names": [
+    "decal_0",
+    "decal_1",
+    "decal_2",
+    "decal_3"
+   ],
+   "animations": [],
+   "note": "floor/wall blood stains, 4 variants (decal_0..3), dark dried tones, no outline; place occasionally and fade very slowly"
   }
  ]
 }
