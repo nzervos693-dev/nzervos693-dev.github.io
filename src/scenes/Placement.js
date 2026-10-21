@@ -6,10 +6,10 @@ const SPOT_H = 96;
 const HIT_HALF_W = SPOT_W / 2;
 const HIT_HALF_H = SPOT_H / 2 + 8;
 const SPOT_DEPTH = 35;
-const PULSE_MS = 600;
+const OUTLINE = 0xbdb8ab; // off-white, the only outline in the game (GDD 5.6)
 
 /**
- * Placement mode: highlights the valid build spots (96x96, tower space) and waits for a tap on one.
+ * Placement mode: outlines the valid build spots with a thin off-white line (no pulse) (96x96, tower space) and waits for a tap on one.
  * Taps arrive through GameScene.onWorldTap -> handleTap, so dragging still scrolls the camera.
  * Nothing is paid before a spot is picked: cancelling costs nothing.
  */
@@ -40,11 +40,9 @@ export default class Placement {
     this.onPick = onPick;
     this.onCancel = onCancel;
     for (const s of this.spots) {
-      const box = scene.add.rectangle(s.x, s.cy, SPOT_W, SPOT_H, COLORS.amber, 0.18)
-        .setStrokeStyle(4, COLORS.amber).setDepth(SPOT_DEPTH);
-      const plus = label(scene, s.x, s.cy, '+', 56, CSS.amber, false).setDepth(SPOT_DEPTH + 1);
-      scene.tweens.add({ targets: [box, plus], alpha: 0.45, yoyo: true, repeat: -1, duration: PULSE_MS });
-      this.objs.push(box, plus);
+      const box = scene.add.rectangle(s.x, s.cy, SPOT_W, SPOT_H, OUTLINE, 0.06)
+        .setStrokeStyle(2, OUTLINE, 0.8).setDepth(SPOT_DEPTH);
+      this.objs.push(box);
     }
     const w = scene.scale.width;
     const y = scene.hud.topH + 56;
@@ -72,7 +70,7 @@ export default class Placement {
       const pick = this.onPick;
       this.stop();
       pick(best.key);
-    } else this.scene.toast.show('Tap a glowing spot, or Cancel.', 1600);
+    } else this.scene.toast.show('Tap an outlined spot, or Cancel.', 1600);
     return true;
   }
 

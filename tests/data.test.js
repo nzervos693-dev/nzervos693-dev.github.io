@@ -3,6 +3,7 @@ import balance from '../public/data/balance.json';
 import floorsData from '../public/data/levels/floors.json';
 import lootData from '../public/data/levels/loot.json';
 import manifest from '../public/assets/art/manifest.json';
+import { buildTower, M1_FLOOR_WIDTH } from '../src/gameplay/layout.js';
 
 const items = balance.items;
 const allObjects = [];
@@ -80,7 +81,7 @@ describe('data files: level layout rules', () => {
     for (let n = balance.world.floorMin; n <= balance.world.floorMax; n++) want.push(n);
     expect(nums).toEqual(want);
     const homes = floorsData.floors.flatMap((f) => f.apartments.filter((a) => a.isHome).map(() => f.number));
-    expect(homes).toEqual([balance.home.floor]);
+    expect(homes).toEqual([balance.home.startFloor]);
   });
 
   it('objects in one layer are at least minHitAreaPx apart on a floor', () => {
@@ -154,7 +155,7 @@ describe('balance.json sanity ranges', () => {
   });
 
   it('thresholds are ordered and inside range', () => {
-    expect(n.onlinePromptThreshold).toBeLessThan(n.autoUseThreshold);
+    expect(n.lastResortThreshold).toBeLessThan(n.autoUseThreshold);
     expect(n.autoUseThreshold).toBeLessThan(n.max);
     expect(n.offlineHealthFloor).toBeGreaterThan(0);
     expect(n.morale.lowThreshold).toBeLessThan(n.morale.highThreshold);
@@ -191,8 +192,11 @@ describe('balance.json sanity ranges', () => {
   });
 
   it('home spots and world sizes match the layout file', () => {
-    expect(balance.world.floorWidthPx).toBe(floorsData.layout.doorX.right + 290);
-    expect(floorsData.layout.stairwell.xMax).toBe(balance.world.stairwellWidthPx);
+    // stage 1 still runs the M1 720 px floors: balance.world is already the wide stage-2 geometry
+    // (3120 px), so the tower width comes from floors.json and the code default M1_FLOOR_WIDTH
+    expect(buildTower(floorsData, balance).floorWidth).toBe(M1_FLOOR_WIDTH);
+    expect(floorsData.layout.doorX.right + 290).toBe(M1_FLOOR_WIDTH);
+    expect(balance.world.floorWidthPx).toBeGreaterThan(M1_FLOOR_WIDTH);
     expect(floorsData.layout.slots.left.length).toBe(3);
   });
 });

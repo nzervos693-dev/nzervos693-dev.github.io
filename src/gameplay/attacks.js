@@ -13,6 +13,7 @@
 import { daysSurvived } from './death.js';
 import { getDefense } from './defense.js';
 import { barricadeOf, latchBreach, resetBreachLatch } from './barricade.js';
+import { cueStartAt } from './cue.js';
 
 const HOUR_MS = 3600 * 1000;
 
@@ -21,7 +22,7 @@ export const ATTACK_TUNE_DEFAULTS = {
   spawnGapSeconds: 3, // between attackers arriving from the stairs
   spawnXMin: 16, // arrival x range in the stairwell, left of the barricade
   spawnXMax: 70,
-  flickerSeconds: 0.09, // how often the warning lights change
+  flickerSeconds: 0.09, // how often the landing light changes during the cue
 };
 
 /** Tuning with balance.attacks.tuning applied; arrivalXRange [min, max] becomes spawnXMin / spawnXMax. */
@@ -89,10 +90,9 @@ export function finishAttack(state, balance, endMs, rng) {
   scheduleNext(state, balance, endMs, rng);
 }
 
-/** When the warning banner starts (epoch ms), or null when no attack is scheduled. */
-export function warningStartAt(state, balance) {
-  const a = attackState(state);
-  return a.nextAt == null ? null : a.nextAt - balance.attacks.warningSeconds * 1000;
+/** When the diegetic cue starts (epoch ms, cueSeconds before the attack), or null when none is scheduled. */
+export function cueStart(state, balance) {
+  return cueStartAt(attackState(state).nextAt, balance);
 }
 
 /**
@@ -211,17 +211,3 @@ export function makeAttackHook(state, balance, rng, startMs = 0) {
   };
   return hook;
 }
-
-/** Lights flicker alpha for the warning (0..max), a cheap deterministic hash of a step counter. */
-export function flickerAlpha(step, max = 0.45) {
-  const h = Math.sin(step * 12.9898) * 43758.5453;
-  const r = h - Math.floor(h);
-  return r > 0.55 ? max : r * max * 0.4;
-}
-
-/** "0:42" countdown text. */
-export function countdownText(ms) {
-  const s = Math.max(0, Math.ceil(ms / 1000));
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-}
-

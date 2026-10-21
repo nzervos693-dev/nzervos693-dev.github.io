@@ -299,9 +299,9 @@ export function killActiveSurvivor(state) {
 export function jobInfo(balance) {
   const sv = balance.survivors;
   const info = {
-    guard: { name: 'Guard', sub: `+${sv.guardDefense} defense` },
-    scavenger: { name: 'Scavenger', sub: 'loot while away' },
-    tender: { name: 'Tender', sub: `+${Math.round((sv.tenderOutputMult - 1) * 100)}% output` },
+    guard: { name: 'Guard', sub: 'Watches the door.' },
+    scavenger: { name: 'Scavenger', sub: 'Looks while you sleep.' },
+    tender: { name: 'Tender', sub: 'Tends the plants.' },
   };
   return sv.jobs.filter((id) => info[id]).map((id) => ({ id, ...info[id] }));
 }

@@ -6,15 +6,17 @@
  * weapon (stored, dropped, broken) the hero is back on fists.
  */
 import { startChase } from './zombies.js';
+import { panicDamageMult } from './moodles.js';
 
 export const FISTS = 'fists';
 
 /**
- * Damage multiplier from needs (GDD 5.2): low energy -30%, low morale -20%, high morale +10%.
+ * Damage multiplier from needs (GDD 5.2): low energy -30%, low morale -20%, high morale +10%,
+ * and the Panic moodle (-0/-10/-20/-30% by level).
  */
-export function damageMult(needs, balance) {
+export function damageMult(needs, balance, panicLevel = 0) {
   const n = balance.needs;
-  let m = 1;
+  let m = panicLevel > 0 ? panicDamageMult(panicLevel, balance) : 1;
   if (needs.energy < n.energy.lowThreshold) m *= 1 - n.energy.lowPenalty;
   if (needs.morale < n.morale.lowThreshold) m *= 1 - n.morale.lowDamagePenalty;
   else if (needs.morale > n.morale.highThreshold) m *= 1 + n.morale.highDamageBonus;
@@ -60,9 +62,11 @@ export const isEquipped = (state, index) =>
 
 /**
  * Damage of one swing, rounded, at least 1.
+ * @param {{unaware?:boolean, panic?:number}} [opts] unaware: the target has not noticed the hero
  */
-export function swingDamage(weapon, needs, balance) {
-  return Math.max(1, Math.round(weapon.damage * damageMult(needs, balance)));
+export function swingDamage(weapon, needs, balance, opts = {}) {
+  const stealth = opts.unaware ? (balance.combat.unawareHitMult ?? 1) : 1;
+  return Math.max(1, Math.round(weapon.damage * damageMult(needs, balance, opts.panic || 0) * stealth));
 }
 
 /** Spend the swing's energy (never below 0). */
@@ -100,6 +104,7 @@ export function hitZombie(z, ai, damage, fromX, bounds, balance, tune) {
   z.x = Math.min(bounds.max, Math.max(bounds.min, z.x + dir * balance.combat.knockbackPx));
   ai.stun = tune.hitStunSeconds;
   if (ai.mode !== 'chase' && ai.mode !== 'attack') startChase(ai, tune);
+  ai.noticed = true; // being hit, it knows where you are
   return false;
 }
 

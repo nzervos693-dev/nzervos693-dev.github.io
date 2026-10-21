@@ -72,6 +72,8 @@ const gotoHero = (page, floor, x) => g(page, ([f, hx]) => {
 async function fight(page, id, label) {
   const z0 = await zombieInfo(page, id);
   await gotoHero(page, z0.floor, Math.max(140, z0.x - 70));
+  // zombies only see 180 px in front: make this one face the hero so the fight starts (stealth has its own tests)
+  await g(page, (zid) => { const rt = window.__floor15.zombies.get(zid); if (rt) rt.ai.facing = -1; }, id);
   await sleep(300);
   let bitten = false;
   const t0 = Date.now();
@@ -113,12 +115,14 @@ try {
     s.view.refresh();
     return {
       alive: s.zombies.list.length,
-      labels: [...s.view.floorLabels.values()].map((t) => t.text),
+      authored: [...s.tower.apartments.values()].reduce((n, a) => n + (a.zombies || []).length, 0),
+      states: Object.values(s.state.floorStates),
       throwBtn: s.hud.throwBtn.visible,
     };
   });
-  check(start.alive === 11, `11 zombies spawned from floors.json (${start.alive})`);
-  check(start.labels.every((t) => t === 'INFESTED'), 'floors show INFESTED');
+  const authoredTotal = start.authored;
+  check(start.alive === authoredTotal, `${authoredTotal} zombies spawned from floors.json (${start.alive})`);
+  check(start.states.every((t) => t === 'Infested'), 'floors start Infested (no on-screen status label)');
   check(start.throwBtn === false || start.throwBtn === true, 'hud built');
 
   await fight(page, 'f14_left#0', 'crawler floor 14');
@@ -170,6 +174,7 @@ try {
   // floors with no zombies and all containers searched turn Cleared (checked in unit tests); here: label exists
   // save/reload keeps the dead dead
   await g(page, () => window.__floor15.save());
+  const aliveBefore = await g(page, () => Object.values(window.__floor15.state.zombies).filter((z) => !z.dead).length);
   await page.reload({ waitUntil: 'load' });
   await page.waitForFunction(() => window.__floor15?.zombies, null, { timeout: 15000 });
   await sleep(500);
@@ -179,7 +184,7 @@ try {
     return { dead: ids.every((i) => s.state.zombies[i].dead), sprites: ids.some((i) => s.zombies.byId.has(i)), alive: s.zombies.list.length };
   });
   check(after.dead && !after.sprites, 'reload: dead zombies stay dead');
-  check(after.alive === 6, `reload: the other zombies are still there (${after.alive})`);
+  check(after.alive === aliveBefore && aliveBefore > 0 && aliveBefore < authoredTotal, `reload: the same living zombies are still there (${after.alive} of ${authoredTotal})`);
 
   // death -> game over -> new game
   await g(page, () => {
@@ -199,7 +204,7 @@ try {
     const s = window.__floor15;
     return { over: s.gameOver, health: s.state.needs.health, alive: s.zombies.list.length, dead13: s.state.zombies['f14_left#0'].dead, floor: s.state.hero.floor };
   });
-  check(!fresh.over && fresh.health === 100 && fresh.alive === 11 && !fresh.dead13 && fresh.floor === 15, 'New game starts a fresh tower');
+  check(!fresh.over && fresh.health === 100 && fresh.alive === authoredTotal && !fresh.dead13 && fresh.floor === 15, 'New game starts a fresh tower');
 
   check(errors.length === 0, `no console errors${errors.length ? ': ' + errors.join(' | ') : ''}`);
   await browser.close();

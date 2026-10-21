@@ -5,10 +5,10 @@
  */
 import { floorAtY, floorLineY, homeSpot } from '../gameplay/layout.js';
 import {
-  makeAi, isAttacker, stepZombie, hearNoise, startChase, resetZombie, roomRefAt, movementBounds, zombieTuning,
+  makeAi, isAttacker, sightRadius, stepZombie, hearNoise, startChase, resetZombie, roomRefAt, movementBounds, zombieTuning,
   STEP_ATTACK, STEP_AGGRO, STEP_BARRICADE,
 } from '../gameplay/zombies.js';
-import { barricadeUp } from '../gameplay/barricade.js';
+import { barricadeUp, barricadeDamage } from '../gameplay/barricade.js';
 import { hitZombie, burnZombie } from '../gameplay/combat.js';
 import ZombieView, { BODY_CENTER } from './ZombieView.js';
 import { playSfx } from './sfx.js';
@@ -33,7 +33,7 @@ export default class Zombies {
     this.siegeX = homeSpot(scene.tower).x;
     this.env = {
       tower: scene.tower, doors: scene.state.doors, heroFloor: null, heroX: 0, heroRoom: null,
-      types: scene.balance.zombies.types, aggroRadius: scene.balance.zombies.aggroRadius,
+      types: scene.balance.zombies.types, sightRadius: scene.balance.zombies.sight?.frontPx ?? 180, heroRunning: false,
       attackRange: scene.balance.zombies.attackRange, tune: this.tune, rng: scene.rng, bounds: this.bounds,
       barricade: this.barricade,
     };
@@ -45,8 +45,8 @@ export default class Zombies {
 
   /** Create the runtime for a zombie record. @returns the runtime */
   add(rec, aggro = false) {
-    const rt = { rec, ai: makeAi(), dying: false, ...this.view.create(rec) };
-    if (aggro) startChase(rt.ai, this.tune);
+    const rt = { rec, ai: makeAi(rec.facing === -1 ? -1 : 1), dying: false, ...this.view.create(rec) };
+    if (aggro) startChase(rt.ai, this.tune); // attackers head for the door; they only notice the hero when they see him
     this.list.push(rt);
     this.byId.set(rec.id, rt);
     this.view.sync(rt);
@@ -87,6 +87,9 @@ export default class Zombies {
     env.heroFloor = scene.zombieTargetFloor();
     env.heroX = scene.state.hero.x;
     env.heroRoom = env.heroFloor == null ? null : roomRefAt(scene.tower, env.heroFloor, env.heroX);
+    env.heroRunning = !!scene.run;
+    env.sightRadius = env.heroFloor == null ? 0 : sightRadius(scene.tower, env.heroFloor, env.heroX, scene.balance);
+    const realSight = env.sightRadius;
     const realFloor = env.heroFloor;
     const realX = env.heroX;
     const realRoom = env.heroRoom;
@@ -98,11 +101,11 @@ export default class Zombies {
       const siege = rt.rec.siege && realFloor !== rt.rec.floor;
       const active = siege || rt.rec.floor === env.heroFloor || m === 'chase' || m === 'attack' || m === 'return';
       if (active) {
-        if (siege) { env.heroFloor = rt.rec.floor; env.heroX = this.siegeX; env.heroRoom = null; }
+        if (siege) { env.heroFloor = rt.rec.floor; env.heroX = this.siegeX; env.heroRoom = null; env.sightRadius = 9999; }
         const flags = stepZombie(rt.rec, rt.ai, env, dt);
-        if (siege) { env.heroFloor = realFloor; env.heroX = realX; env.heroRoom = realRoom; }
+        if (siege) { env.heroFloor = realFloor; env.heroX = realX; env.heroRoom = realRoom; env.sightRadius = realSight; }
         if (flags & STEP_AGGRO && !siege) scene.onZombieAggro(rt);
-        if (flags & STEP_BARRICADE) scene.onBarricadeHit(rt, env.types[rt.rec.type].damage);
+        if (flags & STEP_BARRICADE) scene.onBarricadeHit(rt, barricadeDamage(env.types[rt.rec.type].damage, scene.balance));
         if (flags & STEP_ATTACK && !siege) scene.onZombieBite(rt, env.types[rt.rec.type].damage);
       }
       this.view.sync(rt);
@@ -111,7 +114,6 @@ export default class Zombies {
 
   /** Noise event from the scene bus: aggro the zombies it reaches (same floor only). */
   onNoise(n) {
-    this.view.noiseRing(n);
     for (const rt of this.list) {
       if (!rt.dying && hearNoise(rt.rec, rt.ai, n, this.tune)) this.scene.onZombieAggro(rt, true);
     }

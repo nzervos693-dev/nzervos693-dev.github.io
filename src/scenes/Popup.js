@@ -14,7 +14,10 @@ export default class Popup {
     const h = scene.scale.height;
     const sa = getSafeArea();
     const panelW = 600;
-    const panelH = 190 + lines.length * 40 + 96;
+    // sentences wrap to the panel (prose lines are longer than the old one-liners)
+    const texts = lines.map((l) => label(scene, w / 2, 0, l, 24, CSS.text).setWordWrapWidth(panelW - 56));
+    const bodyH = texts.reduce((n, t) => n + t.height + 14, 0);
+    const panelH = 190 + bodyH + 96 - 40;
     const cy = Math.max(sa.top + 140 + panelH / 2, h / 2);
     const c = scene.add.container(0, 0).setDepth(DEPTH.panel + 100).setScrollFactor(0);
     const add = (o) => { o.setScrollFactor(0); c.add(o); return o; };
@@ -22,7 +25,8 @@ export default class Popup {
     add(backdrop(scene, 0.6, done));
     add(scene.add.rectangle(w / 2, cy, panelW, panelH, COLORS.shadow).setStrokeStyle(4, COLORS.ink).setInteractive());
     add(label(scene, w / 2, cy - panelH / 2 + 56, title, 32, CSS.amber));
-    lines.forEach((l, i) => add(label(scene, w / 2, cy - panelH / 2 + 120 + i * 40, l, 24, CSS.text)));
+    let y = cy - panelH / 2 + 110;
+    for (const t of texts) { y += t.height / 2; t.setY(y); add(t); y += t.height / 2 + 14; }
     add(button(scene, { x: w / 2, y: cy + panelH / 2 - 72, w: 200, h: 96, text: 'OK', size: 28, fill: COLORS.teal, onTap: done }));
     this.c = c;
   }

@@ -2,7 +2,7 @@
  * Object actions: which buttons an object offers, their time/energy, and what
  * happens when they finish. Pure, no Phaser.
  */
-import { rollLoot } from './loot.js';
+import { rollLoot, emptyChanceFor } from './loot.js';
 import {
   searchSpec, drainSpec, dismantleSpec, noiseRadius, resolveYield, spendToolUse,
 } from './salvage.js';
@@ -84,17 +84,19 @@ function give(state, items, loc, balance, result) {
 
 /**
  * Apply a finished action to the state.
- * @param {object} ctx {balance, tables, rng, loc:{floor,x}}
+ * @param {object} ctx {balance, tables, rng, loc:{floor,x}, apt?: the object's apartment (for its condition)}
  * @returns {{kind:string, gained:{id:string,qty:number}[], piled:{id:string,qty:number}[],
  *   kept:{id:string,qty:number}[], toolBroke:string|null, note:object|null}}
  */
 export function completeAction(state, spec, placement, def, ctx) {
   const { balance, tables, rng, loc } = ctx;
+  const lootOpts = { emptyChance: emptyChanceFor(ctx.apt, balance) };
   const os = objState(state, spec.id);
   const result = { kind: spec.kind, gained: [], piled: [], kept: [], toolBroke: null, note: null };
 
   if (spec.kind === 'search') {
-    const loot = rollLoot(placement, def, tables, balance, rng);
+    const loot = rollLoot(placement, def, tables, balance, rng, lootOpts);
+    result.empty = loot.length === 0;
     os.searched = true;
     os.leftover = give(state, loot, loc, balance, result);
     result.kept = os.leftover;
@@ -110,7 +112,7 @@ export function completeAction(state, spec, placement, def, ctx) {
     let items = resolveYield(def, rng);
     if (def.primary?.type === 'search' && !os.searched) {
       os.searched = true;
-      items = mergeItems([...items, ...rollLoot(placement, def, tables, balance, rng)]);
+      items = mergeItems([...items, ...rollLoot(placement, def, tables, balance, rng, lootOpts)]);
       result.note = foundNote(state, placement);
     }
     // loot left inside a full container comes out with the wreckage

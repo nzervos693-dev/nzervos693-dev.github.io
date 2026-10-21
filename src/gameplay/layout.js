@@ -10,6 +10,12 @@ export const FLOOR_LINE = 70 * ART_SCALE;
 /** Empty world space above the top floor / below the bottom floor (room for HUD). */
 export const WORLD_PAD_TOP = 190;
 export const WORLD_PAD_BOTTOM = 190;
+/**
+ * Stage 1 keeps the M1 720 px floors while balance.world.floorWidthPx is already the wide 3120 px of
+ * stage 2. Floor width is therefore derived from floors.json (rightmost apartment edge); this is the
+ * fallback if the data has no apartments.
+ */
+export const M1_FLOOR_WIDTH = 720;
 
 /**
  * Index floors.json for fast lookup.
@@ -23,6 +29,7 @@ export function buildTower(floorsData, balance) {
   const objects = new Map(); // id -> { placement, floor, apt }
   const apartments = new Map();
   let home = null;
+  let width = 0;
   for (const f of floorsData.floors) {
     const apts = f.apartments.map((a) => {
       const apt = {
@@ -33,6 +40,7 @@ export function buildTower(floorsData, balance) {
         xMax: a.rooms[a.rooms.length - 1].xMax,
       };
       apartments.set(apt.id, apt);
+      width = Math.max(width, apt.xMax);
       for (const o of a.objects || []) objects.set(o.id, { placement: o, floor: f.number, apt });
       for (const q of a.questItems || []) objects.set(q.id, { placement: q, floor: f.number, apt, quest: true });
       if (a.isHome) home = apt;
@@ -47,12 +55,12 @@ export function buildTower(floorsData, balance) {
     objects,
     apartments,
     home,
-    homeFloor: balance.home.floor,
+    homeFloor: balance.home.startFloor,
     /** Where the home barricade stands (x on the home floor), from floors.json stairwell.barricadeX. */
-    barricadeX: floors.get(balance.home.floor)?.stairwell.barricadeX ?? layout.stairwell.xMax - 20,
+    barricadeX: floors.get(balance.home.startFloor)?.stairwell.barricadeX ?? layout.stairwell.xMax - 20,
     floorMin: w.floorMin,
     floorMax: w.floorMax,
-    floorWidth: w.floorWidthPx,
+    floorWidth: width || M1_FLOOR_WIDTH,
     floorHeight: w.floorHeightPx,
   };
 }

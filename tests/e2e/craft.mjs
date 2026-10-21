@@ -235,7 +235,7 @@ try {
     };
   });
   check(away.stored === 2, `7 h offline made 2 clean water (${away.stored})`);
-  check(away.popup && away.lines.some((l) => l.startsWith('Rain collector: +2 clean water')), `away report lists the rain collector (${away.lines.filter((l) => l.includes('Rain')).join('|')})`);
+  check(away.popup && away.lines.some((l) => l === 'The rain collector made 2 clean water.'), `away report lists the rain collector (${away.lines.join('|')})`);
   check(away.barricade.level === 1, 'barricade persisted through reload');
   await g(page, () => window.__floor15.popup.close());
 

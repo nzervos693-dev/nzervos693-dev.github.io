@@ -48,7 +48,7 @@ try {
   const info = await page.evaluate(() => {
     const g = window.__floor15;
     const c = document.querySelector('canvas').getBoundingClientRect();
-    return { floor: g.state.hero.floor, home: g.balance.home.floor, health: g.state.needs.health,
+    return { floor: g.state.hero.floor, home: g.balance.home.startFloor, health: g.state.needs.health,
       canvas: { w: c.width, h: c.height }, scene: g.scene.key, sprites: g.view.sprites.size };
   });
   check(info.scene === 'Game', 'GameScene is active');

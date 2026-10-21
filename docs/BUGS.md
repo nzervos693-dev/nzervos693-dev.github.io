@@ -4,6 +4,54 @@
 
 ## Open
 
+### Milestone 2 stage 1 QA (uncommitted working tree, e2e build, 360x800 and 412x915, 2026-10-21)
+
+### BUG-028 · Moodle cue sounds never play (wrong sound keys) · major
+- **Steps:** `?debug`, tap once, set `__floor15.state.needs.food = 50` (moodle appears and wobbles). Log `scene.sound.play` calls.
+- **Expected:** GDD 5.2: each moodle that appears or changes level plays one soft body cue (stomach growl, dry swallow, yawn, pained breath, sigh).
+- **Actual:** `MoodleView.wobble` calls `playSfx(scene, 'moodle_' + id)` = `moodle_hungry`, `moodle_thirsty`, `moodle_tired`, `moodle_injured`, `moodle_depressed`. The manifest and files are `moodle_stomach`, `moodle_swallow`, `moodle_yawn`, `moodle_pain`, `moodle_sigh`. `playSfx` skips missing keys silently, so nothing plays and no error shows. Panic (fast heartbeat cue) has no sound at all. Test `it.fails` in `tests/qa-m2s1.test.js`.
+- **Likely file:** `src/scenes/MoodleView.js` line 126 (add an id-to-key map).
+
+### BUG-029 · Zombies are not heard before seen: breath/shuffle sounds are never played · major
+- **Steps:** `?debug`, tap, go to floor 14 with the crawlers within 600 px, log sound calls for a minute.
+- **Expected:** GDD 10: each zombie on the hero's floor within 600 px (`audio.zombieHearRadiusPx`) makes occasional shuffles and low breaths, panned by position, also through walls.
+- **Actual:** `zombie_breath_1/2` and `zombie_shuffle` exist but no code requests them; `audio.zombieHearRadiusPx` is read nowhere. Only a groan on aggro plays. Also unused: `amb_rain`, `lamp_hiss`. This is the main creepy-sound promise of stage 1 ("heard before seen"). Test `it.fails` in `tests/qa-m2s1.test.js`.
+- **Likely file:** `src/scenes/Soundscape.js` / `src/scenes/Zombies.js` (new positional zombie audio).
+
+### BUG-030 · New attack cue keys in balance.json are ignored · minor
+- **Actual:** `attacks.cue.secondGroanAtSeconds` (12), `bangBeatsSeconds` ([8,5,2.5]) and `fightBangGapSeconds` ([2,3]) are in balance.json but `AttackDirector.js` hard-codes `SECOND_GROAN_AT = 12`, `BANG_BEATS` and `2 + rng()` in `Soundscape.updateStair`. Changing the numbers does nothing (same family as BUG-021). Test `it.fails` in `tests/qa-m2s1.test.js`.
+- **Likely file:** `src/scenes/AttackDirector.js`, `src/scenes/Soundscape.js`.
+
+### BUG-031 · The x3 unaware hit cannot be reached by sneaking up on a zombie · major (design vs implementation, ask game-designer)
+- **Steps:** floor 14, idle crawler at x 330, walk toward it with real taps and tap it when in range.
+- **Expected:** GDD 5.4: "the first hit on a zombie that has not noticed the hero deals x3. This is the main tool for thinning rooms."
+- **Actual:** sight is 180 px (110 on the landing) in every direction with no facing or sneaking rule, so the zombie always notices the hero 125 px before fist range (40) or 130 px before bat range (55). Measured: first hit does 5 (crawler 20 -> 15, `noticed: true`). The x3 only works on a zombie lured by noise that does not see the hero, which a player cannot set up on purpose (and with sight radius forced to 0 it works: 20 -> 5). The core stealth fantasy of the stage is therefore missing; combat is always the fair fight. Test `it.fails` in `tests/qa-m2s1.test.js`.
+- **Likely file:** `src/gameplay/zombies.js` `sees` / `sightRadius` (facing cone, shorter sight when the hero is still or at the zombie's back) or a GDD change.
+
+### BUG-032 · Music after an attack almost never plays · minor
+- **Steps:** `?debug&attacks`, let an attack arrive near the hero, kill the attackers (or let the barricade hold). Count `music_sad_*` requests.
+- **Expected:** GDD 10: sad music may play after an attack ends.
+- **Actual:** `attack-end` calls `soundscape.moment(this.inDanger(), now())` once. `inDanger()` includes `panic.level > 0`, and panic is still 2 at that instant (decays 5 s per level), so the moment is refused and never retried. 0 music plays in 3 runs (`panic 2, danger true`). Music before danger (never during) is respected: none played during the cue or fight. The survivor-recruited moment has the same one-shot check.
+- **Likely file:** `src/scenes/GameScene.js` lines 206-207 (wait until danger is over, then try), `src/scenes/Soundscape.js` `moment`.
+
+### BUG-033 · Mara's flat (floor 13) and floor 17 are deadly with fists and very hard with a bat · major (balance, needs game-designer and a human playtest)
+- **Steps:** `?debug`, go to floor 13, open the jammed door (3 taps), fight the two walkers behind it by tapping (bot: tap the nearest zombie every 160 ms, step back 50 px when a zombie is within 41 px). Same on floor 17 left (3 walkers at x 280/315/350).
+- **Measured (real game loop, 360x800):** floor 13 left, fists: dead 5 of 5 in 8-10 s. Spiked bat: won 5 of 5 but ended with 16, 16, 30, 44, 44 health. Floor 17 left (door open, walkers 150-220 px from the door, so the hero is seen as soon as he steps in), fists: dead 3 of 3 in about 11 s; bat: dead 5 of 6 (one kiting run ended at 100 health). Floor 17 right, bat: won with 16 and 8 health. Floors 14 and 16 with fists: won 3 of 4 with 68-84 health left (one floor 16 run died: two crawlers).
+- **Expected:** GDD 5.4 danger check: two walkers with a spiked bat cost about 25-45 health; three aware walkers with fists likely death. Floor 13 is required for the Mara story and comes with the new level-designer groups (2 + 2 walkers + crawler).
+- **Actual:** matches the GDD numbers only for the bat on 13. A player who reaches Mara's door with fists (first outing) has no safe plan: running away works (170 vs 26 px/s) but there is no way to separate the two walkers. Floor 17 left cannot be passed at all without a way to split the group, and its right wing (the richest metal) lies behind it.
+- **Notes:** a bat needs 3 wood + 1 metal; the tutorial path leaves 1 wood after Barricade Lv1, so the bat needs scavenging first (expected loot on floors 14/16 is about 2 wood-equivalent, see the human playtest list). Two tests were stale after the group change (`tests/combat.test.js`, `tests/e2e/combat.mjs`, `tests/e2e/story.mjs`); QA fixed them to read the authored counts.
+- **Likely file:** `public/data/levels/floors.json` (group sizes/positions on 13 and 17) or `balance.json` zombies.
+
+### BUG-034 · No feedback when a double tap falls back to walking (energy below 5) · minor
+- **Steps:** set energy 4, double tap the floor.
+- **Expected:** GDD 5.4: the hero walks and thinks "I can't run anymore." (once per 20 s).
+- **Actual:** he just walks, no line, no sound (verified: speed 76-84 px/s, no text). Thoughts are scheduled for stage 4 (11.3), so this may be intended for now.
+- **Likely file:** `src/scenes/GameScene.js` `goTo` (`canRun`).
+
+### BUG-035 · Deprecated sounds are still downloaded and precached (93 KB) · minor
+- **Actual:** `queueAudio` loads every manifest key, including `siren`, `alert_sting`, `survivor_blip`, `error`, `amb_tower`, `heartbeat`. They never play (verified in the sound log), they only cost 93 KB of download and cache. (`ui_tap` is not deprecated; it is a soft touch at volume 0.14.)
+- **Likely file:** `src/scenes/sfx.js` `queueAudio` (skip `deprecated`), `public/assets/audio/` (delete the files, audio-designer).
+
 ### Piece 3b QA (full M1 playthrough, 360x800 and 412x915, e2e build, 2026-10-20/21)
 
 ### BUG-014 · A loot pile on the same x as a floor object cannot be picked up · minor
@@ -168,3 +216,7 @@ All 14 recipes craft with correct output/effect via real taps; greyed reasons ex
 
 ## Piece 3b QA result (Chromium 360x800 and 412x915, touch, e2e build, no debug items)
 Full ?debug&story playthrough with real taps took about 20 min wall time in software GL (~16 fps): title, 3 intro cards, tutorial (all 8 hints readable, never block taps, Skip 130x96 works and starts the 10 min clock), tutorial crawler, scripted attack online (warning banner with countdown, flicker, 2 attackers, repelled), 16/14/13 explored, Mara talked to, bag, Survivor bed, she joins, Crew jobs/Talk, Steady hands +22, f15_right cleared, rain collector on a window spot, floor 16 Secured. Offline: breach (112 vs 40, hero and Mara floored at 10, 7 stacks lost, report lines), 12 h cap, upkeep consumed/missed (-10, floor 10), scavenger 6 rolls in 12 h, hide mid-attack settles remainder. Pass the torch: card, bag pile and body at death spot, Mara controllable, Mara dead -> game over -> New game -> intro. Reload resumes at tutorial walk/chair/workbench/door/fight, warning and mid-fight. All hit areas >= 96 game px. 0 console errors (only software WebGL warnings). `npm test`: 317 passed + 6 expected-fail (new `tests/qa-piece3b.test.js`).
+
+## Milestone 2 stage 1 QA result (Chromium 360x800 and 412x915, touch, e2e build)
+Passed: no need bars or numbers in HUD, panels, toasts, away report, barricade, zombies (only wall-painted floor numbers, bag slot count "1/10" and craft material counts "0/3"); 4 moodle levels exact at every threshold, worst first, wobble 0.5 s, tap card with one line, Eat / Drink / Use bandage work; attack cue timeline measured against fake arrival: groans T-14.3 and T-11.9, shuffle and first bang T-7.9, bangs T-4.9 / T-2.5, flicker from T-7.9, no banner/countdown text or object; attack ends silently when attackers die; nap cancelled at T-8 with no cooldown; run by double tap (153 px/s, 0.16-0.2 energy/s, noise aggroes a zombie 240 px away and not one 270 px away, stops below 5, walks at energy 4); unaware hit x3 (20 -> 5 when lured); lose track after 8 s and 500 px; barricade 5 distinct visual stages and word toasts; prose away report; "Nothing."/"Someone got here first." on empty containers; no music during the cue or fight; deprecated sounds never played; no sound before the first tap; context suspends on hide; save survives reload; 4 h hidden applied on resume; 40 rapid taps, two fingers, rotation, 4 quick reloads fine; 0 console errors. `npm test` 377 passed + 4 expected fail; `npm run test:e2e` green twice (after fixing three stale hard-coded zombie counts).
+Note: headless Chromium runs the game at a few fps while driven by CDP, so a real 0.3 s double tap could only be tested by queuing both taps in one frame; the timing window itself is covered by unit tests only.

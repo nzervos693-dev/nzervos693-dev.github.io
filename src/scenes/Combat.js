@@ -7,12 +7,11 @@ import { limitWalk, stepToward } from '../gameplay/routing.js';
 import { barrierBetween } from '../gameplay/zombies.js';
 import { speedMult } from '../gameplay/needs.js';
 import { heroWeapon, swingDamage, spendSwingEnergy, spendWeaponUse } from '../gameplay/combat.js';
+import { isAware } from '../gameplay/zombies.js';
 import { playSfx } from './sfx.js';
-import { CSS } from './ui.js';
 
 /** Stand a little inside the weapon range so knockback or jitter does not break the swing. */
 const RANGE_SLACK = 4;
-const HIT_TEXT_ABOVE = 90;
 
 export default class Combat {
   /** @param {import('./GameScene.js').default} scene */
@@ -73,7 +72,7 @@ export default class Combat {
     const h = s.state.hero;
     const want = rt.rec.x - Math.sign(dx) * Math.max(1, w.range - RANGE_SLACK);
     const lim = limitWalk(s.tower, s.state.doors, h.floor, h.x, want);
-    const speed = s.balance.hero.walkSpeed * speedMult(s.state.needs, s.balance);
+    const speed = s.balance.hero.walkSpeed * speedMult(s.state.needs, s.balance); // approaching to hit is always a walk
     const nx = stepToward(h.x, lim.x, speed, dt);
     if (nx !== h.x) { s.heroSprite.setFlipX(nx < h.x); s.setHeroAnim('walk'); s.footstep(dt); } else s.setHeroAnim('idle');
     h.x = nx;
@@ -97,10 +96,10 @@ export default class Combat {
     s.playSwingAnim();
     playSfx(s, 'swing');
     if (!rt) { s.applyDoorHit(apt); return; }
-    const dmg = swingDamage(w, state.needs, balance);
+    // the first hit on a zombie that has not noticed the hero deals x3 (GDD 5.4); no damage numbers
+    const dmg = swingDamage(w, state.needs, balance, { unaware: !isAware(rt.ai), panic: s.panic.level });
     playSfx(s, 'hit_flesh');
     const killed = s.zombies.hurt(rt, dmg, h.x);
-    s.floatText(rt.rec.x, rt.y - HIT_TEXT_ABOVE, `${dmg}`, CSS.text);
     const wear = spendWeaponUse(state, balance);
     if (wear?.broke) {
       s.toast.show(`Your ${balance.combat.weapons[wear.id].name.toLowerCase()} broke. Back to fists.`);

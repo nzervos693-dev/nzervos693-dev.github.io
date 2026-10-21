@@ -4,13 +4,12 @@ import { button, label, backdrop, COLORS, CSS, DEPTH } from './ui.js';
 const PANEL_W = 672;
 const CARD_H = 660;
 const JOB_W = 200;
-const BAR_W = 300;
 
 /**
- * Survivors ("Crew") screen: one card per recruited survivor with health, trait, upkeep, a job picker
+ * Survivors ("Crew") screen: one card per recruited survivor with condition (words), trait, upkeep, a job picker
  * (Guard / Scavenger / Tender) and a Talk button. View and taps only; rules live in gameplay/survivors.js.
  *
- * ctrl: { rows(): {id,name,role,health,maxHealth,trait,upkeep,jobs:[{id,name,sub,on}],job,active,talk:{label,enabled}}[],
+ * ctrl: { rows(): {id,name,role,condition,trait,upkeep,jobs:[{id,name,sub,on}],job,active,talk:{label,enabled}}[],
  *         onJob(id, job), onTalk(id), onTreat(id), onClose() }
  *   (row.treat: {label, enabled})
  */
@@ -59,10 +58,7 @@ export default class SurvivorsPanel {
     const top = cy - CARD_H / 2;
     add(scene.add.rectangle(cx, cy, PANEL_W - 40, CARD_H, COLORS.ink, 0.5));
     add(label(scene, cx, top + 34, `${r.name}, ${r.role}`, 30, CSS.text));
-    add(label(scene, left + 70, top + 86, 'Health', 22, CSS.dim));
-    add(scene.add.rectangle(left + 150, top + 86, BAR_W, 20, COLORS.shadow).setOrigin(0, 0.5).setStrokeStyle(2, COLORS.ink));
-    add(scene.add.rectangle(left + 150, top + 86, Math.max(1, (BAR_W * r.health) / r.maxHealth), 20, 0xc0392b).setOrigin(0, 0.5));
-    add(label(scene, left + 150 + BAR_W + 60, top + 86, `${Math.round(r.health)}/${r.maxHealth}`, 22, CSS.text));
+    add(label(scene, cx, top + 86, r.condition, 26, CSS.text)); // a word, never a bar or number
     add(label(scene, cx, top + 136, r.trait, 22, CSS.amber));
     if (r.active) {
       add(label(scene, cx, top + 260, `You are playing as ${r.name}.`, 26, CSS.text));

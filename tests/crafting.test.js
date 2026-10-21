@@ -5,7 +5,7 @@ import { buildTower } from '../src/gameplay/layout.js';
 import { createGameState, normalizeGameState } from '../src/gameplay/gameState.js';
 import { addItem, countItem } from '../src/gameplay/inventory.js';
 import {
-  recipeRows, recipeGroups, paginateRows, craftCheck, performCraft, effectText, haveCount, costLines, recipeKind,
+  recipeRows, recipeGroups, LATER_STAGE_EFFECTS, paginateRows, craftCheck, performCraft, effectText, haveCount, costLines, recipeKind,
 } from '../src/gameplay/crafting.js';
 import {
   homeSpots, freeSpots, dismantleRefund, builtActions, useBuilt, secureFloor, clearedFloors, survivorBeds, spotKey,
@@ -16,7 +16,7 @@ import {
 import { advanceProducer, tickProducers, tenderMult, productionLines, intervalSeconds } from '../src/gameplay/producers.js';
 import { atHome } from '../src/gameplay/buildSpots.js';
 import { getDefense } from '../src/gameplay/defense.js';
-import { movementBounds, makeAi, stepZombie, makeZombie, STEP_BARRICADE, STEP_ATTACK, zombieTuning } from '../src/gameplay/zombies.js';
+import { movementBounds, makeAi, stepZombie, makeZombie, STEP_BARRICADE, STEP_ATTACK, zombieTuning, startChase } from '../src/gameplay/zombies.js';
 import { catchUp } from '../src/gameplay/offline.js';
 import { reportLines } from '../src/gameplay/report.js';
 import { seededRng } from '../src/gameplay/rng.js';
@@ -54,7 +54,7 @@ describe('recipe list', () => {
     }
   });
   it('describes every recipe', () => {
-    for (const id of Object.keys(balance.recipes)) expect(effectText(balance, id).length).toBeGreaterThan(5);
+    for (const id of Object.keys(balance.recipes).filter((r) => !LATER_STAGE_EFFECTS.includes(balance.recipes[r].effect?.type))) expect(effectText(balance, id).length).toBeGreaterThan(5);
   });
 });
 
@@ -239,7 +239,7 @@ describe('barricade', () => {
   it('broken gives no defense; repair works, 20 HP per wood, capped, greyed at full', () => {
     const s = fresh();
     buildBarricade(s, balance, 1);
-    expect(craft(s, 'barricade_repair').reason).toBe('Barricade is at full HP');
+    expect(craft(s, 'barricade_repair').reason).toBe('Barricade is holding');
     expect(damageBarricade(s, 500)).toEqual({ hp: 0, broken: true });
     expect(damageBarricade(s, 5)).toEqual({ hp: 0, broken: false });
     expect(barricadeUp(s)).toBe(false);
@@ -276,11 +276,12 @@ describe('zombies and the barricade', () => {
   function setup(up) {
     const types = balance.zombies.types;
     const env = {
-      tower, doors: {}, heroFloor: 15, heroX: 250, heroRoom: null, types, aggroRadius: 200, attackRange: 30,
+      tower, doors: {}, heroFloor: 15, heroX: 250, heroRoom: null, types, sightRadius: 200, attackRange: 30,
       tune: zombieTuning(balance), rng: seededRng(1), bounds: { min: 0, max: 0 }, barricade: bar(up),
     };
     const z = makeZombie('t', 'crawler', 15, 40, balance);
     const ai = makeAi();
+    startChase(ai, env.tune); // already hunting (an intact barricade blocks sight, so it cannot notice the hero through it)
     return { env, z, ai };
   }
   it('a chasing zombie stops at the barricade and hits it, never the hero', () => {
@@ -293,7 +294,7 @@ describe('zombies and the barricade', () => {
     }
     expect(z.x).toBeCloseTo(88, 0);
     expect(heroHits).toBe(0);
-    expect(barHits).toBeGreaterThanOrEqual(15); // 30 s at one hit per 1.5 s
+    expect(barHits).toBeGreaterThanOrEqual(8); // 30 s at one hit per 2.5 s, after the windup
   });
   it('walks through once the barricade is down', () => {
     const { env, z, ai } = setup(false);
@@ -416,9 +417,9 @@ describe('producers', () => {
     expect(s.build.spots['15:w1'].stored).toBe(2);
     expect(report.production.rain_collector).toMatchObject({ made: 2, full: false });
     const lines = reportLines(report, balance);
-    expect(lines).toContain('Rain collector: +2 clean water');
+    expect(lines).toContain('The rain collector made 2 clean water.');
     const full = catchUp(sim, 12 * 3600 * 1000, balance, { startMs: 0, stepHooks: [hook] });
-    expect(productionLines(full.production, balance)[0]).toBe('Rain collector: +2 clean water, full');
+    expect(productionLines(full.production, balance)[0]).toBe('The rain collector is full.');
   });
 });
 
@@ -479,11 +480,12 @@ describe('breach latch, side rule and wanderer rule', () => {
   });
   it('a zombie inside the barricade is clamped and never attacks it; the hero on the barricade is safe', () => {
     const env = {
-      tower, doors: {}, heroFloor: 15, heroX: 60, heroRoom: null, types: balance.zombies.types, aggroRadius: 200, attackRange: 30,
+      tower, doors: {}, heroFloor: 15, heroX: 60, heroRoom: null, types: balance.zombies.types, sightRadius: 200, attackRange: 30,
       tune: zombieTuning(balance), rng: seededRng(1), bounds: { min: 0, max: 0 }, barricade: { up: true, floor: 15, x: 100 },
     };
     const z = makeZombie('in', 'crawler', 15, 250, balance);
-    const ai = makeAi();
+    const ai = makeAi(-1);
+    startChase(ai, env.tune); // hunting him from behind the barricade
     let bar = 0; let bite = 0;
     for (let i = 0; i < 1200; i++) { const f = stepZombie(z, ai, env, 0.05); if (f & STEP_BARRICADE) bar++; if (f & STEP_ATTACK) bite++; }
     expect(z.x).toBeCloseTo(112, 0);

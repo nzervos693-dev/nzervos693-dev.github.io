@@ -11,14 +11,19 @@ import {
 } from '../gameplay/layout.js';
 import { createGameState, normalizeGameState, enterRoom, heroCtx, takeFromPile, objState } from '../gameplay/gameState.js';
 import { tickNeeds, applyItem, itemEffect, speedMult } from '../gameplay/needs.js';
-import { catchUp, pickAutoUseItem } from '../gameplay/offline.js';
+import { activeMoodles, moodleKey, moodleAction, moodleHint, makePanic, stepPanic } from '../gameplay/moodles.js';
+import { isRunTap, canRun, stepRun, runConfig } from '../gameplay/running.js';
+import { conditionWord, wearWord, itemWords } from '../gameplay/words.js';
+import { BARRICADE_WORDS, barricadeStage } from '../gameplay/barricade.js';
+import { EMPTY_LINES } from '../gameplay/storyText.js';
+import { catchUp } from '../gameplay/offline.js';
 import { addPile } from '../gameplay/gameState.js';
 import { addItem, moveAll } from '../gameplay/inventory.js';
 import { heroWeapon, equipSlot, unequip, isEquipped, isEquippable, damageHero } from '../gameplay/combat.js';
-import { makeZombie, isWanderer, isAttacker } from '../gameplay/zombies.js';
+import { makeZombie, isWanderer, isAttacker, isAware } from '../gameplay/zombies.js';
 import { updateFloorStates } from '../gameplay/floorState.js';
 import { spawnDueWanderers, dropLostWanderTime } from '../gameplay/wanderers.js';
-import { livingSurvivors, gameOverStats } from '../gameplay/death.js';
+import { livingSurvivors, gameOverStats, daysSurvived } from '../gameplay/death.js';
 import {
   recruitedAlive, residentsAtHome, interactSurvivor, setJob, talkTo, talkWaitMs, tickUpkeep, tickScavengers,
   dropLostSurvivorTime, passTorch, killActiveSurvivor, activeId, isActive, jobInfo, regenSurvivors, treatOptions, treatSurvivor,
@@ -32,7 +37,7 @@ import { limitWalk, planRoute, stairSeconds, stepToward, hitJammedDoor, doorStop
 import { napAction, completeNap, napConfig } from '../gameplay/nap.js';
 import { listActions, buildSpec, noiseFor, completeAction, heroHasTool } from '../gameplay/actions.js';
 import { pastKeepThreshold, spendToolUse, energyTimeMult } from '../gameplay/salvage.js';
-import { reportLines, attackLines, formatDuration } from '../gameplay/report.js';
+import { reportLines, attackLines } from '../gameplay/report.js';
 import {
   recipeRows, USE_NAMES, craftCheck, costLines, effectText, performCraft, recipeKind,
 } from '../gameplay/crafting.js';
@@ -40,7 +45,7 @@ import {
   freeSpots, secureCandidates, builtActions, useBuilt, removeObject, dismantleRefund, deliver,
 } from '../gameplay/building.js';
 import { tickProducers } from '../gameplay/producers.js';
-import { barricadeMaxHp, damageBarricade, barricadeLevel, latchBreach } from '../gameplay/barricade.js';
+import { barricadeMaxHp, damageBarricade, latchBreach } from '../gameplay/barricade.js';
 import { getDefense } from '../gameplay/defense.js';
 import { atHome } from '../gameplay/buildSpots.js';
 import TowerView from './TowerView.js';
@@ -49,7 +54,9 @@ import ActionMenu from './ActionMenu.js';
 import InventoryPanel from './InventoryPanel.js';
 import Popup from './Popup.js';
 import Toast from './Toast.js';
-import NeedPrompt from './NeedPrompt.js';
+import MoodleView from './MoodleView.js';
+import Soundscape from './Soundscape.js';
+import MenuPanel from './MenuPanel.js';
 import Zombies from './Zombies.js';
 import Combat from './Combat.js';
 import Throwing from './Throwing.js';
@@ -63,25 +70,23 @@ import TutorialView from './TutorialView.js';
 import AttackDirector from './AttackDirector.js';
 import { debugOn, skipFrontEnd, attacksOn, exposeScene } from './debug.js';
 import { label, COLORS, CSS, DEPTH } from './ui.js';
-import { playSfx, stopSfx } from './sfx.js';
-import { isAudioUnlocked } from '../core/audio.js';
+import { playSfx } from './sfx.js';
 
 const HERO_DEPTH = 20;
 const BAR_W = 120;
 /** A frame gap longer than this (s) without a lifecycle resume is treated as time passed. */
 const LONG_GAP_MS = 30000;
 const HERO_FEET_TO_HEAD = 100;
-const FLOAT_TEXT_RISE = 40;
 const DOOR_SHAKE_PX = 4;
 const MENU_BOTTOM_MARGIN = 8;
 const SWING_ANIM_MS = 280;
 const STEP_SECONDS = 0.3;
+const CANT_RUN_COOLDOWN_MS = 20000;
 /** Pause before the pass the torch card so the death animation plays. */
 const TORCH_DELAY_MS = 1200;
 /** Distance the hero must walk before the tutorial counts "walk" as done, px. */
 const TUTORIAL_WALK_PX = 40;
 const TOAST_PANEL_GAP = 45;
-const TOAST_PROMPT_LIFT = 140;
 
 /**
  * Main play scene: tower cutaway, hero, tap-to-move, object actions, needs, inventory, save.
@@ -95,7 +100,7 @@ const TOAST_PROMPT_LIFT = 140;
  *   'crafted' {id, kind}  'object-placed' {id, key}  'built-dismantled' {id, key}  'built-used' {id, key, collected, loaded}
  *   'barricade-built' {level}  'barricade-hit' {hp, zombie}  'barricade-broken'  'floor-secured' {floor}
  *   'hero-dead' {survivors, handled}  'item-used' {id}
- *   'attack-warning' {arrivesAt}  'attack-start' {kind, strength, total}  'attack-end' {kind, repelled}
+ *   'attack-cue' {arrivesAt}  'attack-stairwell' {arrivesAt}  'attack-start' {kind, strength, total}  'attack-end' {kind, repelled}
  *   'survivor-recruited' {id}  'survivor-died' {id}  'torch-passed' {id}  'tutorial-done'
  *   'floor-cleared' {floor}      'zombie-killed' {id, type, floor}
  *   'tutorial_open_door' (and any floors.json scriptedSpawns trigger): emit it on `bus` to spawn that
@@ -128,7 +133,10 @@ export default class GameScene extends Phaser.Scene {
     this.following = true;
     this.dragPauseUntil = 0;
     this.lastHomeTap = 0;
-    this.promptArmed = { food: true, water: true };
+    this.panic = makePanic();
+    this.run = null; // { noiseT } while the hero runs (double tap)
+    this.lastGroundTap = null;
+    this.moodleKey = '';
     this.dead = false;
     this.queuedTap = null;
     this.drag = null;
@@ -140,7 +148,6 @@ export default class GameScene extends Phaser.Scene {
     this.lastFrameAt = performance.now();
     this.stepT = 0;
     this.stepFlip = false;
-    this.ambient = false;
     this.attacksEnabled = attacksOn();
     this.walkStartX = this.state.hero.x;
     this.crewCount = recruitedAlive(this.state).length;
@@ -158,10 +165,10 @@ export default class GameScene extends Phaser.Scene {
       onStoreAll: () => this.storeAll(),
       onThrow: () => this.onThrowButton(),
       onCrew: () => this.openCrew(),
+      onMenu: () => { this.menu.close(); this.moodles.closeCard(); this.menuPanel.isOpen ? this.menuPanel.close() : this.menuPanel.open(); },
     });
     this.toast = new Toast(this, this.hud.toastY);
     this.menu = new ActionMenu(this);
-    this.needPrompt = new NeedPrompt(this);
     this.popup = new Popup(this);
     this.panel = new InventoryPanel(this, {
       bag: () => this.state.inventory,
@@ -171,16 +178,18 @@ export default class GameScene extends Phaser.Scene {
       onStore: (i) => this.moveOne('bag', i),
       onTake: (i) => this.moveOne('stock', i),
       onClose: () => {},
-      badge: (slot, i, tab) => (tab === 'bag' && isEquipped(this.state, i) ? `E${slot.uses ?? ''}` : null),
+      badge: (slot, i, tab) => (tab === 'bag' && isEquipped(this.state, i) ? 'E' : slot.uses != null ? ' ' : null),
     });
     this.craftPanel = new CraftPanel(this, {
       rows: () => this.craftRows(),
       onCraft: (id) => this.onCraftTap(id),
       onClose: () => {},
     });
+    this.menuPanel = new MenuPanel(this, { day: () => daysSurvived(this.state, now()) + 1 });
     this.floorPicker = new FloorPicker(this);
     this.placement = new Placement(this);
     this.gameOverPanel = new GameOverPanel(this);
+    this.soundscape = new Soundscape(this);
     this.zombies = new Zombies(this);
     this.combat = new Combat(this);
     this.throwing = new Throwing(this);
@@ -197,12 +206,20 @@ export default class GameScene extends Phaser.Scene {
     this.attacks = new AttackDirector(this);
     this.attacks.enabled = this.attacksEnabled;
     this.bus.on('noise', (n) => this.zombies.onNoise(n));
-    this.bus.on('attack-warning', () => { if (this.action?.spec.kind === 'nap') this.cancelAction(); });
+    this.bus.on('attack-stairwell', () => { if (this.action?.spec.kind === 'nap') this.cancelAction(); });
+    this.bus.on('attack-end', () => this.soundscape.moment(this.inDanger(), now()));
+    this.bus.on('attack-start', () => { if (this.action?.spec.kind === 'nap') this.cancelAction(); });
+    this.bus.on('survivor-recruited', () => this.soundscape.moment(this.inDanger(), now()));
     this.bus.on('hero-dead', (p) => this.offerTorch(p));
     for (const f of this.tower.floors.values()) {
       for (const sp of f.scriptedSpawns || []) this.bus.on(sp.trigger, () => this.spawnScripted(sp.trigger));
     }
 
+    this.moodles = new MoodleView(this, balance, {
+      getAction: (id) => moodleAction(id, this.state, this.balance, this.inHome()),
+      hint: (id) => moodleHint(id),
+      onAction: (id) => this.onMoodleAction(id),
+    });
     this.setupInput();
     this.setupLifecycle();
     this.jumpCameraToHero();
@@ -265,8 +282,7 @@ export default class GameScene extends Phaser.Scene {
     this.game.events.on('floor15:hide', onHide);
     lifecycle.on('resume', onResume);
     this.events.once('shutdown', () => {
-      stopSfx('heartbeat');
-      stopSfx('siren');
+      this.soundscape.stopAll();
       this.bus.removeAllListeners();
       this.game.events.off('floor15:hide', onHide);
       lifecycle.off('resume', onResume);
@@ -368,25 +384,29 @@ export default class GameScene extends Phaser.Scene {
   }
 
   /** Alternating footstep sounds while walking. */
-  footstep(dt) {
+  footstep(dt, running = false) {
     this.stepT += dt;
-    if (this.stepT < STEP_SECONDS) return;
+    if (this.stepT < (running ? STEP_SECONDS * 0.6 : STEP_SECONDS)) return;
     this.stepT = 0;
     this.stepFlip = !this.stepFlip;
-    playSfx(this, this.stepFlip ? 'step_1' : 'step_2');
+    // walking is soft, running is heavy
+    playSfx(this, this.stepFlip ? 'step_1' : 'step_2', running ? { volume: 1.6, rate: 0.85 } : { volume: 0.7 });
   }
 
-  /** Ambience after the first tap; heartbeat while health is low. */
-  updateAudio() {
-    if (!isAudioUnlocked()) return;
-    if (!this.ambient) { this.ambient = true; playSfx(this, 'amb_tower', { loop: true }); }
-    const low = this.state.needs.health < this.balance.needs.onlinePromptThreshold && !this.dead;
-    if (low) playSfx(this, 'heartbeat', { loop: true }); else stopSfx('heartbeat');
+  /** Quiet soundscape (beds, groans, one-shots) and the soft heartbeat while badly hurt. */
+  updateAudio(dt) {
+    this.soundscape.update(dt, this.inDanger(), now());
+    const low = this.state.needs.health < this.balance.moodles.injured.below[2] && !this.dead;
+    this.soundscape.setHeartbeat(low);
   }
 
-  /** Toast with the denied sound. */
+  /** Is something hunting the hero? (music never plays then) */
+  inDanger() {
+    return this.attacks.phase !== 'idle' || this.panic.level > 0;
+  }
+
+  /** A short refusal line (no sound: UI blips are gone). */
   deny(msg, ms) {
-    playSfx(this, 'error');
     this.toast.show(msg, ms);
   }
 
@@ -400,8 +420,10 @@ export default class GameScene extends Phaser.Scene {
   }
 
   /** Plan a walk (and stairs) to floor/x; `pending` runs on arrival. */
-  goTo(floor, x, pending = null) {
+  goTo(floor, x, pending = null, run = false) {
     this.pending = pending;
+    this.run = run && canRun(this.state.needs.energy, this.balance) ? { noiseT: undefined } : null;
+    if (run && !this.run) this.cantRun();
     const from = this.stair
       ? { floor: this.stair.to, x: this.tower.stairwell.entryX }
       : { floor: this.state.hero.floor, x: this.state.hero.x };
@@ -429,7 +451,7 @@ export default class GameScene extends Phaser.Scene {
     if (this.sleeping || this.action) return;
     if (this.combat.order) return; // Combat walks the hero into weapon range
     const step = this.route[0];
-    if (!step) { this.setHeroAnim('idle'); return; }
+    if (!step) { this.run = null; this.setHeroAnim('idle'); return; }
     if (step.type === 'stairs') {
       this.route.shift();
       playSfx(this, 'stairs');
@@ -437,12 +459,14 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
     const lim = limitWalk(this.tower, this.state.doors, h.floor, h.x, step.x);
-    const speed = this.balance.hero.walkSpeed * speedMult(this.state.needs, this.balance);
+    const base = this.run ? runConfig(this.balance).speed : this.balance.hero.walkSpeed;
+    const speed = base * speedMult(this.state.needs, this.balance);
     const nx = stepToward(h.x, lim.x, speed, dt);
     if (nx !== h.x) {
       this.heroSprite.setFlipX(nx < h.x);
       this.setHeroAnim('walk');
-      this.footstep(dt);
+      this.footstep(dt, !!this.run);
+      if (this.run) this.stepRunning(dt);
     }
     h.x = nx;
     this.checkRoomEntry();
@@ -453,6 +477,24 @@ export default class GameScene extends Phaser.Scene {
         this.onBlockedByDoor(lim.blockedApt);
       } else if (!this.route.length) this.onArrive();
     }
+  }
+
+  /** Running costs energy and is heard: one 250 px noise per second (GDD 5.4). Too tired: back to a walk. */
+  stepRunning(dt) {
+    const r = stepRun(this.run, this.state.needs, dt, this.balance);
+    if (r.noise) {
+      const h = this.state.hero;
+      this.bus.emit('noise', { floor: h.floor, x: h.x, level: 'noisy', radius: runConfig(this.balance).noiseRadius, source: 'run' });
+    }
+    if (r.stopped) { this.run = null; this.cantRun(); }
+  }
+
+  /** The hero is too tired to run: one plain line, at most once per 20 s (GDD 5.4). */
+  cantRun() {
+    const t = performance.now();
+    if (t - (this.cantRunAt ?? -Infinity) < CANT_RUN_COOLDOWN_MS) return;
+    this.cantRunAt = t;
+    this.toast.show("I can't run anymore.", 1800);
   }
 
   checkRoomEntry() {
@@ -469,7 +511,7 @@ export default class GameScene extends Phaser.Scene {
   // ---------------------------------------------------------------- taps
 
   onWorldTap(wx, wy) {
-    if (this.gameOver || this.dead || this.popup.isOpen || this.panel.isOpen || this.craftPanel.isOpen || this.floorPicker.isOpen || this.crewPanel.isOpen || this.dialogue.isOpen) return;
+    if (this.gameOver || this.dead || this.popup.isOpen || this.panel.isOpen || this.craftPanel.isOpen || this.floorPicker.isOpen || this.crewPanel.isOpen || this.dialogue.isOpen || this.menuPanel.isOpen) return;
     if (this.placement.active) {
       const zt = this.zombies.hitTest(wx, wy); // you can still fight while placing
       if (zt) this.attackZombie(zt); else this.placement.handleTap(wx, wy);
@@ -477,6 +519,7 @@ export default class GameScene extends Phaser.Scene {
     }
     if (this.sleeping) { this.wake(); return; }
     this.menu.close();
+    this.moodles.closeCard();
     if (this.action) {
       const progress = this.action.elapsed / this.action.duration;
       if (this.action.spec.kind !== 'nap' && pastKeepThreshold(progress, this.balance)) {
@@ -510,6 +553,10 @@ export default class GameScene extends Phaser.Scene {
   handleGround(wx, wy) {
     const floor = floorAtY(this.tower, wy);
     if (floor == null) return;
+    // second tap within 0.3 s and 48 px of the first: run (single tap = quiet walk)
+    const tap = { t: performance.now(), x: wx, y: wy };
+    const run = isRunTap(this.lastGroundTap, tap, this.balance);
+    this.lastGroundTap = run ? null : tap;
     const tw = this.tower;
     let x = Phaser.Math.Clamp(wx, 16, tw.floorWidth - 16);
     if (x <= tw.stairwell.xMax) x = tw.stairwell.entryX;
@@ -518,7 +565,7 @@ export default class GameScene extends Phaser.Scene {
       // dark room: walk to its door
       x = r.room === r.apt.rooms[0] ? r.apt.doorX : r.room.xMin + 10;
     }
-    this.goTo(floor, x);
+    this.goTo(floor, x, null, run);
   }
 
   handleTarget(t, wx, wy) {
@@ -553,8 +600,8 @@ export default class GameScene extends Phaser.Scene {
         break;
       case 'barricade': {
         const b = state.build.barricade;
-        const lv = barricadeLevel(balance, b.level);
-        this.toast.show(b.hp > 0 ? `Barricade Lv${b.level}: ${Math.ceil(b.hp)}/${lv.hp} HP, defense +${lv.defense}. Repair it at the workbench.` : `Barricade Lv${b.level} is broken. Repair it at the workbench.`, 3000);
+        const stage = barricadeStage(b.hp, barricadeMaxHp(state, balance), balance);
+        this.toast.show(BARRICADE_WORDS[stage], 2400); // words only, never HP
         this.handleGround(wx, wy); // the hero also walks there: his own barricade is no obstacle
         break;
       }
@@ -624,8 +671,7 @@ export default class GameScene extends Phaser.Scene {
     this.bus.emit('action-start', { spec, target: t });
     const noise = noiseFor(spec, balance);
     if (noise) {
-      this.bus.emit('noise', { floor: t.floor, x: t.x, ...noise, source: t.id });
-      this.floatText(t.x, t.cy - 70, '!', CSS.red);
+      this.bus.emit('noise', { floor: t.floor, x: t.x, ...noise, source: t.id }); // the sound is the only marker
     }
     playSfx(this, this.actionSound(spec, def));
     this.setHeroAnim(kind === 'dismantle' ? 'attack' : 'idle');
@@ -683,6 +729,7 @@ export default class GameScene extends Phaser.Scene {
     const def = this.balance.objects[placement.objectId];
     const res = completeAction(this.state, spec, placement, def, {
       balance: this.balance, tables: this.tables, rng: this.rng, loc: { floor: t.floor, x: t.x },
+      apt: this.tower.objects.get(t.id)?.apt,
     });
     const cleared = updateFloorStates(this.tower, this.state, this.balance, now());
     this.view.refresh();
@@ -694,12 +741,12 @@ export default class GameScene extends Phaser.Scene {
 
     const parts = [];
     if (res.gained.length) parts.push(this.itemList(res.gained, '+'));
-    else if (spec.kind === 'search') parts.push('Nothing useful.');
+    else if (spec.kind === 'search') parts.push(EMPTY_LINES[Math.floor(this.rng() * EMPTY_LINES.length)]);
     if (res.piled.length) parts.push('Bag full: the rest is on the floor.');
     else if (res.kept.length) parts.push('Bag full: the rest stays inside.');
     if (res.toolBroke) parts.push(`Your ${this.balance.items[res.toolBroke].name.toLowerCase()} broke.`);
     if (res.note) parts.push(`Note: "${res.note.text}"`);
-    for (const n of cleared) { parts.push(`Floor ${n} cleared!`); this.bus.emit('floor-cleared', { floor: n }); }
+    for (const n of cleared) this.bus.emit('floor-cleared', { floor: n });
     this.toast.show(parts.join('\n'), res.note ? 4800 : 2600);
     this.save();
   }
@@ -756,8 +803,9 @@ export default class GameScene extends Phaser.Scene {
     const sprite = this.view.doorSprites.get(apt.id);
     this.tweens.add({ targets: sprite, x: apt.doorX + DOOR_SHAKE_PX, yoyo: true, duration: 60, repeat: 1, onComplete: () => sprite.setX(apt.doorX) });
     playSfx(this, 'door_hit');
+    this.bus.emit('noise', { floor: apt.floor, x: apt.doorX, level: 'noisy', radius: this.balance.salvage.noiseRadius, source: 'door' });
     this.bus.emit('door-hit', { aptId: apt.id, hits: r.hits, needed: r.needed });
-    this.toast.show(r.opened ? 'The door gives way.' : `The door is stuck (${r.hits}/${r.needed}). Hit it again.`);
+    this.toast.show(r.opened ? 'The door gives way.' : 'The door is stuck. Hit it again.');
     if (r.opened) this.afterDoorOpened(apt);
   }
 
@@ -796,9 +844,9 @@ export default class GameScene extends Phaser.Scene {
     return napAction(this.state, now(), this.balance, { unsafe: this.napUnsafe() });
   }
 
-  /** Attack warning or fight, or any zombie on the home floor is chasing or biting. */
+  /** Attackers are here, or any zombie on the home floor is chasing or biting. The cue alone does not grey the button (GDD 5.2). */
   napUnsafe() {
-    if (this.attacks.phase !== 'idle') return true;
+    if (this.attacks.phase === 'fight') return true;
     const home = this.tower.homeFloor;
     return this.zombies.list.some((rt) => !rt.dying && !rt.rec.dead && rt.rec.floor === home
       && (rt.ai.mode === 'chase' || rt.ai.mode === 'attack'));
@@ -820,7 +868,7 @@ export default class GameScene extends Phaser.Scene {
     const r = completeNap(this.state, now(), this.balance);
     this.setHeroAnim('idle');
     this.bus.emit('nap-done', r);
-    this.toast.show(`Quick nap: +${Math.round(r.energy)} energy.`);
+    this.toast.show('You feel a little better.');
     this.save();
   }
 
@@ -856,39 +904,41 @@ export default class GameScene extends Phaser.Scene {
       this.wake();
       this.toast.show('Rested.');
     }
-    this.checkNeedPrompts();
+    this.refreshMoodles();
+    if (state.needs.health <= 0 && !this.dead) this.onHeroDeath();
   }
 
-  checkNeedPrompts() {
-    const { needs } = this.state;
-    const th = this.balance.needs.onlinePromptThreshold;
-    for (const k of ['food', 'water']) {
-      if (needs[k] < th && this.promptArmed[k]) {
-        this.promptArmed[k] = false;
-        this.needPrompt.show(k, this.hud.bottomY - 200, () => this.eatBest(k));
-      } else if (needs[k] > th) {
-        this.promptArmed[k] = true;
-        if (this.needPrompt.need === k) this.needPrompt.hide();
-      }
+  /** Aggroed zombies that have seen the hero, near him on his floor (drives Panic). */
+  countHunters() {
+    const h = this.state.hero;
+    if (this.stair || this.dead) return 0;
+    const range = this.balance.moodles.panic.aggroedWithinPx;
+    let n = 0;
+    for (const rt of this.zombies.list) {
+      if (!rt.dying && rt.rec.floor === h.floor && isAware(rt.ai) && Math.abs(rt.rec.x - h.x) <= range) n++;
     }
-    if (needs.health <= 0 && !this.dead) this.onHeroDeath();
+    return n;
   }
 
-  /**
-   * Eat/drink the best item for a need using the auto-use rules: bag first, then the
-   * stockpile (only at home).
-   */
-  eatBest(need) {
-    const sources = [['bag', this.state.inventory]];
-    if (this.inHome()) sources.push(['stock', this.state.stockpile]);
-    for (const [tab, slots] of sources) {
-      const id = pickAutoUseItem(slots, need, this.balance, this.state.needs[need]);
-      if (!id) continue;
-      this.useItem(tab, slots.findIndex((s) => s && s.id === id));
-      if (this.state.needs[need] >= this.balance.needs.onlinePromptThreshold) this.needPrompt.hide();
-      return;
-    }
-    this.deny(need === 'food' ? 'Nothing to eat.' : 'Nothing to drink.');
+  /** Re-evaluate the moodles and update the icons when the list changed. */
+  refreshMoodles() {
+    const list = activeMoodles(this.state.needs, this.panic.level, this.balance);
+    const key = moodleKey(list);
+    if (key === this.moodleKey) return;
+    this.moodleKey = key;
+    this.moodles.update(list);
+  }
+
+  /** The action button on a moodle card: eat, drink or use the item the card named. */
+  onMoodleAction(id) {
+    const a = moodleAction(id, this.state, this.balance, this.inHome());
+    this.moodles.closeCard();
+    if (!a) return;
+    const slots = a.from === 'bag' ? this.state.inventory : this.state.stockpile;
+    const i = slots.findIndex((x) => x && x.id === a.itemId);
+    if (i >= 0) this.useItem(a.from, i);
+    this.moodleKey = '';
+    this.refreshMoodles();
   }
 
   /**
@@ -952,6 +1002,7 @@ export default class GameScene extends Phaser.Scene {
   refreshCrewCount() { this.crewCount = recruitedAlive(this.state).length; }
 
   onHide() {
+    this.soundscape.stopAll();
     this.closeBuildUi();
     this.cancelAction();
     this.combat.clear();
@@ -1019,20 +1070,16 @@ export default class GameScene extends Phaser.Scene {
     const { balance } = this;
     const it = balance.items[slot.id];
     const e = itemEffect(slot.id, balance, heroCtx(this.state, balance));
-    const bits = [];
-    if (e) {
-      if (e.food) bits.push(`+${e.food} food`);
-      if (e.water) bits.push(`+${e.water} water`);
-      if (e.health) bits.push(`${e.health > 0 ? '+' : ''}${e.health} health`);
-      if (e.morale) bits.push(`+${e.morale} morale`);
-    } else if (slot.uses != null) bits.push(`${slot.uses} uses left`);
-    else bits.push(it.type === 'material' ? 'Crafting material' : it.type);
+    let words;
+    if (e) words = itemWords(e);
+    else if (slot.uses != null) words = wearWord(slot.uses, balance.salvage.toolUses);
+    else words = it.type === 'material' ? 'Crafting material.' : '';
     const home = this.inHome();
     const extra = this.combatItemInfo(slot, tab);
     if (extra) return { name: it.name, canStore: tab === 'bag' && home, canTake: tab === 'stock' && home, ...extra };
     return {
       name: it.name,
-      effect: bits.join(', '),
+      effect: words,
       canUse: !!e && (tab === 'bag' || home),
       canStore: tab === 'bag' && home && it.type !== 'quest',
       canTake: tab === 'stock' && home,
@@ -1045,15 +1092,12 @@ export default class GameScene extends Phaser.Scene {
     const it = balance.items[slot.id];
     if (it.type === 'weapon' && isEquippable(slot, balance)) {
       const w = balance.combat.weapons[slot.id];
-      const max = w.durability;
       const idx = tab === 'bag' ? state.inventory.indexOf(slot) : -1;
       const on = idx >= 0 && isEquipped(state, idx);
-      const wear = max == null ? 'no wear' : `${slot.uses ?? max}/${max} hits`;
-      return { effect: `${w.damage} dmg, reach ${w.rangePx}, ${wear}`, canUse: tab === 'bag', useLabel: on ? 'Unequip' : 'Equip' };
+      return { effect: `A weapon. ${wearWord(slot.uses ?? w.durability, w.durability) || 'Never wears out.'}`, canUse: tab === 'bag', useLabel: on ? 'Unequip' : 'Equip' };
     }
     if (it.type === 'throwable') {
-      const m = balance.molotov;
-      return { effect: `Fire ${m.seconds}s, ${m.zombieDps} dmg/s. Loud.`, canUse: tab === 'bag' && !this.stair, useLabel: 'Throw' };
+      return { effect: 'Fire. Very loud.', canUse: tab === 'bag' && !this.stair, useLabel: 'Throw' };
     }
     return null;
   }
@@ -1083,7 +1127,6 @@ export default class GameScene extends Phaser.Scene {
     if (s.qty <= 0) { slots[i] = null; this.panel.selected = -1; }
     this.bus.emit('item-used', { id: s.id });
     playSfx(this, this.balance.consumables?.[s.id]?.water || s.id.endsWith('water') ? 'drink' : 'eat');
-    this.toast.show(`Used ${this.balance.items[s.id].name}`);
     this.panel.refresh();
     this.save();
   }
@@ -1108,11 +1151,6 @@ export default class GameScene extends Phaser.Scene {
       this.jumpCameraToHero();
       this.toast.show('Tap Home again to walk home.', 1400);
     }
-  }
-
-  floatText(x, y, str, color) {
-    const tx = label(this, x, y, str, 40, color, false).setDepth(60);
-    this.tweens.add({ targets: tx, y: y - FLOAT_TEXT_RISE, alpha: 0, duration: 900, onComplete: () => tx.destroy() });
   }
 
   // ---------------------------------------------------------------- zombies and combat
@@ -1143,9 +1181,8 @@ export default class GameScene extends Phaser.Scene {
    */
   onZombieAggro(rt, byNoise = false) {
     if (rt.rec.floor !== this.state.hero.floor) return;
-    this.floatText(rt.rec.x, rt.y - 90, '!', CSS.red);
-    playSfx(this, this.rng() < 0.5 ? 'zombie_groan_1' : 'zombie_groan_2');
-    if (!byNoise) { playSfx(this, 'alert_sting'); this.interruptAction(); }
+    playSfx(this, this.rng() < 0.5 ? 'zombie_groan_1' : 'zombie_groan_2', { volume: 0.7 });
+    if (!byNoise) this.interruptAction();
   }
 
   /** A zombie bite landed. */
@@ -1171,10 +1208,7 @@ export default class GameScene extends Phaser.Scene {
   heroHurtFx(damage) {
     this.heroSprite.setTintFill(0xff5544);
     this.time.delayedCall(120, () => { if (!this.dead) this.heroSprite.clearTint(); });
-    if (damage > 0) {
-      this.floatText(this.state.hero.x, this.heroLineY() - HERO_FEET_TO_HEAD - 20, `-${Math.round(damage)}`, CSS.red);
-      playSfx(this, 'hero_hurt');
-    }
+    if (damage > 0) playSfx(this, 'hero_hurt'); // no damage numbers
   }
 
   /** A zombie died (weapon or fire). */
@@ -1186,17 +1220,13 @@ export default class GameScene extends Phaser.Scene {
     if (isWanderer(z.id) || isAttacker(z.id)) delete this.state.zombies[z.id]; // wanderers and attackers leave no record; authored and scripted ones stay dead
     const cleared = updateFloorStates(this.tower, this.state, this.balance, now());
     this.view.refresh();
-    for (const n of cleared) {
-      this.toast.show(`Floor ${n} cleared!`, 3000);
-      this.bus.emit('floor-cleared', { floor: n });
-    }
+    for (const n of cleared) this.bus.emit('floor-cleared', { floor: n });
     this.save();
   }
 
   /** Promote floors that are already clear (launch, data change). */
   checkFloorStates() {
     updateFloorStates(this.tower, this.state, this.balance, now());
-    this.view.refreshFloorLabels();
   }
 
   /** Online wanderer arrivals (runs every clock tick). */
@@ -1205,7 +1235,6 @@ export default class GameScene extends Phaser.Scene {
     const made = spawnDueWanderers(this.state, this.tower, this.balance, t, this.rng, { hero: { floor: h.floor, x: h.x } });
     if (!made.length) return;
     this.zombies.syncRecords();
-    this.toast.show(`Something wanders onto floor ${made[0].floor}.`, 2600);
     this.save();
   }
 
@@ -1235,7 +1264,6 @@ export default class GameScene extends Phaser.Scene {
     this.pending = null;
     this.wake();
     this.menu.close();
-    this.needPrompt.hide();
     this.heroDeathAnim();
     killActiveSurvivor(this.state); // a survivor you played is gone for good
     const payload = { survivors: livingSurvivors(this.state), handled: false };
@@ -1275,7 +1303,8 @@ export default class GameScene extends Phaser.Scene {
     this.stair = null;
     this.refreshCrewCount();
     this.clearDeathState();
-    this.promptArmed = { food: true, water: true };
+    this.panic = makePanic();
+    this.moodleKey = '';
     this.view.refresh();
     this.panel.refresh();
     this.placeHero();
@@ -1303,8 +1332,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   showGameOver() {
-    stopSfx('heartbeat');
-    stopSfx('amb_tower');
+    this.soundscape.stopAll();
     this.gameOver = true;
     this.dead = true;
     this.panel.close();
@@ -1370,7 +1398,7 @@ export default class GameScene extends Phaser.Scene {
     if (check.kind === 'place') {
       const spots = freeSpots(state, tower, balance, rec.buildSpot);
       this.craftPanel.close();
-      this.placement.start(`Place ${rec.name}: tap a glowing spot`, spots, (key) => this.finishCraft(id, { spot: key }), () => {
+      this.placement.start(`Place ${rec.name}: tap an outlined spot`, spots, (key) => this.finishCraft(id, { spot: key }), () => {
         this.toast.show('Cancelled. Nothing was used.', 1800);
       });
     } else if (check.kind === 'secure') {
@@ -1393,13 +1421,12 @@ export default class GameScene extends Phaser.Scene {
       if (res.gained.stock.length) msg += '\nBag full: it went to the stockpile.';
       if (res.gained.piled.length) msg += '\nBag and stockpile full: it is on the floor.';
     } else if (res.kind === 'repair') {
-      const b = state.build.barricade;
-      msg = `Barricade +${res.restored} HP (${Math.ceil(b.hp)}/${barricadeMaxHp(state, balance)})`;
+      msg = 'You patch up the barricade.';
     } else if (res.kind === 'barricade') {
       msg = `${rec.name} built.`;
       this.bus.emit('barricade-built', { level: rec.effect.level });
     } else if (res.kind === 'secure') {
-      msg = `Floor ${target.floor} is Secured. Defense +${balance.attacks.securedFloorDefense}.`;
+      msg = `Floor ${target.floor} is sealed.`;
       this.bus.emit('floor-secured', { floor: target.floor });
     } else if (res.kind === 'place') {
       msg = `${rec.name} placed.`;
@@ -1428,7 +1455,7 @@ export default class GameScene extends Phaser.Scene {
     if (r.firstHarvest) {
       const gain = balance.needs.morale.events.firstPlanterHarvest;
       state.needs.morale = Math.min(balance.needs.max, state.needs.morale + gain);
-      parts.push(`First harvest! +${gain} morale`);
+      parts.push('First harvest.');
     }
     if (!parts.length) { this.toast.show('Nothing to collect yet.'); return; }
     playSfx(this, r.collected ? 'pickup' : 'craft');
@@ -1482,7 +1509,7 @@ export default class GameScene extends Phaser.Scene {
   /** A zombie hit the home barricade (called by Zombies). */
   onBarricadeHit(rt, damage) {
     const { state, balance } = this;
-    const r = damageBarricade(state, damage);
+    const r = damageBarricade(state, damage); // damage already x barricadeDamageMult
     playSfx(this, 'barricade_hit');
     this.view.shakeBarricade();
     this.bus.emit('barricade-hit', { hp: r.hp, zombie: rt.rec.id });
@@ -1492,7 +1519,6 @@ export default class GameScene extends Phaser.Scene {
         const pen = balance.needs.morale.events.barricadeBreached;
         state.needs.morale = Math.max(0, Math.min(balance.needs.max, state.needs.morale + pen));
       }
-      this.toast.show('The barricade broke! Repair it at the workbench.', 3200);
       this.bus.emit('barricade-broken', {});
     }
     this.view.refreshBarricade();
@@ -1514,9 +1540,9 @@ export default class GameScene extends Phaser.Scene {
       if (e.died) {
         this.bus.emit('survivor-died', { id: e.id });
         this.view.refresh();
-        this.toast.show(`${name} died. Morale ${balance.needs.morale.events.survivorDies}.`, 4000);
+        this.toast.show(`${name} died.`, 4000);
       } else {
-        this.toast.show(`${name} had no ${e.missed.join(' or ')}${Math.round(e.healthLost) > 0 ? `: -${Math.round(e.healthLost)} health` : ''}. Stock the stockpile.`, 4000);
+        this.toast.show(`${name} had no ${e.missed.join(' or ')}.`, 4000);
       }
     }
     if (events.length) { this.crewPanel.refresh(); this.save(); }
@@ -1532,7 +1558,6 @@ export default class GameScene extends Phaser.Scene {
     this.dialogue.show({ speaker: name, lines: r.lines, blip: true });
     if (r.gaveBag) {
       this.bus.emit('quest-done', { id });
-      this.floatText(state.hero.x, this.heroLineY() - HERO_FEET_TO_HEAD - 20, `+${balance.needs.morale.events.questDone} morale`, CSS.amber);
     }
     if (r.recruited) {
       this.bus.emit('survivor-recruited', { id });
@@ -1555,7 +1580,6 @@ export default class GameScene extends Phaser.Scene {
   crewRows() {
     const { state, balance } = this;
     const sv = balance.survivors;
-    const ev = balance.needs.morale.events;
     const t = now();
     return recruitedAlive(state).map((id) => {
       const def = sv.roster[id];
@@ -1567,14 +1591,13 @@ export default class GameScene extends Phaser.Scene {
         id,
         name: def.name,
         role: def.role,
-        health: active ? state.needs.health : s.health,
-        maxHealth: balance.needs.max,
-        trait: def.trait ? `${def.trait.name}: bandages heal +${Math.round((mult - 1) * 100)}%` : '',
-        upkeep: `Meal in ${formatDuration(Math.max(0, (s.upkeepAt ?? t) - t))} (${sv.upkeepFood} food, ${sv.upkeepWater} water)`,
+        condition: conditionWord(active ? state.needs.health : s.health, balance),
+        trait: def.trait ? `${def.trait.name}: bandages go further` : '',
+        upkeep: 'Eats and drinks from the stockpile.',
         jobs: jobInfo(balance).map((j) => ({ ...j, on: s.job === j.id })),
         active,
         treat: this.treatState(s),
-        talk: { label: wait > 0 ? `Talk again in ${formatDuration(wait)}` : `Talk (+${ev.talkToSurvivor} morale)`, enabled: wait === 0 },
+        talk: { label: wait > 0 ? 'Talk later' : 'Talk', enabled: wait === 0 },
       };
     });
   }
@@ -1591,13 +1614,13 @@ export default class GameScene extends Phaser.Scene {
   onCrewTreat(id) {
     const opts = treatOptions(this.state, this.balance);
     if (!opts.length || !this.inHome()) { this.crewPanel.refresh(); return; }
-    const rows = opts.map((o, i) => ({ floor: i, text: `${o.name} +${o.heal} (${o.qty}${o.from === 'stock' ? ', stockpile' : ''})` }));
+    const rows = opts.map((o, i) => ({ floor: i, text: `${o.name} x${o.qty}${o.from === 'stock' ? ' (stockpile)' : ''}` }));
     this.floorPicker.open('Treat with', rows, (i) => {
       const o = opts[i];
       const r = treatSurvivor(this.state, this.balance, id, o.id, o.from);
       if (r.ok) {
         playSfx(this, 'eat');
-        this.toast.show(`${this.balance.survivors.roster[id].name} +${Math.round(r.healed)} health`, 2400);
+        this.toast.show(`${this.balance.survivors.roster[id].name} looks better.`, 2400);
         this.panel.refresh();
         this.save();
       } else this.deny(r.reason);
@@ -1610,7 +1633,7 @@ export default class GameScene extends Phaser.Scene {
     if (r.ok) {
       const name = this.balance.survivors.roster[id].name;
       const info = jobInfo(this.balance).find((j) => j.id === r.job);
-      this.toast.show(r.job ? `${name} is now a ${info.name} (${info.sub}).` : `${name} has no job.`, 2400);
+      this.toast.show(r.job ? `${name} is now a ${info.name}.` : `${name} has no job.`, 2400);
       this.view.refreshBuilt();
       this.save();
     }
@@ -1620,8 +1643,7 @@ export default class GameScene extends Phaser.Scene {
   onCrewTalk(id) {
     const r = talkTo(this.state, this.balance, id, now());
     if (r.ok) {
-      playSfx(this, 'survivor_blip');
-      this.toast.show(`You talk with ${this.balance.survivors.roster[id].name}. +${r.gain} morale`, 2400);
+      this.toast.show(`You talk with ${this.balance.survivors.roster[id].name}.`, 2400);
       this.save();
     }
     this.crewPanel.refresh();
@@ -1715,7 +1737,7 @@ export default class GameScene extends Phaser.Scene {
   onThrowButton() {
     if (this.sleeping) this.wake();
     const id = this.throwing.tapButton();
-    this.toast.show(id ? `${this.balance.items[id].name} armed. Tap inside the circle.` : 'Throw cancelled.', 1800);
+    this.toast.show(id ? `${this.balance.items[id].name} ready. Tap where to throw.` : 'Put it away.', 1800);
   }
 
   // ---------------------------------------------------------------- frame loop
@@ -1726,7 +1748,7 @@ export default class GameScene extends Phaser.Scene {
     const dt = Math.min(Math.max((realNow - this.lastFrameAt) / 1000, 0), 0.25);
     this.lastFrameAt = realNow;
     if (this.gameOver) return;
-    this.updateAudio();
+    this.updateAudio(dt);
     this.tickClock();
     this.updateHero(dt);
     this.combat.update(dt);
@@ -1734,29 +1756,25 @@ export default class GameScene extends Phaser.Scene {
     this.throwing.update(dt);
     this.updateAction(dt);
     this.attacks.update(dt);
+    stepPanic(this.panic, this.countHunters(), dt, this.balance);
     this.placeHero();
     this.updateCamera(dt);
     if (time - this.pulseAt > 100) {
       this.pulseAt = time;
-      this.view.update(time);
+      this.refreshMoodles();
       this.updateTutorial();
       const w = heroWeapon(this.state, this.balance);
       this.hudCombat = { weapon: { id: w.id, name: w.name, uses: w.uses }, canThrow: this.throwing.ids().length > 0 };
     }
 
-    const h = this.state.hero;
-    const r = roomAt(this.tower, h.floor, h.x);
     this.hud.update({
-      needs: this.state.needs,
-      floor: this.stair ? this.stair.to : h.floor,
       canStore: this.canStoreAll() && !this.panel.isOpen && !this.craftPanel.isOpen && !this.popup.isOpen,
-      hint: r ? r.apt.name : 'Stairwell',
       weapon: this.hudCombat.weapon,
       canThrow: this.hudCombat.canThrow,
       armed: !!this.throwing.armed,
       crew: this.crewCount > 0,
     });
     const modalBottom = this.craftPanel.isOpen ? this.craftPanel.bottomY : this.panel.isOpen ? this.panel.bottomY : this.crewPanel.isOpen ? this.crewPanel.bottomY : 0;
-    this.toast.setY(modalBottom ? modalBottom + TOAST_PANEL_GAP : this.hud.toastY - (this.needPrompt.isOpen ? TOAST_PROMPT_LIFT : 0));
+    this.toast.setY(modalBottom ? modalBottom + TOAST_PANEL_GAP : this.hud.toastY);
   }
 }

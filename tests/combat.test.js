@@ -9,7 +9,7 @@ import { catchUp } from '../src/gameplay/offline.js';
 import { heroCtx } from '../src/gameplay/gameState.js';
 import {
   makeZombie, makeAi, stepZombie, hearNoise, movementBounds, barrierBetween, initZombies, countAlive,
-  resetZombie, zombieTuning, STEP_ATTACK, STEP_AGGRO,
+  resetZombie, zombieTuning, sightRadius, STEP_ATTACK, STEP_AGGRO,
 } from '../src/gameplay/zombies.js';
 import {
   heroWeapon, equipSlot, unequip, isEquipped, swingDamage, damageMult, spendWeaponUse, spendSwingEnergy,
@@ -28,17 +28,19 @@ const rngFixed = (v) => () => v;
 /** Shared per-frame context like Zombies.update builds it. */
 const makeEnv = (state, over = {}) => ({
   tower, doors: state.doors, heroFloor: 14, heroX: 200, heroRoom: null, types: balance.zombies.types,
-  aggroRadius: balance.zombies.aggroRadius, attackRange: balance.zombies.attackRange, tune,
+  sightRadius: balance.zombies.sight.frontPx, attackRange: balance.zombies.attackRange, tune,
   rng: rngFixed(0.5), bounds: { min: 0, max: 0 }, ...over,
 });
+
+const authored = (floor) => [...tower.apartments.values()].filter((a) => floor == null || a.floor === floor).reduce((n, a) => n + (a.zombies || []).length, 0); // follows floors.json
 
 describe('zombie records', () => {
   it('spawns every authored zombie with full hp, once', () => {
     const s = fresh();
-    expect(Object.keys(s.zombies)).toHaveLength(11);
-    expect(s.zombies['f14_left#0']).toMatchObject({ type: 'crawler', floor: 14, x: 340, hp: 15, dead: false });
-    expect(s.zombies['f13_right#0']).toMatchObject({ type: 'walker', hp: 30 });
-    expect(countAlive(s, 13)).toBe(3);
+    expect(Object.keys(s.zombies)).toHaveLength(authored());
+    expect(s.zombies['f14_left#0']).toMatchObject({ type: 'crawler', floor: 14, x: 340, hp: 20, dead: false });
+    expect(s.zombies['f13_right#1']).toMatchObject({ type: 'walker', hp: 45 });
+    expect(countAlive(s, 13)).toBe(authored(13));
     expect(countAlive(s, 15)).toBe(1);
   });
 
@@ -61,24 +63,24 @@ describe('zombie records', () => {
     delete s.zombies;
     delete s.equipped;
     const again = normalizeGameState(s, balance, tower, 2000);
-    expect(Object.keys(again.zombies)).toHaveLength(11);
+    expect(Object.keys(again.zombies)).toHaveLength(authored());
     expect(again.stats.zombiesKilled).toBe(0);
   });
 });
 
 describe('zombie AI', () => {
-  it('aggros within the aggro radius on the same floor', () => {
+  it('notices the hero within the sight radius on the same floor', () => {
     const s = fresh();
     const z = makeZombie('t', 'walker', 14, 400, balance);
-    const ai = makeAi();
-    const flags = stepZombie(z, ai, makeEnv(s, { heroX: 400 - balance.zombies.aggroRadius + 5 }), 0.1);
+    const ai = makeAi(-1); // facing the hero (left)
+    const flags = stepZombie(z, ai, makeEnv(s, { heroX: 400 - balance.zombies.sight.frontPx + 5 }), 0.1);
     expect(flags & STEP_AGGRO).toBeTruthy();
     expect(ai.mode).toBe('chase');
   });
 
   it('ignores a hero outside the radius, on another floor, or on the stairs', () => {
     const s = fresh();
-    const far = makeEnv(s, { heroX: 400 - balance.zombies.aggroRadius - 20 });
+    const far = makeEnv(s, { heroX: 400 - balance.zombies.sight.frontPx - 20 });
     let ai = makeAi();
     expect(stepZombie(makeZombie('a', 'walker', 14, 400, balance), ai, far, 0.1) & STEP_AGGRO).toBe(0);
     ai = makeAi();
@@ -88,12 +90,15 @@ describe('zombie AI', () => {
     expect(ai.mode).not.toBe('chase');
   });
 
-  it('aggros when the hero stands in its room even beyond the radius', () => {
+  it('entering a room does not wake anyone: sight radius is 110 on the landing, 180 in a room', () => {
     const s = fresh();
-    const room = tower.apartments.get('f16_right').rooms[1]; // bedroom 570-720
-    const z = makeZombie('r', 'crawler', 16, 715, balance);
-    const flags = stepZombie(z, makeAi(), makeEnv(s, { heroFloor: 16, heroX: 575, heroRoom: room }), 0.1);
-    expect(flags & STEP_AGGRO).toBeTruthy();
+    const z = makeZombie('r', 'crawler', 16, 100, balance);
+    expect(sightRadius(tower, 16, 60, balance)).toBe(balance.zombies.sight.dimFrontPx); // the stairwell landing
+    expect(sightRadius(tower, 16, 575, balance)).toBe(balance.zombies.sight.frontPx); // stage 1: every room counts as Grey
+    const far = stepZombie(z, makeAi(-1), makeEnv(s, { heroFloor: 16, heroX: 100 - 120, sightRadius: 110 }), 0.1);
+    expect(far & STEP_AGGRO).toBe(0);
+    const near = stepZombie(z, makeAi(-1), makeEnv(s, { heroFloor: 16, heroX: 100 - 100, sightRadius: 110 }), 0.1);
+    expect(near & STEP_AGGRO).toBeTruthy();
   });
 
   it('a jammed door blocks sight and movement in both directions', () => {
@@ -126,7 +131,7 @@ describe('zombie AI', () => {
   it('chases at its speed, then bites once per attack interval after the windup', () => {
     const s = fresh();
     const z = makeZombie('w', 'walker', 14, 340, balance);
-    const ai = makeAi();
+    const ai = makeAi(-1);
     const env = makeEnv(s, { heroX: 250 });
     const dt = 0.05;
     let t = 0;
@@ -284,7 +289,7 @@ describe('weapons and swings', () => {
     const ai = makeAi();
     const bounds = { min: 0, max: 700 };
     expect(hitZombie(z, ai, 10, 250, bounds, balance, tune)).toBe(false);
-    expect(z.hp).toBe(20);
+    expect(z.hp).toBe(35);
     expect(z.x).toBe(300 + balance.combat.knockbackPx);
     expect(ai.stun).toBe(tune.hitStunSeconds);
     expect(ai.mode).toBe('chase');
@@ -300,7 +305,7 @@ describe('weapons and swings', () => {
 
   it('fire damage kills without knockback', () => {
     const z = makeZombie('f', 'crawler', 14, 300, balance);
-    expect(burnZombie(z, 14)).toBe(false);
+    expect(burnZombie(z, 19)).toBe(false);
     expect(z.x).toBe(300);
     expect(burnZombie(z, 1)).toBe(true);
     expect(z.dead).toBe(true);
@@ -315,15 +320,15 @@ describe('weapons and swings', () => {
     expect(needs.health).toBe(0);
   });
 
-  it('crawler dies to 3 fist hits, walker to 6', () => {
+  it('crawler dies to 4 fist hits, walker to 9', () => {
     const hits = (type, dmg) => {
       const z = makeZombie('x', type, 14, 300, balance);
       let n = 0;
       while (!z.dead) { hitZombie(z, makeAi(), dmg, 250, { min: 0, max: 700 }, balance, tune); n++; }
       return n;
     };
-    expect(hits('crawler', 5)).toBe(3);
-    expect(hits('walker', 5)).toBe(6);
+    expect(hits('crawler', 5)).toBe(4);
+    expect(hits('walker', 5)).toBe(9);
   });
 });
 
@@ -392,7 +397,7 @@ describe('wanderers', () => {
     expect(spawnDueWanderers(s, tower, balance, interval - 1, rngFixed(0))).toHaveLength(0);
     const made = spawnDueWanderers(s, tower, balance, interval, rngFixed(0));
     expect(made).toHaveLength(1);
-    expect(made[0]).toMatchObject({ type: 'walker', floor: 14, roam: true, dead: false, hp: 30 });
+    expect(made[0]).toMatchObject({ type: 'walker', floor: 14, roam: true, dead: false, hp: 45 });
     expect(made[0].id).toBe('wander:1');
     expect(s.zombies['wander:1']).toBe(made[0]);
     expect(s.wanderAt[14]).toBe(2 * interval);
@@ -479,15 +484,15 @@ describe('throwing', () => {
     expect(t).toBeCloseTo(4, 0);
   });
 
-  it('fire kills a crawler in 1 s and a walker in 2 s', () => {
+  it('fire kills a crawler in about 1.4 s and a walker in 3 s', () => {
     const secondsToKill = (type) => {
       const z = makeZombie('f', type, 14, 400, balance);
       let t = 0;
       while (!z.dead) { burnZombie(z, balance.molotov.zombieDps * 0.05); t += 0.05; }
       return t;
     };
-    expect(secondsToKill('crawler')).toBeCloseTo(1, 1);
-    expect(secondsToKill('walker')).toBeCloseTo(2, 1);
+    expect(secondsToKill('crawler')).toBeCloseTo(20 / balance.molotov.zombieDps, 1);
+    expect(secondsToKill('walker')).toBeCloseTo(45 / balance.molotov.zombieDps, 1);
   });
 });
 

@@ -86,7 +86,7 @@ export default class InventoryPanel {
     const left = (w - PANEL_W) / 2 + PAD;
     this.tabButtons = [['bag', 'Bag'], ['stock', 'Stockpile']].map(([id, text], i) => {
       const b = add(button(scene, {
-        x: left + 100 + i * 212, y: top + 20 + 48, w: 200, h: CELL, text, size: 22,
+        x: left + 100 + i * 212, y: top + 20 + 48, w: 200, h: CELL, text, size: 22, skin: false,
         onTap: () => { this.tab = id; this.page = 0; this.selected = -1; this.build(); },
       }));
       b.tabId = id;

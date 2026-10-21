@@ -103,12 +103,11 @@ export function productionLines(production, balance) {
   for (const [id, a] of Object.entries(production || {})) {
     const recipe = balance.recipes[id];
     if (!recipe) continue;
-    const item = balance.items[recipe.effect.produces]?.name || recipe.effect.produces;
-    const s = [];
-    if (a.made > 0) s.push(`+${a.made} ${item.toLowerCase()}`);
-    if (a.waiting) s.push('needs water');
-    else if (a.full) s.push('full');
-    if (s.length) out.push(`${recipe.name}: ${s.join(', ')}`);
+    const item = (balance.items[recipe.effect.produces]?.name || recipe.effect.produces).toLowerCase();
+    const name = `The ${recipe.name.toLowerCase()}`;
+    if (a.waiting) out.push(`${name} needs water.`);
+    else if (a.full) out.push(`${name} is full.`);
+    else if (a.made > 0) out.push(`${name} made ${a.made} ${item}.`);
   }
   return out;
 }

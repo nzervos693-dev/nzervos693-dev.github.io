@@ -41,7 +41,6 @@ export default class Dialogue {
   showLine() {
     this.text.setText(this.lines[this.i]);
     this.hint.setText(this.i >= this.lines.length - 1 ? 'Tap to close' : 'Tap to continue');
-    if (this.opts.blip) playSfx(this.scene, 'survivor_blip');
   }
 
   next() {

@@ -243,7 +243,7 @@ describe('scavenger', () => {
     const rep = catchUp({ needs: s.needs, stockpile: s.stockpile, ctx: {} }, 8 * HOUR, balance, { startMs: T0, stepHooks: [hook] });
     expect(rep.scavenged).toHaveLength(4);
     const lines = reportLines(rep, balance);
-    expect(lines.some((l) => l.startsWith('Scavenged:'))).toBe(true);
+    expect(lines.some((l) => l.startsWith('Someone brought back'))).toBe(true);
     expect(lines.some((l) => l.includes('Mara had no food or water'))).toBe(false); // the first meal is at 12 h
   });
 });

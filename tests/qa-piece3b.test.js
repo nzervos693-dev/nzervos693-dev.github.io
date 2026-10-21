@@ -32,8 +32,10 @@ describe('balance numbers for attacks and survivors', () => {
   const a = balance.attacks;
   const sv = balance.survivors;
   it('attack numbers are in sensible ranges', () => {
-    expect(a.warningSeconds).toBeGreaterThanOrEqual(30);
-    expect(a.warningSeconds).toBeLessThanOrEqual(120);
+    expect(a.cueSeconds).toBeGreaterThanOrEqual(10);
+    expect(a.cueSeconds).toBeLessThanOrEqual(30);
+    expect(a.cue.stairwellAtSeconds).toBeLessThan(a.cue.groanAtSeconds);
+    expect(a.cue.groanAtSeconds).toBeLessThanOrEqual(a.cueSeconds);
     expect(a.intervalHours).toBeGreaterThanOrEqual(4);
     expect(a.jitterHours).toBeGreaterThanOrEqual(0);
     expect(a.jitterHours).toBeLessThan(a.intervalHours / 2);
@@ -222,20 +224,19 @@ describe('catch-up with attacks', () => {
     expect(balance.time.offlineCapHours).toBeLessThanOrEqual(12);
     expect((balance.attacks.intervalHours - balance.attacks.jitterHours) * 2).toBeGreaterThanOrEqual(balance.time.offlineCapHours);
   });
-  it('the report lines for a breach with Mara and the hero list both names and the strength vs defense', () => {
+  it('the report lines for a breach with Mara and the hero are prose with both names', () => {
     const s = mara(fresh());
     buildBarricade(s, balance, 1);
     s.stockpile[0] = { id: 'wood', qty: 3 };
     const res = resolveOffline(s, balance, { kind: 'scheduled', strength: 90, types: [] }, seededRng(1));
     const lines = attackLines([{ ...res, atMs: T0, offsetMs: 2 * HOUR }], balance);
-    expect(lines[0]).toBe('Attack 2 h in: strength 90 vs defense 20');
-    expect(lines[1]).toMatch(/^BREACHED/);
-    expect(lines.find((l) => l.startsWith('Hurt:'))).toMatch(/You -\d+, Mara -\d+/);
+    expect(lines[0]).toMatch(/^Around \d\d:\d\d something broke through\. They got in\.$/);
+    expect(lines.find((l) => / hurt\.$/.test(l))).toBe('You and Mara are hurt.');
+    expect(lines.join(' ')).not.toMatch(/strength|defense|HP|\d+ stack/i);
   });
-  // BUG-022: the report popup is 596 px wide; the longest attack line is wider (see docs/BUGS.md)
-  it('no attack report line is longer than the popup can show (max about 40 characters, BUG-022)', () => {
-    const lines = attackLines([{ strength: 150, defense: 100, repelled: true, barricadeLoss: 75, offsetMs: 11.5 * HOUR }], balance);
-    for (const l of lines) expect(l.length).toBeLessThanOrEqual(40);
+  it('attack report lines carry no numbers except clock times and item counts (GDD 5.1)', () => {
+    const lines = attackLines([{ strength: 150, defense: 100, repelled: true, barricadeLoss: 75, atMs: T0, offsetMs: 11.5 * HOUR }], balance);
+    for (const l of lines) expect(l.replace(/\d\d:\d\d/, '')).not.toMatch(/\d/);
   });
 });
 
@@ -341,8 +342,8 @@ describe('survivors: edges', () => {
     const s = mara(fresh());
     const ev = tickUpkeep(s, balance, T0 + 12 * HOUR, { offline: true }, []);
     const lines = reportLines({ elapsedMs: 12 * HOUR, before: s.needs, after: s.needs, used: {}, survivorEvents: ev, scavenged: [{ id: 'mara', item: { id: 'wood', qty: 2 }, stored: true }] }, balance);
-    expect(lines).toContain('Mara had no food or water: -10 health.');
-    expect(lines.some((l) => l.startsWith('Scavenged: 2 wood'))).toBe(true);
+    expect(lines).toContain('Mara had no food or water.');
+    expect(lines.some((l) => l.includes('brought back 2 wood'))).toBe(true);
   });
 });
 

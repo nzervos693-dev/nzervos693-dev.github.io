@@ -31,10 +31,17 @@ export function recipeKind(recipe) {
   return 'item';
 }
 
+/**
+ * Recipe effects that need systems from later M2 stages (lamp light and per-apartment workbenches arrive
+ * with stages 3-4). Their recipes exist in balance v2 but are not offered in stage 1.
+ */
+export const LATER_STAGE_EFFECTS = ['light', 'workbench'];
+
 /** Recipe ids grouped by `use` in panel order: [{use, ids}]. */
 export function recipeGroups(balance) {
   const by = new Map();
   for (const [id, r] of Object.entries(balance.recipes)) {
+    if (LATER_STAGE_EFFECTS.includes(r.effect?.type)) continue;
     if (!by.has(r.use)) by.set(r.use, []);
     by.get(r.use).push(id);
   }
@@ -142,10 +149,10 @@ export function effectText(balance, id) {
   if (e.type === 'converter') return `1 ${item(e.input)} to ${e.qty} ${item(e.produces)} per ${hours(e.intervalHours)}. Queue of ${e.queueMax}. Floor spot.`;
   if (e.type === 'barricade') {
     const lv = barricadeLevel(balance, e.level);
-    return `Stairwell. HP ${lv.hp}, defense +${lv.defense}.${lv.requiresLevel ? ' Replaces Lv1.' : ''}`;
+    return `Planks across the stairwell door.${lv.requiresLevel ? ' Replaces Lv1.' : ''}`;
   }
-  if (e.type === 'repair_barricade') return `Restores ${balance.barricade.repairHpPerWood} barricade HP.`;
-  if (e.type === 'secure_floor') return `Cleared floor becomes Secured, defense +${balance.attacks.securedFloorDefense}.`;
+  if (e.type === 'repair_barricade') return 'Patches up the barricade.';
+  if (e.type === 'secure_floor') return 'Seal a cleared floor so nothing wanders in.';
   if (e.type === 'survivor_bed') return 'A bed for a survivor to move in. Floor spot.';
   return '';
 }

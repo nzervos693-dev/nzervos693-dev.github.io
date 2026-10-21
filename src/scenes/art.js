@@ -18,6 +18,9 @@ export function frameOf(key, name) {
   return files.get(key)?.names.indexOf(name) ?? -1;
 }
 
+/** Is this sheet in the art manifest at all? (Optional sheets fall back to placeholders in code.) */
+export const hasSheet = (key) => files.has(key);
+
 /** Does this sheet contain this frame name? */
 export const hasFrame = (key, name) => frameOf(key, name) >= 0;
 

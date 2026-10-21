@@ -119,7 +119,7 @@ export function spawnDueWanderers(state, tower, balance, atMs, rng, opts = {}) {
         const id = `wander:${state.counters.wander}`;
         const x = pickSpawnX(rng, tower, n, opts.hero || null, tune.wanderSpawnMinHeroDistancePx, state);
         if (x == null) break; // nowhere outside the home apartments
-        const z = makeZombie(id, 'walker', n, x, balance, { roam: true });
+        const z = makeZombie(id, 'walker', n, x, balance, { roam: true, facing: rng() < 0.5 ? -1 : 1 });
         state.zombies[id] = z;
         made.push(z);
       }

@@ -11,7 +11,7 @@ import { reportLines } from '../src/gameplay/report.js';
 import { getDefense } from '../src/gameplay/defense.js';
 import {
   attackStrength, attackSpec, startAttackClock, scheduleNext, finishAttack, resolveOffline, makeAttackHook,
-  settleInterrupted, dropLostAttackTime, attackTuning, warningStartAt, attackState, flickerAlpha, countdownText,
+  settleInterrupted, dropLostAttackTime, attackTuning, cueStart, attackState,
 } from '../src/gameplay/attacks.js';
 
 const tower = buildTower(floorsData, balance);
@@ -48,7 +48,7 @@ describe('scheduling', () => {
     startAttackClock(s, balance, T0);
     expect(attackState(s).nextAt).toBe(T0 + 10 * 60 * 1000);
     expect(attackState(s).kind).toBe('scripted');
-    expect(warningStartAt(s, balance)).toBe(T0 + 10 * 60 * 1000 - 60 * 1000);
+    expect(cueStart(s, balance)).toBe(T0 + 10 * 60 * 1000 - 15 * 1000); // the diegetic cue starts 15 s before
   });
   it('starting the clock twice does not move it', () => {
     const s = fresh();
@@ -185,23 +185,23 @@ describe('catch-up hook', () => {
     expect(rep.attacks[0].repelled).toBe(false); // no barricade: D = 10 < 20
     expect(s.needs.health).toBeGreaterThanOrEqual(balance.needs.offlineHealthFloor);
   });
-  it('report lines list each attack with strength vs defense', () => {
+  it('report lines describe each attack in prose, with no strength, defense or HP numbers', () => {
     const s = fresh();
     buildBarricade(s, balance, 1);
     startAttackClock(s, balance, T0);
     const rep = run(s, 1);
     const lines = reportLines(rep, balance);
-    expect(lines.some((l) => l.toLowerCase().includes(`strength ${A.scripted.strength} vs defense 20`))).toBe(true);
-    expect(lines.some((l) => l.startsWith(`Repelled. Barricade -${Math.round(A.scripted.strength * A.repelBarricadeLossRatio)} HP`))).toBe(true);
+    expect(lines.some((l) => /beat on the door.*It held\./.test(l))).toBe(true);
+    expect(lines.join(' ')).not.toMatch(/strength|defense|HP|->/i);
   });
-  it('breach report names the damage and the lost stacks', () => {
+  it('breach report says they got in, who is hurt and what was lost', () => {
     const s = fresh();
     startAttackClock(s, balance, T0);
     addItem(s.stockpile, 'wood', 5, balance);
     const rep = run(s, 1);
     const lines = reportLines(rep, balance);
-    expect(lines.some((l) => l.startsWith('BREACHED'))).toBe(true);
-    expect(lines.some((l) => l.startsWith('Hurt: You -'))).toBe(true);
+    expect(lines.some((l) => l.includes('They got in.'))).toBe(true);
+    expect(lines.some((l) => l === 'You are hurt.')).toBe(true);
   });
 });
 
@@ -218,20 +218,6 @@ describe('interrupted fights', () => {
     expect(attackState(s).current).toBeNull();
     expect(attackState(s).scriptedDone).toBe(true);
     expect(settleInterrupted(s, balance, T0, seededRng(1))).toBeNull();
-  });
-});
-
-describe('small helpers', () => {
-  it('countdown text', () => {
-    expect(countdownText(59_100)).toBe('1:00');
-    expect(countdownText(42_000)).toBe('0:42');
-    expect(countdownText(-5)).toBe('0:00');
-  });
-  it('flicker alpha stays in range and varies', () => {
-    const vals = Array.from({ length: 40 }, (_, i) => flickerAlpha(i));
-    expect(Math.min(...vals)).toBeGreaterThanOrEqual(0);
-    expect(Math.max(...vals)).toBeLessThanOrEqual(0.45);
-    expect(new Set(vals.map((v) => v.toFixed(2))).size).toBeGreaterThan(3);
   });
 });
 

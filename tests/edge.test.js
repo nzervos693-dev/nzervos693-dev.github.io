@@ -262,10 +262,13 @@ describe('away report text', () => {
   it('shows the cap notice only when capped, and skips unchanged needs', () => {
     const rep = { elapsedMs: 12 * HOUR, before: { food: 80, water: 80, energy: 100, health: 100, morale: 60 }, after: { food: 44, water: 32, energy: 100, health: 100, morale: 48 }, used: {} };
     const l = reportLines(rep, balance, true);
-    expect(l[0]).toBe('Away for 12 h.');
-    expect(l).toContain('Only the first 12 h counted.');
-    expect(l.some((x) => x.startsWith('Energy'))).toBe(false);
-    expect(reportLines(rep, balance, false)).not.toContain('Only the first 12 h counted.');
+    expect(l).toContain('You slept.');
+    expect(l).toContain('Your mouth is dry.');
+    expect(l).not.toContain('You woke up hungry.'); // food 44 is above the hungry limit
+    expect(l).toContain('Days slipped by. You lost track.');
+    expect(l.join(' ')).not.toMatch(/\d|->/);
+    expect(reportLines(rep, balance, false)).not.toContain('Days slipped by. You lost track.');
+    expect(l.length).toBeLessThanOrEqual(6);
   });
   it('durations', () => {
     expect(formatDuration(59000)).toBe('less than a minute');

@@ -14,68 +14,74 @@ export function formatDuration(ms) {
   return m ? `${h} h ${m} min` : `${h} h`;
 }
 
+/** Clock time "03:10" for an epoch ms (local time). */
+function clockTime(ms) {
+  const d = new Date(ms);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+const REPORT_MAX_LINES = 6;
+const lower = (id, balance) => (balance.items?.[id]?.name || id).toLowerCase();
+
 /**
- * Lines summarising an offline catch-up report.
+ * Plain sentences summarising an offline catch-up report (GDD 5.1): at most 6 lines, no numbers
+ * except item counts and clock times, no icons. Attacks come first, they matter most.
  * @param {object} report from catchUp()
  * @param {object} balance
  * @param {boolean} capped time beyond the offline cap was lost
  * @returns {string[]}
  */
 export function reportLines(report, balance, capped = false) {
-  const lines = [`Away for ${formatDuration(report.elapsedMs)}.`];
-  if (capped) lines.push(`Only the first ${balance.time.offlineCapHours} h counted.`);
-  const names = { food: 'Food', water: 'Water', energy: 'Energy', health: 'Health', morale: 'Morale' };
-  for (const k of ['food', 'water', 'energy', 'health', 'morale']) {
-    const a = Math.round(report.before[k]);
-    const b = Math.round(report.after[k]);
-    if (a !== b) lines.push(`${names[k]}: ${a} -> ${b}`);
-  }
-  for (const [id, qty] of Object.entries(report.used)) {
-    lines.push(`Used ${qty} x ${balance.items?.[id]?.name || id}`);
-  }
-  lines.push(...productionLines(report.production, balance));
+  const lines = [...attackLines(report.attacks, balance)];
   lines.push(...survivorLines(report, balance));
-  lines.push(...attackLines(report.attacks, balance));
-  return lines;
+  const after = report.after || {};
+  if (after.energy != null) lines.push(after.energy < 50 ? 'You slept badly.' : 'You slept.');
+  if (after.food != null && after.food < 40) lines.push('You woke up hungry.');
+  if (after.water != null && after.water < 40) lines.push('Your mouth is dry.');
+  const used = Object.entries(report.used || {}).map(([id, qty]) => `${qty} ${lower(id, balance)}`);
+  if (used.length) lines.push(`You went through your stash: ${used.join(', ')}.`);
+  lines.push(...productionLines(report.production, balance));
+  if (capped) lines.push('Days slipped by. You lost track.');
+  return lines.slice(0, REPORT_MAX_LINES);
 }
 
 const nameOf = (id, balance) => (id === 'active' || id === 'hero' ? 'You' : balance.survivors?.roster?.[id]?.name || id);
 
-/** Lines about survivors while you were away: missed upkeep, deaths and scavenged loot. */
-export function survivorLines(report, balance) {
+/** Lines about survivors while you were away: missed meals, deaths and scavenged loot. */
+function survivorLines(report, balance) {
   const lines = [];
   for (const e of report.survivorEvents || []) {
     const n = nameOf(e.id, balance);
-    if (e.missed?.length) lines.push(Math.round(e.healthLost) > 0 ? `${n} had no ${e.missed.join(' or ')}: -${Math.round(e.healthLost)} health.` : `${n} had no ${e.missed.join(' or ')}.`);
     if (e.died) lines.push(`${n} died.`);
+    else if (e.missed?.length) lines.push(`${n} had no ${e.missed.join(' or ')}.`);
   }
   const found = {};
   for (const e of report.scavenged || []) {
     if (e.stored) found[e.item.id] = (found[e.item.id] || 0) + e.item.qty;
   }
-  const parts = Object.entries(found).map(([id, q]) => `${q} ${(balance.items?.[id]?.name || id).toLowerCase()}`);
-  if (parts.length) lines.push(`Scavenged: ${parts.join(', ')}`);
+  const parts = Object.entries(found).map(([id, q]) => `${q} ${lower(id, balance)}`);
+  if (parts.length) lines.push(`Someone brought back ${parts.join(', ')}.`);
   return lines;
 }
 
-/** Lines for each attack resolved while you were away (GDD 5.8: time, strength vs defense, damage, losses). */
+/**
+ * One or two sentences per attack resolved while you were away. Never strength, defense or HP.
+ * "Around 03:10 something beat on the door for a long time. It held." /
+ * "They got in. Mara is hurt. Lost: 2 canned food."
+ */
 export function attackLines(attacks, balance) {
   const lines = [];
   for (const a of attacks || []) {
-    const when = a.interrupted ? 'Attack you left' : a.missed ? 'Attack while you were out' : `Attack ${formatDuration(a.offsetMs ?? 0)} in`;
-    const vs = `strength ${Math.round(a.strength)} vs defense ${Math.round(a.defense)}`;
-    // the popup fits about 40 characters per line
-    if (`${when}: ${vs}`.length <= 40) lines.push(`${when}: ${vs}`);
-    else lines.push(`${when}:`, vs[0].toUpperCase() + vs.slice(1));
+    const at = a.atMs ? `Around ${clockTime(a.atMs)} something` : 'Something';
     if (a.repelled) {
-      lines.push(`Repelled. Barricade -${Math.round(a.barricadeLoss)} HP.`);
+      lines.push(`${at} beat on the door for a long time. It held.`);
       continue;
     }
-    lines.push('BREACHED! The barricade fell.');
-    if (a.hurt?.length) lines.push(`Hurt: ${a.hurt.map((h) => `${nameOf(h.id, balance)} -${Math.round(h.damage)}`).join(', ')}`);
+    lines.push(`${at} broke through. They got in.`);
+    if (a.hurt?.length) lines.push(`${a.hurt.map((h) => nameOf(h.id, balance)).join(' and ')} ${a.hurt.length > 1 || nameOf(a.hurt[0].id, balance) === 'You' ? 'are' : 'is'} hurt.`);
     if (a.lost?.length) {
-      const names = a.lost.map((l) => (balance.items?.[l.id]?.name || l.id).toLowerCase()).join(', ');
-      lines.push(`Lost ${a.lost.length} stack${a.lost.length > 1 ? 's' : ''}${names.length <= 24 ? `: ${names}` : ''}.`);
+      const names = a.lost.map((l) => `${l.qty} ${lower(l.id, balance)}`).join(', ');
+      lines.push(`Lost: ${names}.`);
     }
   }
   return lines;

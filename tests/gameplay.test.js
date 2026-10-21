@@ -72,7 +72,7 @@ describe('loot', () => {
     const a = rollLoot(p, balance.objects.kitchen_cupboard, tables, balance, seededRng(9));
     const b = rollLoot(p, balance.objects.kitchen_cupboard, tables, balance, seededRng(9));
     expect(a).toEqual(b);
-    expect(a.length).toBeGreaterThan(0);
+    expect(a.length).toBeLessThanOrEqual(balance.scavenge.lootRolls[1]); // 0-2 rolls
   });
 });
 
@@ -80,7 +80,7 @@ describe('salvage', () => {
   it('spec by size, low-energy slowdown, unsearched +search', () => {
     expect(dismantleSpec(balance.objects.table, 100, false, balance)).toEqual({ seconds: 4, energy: 2 });
     expect(dismantleSpec(balance.objects.table, 10, false, balance).seconds).toBe(6);
-    expect(dismantleSpec(balance.objects.fridge, 100, true, balance)).toEqual({ seconds: 10, energy: 5 });
+    expect(dismantleSpec(balance.objects.fridge, 100, true, balance)).toEqual({ seconds: 8 + balance.scavenge.searchSeconds, energy: 5 }); // large + a 3 s search
     expect(energyTimeMult(50, balance)).toBe(1);
   });
   it('noise radius', () => {
@@ -269,7 +269,7 @@ describe('game state and actions', () => {
     const def = balance.objects.wardrobe;
     const pl = { id: 'w' };
     const spec = buildSpec('dismantle', def, 'w', s, balance);
-    expect(spec.seconds).toBe(10);
+    expect(spec.seconds).toBe(8 + balance.scavenge.searchSeconds);
     completeAction(s, spec, pl, def, { balance, tables, rng: seededRng(3), loc: { floor: 14, x: 100 } });
     expect(s.objects.w.searched).toBe(true);
     expect(countItem(s.inventory, 'wood')).toBe(6);
@@ -304,8 +304,8 @@ describe('jammed doors and report', () => {
     const st = { needs: initNeeds(balance), stockpile: createSlots(40) };
     const r = catchUp(st, 3600000, balance);
     const lines = reportLines(r, balance, true);
-    expect(lines[0]).toBe('Away for 1 h.');
-    expect(lines.some((l) => l.startsWith('Food: 80 -> 77'))).toBe(true);
+    expect(lines).toContain('You slept.');
+    expect(lines.join(' ')).not.toMatch(/\d|->/); // prose: no need numbers
   });
 });
 

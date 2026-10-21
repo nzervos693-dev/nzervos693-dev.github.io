@@ -6,7 +6,7 @@
  * save clock; the title, intro, tutorial, fights, crafting, dialogue, Crew screen and pass the torch are real taps.
  *
  * Flow: new game -> intro (card, then Skip) -> tutorial (walk, fridge, chair, table, drawer, workbench ->
- * Barricade Lv1, door -> crawler killed) -> scripted attack online (warning banner, repelled) -> 9 h offline with a
+ * Barricade Lv1, door -> crawler killed) -> scripted attack online (diegetic cue, repelled) -> 9 h offline with a
  * breach and the away report -> Mara: talk, fetch the bag from 14, hand it over (no bed yet), build a Survivor bed,
  * she moves in; Guard job, talk, Steady hands -> 9 h offline again, repelled thanks to the Guard ->
  * hero dies -> pass the torch -> Mara dies -> game over -> New game -> intro -> skip tutorial -> Continue / New game
@@ -263,26 +263,23 @@ try {
   await g(page, () => {
     const s = window.__floor15;
     window.__ev = [];
-    for (const e of ['attack-warning', 'attack-start', 'attack-end', 'barricade-broken']) s.bus.on(e, (p) => window.__ev.push([e, p]));
-    s.balance.attacks.warningSeconds = 5;
+    for (const e of ['attack-cue', 'attack-stairwell', 'attack-start', 'attack-end', 'barricade-broken']) s.bus.on(e, (p) => window.__ev.push([e, p]));
+    s.balance.attacks.cueSeconds = 5;
+    s.balance.attacks.cue = { groanAtSeconds: 5, stairwellAtSeconds: 3, flickerFromSeconds: 3, stairwellAudibleFloors: 2 };
     s.balance.attacks.tuning = { spawnGapSeconds: 1.5 };
     s.state.build.barricade.hp = 1e6; // deterministic: the test's tap speed must not decide whether it holds
     s.state.needs.morale = 50;
     s.debugGoto(15, 250);
     s.state.attacks.nextAt = Date.now() + 7000;
   });
-  check(await until(page, () => window.__floor15.attacks.phase === 'warning', null, 6000), 'warning phase starts before the attack');
-  await sleep(400);
-  const warn = await g(page, () => {
-    const s = window.__floor15;
-    return { bg: s.attacks.bg.visible, text: s.attacks.text.text, alphas: null, tint: s.attacks.tint.alpha };
-  });
-  check(warn.bg && /^ATTACK IN \d:\d\d/.test(warn.text), `red countdown banner shows ("${warn.text}")`);
-  const alphas = new Set();
-  for (let i = 0; i < 12; i++) { alphas.add((await g(page, () => window.__floor15.attacks.tint.alpha)).toFixed(2)); await sleep(60); }
-  check(alphas.size > 1, `the lights flicker (${alphas.size} different tints)`);
+  check(await until(page, () => window.__floor15.attacks.phase === 'cue', null, 6000), 'the cue phase starts before the attack');
+  const noUi = await g(page, () => { const a = window.__floor15.attacks; return { banner: !!(a.bg || a.text || a.tint) }; });
+  check(!noUi.banner, 'there is no banner, countdown or tint object any more');
+  const dips = new Set();
+  for (let i = 0; i < 30; i++) { dips.add((await g(page, () => window.__floor15.view.landingShade.alpha)).toFixed(2)); await sleep(60); }
+  check(dips.size > 1, `the landing light flickers (${dips.size} different dips)`);
   await page.screenshot({ path: `${shots}/e2e-attack-warning-360x800.png` });
-  check(await until(page, () => window.__floor15.attacks.phase === 'fight', null, 8000), 'attackers arrive after the warning');
+  check(await until(page, () => window.__floor15.attacks.phase === 'fight', null, 8000), 'attackers arrive after the cue');
   check(await g(page, () => window.__floor15.state.attacks.current?.total === Object.values(window.__floor15.balance.attacks.scripted.zombies).reduce((a, b) => a + b, 0)), 'scripted attack has the attackers from balance.attacks.scripted');
   await sleep(2500);
   await page.screenshot({ path: `${shots}/e2e-attack-fight-360x800.png` });
@@ -292,7 +289,7 @@ try {
     const s = window.__floor15;
     return { ev: window.__ev.map((e) => e[0]), end: window.__ev.find((e) => e[0] === 'attack-end')?.[1], a: s.state.attacks, morale: s.state.needs.morale, now: Date.now(), left: Object.keys(s.state.zombies).filter((k) => k.startsWith('attack:')).length };
   });
-  check(res.ev.includes('attack-warning') && res.ev.includes('attack-start') && res.ev.includes('attack-end'), 'warning, start and end events fired');
+  check(res.ev.includes('attack-cue') && res.ev.includes('attack-stairwell') && res.ev.includes('attack-start') && res.ev.includes('attack-end'), 'cue, stairwell, start and end events fired');
   check(res.end?.kind === 'scripted' && res.end.repelled === true, 'the scripted attack was repelled');
   check(res.a.scriptedDone && res.a.current === null && res.a.kind === 'scheduled', 'scripted attack resolved; a scheduled one follows');
   const h = (res.a.nextAt - res.now) / HOUR;
@@ -308,9 +305,9 @@ try {
   });
   check(Array.isArray(away.lines) && away.lines[0] === 'While you were away', 'away report popup opens');
   const awayText = (away.lines || []).join(' | ');
-  check(/Attack 2 h in: \| ?Strength 25 vs defense 20|Attack 2 h in: strength 25 vs defense 20/.test(awayText), `report lists the attack (${awayText})`);
-  check((away.lines || []).every((l) => l.length <= 42), 'report lines fit the popup');
-  check(away.lines?.some((l) => l.startsWith('BREACHED')) && away.lines?.some((l) => l.startsWith('Hurt: You')), 'report says breached and who was hurt');
+  check(/Around \d\d:\d\d something broke through/.test(awayText), `report describes the attack in prose (${awayText})`);
+  check(!/strength|defense|HP|->/i.test(awayText), 'report has no strength, defense or HP numbers');
+  check(away.lines?.some((l) => l.includes('They got in.')) && away.lines?.some((l) => l === 'You are hurt.'), 'report says they got in and who was hurt');
   check(away.hp === 0, 'the barricade fell');
   check(away.health >= 10, `health floor holds (${Math.round(away.health)})`);
   check(away.a.nextAt > Date.now() - HOUR, 'next attack was scheduled after the offline one');
@@ -320,9 +317,7 @@ try {
 
   // ------------------------------------------------------------ Mara: talk, bag, no bed, bed, moves in
   await goto(page, 13, 200);
-  await killZ(page, 'f13_left#0');
-  await killZ(page, 'f13_right#0');
-  await killZ(page, 'f13_right#1');
+  for (const id of ['f13_left#0', 'f13_left#1', 'f13_right#0', 'f13_right#1', 'f13_right#2']) await killZ(page, id); // all of floor 13 (level data may add more)
   await g(page, () => { const s = window.__floor15; s.state.doors.f13_left.state = 'open'; s.view.refresh(); });
   const l13 = await lineY(page, 13);
   const marax = await g(page, () => window.__floor15.tower.floors.get(13).apartments[0].survivors[0].x);
@@ -380,7 +375,7 @@ try {
     const sizes = Object.entries(p.buttons).map(([k, b]) => [k, b.size.w, b.size.h]);
     return { texts, sizes, jobs: Object.keys(p.buttons) };
   });
-  check(crew.texts.some((x) => x.startsWith('Steady hands: bandages heal +50%')), 'Crew screen shows Mara\'s trait');
+  check(crew.texts.some((x) => x === 'Steady hands: bandages go further'), 'Crew screen shows Mara\'s trait');
   check(crew.jobs.includes('treat') && crew.jobs.includes('talk'), 'Treat button is there');
   check(crew.jobs.includes('job:guard') && crew.jobs.includes('job:scavenger') && crew.jobs.includes('job:tender') && crew.jobs.includes('talk'), 'job picker (Guard / Scavenger / Tender) and Talk are there');
   check(crew.sizes.every(([, w, h]) => w >= 96 && h >= 96), 'every Crew button is at least 96 px');
@@ -401,7 +396,7 @@ try {
   await tapFixed(page, p.x, p.y);
   check(await g(page, () => !window.__floor15.crewPanel.isOpen), 'Close closes the Crew screen');
   const bandage = await g(page, () => { const s = window.__floor15; return s.describeItem({ id: 'bandage', qty: 1 }, 'bag').effect; });
-  check(bandage.includes('+22 health'), `Steady hands: bandage shows ${bandage}`);
+  check(!/\d/.test(bandage), `the bandage is described in words ("${bandage}")`);
 
   // ------------------------------------------------------------ offline again: the Guard helps, repelled
   await g(page, () => { const s = window.__floor15; s.state.build.barricade.hp = s.balance.barricade.levels[0].hp; s.state.needs.food = 100; s.state.needs.water = 100; s.state.survivors.mara.upkeepAt = Date.now() + 20 * 3600 * 1000; });
@@ -410,8 +405,7 @@ try {
     const s = window.__floor15;
     return { hp: s.state.build.barricade.hp, lines: s.popup.isOpen ? s.popup.c.list.filter((o) => o.type === 'Text').map((o) => o.text) : null, mara: s.state.survivors.mara.health };
   });
-  check(/trength 25 vs defense 35/.test((away2.lines || []).join(' | ')), `Guard raises defense to 35 (${(away2.lines || []).join(' | ')})`);
-  check(away2.lines?.some((l) => l.startsWith('Repelled. Barricade -')) && away2.hp > 0 && away2.mara === 100, `attack repelled, barricade ${Math.round(away2.hp)} HP, Mara unhurt`);
+  check(away2.lines?.some((l) => /It held\.$/.test(l)) && away2.hp > 0 && away2.mara === 100, `attack repelled with the Guard, barricade ${Math.round(away2.hp)} HP, Mara unhurt`);
   await g(page, () => window.__floor15.popup.close());
   await revealAll(page);
 
@@ -443,7 +437,7 @@ try {
   check(await g(page, () => { const n = window.__floor15.state.needs; const b = window.__floor15.balance.needs; return n.food >= b.food.start - 1 && n.water >= b.water.start - 1 && n.energy >= b.energy.start - 1; }), 'Mara starts with fresh food, water and energy');
   check(t2.bodies === 1 && t2.bodySprites === 1 && t2.bag === 0 && t2.pile, 'the hero\'s body stays and his bag dropped as a pile');
   check(!t2.over && t2.crew === 0 && t2.job === null && t2.guards === 0, 'game continues; she no longer stands at home or counts as a guard');
-  check(t2.bandage.includes('+22 health'), 'Steady hands still works for Mara herself');
+  check(t2.bandage === 'Patches you up.', 'bandage still described in words as Mara (Steady hands maths is unit tested)');
   await page.screenshot({ path: `${shots}/e2e-as-mara-360x800.png` });
   // she can walk: tap the floor
   await tapWorld(page, 320, lineH + 24);

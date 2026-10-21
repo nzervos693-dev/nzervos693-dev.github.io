@@ -41,13 +41,12 @@ function occupied(tower, state, apt, kind, x) {
 }
 
 /**
- * Build spots of the home floor.
+ * Build spots of the home floor (M1 layout: every spot listed in floors.json; balance.home no longer caps them).
  * @param {object|null} [state] with a state only spots usable right now are returned; without, every spot
  * @returns {{key:string, kind:'window'|'floor', spot:string, floor:number, x:number, apt:string}[]}
  */
 export function homeSpots(tower, balance, state = null) {
   const out = [];
-  const caps = { window: balance.home.windowSpots, floor: balance.home.floorSpots };
   for (const apt of homeCandidates(tower)) {
     const bs = apt.buildSpots;
     if (!bs) continue;
@@ -59,10 +58,5 @@ export function homeSpots(tower, balance, state = null) {
       }
     }
   }
-  // caps (balance.home.*Spots) apply to the designed list, not to what is currently usable
-  const all = state ? homeSpots(tower, balance) : out;
-  const allowed = new Set();
-  const seen = { window: 0, floor: 0 };
-  for (const s of all) if (seen[s.kind]++ < caps[s.kind]) allowed.add(s.key);
-  return out.filter((s) => allowed.has(s.key));
+  return out;
 }

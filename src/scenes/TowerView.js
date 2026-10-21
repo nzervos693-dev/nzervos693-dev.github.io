@@ -1,23 +1,24 @@
 /**
  * Side cutaway of the tower: backgrounds, doors, props, debris, piles, dark rooms.
+ * No highlights: nothing pulses, glows or carries a marker (GDD 9); the barricade shows damage by sprite stage only.
  * Renders from floors.json (via the tower index) and the game state; owns tap hit-testing.
  */
 import Phaser from 'phaser';
-import { frameOf, propSprite } from './art.js';
+import { frameOf, hasFrame, hasSheet, propSprite } from './art.js';
 import {
   ART_SCALE, FLOOR_LINE, WALL_LIFT, floorTopY, floorLineY, floorAtY, roomKey, worldHeight,
 } from '../gameplay/layout.js';
 import { homeSpots } from '../gameplay/buildSpots.js';
-import { barricadeMaxHp } from '../gameplay/barricade.js';
+import { barricadeMaxHp, barricadeStage } from '../gameplay/barricade.js';
 import { isProducerRecipe } from '../gameplay/producers.js';
 import { residentsAtHome, survivorHomeSpot } from '../gameplay/survivors.js';
-import { COLORS, CSS, FONT } from './ui.js';
+import { COLORS, CSS, FONT, uiConfig, hex } from './ui.js';
 
 const ROOM_BG = { kitchen: 'wall_tile', bathroom: 'wall_tile', living: 'wall_wallpaper', bedroom: 'wall_wallpaper' };
 const FIXTURE_FRAME = { bed: 'hero_bed', workbench: 'workbench' };
 /** Door tap half-width: 96 px minimum hit area (balance.controls.minHitAreaPx / 2). */
 const DOOR_HALF_W = 48;
-const D = { bg: 0, debris: 5, wall: 9, prop: 10, pile: 12, hero: 20, marker: 30, dark: 50 };
+const D = { bg: 0, debris: 5, wall: 9, prop: 10, pile: 12, hero: 20, marker: 30, landing: 40, dark: 50 };
 
 export default class TowerView {
   /**
@@ -36,10 +37,9 @@ export default class TowerView {
     this.roomItems = new Map(); // roomKey -> display objects hidden until entered
     this.doorSprites = new Map(); // aptId -> image
     this.pileSprites = new Map(); // pile id -> container
-    this.floorLabels = new Map(); // floor -> status text
-    this.pulsing = [];
     this.built = new Map(); // spot key -> { img, badge, x }
-    this.barricade = null; // { img, text }
+    this.barricade = null; // { img, key }
+    this.landingShade = null; // dark overlay on the home landing for the attack cue flicker
     this.crew = new Map(); // recruited survivor id -> sprite at home
     this.bodies = []; // sprites of dead characters
     this.build();
@@ -58,8 +58,11 @@ export default class TowerView {
           .setCrop(x0 / s, 0, (x1 - x0) / s, 80).setDepth(D.bg);
       crop('wall_concrete', 0, tower.stairwell.xMax);
       scene.add.image(0, top, 'stairwell', 0).setOrigin(0).setScale(s).setDepth(D.bg + 1);
-      scene.add.text(14, top + 20, `${n}`, { fontFamily: FONT, fontSize: '28px', color: CSS.amber }).setDepth(D.bg + 2);
-      this.floorLabels.set(n, scene.add.text(14, top + 58, '', { fontFamily: FONT, fontSize: '15px', color: CSS.red, stroke: '#0d0f12', strokeThickness: 3 }).setDepth(D.bg + 2));
+      this.paintFloorNumber(n, top);
+      if (n === tower.homeFloor) {
+        this.landingShade = scene.add.rectangle(0, top, tower.stairwell.xMax, tower.floorHeight, 0x000000, 1)
+          .setOrigin(0).setDepth(D.landing).setAlpha(0);
+      }
       for (const apt of f.apartments) {
         for (const room of apt.rooms) {
           crop(ROOM_BG[room.kind] || 'wall_concrete', room.xMin, room.xMax);
@@ -76,13 +79,31 @@ export default class TowerView {
             .setOrigin(0.5, 1).setScale(s).setDepth(fx.layer === 'wall' ? D.wall : D.prop);
           const cy = fx.layer === 'wall' ? line - WALL_LIFT - 16 * s : line - 16 * s;
           this.sprites.set(`fixture:${fx.kind}`, { img, cx: fx.x, cy, halfW: 48, floor: n, fixture: fx });
-          this.pulsing.push(img);
         }
         for (const o of apt.objects || []) this.addObject(apt, o, n, line);
         for (const q of apt.questItems || []) this.addQuestItem(apt, q, n, line);
         for (const sv of apt.survivors || []) this.addSurvivor(apt, sv, n, line);
       }
     }
+  }
+
+  /**
+   * The floor number painted on the stairwell wall like a stencil: stencil_digits at alpha 0.6, 48 px high
+   * (balance.ui.floorNumber); muted text if the sheet is missing.
+   */
+  paintFloorNumber(n, top) {
+    const { scene } = this;
+    const cfg = uiConfig().floorNumber;
+    const chars = String(n).split('');
+    if (hasSheet('stencil_digits') && chars.every((c) => hasFrame('stencil_digits', c))) {
+      const scale = cfg.heightPx / 16;
+      chars.forEach((c, i) => {
+        scene.add.image(18 + i * (10 * scale + 3), top + 20, 'stencil_digits', frameOf('stencil_digits', c))
+          .setOrigin(0).setScale(scale).setAlpha(cfg.alpha).setDepth(D.bg + 2);
+      });
+      return;
+    }
+    scene.add.text(14, top + 20, `${n}`, { fontFamily: FONT, fontSize: `${cfg.heightPx}px`, color: cfg.color }).setAlpha(cfg.alpha).setDepth(D.bg + 2);
   }
 
   roomOfPlacement(apt, p) {
@@ -101,13 +122,10 @@ export default class TowerView {
     const debris = this.scene.add.image(o.x, line, def.size === 'small' ? 'props_s' : 'props_l',
       frameOf(def.size === 'small' ? 'props_s' : 'props_l', 'debris'))
       .setOrigin(0.5, 1).setScale(ART_SCALE).setDepth(D.debris).setVisible(false);
-    const marker = this.scene.add.circle(o.x + px / 2 - 6, bottom - px + 6, 7, COLORS.amber).setStrokeStyle(2, COLORS.ink)
-      .setDepth(D.marker).setVisible(false);
     const key = this.roomOfPlacement(apt, o);
     const cy = wall ? line - WALL_LIFT - px / 2 : line - 48;
-    this.sprites.set(o.id, { img, debris, marker, roomKey: key, cx: o.x, cy, halfW: 48, floor, placement: o, def });
-    this.roomItems.get(key)?.push(img, debris, marker);
-    this.pulsing.push(img);
+    this.sprites.set(o.id, { img, debris, roomKey: key, cx: o.x, cy, halfW: 48, floor, placement: o, def });
+    this.roomItems.get(key)?.push(img, debris);
   }
 
   addQuestItem(apt, q, floor, line) {
@@ -115,7 +133,6 @@ export default class TowerView {
     const key = this.roomOfPlacement(apt, q);
     this.sprites.set(q.id, { img, roomKey: key, cx: q.x, cy: line - 48, halfW: 48, floor, placement: q, quest: true });
     this.roomItems.get(key)?.push(img);
-    this.pulsing.push(img);
   }
 
   addSurvivor(apt, sv, floor, line) {
@@ -149,13 +166,11 @@ export default class TowerView {
       const gone = !!(sp.survivor ? state.survivors[sp.survivor.id]?.recruited : sp.quest ? os.taken : os.dismantled);
       sp.img.setVisible(entered && !gone);
       sp.debris?.setVisible(entered && !!os.dismantled);
-      sp.marker?.setVisible(entered && !gone && !!os.leftover?.length);
     }
     for (const apt of tower.apartments.values()) {
       this.doorSprites.get(apt.id)?.setFrame(frameOf('door', state.doors[apt.id]?.state === 'jammed' ? 'closed' : 'open'));
     }
     this.refreshPiles();
-    this.refreshFloorLabels();
     this.refreshBuilt();
     this.refreshCrew();
     this.refreshBodies();
@@ -197,8 +212,6 @@ export default class TowerView {
     const spots = state.build.spots;
     for (const [key, e] of this.built) {
       if (spots[key]) continue;
-      const pi = this.pulsing.indexOf(e.img);
-      if (pi >= 0) this.pulsing.splice(pi, 1);
       e.img.destroy();
       e.badge.destroy();
       this.built.delete(key);
@@ -221,7 +234,6 @@ export default class TowerView {
         }).setOrigin(0.5).setDepth(D.marker).setVisible(false);
         e = { img, badge, x: sp.x, floor: sp.floor, wall };
         this.built.set(key, e);
-        this.pulsing.push(img);
       }
       const text = this.badgeText(p);
       if (e.badge.text !== text) e.badge.setText(text).setVisible(text !== '');
@@ -229,43 +241,44 @@ export default class TowerView {
     this.refreshBarricade();
   }
 
-  /** Short status shown on a producer: stored/max, filter queue, water warning. */
+  /** Short status shown on a producer in words (no counts): "ready", "needs water". */
   badgeText(p) {
     const recipe = this.balance.recipes[p.id];
     if (!isProducerRecipe(recipe)) return '';
-    const e = recipe.effect;
-    const parts = [];
-    if (p.stored > 0) parts.push(`${p.stored}/${e.maxStored}`);
-    if (e.type === 'converter' && p.queue > 0) parts.push(`in ${p.queue}`);
-    if (p.waiting) parts.push('water?');
-    return parts.join(' ');
+    if (p.waiting) return 'needs water';
+    return p.stored > 0 ? 'ready' : '';
   }
 
-  /** Barricade sprite: built level, damaged frame under 50% HP, faded when broken. */
+  /**
+   * Barricade sprite from the 5 damage stages (barricade_stages sheet, `lv<level>_stage_<0-4>`); without that
+   * sheet it falls back to build / build_damaged. No HP label, ever.
+   */
   refreshBarricade() {
     const { scene, state, tower, balance } = this;
     const b = state.build.barricade;
     if (!b || b.level <= 0) {
-      if (this.barricade) { this.barricade.img.setVisible(false); this.barricade.text.setVisible(false); }
+      if (this.barricade) this.barricade.img.setVisible(false);
       return;
     }
     if (!this.barricade) {
       const line = floorLineY(tower, tower.homeFloor);
       const img = scene.add.image(tower.barricadeX, line, 'build', 0).setOrigin(0.5, 1).setScale(ART_SCALE).setDepth(D.prop + 1);
-      const text = scene.add.text(tower.barricadeX, line - 100, '', {
-        fontFamily: FONT, fontSize: '18px', color: CSS.text, stroke: '#0d0f12', strokeThickness: 4,
-      }).setOrigin(0.5, 1).setDepth(D.marker);
-      this.barricade = { img, text, key: '' };
+      this.barricade = { img, key: '' };
     }
     const max = barricadeMaxHp(state, balance);
-    const damaged = b.hp < max * 0.5;
-    const name = `barricade_lv${b.level}`;
-    const sheet = damaged ? 'build_damaged' : 'build';
-    const frame = frameOf(sheet, damaged ? `${name}_damaged` : name);
+    const stage = barricadeStage(b.hp, max, balance);
+    let sheet;
+    let frame;
+    const staged = `lv${b.level}_stage_${stage}`;
+    if (hasFrame('barricade_stages', staged)) { sheet = 'barricade_stages'; frame = frameOf(sheet, staged); } else {
+      const damaged = stage >= 2;
+      const name = `barricade_lv${b.level}`;
+      sheet = damaged ? 'build_damaged' : 'build';
+      frame = frameOf(sheet, damaged ? `${name}_damaged` : name);
+    }
     const k = `${sheet}:${frame}`;
     if (this.barricade.key !== k) { this.barricade.key = k; this.barricade.img.setTexture(sheet, frame); }
-    this.barricade.img.setVisible(true).setAlpha(b.hp > 0 ? 1 : 0.5);
-    this.barricade.text.setVisible(true).setText(b.hp > 0 ? `${Math.ceil(b.hp)}/${max}` : 'BROKEN');
+    this.barricade.img.setVisible(true).setAlpha(sheet === 'barricade_stages' || b.hp > 0 ? 1 : 0.5);
   }
 
   /** Shake the barricade when a zombie hits it. */
@@ -275,17 +288,6 @@ export default class TowerView {
     e.shaking = true;
     const x0 = this.tower.barricadeX;
     this.scene.tweens.add({ targets: e.img, x: x0 + 4, yoyo: true, duration: 50, repeat: 1, onComplete: () => { e.img.setX(x0); e.shaking = false; } });
-  }
-
-  /** Floor state under the floor number: INFESTED (red), CLEARED (green), SECURED (amber). */
-  refreshFloorLabels() {
-    for (const [n, t] of this.floorLabels) {
-      const st = this.state.floorStates[n] || 'Infested';
-      const text = st.toUpperCase();
-      if (t.text !== text) t.setText(text);
-      const color = st === 'Infested' ? CSS.red : st === 'Secured' ? CSS.amber : '#7fbf7f';
-      if (t.style.color !== color) t.setColor(color);
-    }
   }
 
   /**
@@ -337,20 +339,8 @@ export default class TowerView {
     this.refresh();
   }
 
-  /** Subtle amber pulse on tappable things. Call a few times per second. */
-  update(time) {
-    const p = 0.5 + 0.5 * Math.sin(time / 600);
-    const g = Math.round(255 - 36 * p);
-    const b = Math.round(255 - 110 * p);
-    const tint = (255 << 16) | (g << 8) | b;
-    const cam = this.scene.cameras.main;
-    const y0 = cam.scrollY - 100;
-    const y1 = cam.scrollY + cam.height + 100;
-    for (const img of this.pulsing) {
-      if (!img.visible || img.y < y0 || img.y - img.displayHeight > y1) continue;
-      img.setTint(tint);
-    }
-  }
+  /** Dim the home landing for the attack cue flicker (0 = steady light, up to ~0.6 = a dip). */
+  setLandingDip(alpha) { this.landingShade?.setAlpha(alpha); }
 
   /** Centre y of a floor line (helper for UI placement). */
   lineY(floor) { return floorLineY(this.tower, floor); }

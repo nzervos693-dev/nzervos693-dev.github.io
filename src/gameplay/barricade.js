@@ -42,6 +42,26 @@ export function buildBarricade(state, balance, level) {
   return b;
 }
 
+/** What a zombie bite does to a barricade: its damage x zombies.barricadeDamageMult (0.4). */
+export const barricadeDamage = (zombieDamage, balance) => zombieDamage * (balance.zombies.barricadeDamageMult ?? 1);
+
+/**
+ * Damage stage 0 (intact) to 4 (broken) from the HP ratio, using balance.barricade.visualStages
+ * [0.75, 0.5, 0.25, 0]: stage 0 at or above 0.75, then 1, 2, 3 while HP is above the next limit, 4 at 0 HP.
+ */
+export function barricadeStage(hp, maxHp, balance) {
+  if (!(hp > 0) || !(maxHp > 0)) return 4;
+  const ratio = hp / maxHp;
+  const limits = balance.barricade.visualStages || [0.75, 0.5, 0.25, 0];
+  for (let i = 0; i < limits.length - 1; i++) if (ratio >= limits[i]) return i;
+  return limits.length - 1;
+}
+
+/**
+ * Short plain words for the barricade's condition (no HP numbers).
+ */
+export const BARRICADE_WORDS = ['It looks solid.', 'A plank is cracked.', 'Boards are hanging loose.', 'It is barely holding.', 'It is broken.'];
+
 /**
  * Zombie damage to the barricade.
  * @returns {{hp:number, broken:boolean}} broken = it just reached 0
@@ -70,7 +90,7 @@ export function barricadeBlock(state, balance, level) {
 export function repairBlock(state, balance) {
   const b = state.build?.barricade;
   if (!b || b.level <= 0) return 'No barricade to repair';
-  if (b.hp >= barricadeMaxHp(state, balance)) return 'Barricade is at full HP';
+  if (b.hp >= barricadeMaxHp(state, balance)) return 'Barricade is holding';
   return null;
 }
 

@@ -15,7 +15,7 @@ const tower = buildTower(floorsData, balance);
 const tune = zombieTuning(balance);
 const env = (state, over = {}) => ({
   tower, doors: state.doors, heroFloor: 14, heroX: 200, heroRoom: null, types: balance.zombies.types,
-  aggroRadius: balance.zombies.aggroRadius, attackRange: balance.zombies.attackRange, tune,
+  sightRadius: balance.zombies.sight.frontPx, attackRange: balance.zombies.attackRange, tune,
   rng: () => 0.5, bounds: { min: 0, max: 0 }, ...over,
 });
 
@@ -33,11 +33,11 @@ describe('QA piece 2: edges', () => {
     expect(hit(r + 0.5)).toBe(false);
   });
 
-  it('sight radius is inclusive at exactly 200 px', () => {
+  it('sight radius is inclusive at exactly 180 px', () => {
     const s = createGameState(balance, tower, 0);
     const z = makeZombie('t', 'crawler', 14, 340, balance);
-    const near = stepZombie(z, makeAi(), env(s, { heroX: 340 - 200 }), 0.016);
-    const far = stepZombie(z, makeAi(), env(s, { heroX: 340 - 200.5 }), 0.016);
+    const near = stepZombie(z, makeAi(-1), env(s, { heroX: 340 - balance.zombies.sight.frontPx }), 0.016);
+    const far = stepZombie(z, makeAi(-1), env(s, { heroX: 340 - balance.zombies.sight.frontPx - 0.5 }), 0.016);
     expect(near & STEP_AGGRO).toBeTruthy();
     expect(far & STEP_AGGRO).toBeFalsy();
   });

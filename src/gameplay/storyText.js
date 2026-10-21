@@ -41,3 +41,6 @@ export const DIALOGUE = {
 
 /** Pass the torch card. */
 export const torchLine = (name) => `You carry on as ${name}.`;
+
+/** Lines for a container that turned out empty (GDD 5.5). */
+export const EMPTY_LINES = ['Nothing.', 'Nothing.', 'Someone got here first.', 'Just mouse droppings.'];

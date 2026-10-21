@@ -12,7 +12,7 @@ export const SPOILING_ITEMS = ['planter_crop'];
  * Pick the stockpile item to auto-use for a need ('food' | 'water'):
  * spoiling first, then smallest restore, clean water before dirty.
  * Comfort items (morale bonus, e.g. chocolate) are saved for the player unless
- * nothing else is left and the need is critical (below onlinePromptThreshold).
+ * nothing else is left and the need is critical (below lastResortThreshold).
  * @param {number} [current] current value of the need (enables the comfort fallback)
  * @returns {string|null} item id
  */
@@ -37,7 +37,7 @@ export function pickAutoUseItem(stockpile, need, balance, current) {
   };
   const normal = gather(false);
   if (normal) return normal;
-  const critical = current != null && current < balance.needs.onlinePromptThreshold;
+  const critical = current != null && current < balance.needs.lastResortThreshold;
   return critical ? gather(true) : null;
 }
 
