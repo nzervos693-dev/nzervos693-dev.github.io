@@ -20,16 +20,17 @@
 
 ## Milestone 2 – "The tower breathes" (atmosphere + tower rework, from M1 playtest)
 Delivered in playable stages; work lives on the dev branch until each stage is playable, then merges to main.
-- [ ] Record CD answers in GDD: double-tap run, silhouettes in unexplored rooms, staged delivery (game-designer)
+- [x] Record CD answers in GDD: double-tap run, silhouettes in unexplored rooms, staged delivery (game-designer)
 ### Stage 1 – Mood, UI, sound, attack cue
-- [ ] Darker desaturated art pass, moodle icons, 5-stage barricade damage, light-pool sprites (art-generator)
-- [ ] Quiet creepy soundscape: wind/creaks, distant groans, stairwell banging, sparse music; remove UI blips (audio-designer)
-- [ ] Moodles replace bars/numbers; no floating text or HP labels; diegetic 15 s attack cue; zombie rebalance + stealth hits; scarcer loot; double-tap run; balance v2 keys (gameplay-programmer)
-- [ ] Review + QA, merge to main, CD playtest
+- [x] Darker desaturated art pass, moodle icons, 5-stage barricade damage, light-pool sprites (art-generator)
+- [x] Quiet creepy soundscape: wind/creaks, distant groans, stairwell banging, sparse music; remove UI blips (audio-designer)
+- [x] Moodles replace bars/numbers; no floating text or HP labels; diegetic 15 s attack cue; zombie rebalance + stealth hits; scarcer loot; double-tap run; balance v2 keys (gameplay-programmer)
+- [x] Review + QA, merge to main
+- [ ] CD playtest of stage 1
 ### Stage 2 – Wide floors + horizontal camera
 - [ ] Engine/camera for 3120 px floors, axis-locked drag (engine-programmer + gameplay-programmer)
 ### Stage 3 – Random apartments + claiming homes
-- [ ] templates.json, room types, new objects, loot tables (level-designer)
+- [x] templates.json, room types, new objects, loot tables (level-designer)
 - [ ] Seeded generator, save v2, claim any cleared unit, per-home barricade, attacks target main home (gameplay-programmer)
 ### Stage 4 – Lighting + polish
 - [ ] Room lighting, oil lamp, silhouettes, notes/flavour text, arrow-free tutorial
