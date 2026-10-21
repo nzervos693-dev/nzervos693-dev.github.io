@@ -1,6 +1,25 @@
 {
   "version": 2,
   "milestone": "M2",
+  "_deprecatedSideViewKeys": [
+    "world.floorWidthPx", "world.floorHeightPx", "world.wingWidthPx", "world.stairwellWidthPx",
+    "world.moduleWidthPx", "world.modulesPerWing", "world.slotOffsetsPx", "world.doorwayClearancePx",
+    "controls.cameraDeadzoneXPx", "controls.cameraEdgePadPx",
+    "hero.walkSpeed", "hero.runSpeed", "hero.runNoiseRadiusPx",
+    "zombies.sightRadiusPx", "zombies.dimSightRadiusPx", "zombies.darkSightRadiusPx",
+    "zombies.sight.frontPx", "zombies.sight.dimFrontPx", "zombies.sight.darkFrontPx",
+    "zombies.sight.behindWalkPx", "zombies.sight.behindRunPx", "zombies.attackRange",
+    "zombies.tuning.wanderRadiusPx", "zombies.tuning.loseTrackDistancePx", "zombies.tuning.groupSpacingPx",
+    "zombies.tuning.wanderSpawnMinHeroDistancePx", "zombies.types.*.speed", "combat.weapons.*.rangePx",
+    "light.dimVisionPx", "light.darkSilhouetteRangePx", "light.lampRadiusPx",
+    "light.darkOverlayAlpha", "light.dimOverlayAlpha", "light.greyOverlayAlpha", "light.litOverlayAlpha",
+    "salvage.noiseRadius", "throw.rangePx", "molotov.widthPx", "audio.zombieHearRadiusPx",
+    "moodles.panic.aggroedWithinPx", "attacks.cue.bangFalloff.nearPx", "attacks.cue.bangFalloff.farPx",
+    "attacks.tuning.arrivalXRange", "tutorial.doorTriggerPx",
+    "generator.zombiesPerWingByDistance", "generator.zombieNoSpawnModulesFromFrontDoor",
+    "generator.pairMinDistanceFromEntrancePx", "generator.guarantees.minFlatWingsPerFloor",
+    "home.startWing", "inventory.stockpileSlots", "inventory.shelfSlots"
+  ],
   "time": {
     "tickSeconds": 1,
     "offlineCapHours": 12,
@@ -17,12 +36,31 @@
     "runDoubleTapMaxDistancePx": 48,
     "buttonSizePx": 96,
     "minHitAreaPx": 96,
-    "attackBuffer": 1
+    "attackBuffer": 1,
+    "cameraEdgePadPx": 48,
+    "lookHoldSeconds": 0.4,
+    "lookTurnDegreesPerSecond": 720,
+    "walkTurnDegreesPerSecond": 540,
+    "heroTapTurnSeconds": 0.2,
+    "tapSnapRadiusPx": 96,
+    "tapSnapWalkTiles": 1.5,
+    "cameraDeadzonePx": [160, 240],
+    "cameraLookAheadPx": 120,
+    "cameraIsoEdgePadPx": 96,
+    "floorFadeSeconds": 0.3,
+    "zoom": { "default": 1, "min": 1, "max": 1 }
+  },
+  "tutorial": {
+    "doorTriggerPx": 60,
+    "doorTriggerTiles": 1.5
   },
   "hero": {
     "walkSpeed": 100,
     "runSpeed": 170,
     "runNoiseRadiusPx": 250,
+    "walkTilesPerSecond": 2.0,
+    "runTilesPerSecond": 3.4,
+    "runNoiseRadiusTiles": 5,
     "runEnergyPerSecond": 0.2,
     "runMinEnergy": 5,
     "stairSecondsPerFloor": 1.4
@@ -43,8 +81,109 @@
     "jammedDoorHits": 3,
     "jammedDoorCrowbarSeconds": 1
   },
+  "iso": {
+    "tileWidthPx": 96,
+    "tileHeightPx": 48,
+    "artScale": 3,
+    "wallHeightPx": 120,
+    "wallStubHeightPx": 36,
+    "cutawayFadeSeconds": 0.2,
+    "occluderFadeAlpha": 0.3,
+    "characterSpritePx": [48, 96],
+    "bodyRaisePx": 40,
+    "footprints": {
+      "table": [1, 2], "bed_frame": [2, 2], "sofa": [1, 2], "mattress": [1, 2], "desk": [1, 2],
+      "storage_cage": [1, 2], "workbench": [1, 2], "survivor_bed": [1, 2]
+    },
+    "defaultFootprint": [1, 1],
+    "mountedObjects": ["bathroom_cabinet", "medicine_cabinet"],
+    "windowEdgeObjects": ["window_pane", "curtains"],
+    "tallObjects": ["wardrobe", "fridge", "water_heater", "washing_machine", "storage_cage", "utility_shelf"]
+  },
+  "grid": {
+    "floorWidthTiles": 30,
+    "floorDepthTiles": 22,
+    "corridor": { "x": 0, "y": 10, "w": 30, "h": 2 },
+    "corridorWindowGreyTiles": 3,
+    "slots": {
+      "NW": { "x": 0, "y": 0, "w": 12, "h": 10, "size": "apartment", "doorSide": "S" },
+      "NE": { "x": 18, "y": 0, "w": 12, "h": 10, "size": "apartment", "doorSide": "S" },
+      "SW": { "x": 0, "y": 12, "w": 12, "h": 10, "size": "apartment", "doorSide": "N" },
+      "S": { "x": 12, "y": 12, "w": 6, "h": 10, "size": "small", "doorSide": "N" },
+      "SE": { "x": 18, "y": 12, "w": 12, "h": 10, "size": "apartment", "doorSide": "N" }
+    },
+    "core": {
+      "rect": { "x": 12, "y": 0, "w": 6, "h": 10 },
+      "landing": { "x": 12, "y": 6, "w": 6, "h": 4 },
+      "stairsDown": { "x": 12, "y": 1, "w": 2, "h": 5 },
+      "stairsUp": { "x": 16, "y": 1, "w": 2, "h": 5 },
+      "elevatorShaft": { "x": 14, "y": 0, "w": 2, "h": 6 },
+      "corridorDoorwayX": [14, 15]
+    }
+  },
+  "vision": {
+    "coneDegrees": { "lit": 120, "grey": 110, "dim": 90, "dark": 70 },
+    "minConeDegrees": 40,
+    "rangeTiles": { "lit": 9, "grey": 7, "dim": 4, "dark": 2.5 },
+    "closeRadiusTiles": 1.5,
+    "maxRangeTiles": 9,
+    "tiredRangePenaltyTiles": 1,
+    "recomputeTurnDegrees": 15,
+    "recomputeMaxHz": 10,
+    "edgeFadeTiles": 1,
+    "edgeFadeDegrees": 10,
+    "popInSeconds": 0.15,
+    "overlayCrossFadeSeconds": 0.15,
+    "overlayAlpha": { "lit": 0.1, "grey": 0.3, "dim": 0.5, "dark": 0.7, "edge": 0.8, "memory": 0.82, "unknown": 1 },
+    "closeCircleAlphaMult": 0.5,
+    "memoryDesaturate": 0.8,
+    "vignette": { "innerRadiusRatio": 0.55, "outerAlpha": 0.65 }
+  },
+  "doors": {
+    "openSeconds": 0.4,
+    "closeSeconds": 0.4,
+    "interiorHp": 60,
+    "frontHp": 120,
+    "zombieDamageMult": 0.4,
+    "zombiePathDoorCost": 10,
+    "noiseBangSeconds": 10,
+    "runOpenNoiseTiles": 4,
+    "brokenYield": { "wood": 2 },
+    "visualStages": [0.66, 0.33]
+  },
   "generator": {
     "templatesFile": "levels/templates.json",
+    "blueprintsFile": "levels/blueprints.json",
+    "authoredFloorsFile": "levels/floors_iso.json",
+    "mirrorXChance": 0.5,
+    "windowEveryTiles": 3,
+    "curtainChance": 0.5,
+    "doorClosedChance": 0.6,
+    "wallTilesPerPick": 3,
+    "floorTilesPerPick": 6,
+    "doorwayClearanceTiles": 1,
+    "placementTriesPerPick": 10,
+    "maxRoomTiles": 36,
+    "roomSizeTiles": {
+      "hallway": [[1, 2], [2, 6]],
+      "living": [[4, 4], [6, 6]],
+      "kitchen": [[3, 3], [4, 5]],
+      "bedroom": [[3, 3], [4, 5]],
+      "kids_room": [[3, 3], [4, 4]],
+      "bathroom": [[2, 2], [3, 3]],
+      "studio": [[4, 5], [6, 7]],
+      "laundry": [[3, 4], [6, 6]],
+      "reception": [[3, 3], [4, 5]],
+      "office": [[3, 4], [5, 6]],
+      "break_room": [[3, 3], [4, 4]],
+      "storage": [[3, 4], [6, 6]],
+      "janitor": [[2, 2], [3, 3]],
+      "utility": [[3, 3], [4, 5]]
+    },
+    "zombiesPerUnitByDistance": { "0": [0, 1], "1": [0, 2], "2": [1, 2] },
+    "zombiesPerFloorCap": 6,
+    "zombieNoSpawnTilesFromFrontDoor": 2,
+    "pairMinDistanceFromEntranceTiles": 3,
     "startFlatTemplate": "your_flat",
     "interiorDoorChance": 0.5,
     "frontDoorJammedChance": 0.25,
@@ -66,6 +205,7 @@
     "zombieNoSpawnModulesFromFrontDoor": 1,
     "guarantees": {
       "minFlatWingsPerFloor": 1,
+      "minFlatUnitsPerFloor": 2,
       "minFoodItemsPerFloor": 1,
       "minDrainableWaterPerFloor": 1,
       "cleanWaterFloors": [14, 16],
@@ -143,14 +283,19 @@
       "aggroedWithinPx": 400,
       "zombieCountForLevel": [1, 2, 3, 5],
       "decaySecondsPerLevel": 5,
-      "damagePenalty": [0, 0.1, 0.2, 0.3]
+      "damagePenalty": [0, 0.1, 0.2, 0.3],
+      "aggroedWithinTiles": 8,
+      "requiresVisible": true,
+      "coneDegreesPenalty": [0, 10, 20, 30]
     }
   },
   "light": {
     "dimVisionPx": 150,
     "darkSilhouetteRangePx": 240,
     "dimTimeMult": 1.5,
+    "darkTimeMult": 2.0,
     "lampRadiusPx": 220,
+    "lampRadiusTiles": 4,
     "lampFlickerPct": 0.05,
     "darkOverlayAlpha": 0.97,
     "dimOverlayAlpha": 0.72,
@@ -222,9 +367,9 @@
       "dripDelayMs": 450
     },
     "weapons": {
-      "fists": { "name": "Fists", "damage": 5, "rangePx": 40, "cooldownSeconds": 0.4, "durability": null, "source": "default", "hitSound": "punch" },
-      "kitchen_knife": { "name": "Kitchen knife", "damage": 10, "rangePx": 45, "cooldownSeconds": 0.35, "durability": 40, "source": "loot", "hitSound": "stab" },
-      "spiked_bat": { "name": "Spiked bat", "damage": 14, "rangePx": 55, "cooldownSeconds": 0.5, "durability": 50, "source": "crafted", "hitSound": "blunt" }
+      "fists": { "name": "Fists", "damage": 5, "rangePx": 40, "rangeTiles": 1.5, "cooldownSeconds": 0.4, "durability": null, "source": "default", "hitSound": "punch" },
+      "kitchen_knife": { "name": "Kitchen knife", "damage": 10, "rangePx": 45, "rangeTiles": 1.5, "cooldownSeconds": 0.35, "durability": 40, "source": "loot", "hitSound": "stab" },
+      "spiked_bat": { "name": "Spiked bat", "damage": 14, "rangePx": 55, "rangeTiles": 1.6, "cooldownSeconds": 0.5, "durability": 50, "source": "crafted", "hitSound": "blunt" }
     }
   },
   "zombies": {
@@ -239,9 +384,15 @@
       "behindRunPx": 60,
       "idleTurnSeconds": [4, 8],
       "turnSeconds": 0.4,
-      "spawnFacingAwayChance": 0.7
+      "spawnFacingAwayChance": 0.7,
+      "coneDegrees": 120,
+      "frontTiles": { "lit": 5, "grey": 4, "dim": 2.5, "dark": 1.5 },
+      "behindWalkTiles": 0.9,
+      "behindRunTiles": 1.5,
+      "idleTurnChances": { "left90": 0.4, "right90": 0.4, "turn180": 0.2 }
     },
     "attackRange": 30,
+    "attackRangeTiles": 1.5,
     "barricadeDamageMult": 0.4,
     "tuning": {
       "attackWindupSeconds": 0.9,
@@ -254,20 +405,27 @@
       "loseTrackDistancePx": 400,
       "groupSpacingPx": [24, 48],
       "maxWanderersPerFloor": 3,
-      "wanderSpawnMinHeroDistancePx": 200
+      "wanderSpawnMinHeroDistancePx": 200,
+      "wanderRadiusTiles": 2,
+      "loseTrackDistanceTiles": 8,
+      "wanderSpawnMinHeroDistanceTiles": 10,
+      "repathSeconds": 0.5,
+      "maxPerTile": 1
     },
     "types": {
-      "crawler": { "name": "Crawler", "hp": 20, "speed": 15, "damage": 8, "attackIntervalSeconds": 2.5 },
-      "walker": { "name": "Walker", "hp": 45, "speed": 26, "damage": 14, "attackIntervalSeconds": 2.2 }
+      "crawler": { "name": "Crawler", "hp": 20, "speed": 15, "speedTilesPerSecond": 0.3, "damage": 8, "attackIntervalSeconds": 2.5 },
+      "walker": { "name": "Walker", "hp": 45, "speed": 26, "speedTilesPerSecond": 0.52, "damage": 14, "attackIntervalSeconds": 2.2 }
     }
   },
   "throw": {
     "rangePx": 300,
+    "rangeTiles": 6,
     "landSeconds": 0.5
   },
   "molotov": {
     "name": "Molotov",
     "widthPx": 120,
+    "radiusTiles": 1,
     "seconds": 4,
     "zombieDps": 15,
     "heroDps": 10,
@@ -294,6 +452,7 @@
     "keepProgressRatio": 0.5,
     "toolUses": 20,
     "noiseRadius": 400,
+    "noiseRadiusTiles": 8,
     "refundRatio": 0.5,
     "tools": {
       "crowbar": { "name": "Crowbar" },
@@ -555,6 +714,7 @@
   "home": {
     "startFloor": 15,
     "startWing": "left",
+    "startUnit": "NW",
     "maxClaimed": 3,
     "claimSeconds": 2,
     "startStashSlots": 40,
@@ -580,6 +740,7 @@
         "role": "nurse",
         "floor": 13,
         "hidingIn": "bathroom",
+        "hearTiles": 6,
         "trait": {
           "id": "steady_hands",
           "name": "Steady hands",
@@ -611,8 +772,10 @@
       "stairwellAudibleFloors": 2,
       "secondGroanAtSeconds": 12,
       "bangBeatsSeconds": [8, 5, 2.5],
-      "fightBangGapSeconds": [2, 3]
+      "fightBangGapSeconds": [2, 3],
+      "bangFalloff": { "nearPx": 480, "farPx": 1500, "nearTiles": 10, "farTiles": 30, "minVolume": 0.3 }
     },
+    "maxAttackersAtDoor": 3,
     "scheduledZombieType": "walker",
     "characterDefense": 10,
     "securedFloorDefense": 5,
@@ -662,6 +825,13 @@
     "ambientGapSeconds": [20, 60],
     "distantGroanGapSeconds": [45, 120],
     "musicCooldownMinutes": [8, 12],
-    "zombieHearRadiusPx": 600
+    "zombieHearRadiusPx": 600,
+    "zombieHearRadiusTiles": 12,
+    "zombieSoundGapSeconds": [4, 9],
+    "doorBangHearTiles": 15,
+    "maxZombieVoices": 3,
+    "fullVolumeTiles": 2,
+    "occludedVolumeMult": 0.5,
+    "panWidthPx": 360
   }
 }

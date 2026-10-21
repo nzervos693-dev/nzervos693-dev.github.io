@@ -2,22 +2,26 @@
 
 > Owned by the game-designer agent. The Creative Director has final say.
 > Title: **"Floor 15"**.
-> **Current target: Milestone 2 "The tower breathes"** (section 11). M2
-> reworks atmosphere, layout and UI after the CD's M1 playtest (section
-> 11.2 lists every M1 system that changes).
+> **Current target: Milestone 2 "The tower breathes", rebuilt as an
+> isometric 2.5D game** (CD direction change, after Stage 1). M2 now ships
+> in stages A-D (11.3). Section 11.2 lists what carries over from the side
+> view, what changes and what is dropped.
 
 ## 1. Pitch
-A quiet, creepy zombie survival game seen as a side cutaway of a 30-story
-apartment tower, in the spirit of Project Zomboid. You wake up alone in
-your flat in the middle of an outbreak. The building is dark, the power is
-failing, rain runs down the windows, and something shuffles in the
-stairwell. **Everything around you is a resource**: the sofa is cloth and
-wood, the fridge is metal and parts, the water heater holds the last
-clean-ish water on the floor, a cleaning shelf is bleach for your water.
-Creep through your neighbours' apartments, each one different, find what
-they left behind, avoid the dead when you can, and make any flat you clear
-into a place to sleep, store and build. Time keeps passing while you're
-away, and your door must hold.
+A quiet, creepy zombie survival game in a 30-story apartment tower, seen
+from above at an **isometric angle**, in the spirit of Project Zomboid.
+You only see what the hero sees: a cone of sight in front of him, a little
+circle around him, and walls and closed doors cast hard shadows. The rest
+of the floor is black, or a dim memory of what you saw before. You wake up
+alone in your flat in the middle of an outbreak. The building is dark, the
+power is failing, rain runs down the windows, and something shuffles
+behind a door you haven't opened yet. **Everything around you is a
+resource**: the sofa is cloth and wood, the fridge is metal and parts, the
+water heater holds the last clean-ish water on the floor, a cleaning shelf
+is bleach for your water. Creep through your neighbours' apartments, each
+one different, find what they left behind, avoid the dead when you can,
+and make any flat you clear into a place to sleep, store and build. Time
+keeps passing while you're away, and your door must hold.
 
 The game never says "survive". It lets you notice that you are hungry, that
 the hall light is flickering again, that the banging below has stopped.
@@ -26,12 +30,16 @@ the hall light is flickering again, that the banging below has stopped.
 1. **Dread, not a scoreboard**: no need bars, no numbers floating up, no
    sirens or countdowns. Danger and your condition are shown by the world
    and by small "moodle" icons that appear only when something is wrong.
-2. **Everything is salvage**: nearly every object can be searched, drained
+2. **You only see what you see** (iso rebuild): a vision cone, shadows
+   behind walls and closed doors, tight rooms and no minimap. What you
+   can't see you can only hear (5.17, 5.18).
+3. **Everything is salvage**: nearly every object can be searched, drained
    or dismantled into materials, and it sits where it would really be
-   (section 5.6, 5.15).
-3. **Every door is a question**: apartments are big, varied and generated
-   from templates for each new game, so scouting is worth the risk.
-4. **Make a home anywhere**: any cleared apartment on any floor can be
+   (5.6, 5.15).
+4. **Every door is a question**: apartments are varied and generated from
+   hand-drawn floor plans and templates for each new game, so scouting is
+   worth the risk.
+5. **Make a home anywhere**: any cleared apartment on any floor can be
    claimed; the tower lives on while you're away and your home must hold.
 
 ### Backstory
@@ -78,17 +86,86 @@ from what the building already holds.
    above).
 6. Menu: **Replay ending** replays the cards of the choice made.
 
-## 2. Platform
+## 2. Platform and view
 - Android phones (PWA + PWABuilder -> Google Play); also any phone browser.
 - Orientation: **portrait**, locked.
-- **720x1280** base, Phaser `Scale.FIT`, centered, `pixelArt: true`.
-  Moodles and the bottom bar are offset by `env(safe-area-inset-*)`.
+- **720x1280** base, Phaser `Scale.FIT`, centered, `pixelArt: true`,
+  `roundPixels: true`. Moodles and the bottom bar are offset by
+  `env(safe-area-inset-*)`.
 - Session **1-5 minutes** (check moodles, one scouting run or one attack,
   close); 3-6 check-ins per day.
 - Every tappable thing has a hit area of at least **96x96 game px** (about
-  48 CSS px on a 400 CSS px wide phone); small sprites get a padded hit area.
+  48 CSS px on a 400 CSS px wide phone); small sprites get a padded hit
+  area (iso hit-testing rules in section 4).
 - Audio starts on the first tap ("Tap to start"). Download under 20 MB
-  (expected under 5 MB).
+  (expected under 6 MB).
+
+**Isometric projection** (`iso.*`)
+- 2:1 isometric ("dimetric") view. The world is a grid of square **tiles**;
+  each tile is drawn as a diamond **96 x 48 game px**
+  (`iso.tileWidthPx`, `iso.tileHeightPx`), i.e. **32 x 16 art px** at
+  **1 art px = 3 game px** (`iso.artScale`, same scale as the rest of the
+  game's art).
+- Grid axes: **+x** runs toward the screen's lower right, **+y** toward the
+  screen's lower left. Screen position of a tile centre (before the camera
+  offset): `sx = (x - y) * 48`, `sy = (x + y) * 24` (half tile sizes).
+  Inverse (for taps): `x = (sx / 48 + sy / 24) / 2`,
+  `y = (sy / 24 - sx / 48) / 2`, floored to the tile.
+- **"North/west"** edges of a room are its far edges (top of the screen,
+  always visible); **"south/east"** edges (+y and +x sides) face the camera.
+- **Walls** stand on tile **edges** (they take no tile). Full wall height
+  **120 game px** (40 art px, `iso.wallHeightPx`, about 2.5 tile heights);
+  a **cut** wall is a **36 game px** stub (12 art px, `iso.wallStubHeightPx`).
+- **Characters**: 16x32 art px (48x96 game px, `iso.characterSpritePx`),
+  standing on their tile's centre; about one tile wide and two tall.
+- **One floor is visible at a time.** Floors above and below are not drawn
+  at all; changing floor is only possible on the stairs (5.3), with a
+  **0.3 s** fade to black and back (`controls.floorFadeSeconds`).
+- **Readability on a small screen**: a visible zombie must be readable at a
+  glance: pale face/hands vs. dark back (facing), slow shamble, and a
+  lean-in wind-up. Interactables are read by shape and light, never by
+  highlights (9). Text is never drawn in the world except the stencil floor
+  number on the landing.
+
+**Wall cutaway** (so you can see inside rooms)
+- A wall edge on the **south or east side of its room** (camera-facing) is
+  drawn **cut** (stub) when it belongs to the room the hero stands in, or to
+  any room (corridor and landing count as rooms) that has at least one
+  tile currently **Visible** (5.17). All other camera-facing walls, and all
+  north/west walls, are full height.
+- **Occluder fade**: any full-height wall or tall object (wardrobe, fridge,
+  storage cage, water heater, washing machine) whose sprite overlaps the
+  sprite of the hero, a Visible zombie or the target of the current walk
+  or action fades to alpha **0.3** (`iso.occluderFadeAlpha`).
+- Cut and fade changes animate over **0.2 s** (`iso.cutawayFadeSeconds`).
+- Doors in cut walls are drawn as a stub frame with the door leaf shown on
+  the floor line (closed = a low filled panel across the gap, open = the
+  leaf swung against the wall); they stay tappable (section 4).
+- Windows in cut walls show as a low sill with a glass edge.
+- **Draw order**: per tile, by (x + y) ascending, then: floor, floor decals,
+  north/west walls of that tile, objects and characters on that tile,
+  south/east walls of that tile. Multi-tile objects sort by their
+  front-most tile.
+
+**Camera** (`controls.*`)
+- Zoom fixed at **1.0** (`controls.zoom`; pinch zoom is an open question,
+  12). At zoom 1 the screen shows about 7 tiles across and 13 tiles down
+  the screen's axes, roughly 400 tiles of floor.
+- **Follow**: the camera eases toward a target point = the hero's screen
+  position + a **look-ahead** of **120 game px** in the screen direction
+  the hero faces (`controls.cameraLookAheadPx`), so more of the cone is on
+  screen. It keeps the hero inside a dead zone of **160 x 240 game px**
+  around that point (`controls.cameraDeadzonePx`) and eases with lerp
+  **0.12** per frame (`controls.cameraLerp`).
+- **Drag** (more than **16 game px** before the hold delay,
+  `controls.dragThresholdPx`) pans freely in both axes, with momentum.
+  Follow pauses for **2 s** after a drag ends
+  (`controls.cameraFollowPauseSeconds`); a new walk/run tap resumes follow
+  at once.
+- **Clamp**: the view centre stays inside the current floor's iso bounding
+  box plus a **96 game px** pad (`controls.cameraIsoEdgePadPx`), so edge
+  objects can be centred away from Android's back-swipe zone.
+- After a floor change the camera snaps to the hero during the fade.
 
 ## 3. Core loop
 1. **Check in**: read the short "While you were away" note (plain sentences,
@@ -96,11 +173,12 @@ from what the building already holds.
 2. **Tend**: eat, drink, sleep, collect production (rain water, filtered
    water, crops), refuel lamps, look at the door and repair it if it looks
    bad.
-3. **Scout and scavenge**: cross the landing into an apartment you haven't
-   seen. Rooms are dark until you step in. Listen for shuffling, avoid or
-   ambush the dead, search what makes sense to search (a fridge in a
-   kitchen, a cabinet in a bathroom), drain pipes and tanks, take furniture
-   apart. Choose what to carry home (10 slots) and how much noise to risk.
+3. **Scout and scavenge**: cross the corridor to an apartment you haven't
+   seen. Open the front door; you see only what is in front of you. Listen
+   for shuffling behind closed doors, avoid or ambush the dead, close doors
+   behind you, search what makes sense to search (a fridge in a kitchen, a
+   cabinet in a bathroom), drain pipes and tanks, take furniture apart.
+   Choose what to carry home (10 slots) and how much noise to risk.
 4. **Craft**: at a workbench turn materials into tools, weapons,
    barricades, water and food production, light and medicine.
 5. **Settle**: claim cleared apartments as home space, move your bed, build
@@ -109,53 +187,70 @@ from what the building already holds.
    your door. Or don't notice, and find out how well it was built.
 
 ## 4. Touch controls
-One thumb, taps and drags only. No hold-to-act, no multi-touch.
+One thumb, taps, holds and drags only. No multi-touch (pinch zoom is an
+open question, 12). No keyboard or hover.
 
 | Gesture | Where | Result |
 |---|---|---|
-| Tap | Empty spot in a room | Hero **walks** there (quiet). Pathing goes via the stairwell if on another floor. |
-| Double tap | Empty spot (2nd tap within 0.3 s and 48 px of the 1st) | Hero **runs** there: faster, but makes noise and costs energy (5.4). |
-| Tap | Object | Opens the **action menu** above the object (see below). |
-| Tap | Zombie | If in weapon range: attack now. If out of range: walk toward it, attack once on arrival. |
-| Drag, mostly vertical | Anywhere | Scrolls the camera between floors. Momentum, clamped to floors 13-17 in M2. |
-| Drag, mostly horizontal | Anywhere | Pans the camera along the floor. Momentum, clamped to the floor's 0-3120 px. |
+| Tap | Walkable floor tile (Visible, Remembered or never seen) | Hero **walks** there (quiet) along an 8-direction path (5.3). If no path exists, nothing happens. |
+| Double tap | Floor tile (2nd tap within **0.3 s** and **48 game px** of the 1st) | Hero **runs** there: faster, noisy, costs energy (5.4). |
+| Tap | Object (Visible or Remembered) | **Action menu** (below). |
+| Tap | Closed door | Hero walks to the door's near side and **opens** it (5.18). |
+| Tap | Open door | Action menu: **Close** and **Dismantle** (interior doors) or **Close** and **Claim / Leave this place** (front doors). |
+| Tap | Visible zombie | In weapon range with a clear line: attack now. Otherwise walk to the nearest tile in range and attack once on arrival. |
+| Tap | The hero | He **turns around** (180 degrees in **0.2 s**, `controls.heroTapTurnSeconds`). Silent. |
+| Hold (**0.4 s** without moving more than 16 px, `controls.lookHoldSeconds`), then slide | Anywhere in the world | **Look**: the hero stops (cancelling a walk; an action in progress is not cancelled) and turns to face the finger at **720 deg/s** (`controls.lookTurnDegreesPerSecond`); the cone follows the finger while held. Release: he keeps that facing. Silent. |
+| Drag (moves > 16 px before 0.4 s) | Anywhere in the world | **Pans** the camera (section 2). |
+| Tap | A stair flight tile | Hero walks to the flight and climbs/descends one floor (5.3). |
 | Tap | Moodle icon | Shows its plain-text card (5.2). |
-| Tap | "Home" button (bottom bar) | Camera jumps to the hero; second tap within 1 s sends the hero to the main home's bed. |
+| Tap | "Home" button (bottom bar) | Camera re-centres on the hero; a second tap within **1 s** sends the hero to the main home's bed (pathing via the stairs if needed). |
 | Tap | Bottom bar buttons (icons only, section 8) | Inventory, Workbench, Survivors, Menu; **Throw** (only while a throwable is carried, 5.11). Sound toggle is in Menu. |
 
-**Drag rules**: a touch that moves more than **16 game px**
-(`controls.dragThresholdPx`) is a drag, not a tap. The axis is locked when
-the threshold is crossed: |dx| > |dy| = horizontal, else vertical; it stays
-locked until release. One camera position (x, y) is shared by all floors,
-because every floor has the same width and the stairwell is a vertical
-shaft at the same x on every floor (5.3).
+**Facing**: the hero has a continuous facing angle that drives the vision
+cone (5.17) and an 8-direction sprite. While walking or running he faces
+his current step direction, turning at **540 deg/s**
+(`controls.walkTurnDegreesPerSecond`). Idle, he keeps his last facing.
+Acting on an object, door or zombie, he faces it.
 
-**Camera follow**: while the hero walks or runs, the camera follows on both
-axes. Horizontally it keeps the hero inside a dead zone of **+/-160 px**
-around screen centre (`controls.cameraDeadzoneXPx`) and eases toward him
-with lerp **0.12** per frame (`controls.cameraLerp`). Follow pauses for
-**2 s** after any player drag (`controls.cameraFollowPauseSeconds`). When
-the hero changes floor, the camera follows vertically and keeps its x
-relative to the stairwell shaft.
+**Tap resolution (iso hit-testing)**, in this order; the first match wins:
+1. UI (bottom bar, moodles, open menus and panels).
+2. **Visible zombies**: hit rect **96x96 game px** centred on the sprite's
+   body (tile centre raised **40 px**, `iso.bodyRaisePx`). If several
+   contain the point, the front-most (highest draw order) wins.
+3. **The hero**: same 96x96 rect on his body.
+4. **Doors and objects** that are Visible or Remembered: hit rect = the
+   sprite's bounds padded to at least 96x96, centred on the sprite (tall
+   objects are tappable over their whole height). Doors use a 96x96 rect
+   centred on the door edge's midpoint, raised 40 px. Front-most wins.
+   Never-seen objects are not tappable.
+5. **Stair flight tiles** (diamond test).
+6. **Floor tile** under the point (inverse projection, section 2). If it is
+   walkable, walk there.
+7. **Forgiveness**: if the tile is not walkable (an object, void, outside
+   the floor), snap to the interactable from steps 2-5 whose anchor is
+   nearest the tap within **96 game px** (`controls.tapSnapRadiusPx`);
+   else walk to the nearest walkable tile within **1.5 tiles**
+   (`controls.tapSnapWalkTiles`); else nothing.
 
 **Action menu**: a small header with the object's name (e.g. "Kitchen
-cupboard") and up to 2 buttons, each **96x96 game px** (icon + label),
+cupboard") and up to **3** buttons, each **96x96 game px** (icon + label),
 side by side above the object (below it if it would leave the screen):
 **Primary** (*Search* containers, *Drain* water sources, *Use* workbench,
-planter, collector, survivor, lamp; *Claim* / *Leave this place* on a
-front door; only if available) and **Dismantle**. Exception: a
+planter, collector, survivor, lamp; *Open/Close* and *Claim* / *Leave this
+place* on doors; only if available) and **Dismantle**. Exception: a
 **sleepable bed** in a claimed apartment (bed or mattress) shows **Sleep**
 and **Nap** (5.2) and no Dismantle while it is the main home bed. If a
 needed tool is missing, the button is greyed with "Needs crowbar" and does
-nothing. A button tap sends the hero; the action starts on arrival. A tap
-elsewhere closes the menu and counts as a normal tap. Objects with exactly
-one action skip the menu and act directly.
+nothing. A button tap sends the hero to the object's **access tile** (5.15);
+the action starts on arrival. A tap elsewhere closes the menu and counts as
+a normal tap. Objects with exactly one action skip the menu and act
+directly. A closed door always opens on tap without a menu.
 
 Rules: a new tap cancels the current walk/action, except a search or
 dismantle past 50% completes. At most **1** attack tap is buffered during
-cooldown. Taps on a dark (unentered) room walk to its doorway. Taps behind
-a closed barricade the hero did not build show "Barricaded from the
-inside."
+cooldown. Tiles inside a unit whose only way in is a jammed or barricaded
+(not by the hero) door are unreachable: the hero walks to the door and
+thinks "It's stuck." or "Barricaded from the inside."
 
 ## 5. Mechanics
 All numbers below are starting values and live in
@@ -175,15 +270,25 @@ are `small`/`medium`/`large`, noise `quiet`/`noisy`/`loud`. An object or
 recipe with a `milestone` field is only used from that milestone on;
 without it, it is M1.
 
+**Units of distance (iso rebuild)**: all world distances are in **tiles**,
+measured centre to centre in straight lines (a diagonal step is 1.414
+tiles). Speeds are tiles per second. Keys end in `Tiles` or
+`TilesPerSecond`. Screen-space numbers (UI, hit areas, camera) stay in game
+px. The old side-view px keys stay in balance.json only until the code
+reading them is replaced; they are listed in `_deprecatedSideViewKeys` and
+in 11.2.
+
 **Controls numbers**: drag threshold 16 px (`controls.dragThresholdPx`),
-Home double tap 1 s (`controls.homeDoubleTapSeconds`), run double tap
-0.3 s / 48 px (`controls.runDoubleTapSeconds`,
-`controls.runDoubleTapMaxDistancePx`), camera follow pause 2 s
-(`controls.cameraFollowPauseSeconds`), buttons and hit areas 96 px
-(`controls.buttonSizePx`, `controls.minHitAreaPx`), 1 buffered attack tap
-(`controls.attackBuffer`). M2 floors 13-17 (`world.floorMin`,
-`world.floorMax`); floor geometry in `world.*`; start flat on floor 15,
-left wing (`home.startFloor`, `home.startWing`).
+look hold 0.4 s (`controls.lookHoldSeconds`), Home double tap 1 s
+(`controls.homeDoubleTapSeconds`), run double tap 0.3 s / 48 px
+(`controls.runDoubleTapSeconds`, `controls.runDoubleTapMaxDistancePx`),
+camera follow pause 2 s, lerp 0.12, dead zone 160x240 px, look-ahead
+120 px, edge pad 96 px, buttons and hit areas 96 px
+(`controls.buttonSizePx`, `controls.minHitAreaPx`), tap snap 96 px /
+1.5 tiles, 1 buffered attack tap (`controls.attackBuffer`), tutorial
+front-door trigger 1.5 tiles (`tutorial.doorTriggerTiles`). M2 floors
+13-17 (`world.floorMin`, `world.floorMax`); floor grid in `grid.*`; start
+flat on floor 15, unit slot NW (`home.startFloor`, `home.startUnit`).
 
 ### 5.1 Time and the idle simulation
 - Game time = real time, from `Date.now()` deltas, never frame counts.
@@ -197,12 +302,14 @@ left wing (`home.startFloor`, `home.startWing`).
   immediately; any fight, search or dismantle in progress is abandoned (no
   progress kept), the hero and survivors are moved to their claimed
   apartments (hero: main home), zombies keep their current HP and return
-  to their rooms; burning molotov fires end.
+  to their spawn tiles; burning molotov fires end. Doors keep their state
+  (a door the hero left open stays open). Tile memory (5.17) is kept.
 - Autosave every **10 s** (`time.autosaveSeconds`) and on every floor change,
-  craft, dismantle, claim and attack end. Save is localStorage, one slot,
-  **save version 2**. An M1 save (version 1) cannot be converted: on launch
-  it is deleted and the title shows one line, "The building has changed.",
-  then New game.
+  craft, dismantle, claim, door open/close and attack end. Save is
+  localStorage, one slot, **save version 2** (the iso world). Any older
+  save (the side-view version 1) cannot be converted: on launch it is
+  deleted and the title shows one line, "The building has changed.", then
+  New game.
 - **"While you were away"** (M2 rewrite): up to 6 short plain sentences,
   no numbers except item counts and clock times, no icons. Examples:
   "You slept badly.", "Around 03:10 something beat on the door for a long
@@ -231,27 +338,30 @@ shows when the stat is **below** the N-th value of its `below` array
 |---|---|---|---|---|
 | Hungry | food | 60 / 40 / 20 / 1 | Peckish / Hungry / Very hungry / Starving | L4: -5 health/h (empty need) |
 | Thirsty | water | 60 / 40 / 20 / 1 | Thirsty / Very thirsty / Parched / Dying of thirst | L4: -5 health/h |
-| Tired | energy | 50 / 35 / 20 / 5 | Tired / Very tired / Exhausted / Can barely stand | L3+: speed and damage -30% (`needs.energy.lowPenalty`) |
+| Tired | energy | 50 / 35 / 20 / 5 | Tired / Very tired / Exhausted / Can barely stand | L3+: speed and damage -30% (`needs.energy.lowPenalty`); vision range -1 tile (5.17) |
 | Injured | health | 80 / 60 / 35 / 15 | Hurt / Injured / Badly hurt / Close to death | none (health is the effect) |
 | Depressed | morale | 50 / 35 / 25 / 10 | Low / Unhappy / Depressed / Hopeless | L3+: damage -20%, energy drain x1.5, survivors refuse quests |
-| Panic | aggroed zombies within 400 px, same floor | 1 / 2 / 3 / 5 zombies | Uneasy / Scared / Panicked / Terrified | damage -0 / -10 / -20 / -30% (`moodles.panic.damagePenalty`) |
+| Panic | aggroed zombies that are **Visible** to the hero within **8 tiles**, same floor | 1 / 2 / 3 / 5 zombies | Uneasy / Scared / Panicked / Terrified | damage -0 / -10 / -20 / -30% (`moodles.panic.damagePenalty`); **tunnel vision**: cone -0 / -10 / -20 / -30 degrees (`moodles.panic.coneDegreesPenalty`, 5.17) |
 | Sick (M3) | status | - | Queasy ... | see 5.10 |
 | Infected (M3) | status | Bitten / Fever / Turning | ... | see 5.14 |
 
 - The L3 thresholds of Tired and Depressed must equal
   `needs.energy.lowThreshold` (20) and `needs.morale.lowThreshold` (25);
   the effects keep their M1 keys.
-- **Panic** decays one level every **5 s** (`moodles.panic.decaySecondsPerLevel`)
-  once fewer aggroed zombies are near. It never rises from the attack cue
-  (5.8), only from zombies that have seen the hero.
+- **Panic** counts zombies within **8 tiles**
+  (`moodles.panic.aggroedWithinTiles`) that are aggroed **and** Visible
+  (5.17). It decays one level every **5 s**
+  (`moodles.panic.decaySecondsPerLevel`) once fewer are counted. It never
+  rises from sounds, the attack cue (5.8) or zombies the hero cannot see.
 - **Display**: a column of icons at the top right, **72 game px** each
-  (`moodles.iconPx`, 24x24 art px) with a 96 px hit area, max 6 (`moodles.maxShown`),
-  worst level first. The icon is a simple pictogram (empty plate, drop,
-  closed eye, bandage, cloud, wide eye) on a square whose colour darkens
-  with severity (section 9). No numbers. When a moodle appears or changes
-  level it wobbles once for **0.5 s** (`moodles.levelChangeWobbleSeconds`)
-  and plays one soft cue (a stomach growl, a dry swallow, a yawn, a pained
-  breath, a sigh, a fast heartbeat), never a UI blip.
+  (`moodles.iconPx`, 24x24 art px) with a 96 px hit area, max 6
+  (`moodles.maxShown`), worst level first. The icon is a simple pictogram
+  (empty plate, drop, closed eye, bandage, cloud, wide eye) on a square
+  whose colour darkens with severity (section 9). No numbers. When a
+  moodle appears or changes level it wobbles once for **0.5 s**
+  (`moodles.levelChangeWobbleSeconds`) and plays one soft cue (a stomach
+  growl, a dry swallow, a yawn, a pained breath, a sigh, a fast
+  heartbeat), never a UI blip.
 - **Tap a moodle**: a small card under it with one line ("Very hungry.")
   and, if it helps, one 96 px button: Hungry/Thirsty -> "Eat: Canned food"
   / "Drink: Clean water" (the smallest fitting item, carried first, then the
@@ -286,8 +396,7 @@ shows when the stat is **below** the N-th value of its `below` array
   the character eats/drinks the smallest fitting item from claimed stashes
   (main home stash first, then the others in claim order), clean water
   before dirty. Comfort items (chocolate) are skipped unless the need is
-  below **20** (`needs.lastResortThreshold`, renamed from
-  `onlinePromptThreshold`) and nothing else fits.
+  below **20** (`needs.lastResortThreshold`) and nothing else fits.
 - **Offline safety**: catch-up never kills; health floors at **10**
   (`needs.offlineHealthFloor`). Death only happens while playing.
 - Fairness: 12 h offline drains at most 36 food / 48 water, so 80/80 never
@@ -298,10 +407,9 @@ shows when the stat is **below** the N-th value of its `below` array
   ~7.5 h), which hurts fighting, so floors **14 and 16** each guarantee
   **1 clean-water item** (water bottle 70% / clean water 30%) in a flat
   kitchen container (`generator.guarantees.cleanWaterFloors`,
-  `cleanWaterItemsPerFloor`). Total before any drains: ~190 water, about
-  45 h. A rain collector (3 plastic, 2 metal) yields 6.7 water/h against a
-  4/h drain, so it is self-sustaining once built; its cost is reachable on
-  floors 14-16 in one 5-minute session.
+  `cleanWaterItemsPerFloor`). A rain collector (3 plastic, 2 metal) yields
+  6.7 water/h against a 4/h drain, so it is self-sustaining once built; its
+  cost is reachable on floors 14-16 in one 5-minute session.
 - **Sleep**: main home bed -> *Sleep* (+25 energy/h); any tap wakes. Closed
   app = characters in claimed apartments are asleep (offline +10/h).
 - **Quick nap** (`needs.energy.nap`): bed -> *Nap*. The active character
@@ -321,199 +429,259 @@ shows when the stat is **below** the N-th value of its `below` array
     grey the button** (it must stay easy to miss, 5.8). Tapping a greyed
     button shows its reason as a toast and does nothing.
   - **Interrupts** (cancel the nap): a zombie seeing the character, a bite,
-    fire, the stairwell sounds of an attack cue (8 s before the attack:
-    the character jolts awake), any tap, or the app going to background.
-    A cancelled nap gives nothing, costs nothing and does **not** start the
-    cooldown; the fade snaps back.
+    fire, a zombie banging on a door of that apartment, the stairwell
+    sounds of an attack cue (8 s before the attack: the character jolts
+    awake), any tap, or the app going to background. A cancelled nap gives
+    nothing, costs nothing and does **not** start the cooldown; the fade
+    snaps back.
   - Remaining cooldown = clamp(cooldownHours - (now - lastNapAt), 0,
     cooldownHours).
 
-### 5.3 The tower, floors and apartments (M2 rework)
-**Geometry** (`world.*`). Every floor is **3120 x 240 game px**: a **left
-wing** (0-1440), the **stairwell shaft** (1440-1680, 240 px wide, with the
-landing, the floor number painted on the wall and the dead elevator door)
-and a **right wing** (1680-3120). The shaft is at the same x on every floor,
-so the tower stays a clean rectangle. About 5 floors are visible
-vertically and **720 px** (half a wing) horizontally, so most rooms are
-out of sight of the stairwell.
+### 5.3 The tower, floors and apartments (iso rebuild)
+**Floor plan** (`grid.*`). Every floor is a grid of **30 x 22 tiles**
+(`grid.floorWidthTiles`, `grid.floorDepthTiles`), the same shell on every
+floor. Coordinates are (x, y), x = 0-29 along the corridor, y = 0-21 across.
 
-- Each wing is **6 modules of 240 px** (`world.moduleWidthPx`,
-  `world.modulesPerWing`) and holds exactly **one unit** (an apartment, an
-  office or a service area) built from a template (5.15). Its **front door**
-  is at the wing's stairwell edge (x 1440 left, x 1680 right). Rooms are
-  laid out from the front door outward.
-- A room is 1, 2 or 3 modules wide. Each module has **2 floor slots** and
-  **2 wall slots** at **72 and 168 px** from the module's left edge
-  (`world.slotOffsetsPx`), so every object is >= 96 px from its neighbour
-  in the same layer, and >= 48 px from any doorway
-  (`world.doorwayClearancePx`). At most one object per slot.
-- Rooms connect by doorways at room boundaries; a doorway may hold an
-  interior door object (salvage only, never blocks walking).
-- Hero walk speed **100 px/s** (`hero.walkSpeed`), run **170 px/s**
-  (`hero.runSpeed`); stairs **1.4 s per floor** (`hero.stairSecondsPerFloor`).
-  Front door to the far end of a wing: ~14 s walking.
+| Area | Tiles (x, y, w x h) | What it is |
+|---|---|---|
+| Corridor | 0-29, 10-11 (30 x 2) | The common hallway. **2 tiles wide**. A window at each end (on the x = 0 and x = 30 edges). |
+| Unit slot NW | 0, 0, 12 x 10 | Apartment, front door on its south edge (onto the corridor) |
+| Stairwell core | 12, 0, 6 x 10 | Landing, stairs, dead elevator (below) |
+| Unit slot NE | 18, 0, 12 x 10 | Apartment, front door on its south edge |
+| Unit slot SW | 0, 12, 12 x 10 | Apartment, front door on its north edge |
+| Unit slot S | 12, 12, 6 x 10 | **Small unit** (studio, laundry room or storage/boiler room), front door on its north edge |
+| Unit slot SE | 18, 12, 12 x 10 | Apartment, front door on its north edge |
 
-**Rooms and light** (M2). Each room has one light state:
-- **Dark**: not yet entered. Drawn near-black with faint outlines of the
-  nearest wall. Zombies inside can always be **heard** (5.4). CD decision:
-  - **Object silhouettes**: while the hero stands within **240 px**
-    (`light.darkSilhouetteRangePx`) of a doorway into a Dark room (from the
-    neighbouring room, or from the landing for the room behind a front
-    door), the room's objects are drawn as flat shapes in deep shadow
-    `#16191d`, no detail, no colour. Once seen, silhouettes stay drawn
-    (the hero remembers the shapes). Silhouettes are not tappable as
-    objects: a tap walks to the doorway (4).
-  - **Zombies** in a Dark room are drawn (same flat silhouette) only while
-    within **150 px** of the hero (`light.dimVisionPx`), or while they are
-    **moving** (idle wander, chase, return) and the hero is within
-    silhouette range of that room's doorway. A zombie standing still out of
-    the 150 px radius is invisible. Zombie silhouettes are never
-    remembered.
-- **Dim**: entered, no window and no burning lamp. Zombies are drawn only
-  within **150 px** of the hero (`light.dimVisionPx`), and search and
-  dismantle take **x1.5** time (`light.dimTimeMult`).
-- **Grey**: entered, the room has a window (`hasWindow` in the room type,
-  5.15). Cold daylight; everything in the room is drawn.
-- **Lit**: a burning oil lamp is in the room. Everything drawn, warm.
-- The stairwell landing is Dim on every floor, lit only by a weak
-  emergency light that flickers. Rooms stay entered (never go back to
-  Dark).
+- So each floor has **4 apartments + 1 small unit**. Unit slots are walled
+  off from each other (no doors between units); each unit has exactly one
+  **front door** onto the corridor, at the x its floor plan sets (5.15).
+- **Stairwell core** (6 x 10): **landing** x 12-17, y 6-9 (6 x 4); **stairs
+  down** flight x 12-13, y 1-5 (2 x 5); **elevator shaft** x 14-15, y 0-5
+  (void, not walkable) with the dead **elevator door** on the landing's
+  north edge at x 14-15; **stairs up** flight x 16-17, y 1-5; tiles x 12-13
+  and 16-17 at y 0 are void. The core opens onto the corridor through a
+  **2-tile doorway** at x 14-15 on its south edge, with a **fire door
+  propped open** (a wedge; it cannot be closed in M2; stairwell barricades
+  are M4). The **floor number** is painted on the landing's north wall
+  (always visible, never cut).
+- **Exterior edges** (floor boundary) are walls; rooms touching them may
+  have **windows** (5.15). The corridor's two end windows make the 3 tiles
+  nearest each end Grey (`grid.corridorWindowGreyTiles`); the rest of the
+  corridor and the landing are Dim.
+- **Walls** are on tile edges between different rooms or units and on the
+  floor boundary. A **doorway** is a 1-tile gap in a wall edge; it may hold
+  a door (5.18).
+
+**Movement and pathfinding**
+- Characters and zombies move on the grid in **8 directions** using A*
+  (orthogonal cost 1, diagonal 1.414). A diagonal step is allowed only if
+  both orthogonal neighbours it passes are walkable and no wall edge
+  touches the corner being cut (no corner-cutting through walls, doors or
+  objects).
+- Movement is continuous between tile centres; a character "is on" the tile
+  containing its centre.
+- **Occupancy**: objects block their footprint tiles (5.15); **one zombie
+  per tile** (`zombies.tuning.maxPerTile`); the hero cannot walk through
+  zombies and zombies cannot walk through the hero. Survivors, the dog and
+  corpses never block anyone. Pickup piles (material piles, bag piles)
+  don't block.
+- Closed (not jammed) doors are passable for the hero: he opens them on the
+  way (5.18). Jammed doors, barricades not built by the hero, void and
+  objects are not passable.
+- Hero walk **2.0 tiles/s** (`hero.walkTilesPerSecond`), run **3.4
+  tiles/s** (`hero.runTilesPerSecond`). Corridor end to end (30 tiles):
+  15 s walking. Zombie speeds: 5.4.
+- **Stairs**: tapping any tile of a flight walks the hero to the flight's
+  landing-end tile, then he climbs (up flight) or descends (down flight):
+  **1.4 s per floor** (`hero.stairSecondsPerFloor`), shown as the 0.3 s
+  fade; he arrives on the landing-end tile of the **opposite** flight one
+  floor up or down (you come up the down-flight of the floor above). In M2,
+  floor 13's down flight and floor 17's up flight are blocked by rubble:
+  tap -> thought "Rubble. No way down." / "Rubble. No way up." Path
+  requests to another floor (Home double tap) chain: walk to the right
+  flight, climb, repeat.
+
+**Light per tile** (M2; drawing in section 9, effects in 5.17). Every tile
+has one light level, used for the hero's vision, zombie sight and search
+time:
+- **Lit**: within **4 tiles** (`light.lampRadiusTiles`) of a burning oil
+  lamp (or a lit stove, string lights later) **and** in line of sight of it
+  (5.17 LOS rules). Warm.
+- **Grey**: a tile in a room whose type has a window (`light: "grey"` in the
+  room type, 5.15), and the corridor ends. Cold daylight.
+- **Dim**: windowless rooms of flats (hallway, bathroom, break room), the
+  corridor middle and the landing (`light: "dim"`).
+- **Dark**: service rooms with no window (laundry, storage, janitor,
+  utility, `light: "dark"`).
+- Search, dismantle and drain take **x1.5** time on Dim tiles
+  (`light.dimTimeMult`) and **x2.0** on Dark tiles (`light.darkTimeMult`),
+  using the light of the hero's tile while acting.
+- The landing's emergency light flickers at random 50-150 ms dips
+  (`light.stairwellFlickerMs`); during a dip the landing counts as Dark.
+- The old "Dark until entered" room state and dark-room silhouettes are
+  **dropped**: the vision system (5.17) replaces them.
 
 **Floor states**: **Infested** (living zombies on the floor) -> **Cleared**
-(no living zombies on the floor; M2 drops the M1 "all containers searched"
-condition because wings are much larger) -> **Secured** (Secure floor
-recipe: defense +5 each, no more wanderers).
+(no living zombies on the floor) -> **Secured** (Secure floor recipe:
+defense +5 each, no more wanderers).
 - Cleared-but-unsecured floors get **1-2 wandering walkers every 12 h**
-  (`world.wanderersPerInterval`, `world.wandererIntervalHours`; cap and
-  spawn rules in 5.4), never inside a claimed apartment. Otherwise killed
-  zombies stay dead. A floor with a living wanderer is Infested again.
-- Some front doors are jammed (**25%** of wings,
+  (`world.wanderersPerInterval`, `world.wandererIntervalHours`). They spawn
+  on a corridor or landing tile at least **10 tiles** from the hero
+  (`zombies.tuning.wanderSpawnMinHeroDistanceTiles`) that is not Visible,
+  never inside a claimed apartment; at most **3** alive per floor
+  (`zombies.tuning.maxWanderersPerFloor`). Otherwise killed zombies stay
+  dead. A floor with a living wanderer is Infested again.
+- Some front doors are **jammed** (**25%** of units,
   `generator.frontDoorJammedChance`; never the start flat): **3 hits**
   (`world.jammedDoorHits`) to open, or 1 s with a crowbar
-  (`world.jammedDoorCrowbarSeconds`, 1 crowbar use).
+  (`world.jammedDoorCrowbarSeconds`, 1 crowbar use). Opening it this way
+  breaks the lock: it then works as a normal door. Each hit is Noisy.
 
-**Claiming home space** (M2). "Home" is no longer fixed to floor 15.
-- The **start flat** (floor 15, left wing, template `your_flat`) is claimed
-  from the start and is the first **main home**.
+**Claiming home space** (M2). "Home" is not fixed to floor 15.
+- The **start flat** (floor 15, slot NW, template `your_flat`) is claimed
+  from the start and is the first **main home**. Its tiles start
+  Remembered (5.17).
 - **Claim**: when a unit has **no living zombie inside it** and its front
   door is not broken, the front door (tapped from inside or from the
-  landing) offers **Claim**. The hero walks to the door and spends **2 s**
+  corridor) offers **Claim**. The hero walks to the door and spends **2 s**
   checking the lock (`home.claimSeconds`, quiet, interruptible like a
   search). The unit becomes a **claimed apartment**. Burned units can be
   claimed. Max **3** claimed at once (`home.maxClaimed`); a 4th shows the
-  greyed button "Claim (too much to hold)".
+  greyed button "Claim (too much to hold)". All tiles of a claimed unit
+  become Remembered.
 - **A claimed apartment gives**:
-  - a **stash** (a pile of bags and boxes) placed on the free floor slot
-    nearest the front door, or against the door if none is free: **40
-    slots** in the start flat (`home.startStashSlots`), **20** in each
-    other claimed apartment (`home.claimedStashSlots`). Entering any
-    claimed apartment offers "Store all" into its stash.
-  - **build spots**: every empty floor slot in it is a floor spot; every
-    empty wall slot in a room with a window is a window spot (so removing a
-    window pane or curtains frees a window spot). No other caps.
+  - a **stash** (a pile of bags and boxes, 1 tile) placed on the free tile
+    nearest the front door inside the unit that keeps every doorway and
+    access tile reachable (5.15 placement rules): **40 slots** in the start
+    flat (`home.startStashSlots`), **20** in each other claimed apartment
+    (`home.claimedStashSlots`). Entering any claimed apartment offers
+    "Store all" into its stash.
+  - **build spots**: every empty floor tile in it that passes the placement
+    rules is a **floor spot**; every **window edge** in it without a window
+    pane (removed or broken) is a **window spot**. No other caps.
   - **beds**: every intact bed or mattress in it can be slept or napped in;
     survivor beds can be built there.
-  - **safety**: wanderers never spawn inside; its rooms count as "at home"
+  - **safety**: wanderers never spawn inside; its tiles count as "at home"
     for every rule (comfort, Store all, regen of survivors living there).
   - a **front door barricade spot** (5.8).
 - **Main home**: the claimed apartment containing the bed the active
   character last **slept or napped** in. Only one at a time. It is where
   attacks go (5.8), where "Home" sends the hero, where the hero sleeps
-  offline and whose Lit state counts for comfort. Changing it is the
-  natural act of sleeping somewhere else; the first time, a one-line
-  thought: "I'll sleep here now."
-- **Workbench**: the start flat has one. Other claimed apartments need the
-  **Workbench** recipe (5.6). Crafting uses carried items first, then the
-  stash of the apartment the workbench is in.
+  offline and whose lamps count for comfort. Changing it is the natural act
+  of sleeping somewhere else; the first time, a one-line thought: "I'll
+  sleep here now."
+- **Workbench**: the start flat has one (a fixture). Other claimed
+  apartments need the **Workbench** recipe (5.6). Crafting uses carried
+  items first, then the stash of the apartment the workbench is in.
 - **Leave this place**: a claimed apartment that is not the main home, has
   no survivor living in it and an empty stash can be unclaimed from its
   front door (tap twice to confirm). Its placeables stay as ordinary
   salvage; its barricade stays and still blocks zombies.
 
-### 5.4 Combat and stealth (M2 rebalance)
+### 5.4 Combat and stealth (M2, in tiles)
 The dead are slow, heavy and many. Fights are dangerous; avoiding them is
 usually wiser.
 - Each tap on a zombie in range = one attack (weapon damage, range,
-  cooldown). Hits knock back **8 px** and flash pale for **60 ms**
-  (`combat.knockbackPx`, `combat.hitFlashMs`). No damage numbers. Weapon
-  rows live in `combat.weapons.<id>`, zombie rows in `zombies.types.<id>`.
-- **Hit feedback** (CD request, after Stage 1 playtest; keys
-  `combat.hitFx.*` and `combat.weapons.<id>.hitSound`). Cosmetic only: no
-  effect on damage, noise, sight or saves.
+  cooldown). An attack needs a **clear line**: attacker and target tiles
+  have no wall or closed door between them, and for a diagonal neighbour
+  neither orthogonal corner is a wall (no hitting round corners). Hits
+  shove the sprite **8 game px** (visual only, no tile change) and flash
+  pale for **60 ms** (`combat.knockbackPx`, `combat.hitFlashMs`). No damage
+  numbers. Weapon rows live in `combat.weapons.<id>`, zombie rows in
+  `zombies.types.<id>`.
+- **Hit feedback** (CD request; keys `combat.hitFx.*` and
+  `combat.weapons.<id>.hitSound`). Cosmetic only: no effect on damage,
+  noise, sight or saves.
   - **Splash**: every hit on a zombie sprays a dark blood splash (dried
-    blood `#4e1c1a`, section 9) from the hit point **away from the hero**
-    (direction = sign of zombie x - hero x). Fists make a smaller spatter
-    than weapons.
+    blood `#4e1c1a`, section 9) from the hit point **away from the hero**,
+    along the screen-space direction hero -> zombie. Fists make a smaller
+    spatter than weapons.
   - **Hit sound**: one per hit, by the weapon's `hitSound`: `stab` (blades:
     kitchen knife, pipe spear, fire axe), `blunt` (spiked bat, lead pipe,
     crowbar), `punch` (fists). A weapon without `hitSound` uses `blunt`.
-  - **Floor stains**: a hit leaves a blood decal on the floor under the
-    zombie with chance **0.35** (`decalChance`); every kill always leaves
-    one. Decals fade out linearly over **600 s** (`decalFadeSeconds`) of
-    online play and are not saved (they are gone after a reload or
-    background). At most **30** per floor (`decalCapPerFloor`); a new decal
-    over the cap removes the oldest on that floor. Decals never block
-    taps or hide objects' hit areas.
+  - **Floor stains**: a hit leaves a blood decal on the zombie's tile with
+    chance **0.35** (`decalChance`); every kill always leaves one. Decals
+    fade out linearly over **600 s** (`decalFadeSeconds`) of online play
+    and are not saved and not remembered (they are drawn only on Visible
+    tiles). At most **30** per floor (`decalCapPerFloor`); a new decal over
+    the cap removes the oldest on that floor. Decals never block taps.
   - **Drip**: after a kill, with chance **0.5** (`dripChance`), one extra
     drop falls from the corpse **450 ms** later (`dripDelayMs`). No sound.
-  - Hits on barricades and jammed doors make no blood (splinters only).
-- **Sight with facing** (BUG-031 fix; keys `zombies.sight.*`, replacing
-  the old `zombies.sightRadiusPx` / `dimSightRadiusPx` /
-  `darkSightRadiusPx`, kept briefly as aliases, see 11.2): every zombie faces left or right. It notices the
-  hero (same floor, no closed barricade or jammed door between) when the
-  horizontal distance |dx| is:
-  - **in front** (hero on the side it faces): within **180 px** if the
-    hero stands in a Grey or Lit room (`frontPx`), **110 px** in Dim or the
-    landing (`dimFrontPx`), **70 px** in Dark (`darkFrontPx`);
-  - **behind**: within **24 px** while the hero walks (`behindWalkPx`,
-    below fists range 40 px, so a walking hero can always strike first),
-    within **60 px** while he runs (`behindRunPx`; run noise usually wakes
-    it sooner anyway). Light does not change the behind values.
-  - **Facing rules**: a wandering zombie faces its walk direction. A paused
-    idle zombie turns around every **4-8 s** (random, `idleTurnSeconds`);
-    the turn shows as a **0.4 s** head-turn frame before the facing flips
-    (`turnSeconds`, sight still uses the old facing during it). An aggroed
-    zombie always faces the hero. A zombie hit while unaware turns to the
-    hero instantly and aggroes. Authored zombies take `facing` from level
-    data; generated zombies face away from the unit's front door with
-    chance **0.7** (`spawnFacingAwayChance`), else toward it.
+  - Hits on barricades, doors and jammed doors make no blood (splinters
+    only).
+- **Zombie sight** (keys `zombies.sight.*`). Every zombie has one of **8
+  facings**. It notices the hero (same floor) when it has **line of sight**
+  to him (same LOS rules as the hero, 5.17: walls, closed doors and jammed
+  doors block; objects and barricades don't) and he is:
+  - **in its cone** (**120 degrees** total, `coneDegrees`, centred on its
+    facing) within a range set by the light of the **hero's** tile:
+    **5 tiles** Lit, **4** Grey, **2.5** Dim, **1.5** Dark
+    (`frontTiles.lit/grey/dim/dark`). A carried light makes you visible:
+    see the flashlight (5.11).
+  - **outside its cone** (beside or behind): within **0.9 tiles** while the
+    hero walks or stands (`behindWalkTiles`; less than one tile, so a
+    walking hero is never noticed by sight from behind or beside, and
+    fists reach 1.5 tiles: he can always strike first), within **1.5
+    tiles** while he runs (`behindRunTiles`; run noise usually wakes it
+    sooner anyway). Light does not change these.
+  - **Facing rules**: a walking zombie faces its step direction. A paused
+    idle zombie turns every **4-8 s** (random, `idleTurnSeconds`): 90
+    degrees left (40%), 90 degrees right (40%) or 180 degrees (20%)
+    (`idleTurnChances`); the turn shows as a **0.4 s** head-turn frame
+    before the facing changes (`turnSeconds`; sight uses the old facing
+    during it). An aggroed zombie always faces the hero (or his last known
+    tile). A zombie hit while unaware turns to the hero instantly and
+    aggroes. Authored zombies take `facing` (N, NE, E, SE, S, SW, W, NW)
+    from level data; generated zombies face away from their unit's front
+    door with chance **0.7** (`spawnFacingAwayChance`), else toward it.
   - Entering a zombie's room never wakes it by itself.
-- **Hearing**: noise (running, noisy/loud salvage, molotovs, jammed-door
-  hits) aggros zombies as in 5.6 regardless of facing; **running** is
-  noise with radius **250 px**, fired once per second while running
-  (`hero.runNoiseRadiusPx`). Walking is silent, and a melee hit makes no
-  noise (other zombies notice only by sight).
+- **Hearing**: noise aggros zombies regardless of facing and walls (sound
+  goes through walls and closed doors). Radii are straight-line tiles on
+  the same floor: **running** fires a noise of **5 tiles** once per second
+  (`hero.runNoiseRadiusTiles`); Noisy salvage **8 tiles**
+  (`salvage.noiseRadiusTiles`); Loud = the whole floor; a door burst open
+  while running **4 tiles** (`doors.runOpenNoiseTiles`); jammed-door hits
+  Noisy. Walking, opening and closing doors normally, and melee hits are
+  silent. A zombie that heard a noise walks to the noise tile (pathing,
+  bashing closed doors in the way for up to 10 s, 5.18) and looks around;
+  it aggroes only if it then sees the hero.
 - **Stealth target (QA)**: walking up behind an idle walker and hitting
   first succeeds in at least 4 of 5 tries when the hero starts outside its
-  front sight.
+  cone.
 - **Running** (CD decision): double tap = run (4), single tap = quiet walk.
-  Running costs **0.2 energy per second** (`hero.runEnergyPerSecond`; a
-  full wing at 170 px/s costs about 1.7). The Tired L3+ speed penalty
-  applies to running too. At energy below **5** (Tired L4,
-  `hero.runMinEnergy`) a double tap makes the hero walk and think "I can't
-  run anymore." (once per 20 s, like all thoughts). A run ends on arrival;
-  the next tap starts a new walk or run. Running on stairs keeps the stair
-  time (1.4 s per floor) but still makes noise on the floor being left.
+  Running costs **0.2 energy per second** (`hero.runEnergyPerSecond`; the
+  full corridor costs about 1.8). The Tired L3+ speed penalty applies to
+  running too. At energy below **5** (Tired L4, `hero.runMinEnergy`) a
+  double tap makes the hero walk and think "I can't run anymore." (once per
+  20 s, like all thoughts). A run ends on arrival; the next tap starts a
+  new walk or run. Running on stairs keeps the stair time but still makes
+  noise on the floor being left.
 - **Unaware hit**: the first hit on a zombie that has not noticed the hero
   deals **x3** damage (`combat.unawareHitMult`). A walker (45 HP) dies to
   one unaware spiked bat hit plus one more. This is the main tool for
   thinning rooms. A zombie that lost track (below) and is back at its spawn
-  point counts as unaware again, so the x3 hit applies again.
+  tile counts as unaware again.
 - **Losing track**: an aggroed zombie that has not seen the hero for **8 s**
-  (`zombies.tuning.loseTrackSeconds`) while he is more than **400 px** away
-  (`zombies.tuning.loseTrackDistancePx`) or on another floor gives up and
-  shambles back to its spawn point. Zombies never use stairs except during
-  attacks.
+  (`zombies.tuning.loseTrackSeconds`) while he is more than **8 tiles** away
+  (`zombies.tuning.loseTrackDistanceTiles`) or on another floor gives up and
+  shambles back to its spawn tile. Until then it walks to the hero's
+  **last seen tile** and turns there. Zombies never use stairs except
+  during attacks.
 - **Roaming**: an aggroed zombie chases the hero anywhere on its own floor
-  (both wings and the landing). It cannot pass a closed barricade; it bangs
-  on it instead and damages it (x0.4, below).
-- **Idle wander**: a non-aggroed zombie picks a random point within
-  **60 px** of its spawn (`zombies.tuning.wanderRadiusPx`), walks there at
-  **x0.4** its speed, pauses **2-5 s** (`zombies.tuning.wanderPauseSeconds`)
-  and repeats. Groups wander as a loose cluster, **24-48 px** apart
-  (`zombies.tuning.groupSpacingPx`).
+  (all units, corridor, landing), re-pathing every **0.5 s**
+  (`zombies.tuning.repathSeconds`). It cannot pass a closed barricade or a
+  closed door; it bangs on it instead (barricades: x0.4 damage, below;
+  doors: 5.18).
+- **Idle wander**: a non-aggroed zombie picks a random walkable tile within
+  **2 tiles** of its spawn tile in the same room
+  (`zombies.tuning.wanderRadiusTiles`), walks there at **x0.4** its speed
+  (`zombies.tuning.wanderSpeedMult`), pauses **2-5 s**
+  (`zombies.tuning.wanderPauseSeconds`) and repeats. Groups spawn on
+  neighbouring tiles and wander as a loose cluster.
 - **Bite wind-up** **0.9 s** (`zombies.tuning.attackWindupSeconds`): the
-  zombie leans in before each bite; this is the cue to step back.
+  zombie leans in before each bite; this is the cue to step back. A bite
+  lands only if the hero is still within **1.5 tiles**
+  (`zombies.attackRangeTiles`) with a clear line when the wind-up ends.
 - **Hit stun**: each hero hit stops the zombie for **0.35 s**
   (`zombies.tuning.hitStunSeconds`).
 - **Corpse**: a killed zombie slumps and stays **1.5 s**
@@ -523,51 +691,53 @@ usually wiser.
   zombie bangs on a claimed door.
 - **Jammed doors**: block sight and movement and stop weapon hits. Noise
   passes: zombies on the other side aggro and bang (SFX) but cannot open
-  it.
-- **What interrupts actions** (search, dismantle, drain, claim): a zombie
-  seeing the hero, a bite, or standing in fire. A zombie alerted only by
-  noise does **not** interrupt until it sees the hero.
+  them.
+- **What interrupts actions** (search, dismantle, drain, claim, door
+  open/close): a zombie seeing the hero, a bite, or standing in fire. A
+  zombie alerted only by noise does **not** interrupt until it sees him.
 - **Weapon durability**: an equipped weapon stays in its carry slot. It
   loses **1 durability per hit on a zombie**; missed swings and hits on
-  jammed doors cost energy only (0.5 per swing).
-- **Wanderers** (5.3): at most **3** alive per floor
-  (`zombies.tuning.maxWanderersPerFloor`); they spawn at least **200 px**
-  from the hero, never inside a claimed apartment.
+  doors cost energy only (0.5 per swing).
 
-| Weapon | Damage | Range px | Cooldown s | Durability (hits) | Hit sound | Source |
+| Weapon | Damage | Range tiles | Cooldown s | Durability (hits) | Hit sound | Source |
 |---|---|---|---|---|---|---|
-| Fists | 5 | 40 | 0.4 | infinite | punch | - |
-| Kitchen knife | 10 | 45 | 0.35 | 40 | stab | loot |
-| Spiked bat | 14 | 55 | 0.5 | 50 | blunt | crafted (M1) |
-| Lead pipe | 16 | 60 | 0.6 | 60 | blunt | loot, crafted (M3) |
-| Pipe spear | 20 | 75 | 0.7 | 50 | stab | crafted (M3) |
-| Fire axe | 30 | 65 | 0.9 | 80 | stab | loot (M3) |
+| Fists | 5 | 1.5 | 0.4 | infinite | punch | - |
+| Kitchen knife | 10 | 1.5 | 0.35 | 40 | stab | loot |
+| Spiked bat | 14 | 1.6 | 0.5 | 50 | blunt | crafted (M1) |
+| Lead pipe | 16 | 1.7 | 0.6 | 60 | blunt | loot, crafted (M3) |
+| Pipe spear | 20 | 2.2 | 0.7 | 50 | stab | crafted (M3) |
+| Fire axe | 30 | 1.8 | 0.9 | 80 | stab | loot (M3) |
 
-| Zombie | HP | Speed px/s | Damage | Attack interval s | Milestone |
+Range 1.5 reaches all 8 neighbouring tiles; 2.2 (spear) also reaches 2
+tiles straight ahead. (`combat.weapons.<id>.rangeTiles`)
+
+| Zombie | HP | Speed tiles/s | Damage | Attack interval s | Milestone |
 |---|---|---|---|---|---|
-| Crawler | 20 | 15 | 8 | 2.5 | M1 (rebalanced M2) |
-| Walker | 45 | 26 | 14 | 2.2 | M1 (rebalanced M2) |
-| Runner | 20 | 110 | 6 | 1.0 | M3+, to be re-judged against the "shamble" direction |
-| Brute | 120 | 25 | 20 | 2.0 | M4 |
+| Crawler | 20 | 0.30 | 8 | 2.5 | M1 (rebalanced M2) |
+| Walker | 45 | 0.52 | 14 | 2.2 | M1 (rebalanced M2) |
+| Runner | 20 | 2.2 | 6 | 1.0 | M3+, to be re-judged against the "shamble" direction |
+| Brute | 120 | 0.5 | 20 | 2.0 | M4 |
 
-- Zombie attack range 30 px (`zombies.attackRange`). Each swing costs **0.5
-  energy** (`combat.energyPerSwing`). Broken weapons revert to fists (toast
-  "The bat splits.").
+(`zombies.types.<id>.speedTilesPerSecond`)
+
+- Each swing costs **0.5 energy** (`combat.energyPerSwing`). Broken weapons
+  revert to fists (toast "The bat splits.").
 - **Danger check** (design intent, QA test): fists vs one aware walker:
   9 hits, ~3.6 s at full speed, the hero takes 1-2 bites (14-28). Two aware
   walkers with a spiked bat: ~25-45 damage taken. Three aware walkers with
-  fists: likely death. Running away at 170 px/s always outpaces a walker
-  (26 px/s).
-- **Encounter targets (BUG-033, placement rules for level data)**: on
-  floors 13-17 the first room a hero meets in any unit holds at most **one
-  walker** (crawlers extra). A walker pair (2 in one room) must be skippable
-  or approachable from behind (starts facing away, at least one room-width,
-  150 px, from the unit's entrance and from any jammed door the hero must
-  hit). Three walkers never share a room before M3. Target win rates:
-  fists + stealth vs 1 walker 5/5 survive; fists vs an aware pair may lose;
-  a bat or a stealth opener vs a pair survives 4/5. Stats are unchanged;
-  the fix is placement and facing. Generator: `generator.maxWalkersPerRoom`
-  = 2 and distance-2 wings roll **1-3** zombies.
+  fists: likely death. Running away at 3.4 tiles/s always outpaces a walker
+  (0.52 tiles/s); walking (2.0) does too. Closing a door between you and a
+  walker buys about 24 s (5.18).
+- **Encounter targets (placement rules for level data)**: on floors 13-17
+  the first room a hero meets in any unit (the room behind the front door)
+  holds at most **one walker** (crawlers extra). A walker pair (2 in one
+  room) must be skippable or approachable from behind: it starts facing
+  away from the unit's front door, at least **3 tiles** from the room's
+  entrance doorway and from any jammed door the hero must hit
+  (`generator.pairMinDistanceFromEntranceTiles`). Three walkers never share
+  a room before M3. Target win rates: fists + stealth vs 1 walker 5/5
+  survive; fists vs an aware pair may lose; a bat or a stealth opener vs a
+  pair survives 4/5. `generator.maxWalkersPerRoom` = 2.
 - Armor (M4) reduces damage taken; throwables (5.11) add area damage.
 
 ### 5.5 Scavenging and inventory
@@ -580,20 +750,24 @@ usually wiser.
   or a flavour line ("Someone got here first.", "Just mouse droppings.").
 - Any consumable rolled comes as **1** (`scavenge.consumableQtyCap`), so a
   find is "a tin of beans", not a haul. Materials keep their table ranges.
-- Search takes **3 s** (`scavenge.searchSeconds`, x1.5 in Dim) with a thin
-  progress ring, costs **1 energy** (`scavenge.searchEnergy`).
+- Search takes **3 s** (`scavenge.searchSeconds`, x1.5 on Dim, x2 on Dark
+  tiles) with a thin progress ring, costs **1 energy**
+  (`scavenge.searchEnergy`). The hero stands on the object's access tile
+  facing it, so his cone points at the object and his back is exposed.
 - **No loot highlight**: no sparkle, pulse, glow or "!" on containers, ever.
-  Searched containers look slightly ajar (doors open, drawers out).
+  Searched containers look slightly ajar (doors open, drawers out), and are
+  remembered that way (5.17).
 - Hero carries **10 slots** (`inventory.carrySlots`). Items stack to **10**
   (`inventory.itemStack`); materials to **20** (`inventory.materialStack`);
   weapons and tools never stack (`inventory.toolStack`).
 - Stash sizes: 5.3. Full inventory: search loot stays in the container;
-  dismantle yield drops as a tappable **material pile** (never despawns).
+  dismantle yield drops as a tappable **material pile** on the object's
+  access tile (never despawns, does not block).
 
 ### 5.6 Everything is salvage
 Almost every object drawn in an apartment is usable. Walls, floors, the
-stairwell, front doors, the workbench and barricades are not (barricades
-can only be repaired or replaced). Zombies are never salvage.
+stairwell, front doors, the workbench fixture and barricades are not
+(barricades can only be repaired or replaced). Zombies are never salvage.
 
 **Materials** (19 in v1; 10 in M1-M2). Each has a distinct 8x8 icon.
 
@@ -625,64 +799,74 @@ Water from salvage comes as consumable items: **Dirty water** (+20 water,
 **Dismantle rules**
 - Size sets time and energy: **Small 2 s / 1**, **Medium 4 s / 2**, **Large
   8 s / 4** (`salvage.time.*`, `salvage.energy.*`); 50% slower at energy
-  < 20 (`salvage.lowEnergySlow`); Dim x1.5 (5.3).
+  < 20 (`salvage.lowEnergySlow`); Dim x1.5, Dark x2 (5.3).
 - **Tools** must be carried: **Crowbar** (doors, wardrobes, beds, filing
   cabinets, storage cage padlocks), **Wrench** (pipes, water heater, fridge,
   washing machine). Saw (M3: bookshelves, counters). Each tool has **20
   uses** (`salvage.toolUses`); every completed action that needs it uses 1.
-- **Noise**, fired when dismantling starts. **No visual marker** (the M1
-  floating "!" is removed): the sound itself plays (creak, crack, clang)
-  and zombies that heard it turn and shamble toward it. *Quiet* none;
-  *Noisy* aggros zombies within **400 px** on the same floor
-  (`salvage.noiseRadius`); *Loud* aggros every zombie on the same floor.
-  Noise never reaches other floors.
+- **Noise**, fired when dismantling starts. **No visual marker**: the sound
+  itself plays (creak, crack, clang) and zombies that heard it turn and
+  shamble toward it. *Quiet* none; *Noisy* aggros zombies within **8
+  tiles** on the same floor (`salvage.noiseRadiusTiles`), through walls;
+  *Loud* aggros every zombie on the same floor. Noise never reaches other
+  floors.
 - An unsearched container is searched first (+3 s). Interrupts as 5.4;
   progress is lost unless past 50% (`salvage.keepProgressRatio`).
 - Yield is fixed per object plus listed chances. The object is removed for
-  good (saved) and never respawns.
+  good (saved) and never respawns; its tiles become walkable floor.
 - Crafted placeables can be dismantled for **50%** of their cost, rounded
   down (`salvage.refundRatio`), quiet, Small time and energy.
 - **Drain** (quiet, Small time and energy) works once per object.
 
-**Objects in M1-M2** (the generator places them by room type, 5.15):
+**Objects in M1-M2** (the generator places them by room type, 5.15;
+footprints and mounting in `iso.footprints` / `iso.mountedObjects`):
 
-| # | Object | Size | Tool | Noise | Primary | Dismantle yield | MS |
-|---|---|---|---|---|---|---|---|
-| 1 | Chair | S | - | Quiet | - | 2 wood | M1 |
-| 2 | Table | M | - | Noisy | - | 4 wood | M1 |
-| 3 | Kitchen cupboard | M | - | Noisy | Search (food, chemicals) | 3 wood | M1 |
-| 4 | Wardrobe | L | Crowbar | Noisy | Search | 6 wood + 1 metal | M1 |
-| 5 | Bed | L | Crowbar | Noisy | Sleep/Nap when claimed | 3 wood + 2 metal + 2 cloth | M1 |
-| 6 | Sofa | M | - | Quiet | - | 3 cloth + 2 wood | M1 |
-| 7 | Curtains | S | - | Quiet | - | 2 cloth | M1 |
-| 8 | Potted plant | S | - | Quiet | - | 1 plastic, 60% +1 seeds | M1 |
-| 9 | Interior door | M | Crowbar | Loud | - | 5 wood + 1 metal | M1 |
-| 10 | Fridge | L | Wrench | Loud | Search (food) | 4 metal + 2 plastic + 1 parts | M1 |
-| 11 | Microwave | S | - | Noisy | - | 1 metal + 1 plastic + 1 parts + 1 glass | M1 |
-| 12 | TV | M | - | Noisy | - | 2 plastic + 2 parts + 1 glass | M1 |
-| 13 | Sink pipes | M | Wrench | Noisy | - | 2 metal + 1 dirty water | M1 |
-| 14 | Toilet tank | M | - | Quiet | Drain: 2 dirty water | 1 plastic | M1 |
-| 15 | Water heater | L | Wrench | Loud | Drain (wrench): 6 dirty water | 4 metal + 1 parts | M1 |
-| 16 | Kitchen drawer | S | - | Quiet | Search (metal, tape) | 1 wood | M1 |
-| 17 | Window pane | S | - | Noisy | - | 2 glass | M1 |
-| 18 | Bathroom cabinet | S | - | Quiet | Search (chemicals, bandage) | 1 glass + 1 plastic | M1 |
-| 19 | Toolbox | S | - | Quiet | Search (tape, metal) | 1 metal | M1 |
-| 20 | Oil lamp | S | - | Quiet | - | 1 glass + 1 metal, 50% +1 fuel | M1 |
-| 21 | Mattress | M | - | Quiet | Sleep/Nap when claimed | 4 cloth | M2 |
-| 22 | Medicine cabinet | S | - | Quiet | Search (bandage, medkit, chemicals) | 1 glass + 1 metal | M2 |
-| 23 | Desk | M | - | Noisy | Search (tape, parts, snack, notes) | 4 wood + 1 metal | M2 |
-| 24 | Filing cabinet | M | Crowbar | Noisy | Search (parts, tape, notes) | 4 metal | M2 |
-| 25 | Washing machine | L | Wrench | Loud | Search (cloth) | 5 metal + 2 parts (+2 rubber from M4) | M2 |
-| 26 | Laundry basket | S | - | Quiet | Search (cloth) | 1 plastic + 1 cloth | M2 |
-| 27 | Storage cage | M | Crowbar | Noisy | Search needs crowbar (padlock; fuel, tape, metal, tins) | 3 metal | M2 |
-| 28 | Toy box | S | - | Quiet | Search (chocolate, snack) | 2 plastic | M2 |
-| 29 | Utility shelf | M | - | Quiet | Search (chemicals, tape, fuel) | 2 wood + 1 metal | M2 |
-| 30 | Burned furniture | M | - | Quiet | - | 1 wood + 1 metal, 30% +1 parts | M2 |
+| # | Object | Size | Footprint | Tool | Noise | Primary | Dismantle yield | MS |
+|---|---|---|---|---|---|---|---|---|
+| 1 | Chair | S | 1x1 | - | Quiet | - | 2 wood | M1 |
+| 2 | Table | M | 1x2 | - | Noisy | - | 4 wood | M1 |
+| 3 | Kitchen cupboard | M | 1x1 | - | Noisy | Search (food, chemicals) | 3 wood | M1 |
+| 4 | Wardrobe | L | 1x1 (tall) | Crowbar | Noisy | Search | 6 wood + 1 metal | M1 |
+| 5 | Bed | L | 2x2 | Crowbar | Noisy | Sleep/Nap when claimed | 3 wood + 2 metal + 2 cloth | M1 |
+| 6 | Sofa | M | 1x2 | - | Quiet | - | 3 cloth + 2 wood | M1 |
+| 7 | Curtains | S | window edge | - | Quiet | - | 2 cloth | M1 |
+| 8 | Potted plant | S | 1x1 | - | Quiet | - | 1 plastic, 60% +1 seeds | M1 |
+| 9 | Interior door | M | doorway edge | Crowbar | Loud | Open/Close (5.18) | 5 wood + 1 metal | M1 |
+| 10 | Fridge | L | 1x1 (tall) | Wrench | Loud | Search (food) | 4 metal + 2 plastic + 1 parts | M1 |
+| 11 | Microwave | S | 1x1 | - | Noisy | - | 1 metal + 1 plastic + 1 parts + 1 glass | M1 |
+| 12 | TV | M | 1x1 | - | Noisy | - | 2 plastic + 2 parts + 1 glass | M1 |
+| 13 | Sink pipes | M | 1x1 | Wrench | Noisy | - | 2 metal + 1 dirty water | M1 |
+| 14 | Toilet tank | M | 1x1 | - | Quiet | Drain: 2 dirty water | 1 plastic | M1 |
+| 15 | Water heater | L | 1x1 (tall) | Wrench | Loud | Drain (wrench): 6 dirty water | 4 metal + 1 parts | M1 |
+| 16 | Kitchen drawer | S | 1x1 | - | Quiet | Search (metal, tape) | 1 wood | M1 |
+| 17 | Window pane | S | window edge | - | Noisy | - | 2 glass | M1 |
+| 18 | Bathroom cabinet | S | wall edge (mounted) | - | Quiet | Search (chemicals, bandage) | 1 glass + 1 plastic | M1 |
+| 19 | Toolbox | S | 1x1 | - | Quiet | Search (tape, metal) | 1 metal | M1 |
+| 20 | Oil lamp | S | 1x1 | - | Quiet | - | 1 glass + 1 metal, 50% +1 fuel | M1 |
+| 21 | Mattress | M | 1x2 | - | Quiet | Sleep/Nap when claimed | 4 cloth | M2 |
+| 22 | Medicine cabinet | S | wall edge (mounted) | - | Quiet | Search (bandage, medkit, chemicals) | 1 glass + 1 metal | M2 |
+| 23 | Desk | M | 1x2 | - | Noisy | Search (tape, parts, snack, notes) | 4 wood + 1 metal | M2 |
+| 24 | Filing cabinet | M | 1x1 | Crowbar | Noisy | Search (parts, tape, notes) | 4 metal | M2 |
+| 25 | Washing machine | L | 1x1 | Wrench | Loud | Search (cloth) | 5 metal + 2 parts (+2 rubber from M4) | M2 |
+| 26 | Laundry basket | S | 1x1 | - | Quiet | Search (cloth) | 1 plastic + 1 cloth | M2 |
+| 27 | Storage cage | M | 1x2 (tall) | Crowbar | Noisy | Search needs crowbar (padlock; fuel, tape, metal, tins) | 3 metal | M2 |
+| 28 | Toy box | S | 1x1 | - | Quiet | Search (chocolate, snack) | 2 plastic | M2 |
+| 29 | Utility shelf | M | 1x1 (tall) | - | Quiet | Search (chemicals, tape, fuel) | 2 wood + 1 metal | M2 |
+| 30 | Burned furniture | M | as the object it replaced | - | Quiet | - | 1 wood + 1 metal, 30% +1 parts | M2 |
+
+- "Window edge" and "wall edge (mounted)" objects take no tile: they hang
+  on a wall edge and are used from the tile in front of it. Mounted
+  objects only go on **north- or west-side** walls of their room (the
+  never-cut walls) so they are always seen; window panes and curtains sit on
+  window edges on any side. Dismantling a door or a mounted object never
+  changes walkability, except that a door edge becomes an open doorway.
+- "Tall" objects can occlude and fade (section 2).
 
 New loot tables needed (level-designer): `medicine_cabinet`, `desk`,
 `filing_cabinet`, `washing_machine`, `laundry_basket`, `storage_cage`,
-`toy_box`, `utility_shelf`. Food appears only in kitchen-type containers,
-storage cages (rare tins), toy boxes (chocolate) and desks (rare snack).
+`toy_box`, `utility_shelf` (done). Food appears only in kitchen-type
+containers, storage cages (rare tins), toy boxes (chocolate) and desks
+(rare snack).
 
 **Later v1 objects** (size, tool, noise, primary: yield):
 - **M3**: bookshelf (L, saw, noisy: 6 wood + 3 paper); kitchen counter (L,
@@ -716,7 +900,7 @@ unaffordable; WB = workbench level):
 | Tool | Crowbar | 3 metal | 20 uses | 1 | M1 |
 | Tool | Wrench | 2 metal + 1 parts | 20 uses | 1 | M1 |
 | Tool | Saw | 1 wood + 2 metal + 1 parts | 20 uses | 1 | M3 |
-| Tool | Flashlight | 1 plastic + 1 glass + 1 parts | Light cone, removes Dim (5.11) | 1 | M3 |
+| Tool | Flashlight | 1 plastic + 1 glass + 1 parts | Light beam in the cone (5.11) | 1 | M3 |
 | Tool | Tool wraps | 1 cloth + 1 rubber | Next 10 dismantles one noise step quieter | 1 | M4 |
 | Material | Rope | 3 cloth | 1 rope | 1 | M4 |
 | Medicine | Bandage | 2 cloth | +15 health | 1 | M1 |
@@ -731,11 +915,11 @@ unaffordable; WB = workbench level):
 | Food | Barrel stove | 5 metal + 1 parts | Light, warmth, cooking (5.10); floor spot | 1 | M3 |
 | Food | Grow lamp | 2 parts + 1 plastic + 1 wire | 1 power; planters +50% speed | 2 | M4 |
 | Cooking | Boil water / Hot stew / Jarred veg | as v1 list | stove recipes (5.10) | Stove | M3 |
-| Light | **Oil lamp** | 1 glass + 1 metal + 1 cloth | Lights its room (5.10); holds 2 fuel, 1 per 12 h; floor spot | 1 | **M2** |
-| Home | **Workbench** | 6 wood + 2 metal | A workbench in a claimed apartment, max 1 per apartment; floor spot | 1 | **M2** |
+| Light | **Oil lamp** | 1 glass + 1 metal + 1 cloth | Lights tiles within 4 (5.3, 5.10); holds 2 fuel, 1 per 12 h; floor spot | 1 | **M2** |
+| Home | **Workbench** | 6 wood + 2 metal | A workbench in a claimed apartment, max 1 per apartment; floor spot (1x2) | 1 | **M2** |
 | Power | Generator | 6 metal + 4 parts + 2 wire | +3 power, 1 fuel per 4 h; floor spot | 2 | M4 |
 | Power | Solar panel | 4 glass + 3 parts + 2 wire + 1 metal | +1 power; window spot | 2 | M4 |
-| Light | String lights | 2 wire + 1 glass + 1 parts | 1 power; lights its room | 2 | M4 |
+| Light | String lights | 2 wire + 1 glass + 1 parts | 1 power; lights tiles like a lamp | 2 | M4 |
 | Defense | Barricade Lv1 / Lv2 / Lv3 | 5 wood + 2 metal / 10 wood + 5 metal + 2 tape / 15 metal + 4 parts + 4 tape | A claimed front door; HP 120 / 250 / 500, defense +10 / +25 / +50 | 1 / 1 / 2 | M1 / M1 / M4 |
 | Defense | Repair | 1 wood per 20 HP | Restores barricade HP | 1 | M1 |
 | Defense | Secure floor | 8 wood + 4 metal | Cleared floor -> Secured; defense +5 each | 1 | M1 |
@@ -743,7 +927,7 @@ unaffordable; WB = workbench level):
 | Gear | Padded jacket / Leather armor / Quiet shoes | as v1 list | 5.11 | 1-2 | M4 |
 | Comfort | Reading nook / Decorations / Music player | as v1 list | Comfort +1 each | 1 | M3 |
 | Hygiene | Latrine / Wash station | as v1 list | Sickness -10 points | 1 | M3 |
-| Home | Survivor bed | 6 wood + 2 cloth | One survivor can live in this apartment | 1 | M1 |
+| Home | Survivor bed | 6 wood + 2 cloth | One survivor can live in this apartment; floor spot (1x2) | 1 | M1 |
 | Home | Storage shelf | 6 wood + 2 metal | +20 slots to this apartment's stash | 1 | M3 |
 | Home | Workbench Lv2 | 10 wood + 6 metal + 2 parts + 2 tape | Unlocks WB 2 recipes | 1 | M3 |
 | Home | Lockbox | 6 metal + 1 parts | 10 slots, never lost to breaches | 2 | M4 |
@@ -758,38 +942,48 @@ recipes + oil lamp + workbench.
 Recipe rules (numbers in `recipes.<id>` and `barricade.*`):
 - **Build spots** (`recipes.<id>.buildSpot`): rain collector `window`;
   water filter, planter, survivor bed, oil lamp, workbench `floor`;
-  barricades `front_door` (renamed from `stairwell`); secure floor
-  `cleared_floor`; everything else `none` (goes to inventory). Spots
-  come from claimed apartments (5.3).
+  barricades `front_door`; secure floor `cleared_floor`; everything else
+  `none` (goes to inventory). Spots come from claimed apartments (5.3).
+  Placeable footprints are in `iso.footprints` (workbench and survivor bed
+  1x2, others 1x1).
 - **Paying for placeables**: crafting a placeable enters spot-pick mode:
-  free spots of its type in **all claimed apartments** are outlined with a
-  thin dashed off-white line (the only outline in the game); the player can
-  pan the camera to reach them. The cost is taken only when a spot is
-  tapped. Cancel (tap Workbench/elsewhere) is free. No free spot anywhere =
-  recipe greyed "No free spot".
-- **Barricade**: one per claimed front door. Lv2 needs Lv1 on that door and
-  replaces it at full Lv2 HP. At 0 HP it gives no defense and zombies pass.
-  The hero and survivors pass their own barricades freely (a 0.5 s
-  squeeze-through animation); zombies never.
+  free spots of its type in the **claimed apartments on the hero's floor**
+  are outlined with a thin dashed off-white diamond (the only outline in
+  the game); the player can pan the camera to reach them. A 1x2 placeable
+  is placed with one tap: the tapped tile is its first tile and it takes
+  whichever orientation fits, preferring its long side against a wall;
+  tiles where neither orientation passes the placement rules (5.15) are
+  not outlined. The cost is taken only when a spot is tapped. Cancel
+  (tap Workbench/elsewhere) is free. No free spot on this floor = recipe
+  greyed "No free spot here".
+- **Barricade**: one per claimed front door, built on the door's inside.
+  Lv2 needs Lv1 on that door and replaces it at full Lv2 HP. At 0 HP it
+  gives no defense and zombies pass. The hero and survivors pass their own
+  barricades freely (a 0.5 s squeeze-through animation); zombies never. A
+  barricaded front door stands open behind the planks: the barricade
+  blocks movement but **not sight** (you see through the gaps, and so do
+  they).
 - **Repair**: opens the list of claimed doors with a barricade (96 px rows,
-  "Main home", "Floor 14, right"); each craft spends 1 wood and restores 20
-  HP (`barricade.repairHpPerWood`). Rows show a small picture of the
-  barricade's damage stage, never HP numbers; a full barricade is listed
-  greyed "Holding".
+  "Main home", "Floor 14, north-east"); each craft spends 1 wood and
+  restores 20 HP (`barricade.repairHpPerWood`). Rows show a small picture
+  of the barricade's damage stage, never HP numbers; a full barricade is
+  listed greyed "Holding".
 - **Secure floor**: list of Cleared floors (96 px rows). A floor with a
   living wanderer is greyed "Something is still moving on floor N".
 - **Producers**: as M1 (`effect.intervalHours`, `effect.maxStored`,
   `effect.waterPerUnit`, water from the stash of the producer's apartment).
   Output stays in the placeable until collected with *Use*.
 
-**Storage pressure**: a wing rarely fits in 10 carry slots, and stashes are
-per apartment, so where you claim matters: a second home near the floors
-you scavenge saves walking.
+**Storage pressure**: an apartment rarely fits in 10 carry slots, and
+stashes are per apartment, so where you claim matters: a second home near
+the floors you scavenge saves walking.
 
 ### 5.7 Survivors
 - Few, named, hand-written characters (dialogue, one trait, one recruitment
   quest), each on a specific floor. Recruit: talk -> quest -> free Survivor
-  bed in any claimed apartment -> they move into that apartment.
+  bed in any claimed apartment -> they move into that apartment. Survivors
+  are drawn only on Visible tiles, like zombies, but are remembered where
+  last seen once recruited (they live at home).
 - Survivors have Health (start 100, `survivors.startHealth`) and use **1
   food + 1 water item every 12 h** (`survivors.upkeepHours`,
   `survivors.upkeepFood`, `survivors.upkeepWater`) from the stash of the
@@ -811,7 +1005,7 @@ you scavenge saves walking.
     or "No medicine". The Crew screen shows a survivor's condition as the
     same moodle icons as the hero, never as numbers. Condition wording is
     identical on the Crew panel and the moodle card: Hurt / Injured /
-    **Badly hurt** / Close to death ("Badly injured" is not used anywhere).
+    **Badly hurt** / Close to death.
   - Offline auto-use never spends medicine on survivors.
   - When a survivor becomes the active character (pass the torch), they
     keep their health and switch to the hero's need rules (5.2) with needs
@@ -833,22 +1027,24 @@ you scavenge saves walking.
   - Medic, Cook (M3); Mechanic (M4): as in the v1 design (no change).
 - **Pass the torch**: when the active character dies, the player picks a
   living survivor to continue as; the dead character's carried items and
-  equipped gear drop as a bag pile at the death spot (never despawns). No
+  equipped gear drop as a bag pile on the death tile (never despawns). No
   survivors left = game over. The new character's main home is the
   apartment they live in.
 - **Mara** (M1): floor 13, hiding in the **bathroom** of a flat-type unit
-  (the generator forces one flat wing on floor 13 and puts her there; that
-  wing's bathroom has a jammed interior door she opens when the hero
-  speaks). Her quest: fetch her **medical bag** from floor 14. The
-  generator places the bag in the bedroom wardrobe of a flat on
-  floor 14 and a found note in her bathroom names the flat ("Left my bag at
-  the Novaks', 14. Couldn't go back."); the bag container is never empty.
-  Hand-over: tap Mara while carrying the bag -> *Use*. She joins only with
-  a **free Survivor bed** in any claimed apartment ("I need a bed first.")
-  and hero morale **25+** (`survivors.joinMinMorale`; else "You look worse
-  than me. Come back when you've rested."). On success: quest done +10,
-  recruited +15 morale, she moves into the apartment with the free bed
-  (the main home's first, if it has one).
+  (the generator forces one flat on floor 13 and puts her there; that
+  bathroom's door is jammed and she opens it when the hero taps it: "Who's
+  there?" -> dialogue). You hear her before you see her: a faint sob
+  through the door when the hero is within 6 tiles
+  (`survivors.roster.mara.hearTiles`). Her quest: fetch her **medical bag**
+  from floor 14. The generator places the bag in the bedroom wardrobe of a
+  flat on floor 14, and a found note in her bathroom names the flat ("Left
+  my bag at the Novaks', 14. Couldn't go back."); the bag container is
+  never empty. Hand-over: tap Mara while carrying the bag -> *Use*. She
+  joins only with a **free Survivor bed** in any claimed apartment ("I
+  need a bed first.") and hero morale **25+** (`survivors.joinMinMorale`;
+  else "You look worse than me. Come back when you've rested."). On
+  success: quest done +10, recruited +15 morale, she moves into the
+  apartment with the free bed (the main home's first, if it has one).
 
 ### 5.8 Attacks (M2: diegetic cue)
 - Scheduled every **8 h +/- 2 h** (`attacks.intervalHours`,
@@ -860,8 +1056,9 @@ you scavenge saves walking.
   are walkers (`attacks.scheduledZombieType`). Days survived = whole 24 h
   periods since New game.
 - **Target**: always the **main home** (5.3) at the moment the cue starts.
-  Attackers climb the stairwell to that floor and go for its front door.
-  Other claimed apartments are never attacked in M2.
+  Attackers **come up the stairwell** to that floor, cross the landing and
+  the corridor and go for its front door. Other claimed apartments are
+  never attacked in M2.
 - Attack strength A = **25 + 3 x days survived**, capped at **150**
   (`attacks.baseStrength`, `attacks.perDay`, `attacks.cap`); M3+
   multipliers (generator, night) stack after the cap.
@@ -874,32 +1071,53 @@ you scavenge saves walking.
     (`audio.distantGroanGapSeconds`); only their clustering gives it away.
     A second groan cluster plays at **T-12 s** (`cue.secondGroanAtSeconds`).
   - **T-8 s** (`cue.stairwellAtSeconds`): banging and shuffling in the
-    stairwell, positional: loud if the camera is on the main home's floor,
-    fading out beyond **2 floors** (`cue.stairwellAudibleFloors`). From
-    T-8 s the emergency light on the main home's landing flickers
-    (`cue.flickerFromSeconds`; dips of 0.09 s, `attacks.tuning.flickerSeconds`).
-    A nap in progress is interrupted here (5.2). Stairwell bangs play at
-    **T-8, T-5 and T-2.5 s** (`cue.bangBeatsSeconds` [8, 5, 2.5]); the first
-    beat must equal `cue.stairwellAtSeconds` (8). If the two differ, code
-    uses `cue.stairwellAtSeconds` as the first beat.
-  - **T-0**: the first attacker shambles onto the landing of the main
-    home's floor; more follow **3 s** apart (`attacks.tuning.spawnGapSeconds`),
-    at a random 16-70 px from the door (`attacks.tuning.arrivalXRange`).
+    stairwell, positional at the landing of the main home's floor: loud if
+    the hero is on that floor, fading out beyond **2 floors**
+    (`cue.stairwellAudibleFloors`). From T-8 s the emergency light on the
+    main home's landing flickers (`cue.flickerFromSeconds`; dips of 0.09 s,
+    `attacks.tuning.flickerSeconds`). A nap in progress is interrupted here
+    (5.2). Stairwell bangs play at **T-8, T-5 and T-2.5 s**
+    (`cue.bangBeatsSeconds` [8, 5, 2.5]); the first beat must equal
+    `cue.stairwellAtSeconds` (8). If the two differ, code uses
+    `cue.stairwellAtSeconds` as the first beat.
+  - **Bang falloff** (`cue.bangFalloff`): stairwell and door bangs (cue
+    beats and fight bangs) fade with the straight-line distance d in tiles
+    from the **hero** to the main home's front door (or to the landing for
+    cue beats). Volume multiplier = 1 if d <= **10 tiles** (`nearTiles`);
+    linear down to **0.3** (`minVolume`) at **30 tiles** (`farTiles`); 0.3
+    beyond. It never reaches 0 on the home floor. It multiplies the floor
+    fade above; beyond that floor range the bang is silent. Panning follows
+    the audio rules (section 10).
+  - **T-0**: the first attacker shambles up onto the **landing-end tile of
+    the down flight** of the main home's floor (the stairs from below);
+    more follow **3 s** apart (`attacks.tuning.spawnGapSeconds`), each on
+    that tile or the nearest free landing tile. They are drawn only when
+    Visible, like any zombie.
   - Nothing else changes: no music change, no UI change, moodles only
-    react if zombies see the hero (Panic).
-- Online: ceil(A / 10) (`attacks.strengthPerZombie`) attackers hit the main
-  home's barricade (damage x0.4, 5.4) until all are dead. They keep hitting
-  while the hero is anywhere; they only bite the active character if he is
-  on that floor and they can reach him. While attackers are banging on the
-  barricade, a bang sound plays every **2-3 s** (random in
-  `cue.fightBangGapSeconds` [2, 3]). A fallen barricade lets them in.
+    react if Visible zombies see the hero (Panic).
+- Online: ceil(A / 10) (`attacks.strengthPerZombie`) attackers path to the
+  main home's front door. At most **3** hit the barricade at once
+  (`attacks.maxAttackersAtDoor`): from the corridor tile in front of the
+  door and the two corridor tiles diagonally beside it; the rest wait in
+  the corridor behind them. Damage x0.4 (5.4). They keep hitting while the
+  hero is anywhere; they only bite the active character if he is on that
+  floor and they can reach him. An attacker that sees the hero aggroes and
+  chases like any zombie, then returns to the door if it loses track.
+  While attackers are banging on the barricade, a bang sound plays every
+  **2-3 s** (random in `cue.fightBangGapSeconds` [2, 3]). A fallen
+  barricade lets them in (the door behind it counts as broken open).
   Nothing on screen says an attack ended: it is over when the banging
-  stops.
+  stops. A main home without a barricade: attackers bash its front door
+  (door HP, 5.18), then come in.
 - **Repelled online** (all attackers dead): +5 morale (silent) only if the
   barricade never reached 0 HP during that attack.
 - **Scripted first attack check** (QA test): fists only, 1 tap per second,
   hero at the door when the first crawler arrives -> barricade ends at or
   above **100 HP** of 120 (crawlers deal 8 x 0.4 = 3.2 per 2.5 s each).
+  The hero fights from inside: he opens nothing; he sees and hits
+  crawlers through the barricade (a barricade blocks movement, not sight or
+  weapon hits; zombies can bite through it too if he stands within 1.5
+  tiles).
 - **App hidden mid-attack**: on return, the remaining attackers are settled
   as an offline attack with A = remaining x 10, current barricade HP, no new
   multipliers; it counts toward `attacks.maxOfflineResolves`. If hidden
@@ -920,7 +1138,8 @@ you scavenge saves walking.
 - **Barricade look**: damage is shown only by the sprite, in 5 stages by
   HP ratio (`barricade.visualStages` 0.75 / 0.5 / 0.25 / 0): intact, a
   cracked plank, boards hanging and gaps, barely held, broken. Each hit
-  shakes it 2 px and drops a few splinters.
+  shakes it 2 px and drops a few splinters. It is drawn on the door's
+  inside; from the corridor the closed door shows splintering instead.
 
 ### 5.9 Death and game over
 - Online death -> the screen slowly fades to black with the hero's
@@ -932,11 +1151,14 @@ you scavenge saves walking.
 **Light** (M2)
 - **Oil lamp** (placeable): *Use* -> Add fuel (holds **2 fuel**,
   `lamp.fuelSlots`), burns **1 fuel per 12 h** (`lamp.fuelHours`) online
-  and offline. While burning, its room is **Lit** (5.3): a warm light pool
-  of radius **220 px** (`light.lampRadiusPx`) that flickers +/-5%
-  (`light.lampFlickerPct`). Out of fuel = dark (reported: "The lamp in the
-  kitchen burned out.").
-- **Comfort** (M2 subset): if any room of the main home is Lit, morale
+  and offline. While burning, the tiles within **4 tiles**
+  (`light.lampRadiusTiles`) that it has line of sight to are **Lit** (5.3):
+  a warm pool that flickers +/-5% (`light.lampFlickerPct`). A closed door
+  stops its light. Out of fuel = its tiles fall back to the room's light
+  (reported: "The lamp in the kitchen burned out."). A lit lamp is seen
+  from up to 9 tiles away (5.17), and it also makes the hero easier to see
+  for zombies (Lit sight range, 5.4).
+- **Comfort** (M2 subset): if any oil lamp burns in the main home, morale
   drain/h is reduced by 0.5 (`comfort.litPoints` 2 x `comfort.perPoint`
   0.25, drain clamped at `comfort.minDrain` -0.5); the full comfort table
   arrives in M3.
@@ -952,10 +1174,10 @@ the stash of the apartment it is in.
   of burn (`stove.maxBurnHours`) and burns online and offline. The panel
   shows the burn level only as a drawing of the fire (embers / low / high),
   never hours.
-- While lit, its room is **Lit** (warm pool of 220 px, as a lamp; it counts
-  toward the 4 light pools per floor). Warmth gives comfort +1, and sleep
-  energy regen gets **+30%** (`stove.sleepBonus`) for beds in that
-  apartment. Stove recipes only work while it is lit.
+- While lit, it lights tiles like a lamp (4 tiles; it counts toward the 4
+  light pools per floor). Warmth gives comfort +1, and sleep energy regen
+  gets **+30%** (`stove.sleepBonus`) for beds in that apartment. Stove
+  recipes only work while it is lit.
 - Stove recipes: **Boil water** (2 dirty water -> 2 clean water); **Hot
   stew** (2 planter crops + 1 clean water, +1 herbs optional -> +45 food,
   +5 morale, or +10 morale with herbs; spoils); **Jarred veg** (3 planter
@@ -983,7 +1205,7 @@ the stash of the apartment it is in.
   dressing, max 1 counted); **Music player** 2 parts + 1 plastic + 1
   batteries (no spot). The music player runs on 1 power (M4), or on 1
   batteries per 24 h from its apartment's stash. It plays a faint, muffled
-  tune only while the camera is on that floor. It never plays during an
+  tune only while the hero is on that floor. It never plays during an
   attack cue or an attack, so it never masks the cue.
 - No comfort number is shown anywhere. Good comfort is felt as the
   Depressed moodle staying away.
@@ -1030,9 +1252,9 @@ the stash of the apartment it is in.
   device simply goes dark and silent, and its *Use* card says "No power."
   The music player and radio fall back to batteries from that stash, if
   any.
-- **String lights** (WB 2, window or floor spot): their room is Lit while
-  powered. **Grow lamp** (WB 2, floor spot): planters and herb boxes in
-  the same apartment get +50% speed while powered.
+- **String lights** (WB 2, window or floor spot): light tiles like a lamp
+  while powered. **Grow lamp** (WB 2, floor spot): planters and herb boxes
+  in the same apartment get +50% speed while powered.
 
 **Radio set** (M5)
 - *Use* -> Scan, once per **12 h** (`radio.scanCooldownHours`); while
@@ -1049,32 +1271,37 @@ the stash of the apartment it is in.
   landing -> a list (96 px rows) of floors with a claimed apartment and
   Secured floors -> travel at **0.3 s per floor**
   (`elevator.secondsPerFloor`). It needs 2 free power in the main home,
-  else "No power." It is noisy on arrival (noise radius 400 px on the
+  else "No power." It is noisy on arrival (noise radius 8 tiles on the
   arrival floor). Zombies never use it.
 
 ### 5.11 Gear and throwables
 - **Throw** (M1): while a throwable is carried, a **Throw** button appears
-  in the bottom bar. Tap it to arm (a faint 300 px range arc, `throw.rangePx`);
-  the next tap on the hero's floor within range throws it (lands 0.5 s
-  later, `throw.landSeconds`); a tap out of range, on another floor or on
-  Home disarms and keeps the item.
-- **Molotov** (M1): a fire patch **120 px** wide for **4 s**, **15
-  damage/s** to zombies inside, **10/s** to the hero. Loud. Fire never
-  spreads and never damages objects or barricades.
+  in the bottom bar. Tap it to arm: a faint ring shows the range, **6
+  tiles** (`throw.rangeTiles`), drawn as an iso ellipse on the floor. The
+  next tap on a **Visible** tile within range and in line of sight throws
+  it (lands **0.5 s** later, `throw.landSeconds`); a tap on any other tile
+  or on Home disarms and keeps the item.
+- **Molotov** (M1): a fire patch on the target tile and its 8 neighbours
+  (radius **1 tile**, `molotov.radiusTiles`) for **4 s**, **15 damage/s**
+  to zombies inside, **10/s** to the hero. Loud. It lights its tiles (Lit)
+  while burning. Fire never spreads and never damages objects, doors or
+  barricades.
 - **Cycling** (M3, once a second throwable type exists): while armed,
   another tap on Throw switches to the next carried throwable type; going
   past the last type disarms.
 - **Noise lure** (M3): rings **3 s** after landing for **20 s**
   (`lure.delaySeconds`, `lure.ringSeconds`). Every non-aggroed zombie on
   that floor that can reach it shambles to it and waits there until it
-  stops. Its ringing is the sound, with no marker. Single use.
-- **Flashlight** (M3, tool, carried): while it has charge, Dim rooms count
-  as **Grey** for the hero (everything drawn, normal search time). The
-  light also makes him visible, so zombies use the Grey sight radius (180
-  px) instead of the Dim one. Each Dim room entered uses **1 charge**. 1
-  batteries = **10 charges** (`light.flashlightCharges`), auto-loaded from
-  carried batteries at 0. With no charge, Dim applies. It never affects
-  Dark rooms, because entering a room already turns it Dim.
+  stops. Its ringing is the sound, with no marker. Single use. It can be
+  thrown at a remembered tile within range (an exception to Visible).
+- **Flashlight** (M3, tool, carried): while it has charge, every tile in
+  the hero's cone (not the close circle) up to **7 tiles** counts at least
+  as **Grey** for the hero's vision (range and search time), and the cone
+  angle uses the Grey value. The light also makes him visible: zombies use
+  the Lit sight range (5 tiles) against him. It drains **1 charge per 30 s
+  on** (`light.flashlightSecondsPerCharge`); a tap on its inventory icon
+  toggles it. 1 batteries = **10 charges** (`light.flashlightCharges`),
+  auto-loaded from carried batteries at 0.
 - **Equipment** (M4): the Inventory screen has a **Body** and a **Feet**
   slot (not carry slots). Tap an item -> Equip / Unequip. Armor reduces
   each zombie hit by its percentage (rounded down) and loses 1 durability
@@ -1084,9 +1311,8 @@ the stash of the apartment it is in.
     40 hits. **Leather armor** (Body, 4 leather + 2 tape + 1 metal, WB 2):
     -35%, 60 hits.
   - **Quiet shoes** (Feet, 2 rubber + 1 cloth, WB 1, never wear out): all
-    zombie sight radii x**0.6** (`gear.quietSightMult`: 108 / 66 / 42 px in
-    Grey-Lit / Dim / Dark) and run noise radius 250 -> **150 px**
-    (`gear.quietRunNoiseRadiusPx`).
+    zombie sight ranges x**0.6** (`gear.quietSightMult`) and run noise
+    radius 5 -> **3 tiles** (`gear.quietRunNoiseRadiusTiles`).
 - **Tool wraps** (M4): carried; each dismantle uses 1 of **10 uses**
   (`gear.toolWrapUses`) and is one noise step quieter (Loud -> Noisy ->
   Quiet).
@@ -1102,13 +1328,12 @@ cold grey light. From M3:
 - Changing the clock or time zone only changes the phase; elapsed time
   still follows 5.1. Days survived is unchanged (24 real hours each).
 - **At night**: windows give no light, so on Infested and Cleared floors
-  every entered **Grey room becomes Dim**. This includes claimed
-  apartments, unless the room is Lit by a lamp, stove or string lights.
-  Secured floors stay Grey (the hero has rigged their light). Dark and Lit
-  rooms are unchanged. All zombie sight radii are x**1.25**
-  (`night.sightMult`: 225 / 138 / 88 px; with Quiet shoes the 0.6 applies
-  too). Zombie speed is x**1.15** (`night.zombieSpeedMult`). Attacks that
-  start at night are x**1.2** (`night.attackMult`, after the cap, 5.8).
+  every **Grey** tile becomes **Dim**, including in claimed apartments,
+  unless Lit. Secured floors stay Grey (the hero has rigged their light).
+  Dim and Dark tiles are unchanged. All zombie sight ranges are x**1.25**
+  (`night.sightMult`; with Quiet shoes the 0.6 applies too). Zombie speed
+  is x**1.15** (`night.zombieSpeedMult`). Attacks that start at night are
+  x**1.2** (`night.attackMult`, after the cap, 5.8).
 - **Night rewards**: each search has a **30%** chance of +1 loot roll
   (`night.bonusLootChance`). Sleep energy regen is **+20%**
   (`night.sleepBonus`, added to the stove's +30%).
@@ -1118,11 +1343,10 @@ cold grey light. From M3:
 - **Offline**: each 10-min catch-up step uses the local hour of its own
   timestamp (offline night attacks also get x1.2). Fuel, power and
   production ignore the phase.
-- **Show**: no HUD icon (there is no top HUD). The sky behind the tower
-  fades to near-black navy (`#0e1118`) at night. Window panes lose their
-  grey light, and unlit claimed apartments go dark. Rain sounds heavier.
-  The first night, the hero thinks: "Night. They'll hear me from further
-  away."
+- **Show**: no HUD icon. Window light shafts vanish and windows show a
+  near-black navy city (`#0e1118`) at night; unlit claimed apartments go
+  dark. Rain sounds heavier. The first night, the hero thinks: "Night.
+  They'll hear me from further away."
 
 ### 5.13 The dog (M3)
 - A dog, **Scout**, is shut in a bathroom on **floor 18**. Faint whining
@@ -1139,12 +1363,12 @@ cold grey light. From M3:
   its mode and stays with the new character. "Home" for the dog is always
   the **main home**; if the main home changes, a staying dog moves there
   the next time the app resumes.
-- **Following**: walks 40 px behind the hero and uses stairs with them.
-  When a zombie that is not drawn (Dim out of sight, or a Dark room) and
-  not aggroed comes within **300 px** on the same floor
-  (`dog.growlRadiusPx`), the dog stops, stares and growls. The growl is
-  panned toward the zombie, and the zombie's silhouette is drawn for **2
-  s** (`dog.revealSeconds`). This happens once per zombie per **15 s**
+- **Following**: walks 1-2 tiles behind the hero and uses stairs with
+  them. When a zombie that is not Visible and not aggroed comes within **6
+  tiles** on the same floor (`dog.growlRadiusTiles`), the dog stops,
+  stares and growls. The growl is panned toward the zombie, and the
+  zombie's silhouette is drawn for **2 s** (`dog.revealSeconds`), even
+  through walls. This happens once per zombie per **15 s**
   (`dog.growlCooldownSeconds`). There is no arrow or marker. The growl is
   not noise and never aggros.
 - **Staying home** (fed): comfort +1, offline defense +5 (`dog.defense`,
@@ -1194,7 +1418,7 @@ cold grey light. From M3:
   floor 10. The report warns in prose, with no hours: "Mara is burning up.
   She doesn't have long."
 - **Turning**: pass the torch (5.7) as usual. The body becomes a **Turned**
-  zombie at that spot (in their claimed apartment if they were there):
+  zombie at that tile (in their claimed apartment if they were there):
   Walker stats with **45 HP** (`infection.turnedHp`), in the hero's or
   survivor's faded clothes, holding the dropped bag; killing it drops the
   bag. The survivor-death morale -20 applies. The turn happens off-screen
@@ -1202,112 +1426,184 @@ cold grey light. From M3:
 - Mara's medical bag quest reward includes **1 antibiotics** from M3, so a
   cure always exists.
 
-### 5.15 Procedural apartments (M2)
-Every new game builds the tower from **templates** so each run is
-different to scout. The data lives in `public/data/levels/templates.json`
-(level-designer; path in `generator.templatesFile`), numbers in
-`balance.generator.*`.
+### 5.15 Floor plans and procedural apartments (iso rebuild)
+Every new game builds floors 13-17 from **hand-drawn unit floor plans
+("blueprints")** and **templates**, so each run is different to scout
+while every room still looks designed. Data: `public/data/levels/
+blueprints.json` (new, level-designer; path in `generator.blueprintsFile`)
+and `public/data/levels/templates.json` (templates, room types, pools,
+flavour lines, notes; level-designer). Numbers in `balance.generator.*`.
+
+**Blueprint format** (level-designer, exact schema theirs; rules here)
+- A blueprint belongs to one template and fits one slot size: apartment
+  **12 x 10** tiles or small **6 x 10**. It is drawn for the **NW** slot
+  (apartment, front door on its south edge, y = 10) or the **S** slot
+  (small, front door on its north edge, y = 0), as 10 strings of 12 (or 6)
+  characters: each character is the **room ref** of that tile (`a`-`z`),
+  `#` = void (structure, not walkable, rare). Every room is one
+  4-connected area.
+- **Doorways**: listed edges between two rooms, each 1 tile wide; every
+  room is reachable from the front door through doorways; at most 3
+  doorways per room. The **front door** is one listed edge on the
+  corridor side, into the template's `first` room (usually the hallway).
+- **Windows** are not drawn: every room of a `light: "grey"` type must touch
+  the unit's exterior edge (north edge for NW/NE, south for SW/SE, and the
+  x = 0 / x = 30 floor ends where a slot touches them; small units only have
+  their far edge). The generator puts **1 window per 3 exterior edge tiles**
+  of that room, at least 1, centred (`generator.windowEveryTiles`).
+- **Room sizes** (tiles, inclusive, `generator.roomSizeTiles`; the short
+  side first): hallway 1x2 - 2x6; living 4x4 - 6x6; kitchen 3x3 - 4x5;
+  bedroom 3x3 - 4x5; kids_room 3x3 - 4x4; bathroom 2x2 - 3x3; studio 4x5 -
+  6x7; laundry 3x4 - 6x6; reception 3x3 - 4x5; office 3x4 - 5x6;
+  break_room 3x3 - 4x4; storage 3x4 - 6x6; janitor 2x2 - 3x3;
+  utility 3x3 - 4x5. Claustrophobia rule: no room larger than 36 tiles
+  (`generator.maxRoomTiles`), hallways 1-2
+  tiles wide, at least one 1-wide pinch (a 1-tile corridor or a doorway
+  between two rooms with a door) on the way from the front door to the
+  farthest room of every apartment.
+- **At least 2 blueprints per template** (`your_flat` has exactly 1), so
+  the same template doesn't always look the same.
+- **Mirroring**: the generator mirrors a blueprint in x with chance
+  **0.5** (`generator.mirrorXChance`) and always in y for south slots, so
+  the front door faces the corridor. Mirroring keeps the tile chars,
+  doorways and the "mounted only on north/west walls" rule (recomputed
+  after mirroring).
 
 **Seed and saving**
 - New game draws `worldSeed` (random 32-bit integer) and saves it. Each
   floor is generated deterministically from hash(worldSeed, floor number)
-  the first time any floor is loaded (all of floors 13-17 at New game in
-  M2). The generated layout is **saved** in full (units, rooms, object
-  ids, slots, zombies, notes); after that only the save is used, so future
-  template edits never change a running game.
-- Object instance ids are `f<floor><L|R>-<room index>-<slot>` (e.g.
-  `f14R-2-wall1`), stable for the save.
+  at New game (all of floors 13-17 in M2). The generated layout is
+  **saved** in full (unit slots, blueprint ids and mirroring, rooms,
+  doors and their states, windows, objects with tiles and facing, zombies,
+  notes); after that only the save is used, so data edits never change a
+  running game. Per-floor **tile memory** (5.17) is saved as a bitset.
+- Ids: objects `f<floor><slot>-<x>.<y>` with x, y the unit-local tile of
+  the object's first footprint tile after mirroring (e.g. `f14NE-5.3`);
+  doors and window edges `f<floor><slot>-<x>.<y>.<N|W|S|E>`.
+- **Stage B data** (11.3) uses the same saved-layout format, authored by
+  the level-designer (by hand or with a script following these rules) in
+  `public/data/levels/floors_iso.json`, so Stage C swaps authored data for
+  generated data without changing the game code.
 
 **Generation steps per floor**
-1. **Pick two unit templates**, one per wing, by template weight, with:
-   at most 1 of each template per floor (`generator.maxSameTemplatePerFloor`);
-   at least 1 flat-type template per floor
-   (`generator.guarantees.minFlatWingsPerFloor`); fixed overrides: floor 15
-   left = `your_flat` (`generator.startFlatTemplate`); floor 13 has one
-   flat with a bathroom for Mara; floor 14 has one flat with a bedroom for
-   the bag.
-2. **Pick a condition** per unit by weight (`generator.conditionWeights`):
+1. **Pick a template per slot**: apartment slots (NW, NE, SW, SE) from
+   apartment templates, slot S from small templates, by weight, with: at
+   most 1 of each apartment template per floor
+   (`generator.maxSameTemplatePerFloor`); at least **2 flat-type units**
+   per floor not counting the start flat (`generator.guarantees.
+   minFlatUnitsPerFloor`); fixed overrides: floor 15 NW = `your_flat`
+   (`generator.startFlatTemplate`); floor 13 has one flat with a bathroom
+   for Mara; floor 14 has one flat with a bedroom for the bag.
+2. **Pick a blueprint** of that template (uniform) and its mirroring.
+3. **Pick a condition** per unit by weight (`generator.conditionWeights`):
    **normal 60**, **ransacked 30**, **burned 10**. The start flat is
    always normal; offices and service units are never burned in M2.
-3. **Order rooms**: the template's room list, shuffled within its rules
-   (`fixedFirst`, `adjacent` pairs, `last`), laid out from the front door.
-4. **Fill slots** per room type (table below): first its "always" objects,
-   then each remaining slot is filled with chance **0.6**
-   (`generator.slotFillChance`) by a weighted pick from that slot layer's
-   pool. Pool items marked "max 1" appear once per unit. Empty slots stay
-   empty (future build spots).
-5. **Doors**: each internal room boundary gets an interior door with chance
-   **0.5** (`generator.interiorDoorChance`); front door jammed **25%**.
-6. **Apply condition**: *ransacked*: each non-"always" object removed with
+4. **Window dressing**: every window edge gets a **window pane** (always,
+   except burned units: broken, no pane) and **curtains** with chance
+   **0.5** (`generator.curtainChance`). Window panes and curtains in old
+   pools are ignored.
+5. **Fill objects** per room (room type table below): first its "always"
+   objects, then **wall picks** = floor(wall tiles / 3)
+   (`generator.wallTilesPerPick`) and **floor picks** = floor(room area /
+   6) (`generator.floorTilesPerPick`), each placed with chance **0.6**
+   (`generator.slotFillChance`) by a weighted pick from that layer's pool.
+   Pool items marked "max 1" appear once per unit.
+   - **Wall layer**: a tile with a wall edge on the room's perimeter (not a
+     doorway or window edge); the object backs onto that wall and faces
+     into the room. Mounted objects (`iso.mountedObjects`) take a north/west
+     wall edge instead and leave the tile free.
+   - **Floor layer**: any free tile; prefer tiles with no wall edge.
+   - **Placement rules** (a candidate tile failing any rule is skipped and
+     the next random candidate tried; after 10 failures the pick is
+     dropped, `generator.placementTriesPerPick`): (a) the whole footprint lies inside the room on free tiles;
+     (b) both tiles touching any doorway, front door or window edge stay
+     free (`generator.doorwayClearanceTiles` 1; windows: only the tile in
+     front of a window spot); (c) every object has an **access tile**: a
+     free walkable tile orthogonally adjacent to its front (wall objects:
+     the tile in front of its face; floor objects: any side); (d) after
+     placing, all doorways of the room and all access tiles stay connected
+     by walkable tiles (flood fill); (e) at most one object per tile.
+   - Facing: wall objects face away from their wall; beds and sofas are
+     wall-layer with the short side (head/arm) or long side against the
+     wall as the footprint allows; floor objects face the room's centre.
+6. **Doors**: each internal doorway gets an interior door with chance
+   **0.5** (`generator.interiorDoorChance`); a door starts **closed** with
+   chance **0.6** (`generator.doorClosedChance`). Front doors always exist
+   and start closed; **25%** are jammed (`generator.frontDoorJammedChance`).
+7. **Apply condition**: *ransacked*: each non-"always" object removed with
    chance 0.3 (`objectRemoveChance`), containers 70% empty, drawn with
-   open drawers and papers on the floor; *burned*: each object becomes
-   Burned furniture with chance 0.7 (`charChance`), windows broken (rooms
-   stay Grey, rain noise louder), walls soot-black, containers 85% empty.
-7. **Zombies** per wing by distance from floor 15
-   (`generator.zombiesPerWingByDistance`): floor 15 **0-2**, 14/16 **1-3**,
-   13/17 **2-4**; never in the start flat; never in the first module
-   behind a front door (`generator.zombieNoSpawnModulesFromFrontDoor`);
-   max **3** per room; with chance **0.5** (`generator.groupChance`) a
-   zombie joins the previous zombie's room as a group. Type by weight:
-   crawler **30**, walker **70** (`generator.zombieTypeWeights`; it is a
-   tunable number, so it lives in balance, not templates.json).
-8. **Guarantees** per floor, fixed by swapping or editing after filling:
+   open drawers and papers on the floor, interior doors start open;
+   *burned*: each object becomes Burned furniture with chance 0.7
+   (`charChance`), windows broken (rain noise louder), walls soot-black,
+   containers 85% empty.
+8. **Zombies** per unit by distance from floor 15
+   (`generator.zombiesPerUnitByDistance`): floor 15 **0-1**, 14/16 **0-2**,
+   13/17 **1-2**; at most **6** per floor (`generator.zombiesPerFloorCap`);
+   never in the start flat; never within **2 tiles** of a unit's front
+   door (`generator.zombieNoSpawnTilesFromFrontDoor`); max **3** per room
+   (`generator.maxZombiesPerRoom`); with chance **0.5**
+   (`generator.groupChance`) a zombie joins the previous zombie's room on a
+   neighbouring tile. Type by weight: crawler **30**, walker **70**
+   (`generator.zombieTypeWeights`). Room choice weighted by the room type's
+   `zombieWeight`. Encounter targets (5.4) are enforced; a failed rule
+   re-rolls the room.
+9. **Guarantees** per floor, fixed by swapping or editing after filling:
    at least **1 food item** in a container (a kitchen cupboard or fridge
    gets fixedLoot 1 canned food or dry snack; never empty)
-   (`guarantees.minFoodItemsPerFloor`); at least **1 drainable water
-   source** (`guarantees.minDrainableWaterPerFloor`; every bathroom has a
-   toilet tank, so the flat guarantee covers it).
-9. **Notes**: 1-2 found notes per floor (5.16) in containers that fit them.
+   (`guarantees.minFoodItemsPerFloor`), not in the start flat; at least
+   **1 drainable water source** (`guarantees.minDrainableWaterPerFloor`;
+   every bathroom has a toilet tank, so the flat guarantee covers it).
+10. **Notes**: 1-2 found notes per floor (5.16) in containers that fit them.
 
-**Unit templates (M2: 7 + the start flat)**. Widths in modules (total 6).
+**Unit templates (M2: 6 apartment + 3 small + the start flat)**
 
-| Template id | Name | Rooms (modules) and order rules | Weight | Type |
+| Template id | Slot | Name | Rooms (refs, types) | Weight | Type |
+|---|---|---|---|---|---|
+| `your_flat` | apartment | Your flat | hallway, living, kitchen, bedroom, bathroom; one authored blueprint and authored objects (tutorial, section 8) | - | flat |
+| `family_flat` | apartment | Family flat | hallway (first), living, kitchen, bedroom, kids_room, bathroom; kitchen next to living | 25 | flat |
+| `couple_flat` | apartment | Couple's flat | hallway (first), living, kitchen, bedroom, bathroom | 25 | flat |
+| `shared_flat` | apartment | Shared flat | hallway (first), kitchen, bedroom x3, bathroom | 15 | flat |
+| `elderly_flat` | apartment | Old couple's flat | hallway (first), living, kitchen, bedroom, bathroom; bedroom next to bathroom; containers favour medicine, tins, seeds | 13 | flat |
+| `office` | apartment | Small office | reception (first), office x2, break_room, bathroom | 6 | office |
+| `studio` | small | Studio | studio (first), bathroom | 40 | flat |
+| `laundry_room` | small | The building's laundry | laundry (first), janitor | 30 | service |
+| `storage_utility` | small | Storage and boiler rooms | storage (first), utility | 30 | service |
+
+(The side-view `studio_laundry` template is split into `studio` and
+`laundry_room`. "Next to" means sharing a doorway; the blueprint must
+respect it.)
+
+**Room types** (`light`: grey = has windows, dim, dark; "F" = floor layer,
+"W" = wall layer; mounted objects marked m):
+
+| Room | Light | Always | F pool (weight) | W pool (weight) |
 |---|---|---|---|---|
-| `your_flat` | Your flat | hallway 1, living 2, kitchen 1, bedroom 1, bathroom 1; fixed order; authored objects (tutorial, section 8) | - | flat |
-| `family_flat` | Family flat | hallway 1 (first), living 1, kitchen 1, bedroom 1, kids_room 1, bathroom 1; kitchen adjacent to living | 25 | flat |
-| `couple_flat` | Couple's flat | hallway 1 (first), living 2, kitchen 1, bedroom 1, bathroom 1; kitchen adjacent to living | 25 | flat |
-| `shared_flat` | Shared flat | hallway 1 (first), kitchen 1, bedroom 1, bedroom 1, bedroom 1, bathroom 1 | 15 | flat |
-| `studio_laundry` | Studio and laundry | laundry 2 (first, the building's shared laundry), studio 3, bathroom 1 (last) | 12 | flat |
-| `elderly_flat` | Old couple's flat | hallway 1 (first), living 2, kitchen 1, bedroom 1, bathroom 1; bedroom adjacent to bathroom; containers favour medicine, tins, seeds | 13 | flat |
-| `office` | Small office | reception 1 (first), office 2, office 1, break_room 1, bathroom 1 (last) | 6 | office |
-| `storage_utility` | Storage and boiler rooms | storage 3 (first), janitor 1, utility 2 (last) | 4 | service |
+| hallway | dim | - | potted_plant 2 | chair 2, toolbox 1 (max 1), oil_lamp 1 |
+| living | grey | sofa (W) | table 3, chair 3, potted_plant 2 | tv 2 (max 1), oil_lamp 1 |
+| kitchen | grey | fridge (W), kitchen_cupboard (W) | table 2, chair 2 | kitchen_drawer 3, microwave 2 (max 1), kitchen_cupboard 2, sink_pipes 2 (max 1) |
+| bedroom | grey | bed_frame (W) | chair 1 | wardrobe 3 (max 1), mattress 1, oil_lamp 1 |
+| kids_room | grey | bed_frame or mattress (W, 60/40), toy_box (W) | - | toy_box 1 (max 2) |
+| bathroom | dim | toilet_tank (W), bathroom_cabinet or medicine_cabinet (m, 50/50) | laundry_basket 2 | sink_pipes 2 (max 1), water_heater 1 (max 1), bathroom_cabinet m 1 (max 1) |
+| studio | grey | bed_frame or mattress (W), sofa (W), kitchen_cupboard (W), fridge (W) | table 2, chair 2, potted_plant 1 | kitchen_drawer 2, tv 1 (max 1) |
+| laundry | dark | washing_machine x2 (W) | laundry_basket 3 | washing_machine 2, utility_shelf 2 |
+| reception | grey | desk (W) | chair 3, potted_plant 2 | sofa 1 |
+| office | grey | desk (W) | chair 2, potted_plant 1 | filing_cabinet 3 |
+| break_room | dim | kitchen_cupboard (W), table (F) | chair 3 | fridge 1 (max 1), microwave 2 (max 1), kitchen_drawer 2 |
+| storage | dark | storage_cage on every second wall tile | - | utility_shelf 2 |
+| janitor | dark | utility_shelf (W) | laundry_basket 1 | toolbox 2 (max 1), utility_shelf 1 |
+| utility | dark | water_heater (W) | - | toolbox 2 (max 1), storage_cage 1, utility_shelf 2 |
 
-**Room types** (what may appear where; "F" = floor-layer slots, "W" =
-wall-layer slots; `hasWindow` rooms are Grey when entered):
-
-| Room | Window | Always | F pool (weight) | W pool (weight) |
-|---|---|---|---|---|
-| hallway | no | - | chair 2, potted_plant 2, toolbox 1 (max 1) | oil_lamp 1 |
-| living | yes | sofa (F) | table 3, chair 3, tv 2 (max 1), potted_plant 2 | window_pane 3, curtains 3, oil_lamp 1 |
-| kitchen | yes | fridge (F), kitchen_cupboard (W) | table 2, chair 2, sink_pipes 2 (max 1) | kitchen_drawer 3, microwave 2 (max 1), kitchen_cupboard 2, window_pane 1 |
-| bedroom | yes | bed_frame (F) | wardrobe 3 (max 1), chair 1, mattress 1 | curtains 3, window_pane 2, oil_lamp 1 |
-| kids_room | yes | bed_frame or mattress (F, 60/40), toy_box (F) | - (both F slots of a 1-module room are taken) | curtains 3, window_pane 1 |
-| bathroom | no | toilet_tank (F), bathroom_cabinet or medicine_cabinet (W, 50/50) | sink_pipes 2 (max 1), water_heater 1 (max 1), laundry_basket 2 | bathroom_cabinet 1 (max 1) |
-| studio | yes | bed_frame or mattress (F), sofa (F), kitchen_cupboard (W), fridge (F) | table 2, chair 2, tv 1 (max 1), potted_plant 1 | kitchen_drawer 2, window_pane 2, curtains 2 |
-| laundry | no | washing_machine x2 (F) | washing_machine 2, laundry_basket 3 | utility_shelf 2 |
-| reception | yes | desk (F) | chair 3, sofa 1, potted_plant 2 | window_pane 2 |
-| office | yes | desk (F) | filing_cabinet 3, chair 2, potted_plant 1 | window_pane 2, curtains 1 |
-| break_room | no | kitchen_cupboard (W), table (F) | chair 3, fridge 1 (max 1) | microwave 2 (max 1), kitchen_drawer 2 |
-| storage | no | storage_cage in every floor slot | - | utility_shelf 2 |
-| janitor | no | utility_shelf (W) | toolbox 2 (max 1), laundry_basket 1 | utility_shelf 1 |
-| utility | no | water_heater (F) | toolbox 2 (max 1), storage_cage 1 | utility_shelf 2 |
-
-Rules: a "max 1" limit is per unit; large objects (wardrobe, fridge,
-washing machine, water heater, bed) use one floor slot but are drawn up to
-96 px wide; a pool weight of 0 means not placed in M2. Interior doors are
-not slot objects (they sit on boundaries). Burned units replace objects
-after the pick, so they keep the logical layout as charred shapes.
+Rules: a "max N" limit is per unit and counts "always" copies; a pool
+weight of 0 means not placed in M2. Doors and windows are not pool
+objects. Burned units replace objects after the pick, keeping footprints
+and tiles as charred shapes.
 
 **Generator edge rules (M2)**
-- **Max counts include "always" copies.** A pool item's `max` counts every
-  copy already in the unit, including ones placed by "always". So a
-  bathroom never has two bathroom cabinets (one cabinet of each kind is
-  fine: an "always" medicine cabinet plus a pool bathroom cabinet).
-- **Fixtures**: the start flat's **workbench** is a fixture, not a salvage
-  object. It occupies its slot, has only *Use* (open crafting), cannot be
-  searched, dismantled, removed, charred or emptied, and is not listed in
-  `balance.objects`. Workbenches built later from the recipe (5.6) are
-  crafted placeables and follow the placeable rules.
+- **Fixtures**: the start flat's **workbench** (1x2) is a fixture, not a
+  salvage object. It occupies its tiles, has only *Use* (open crafting),
+  cannot be searched, dismantled, removed, charred or emptied, and is not
+  listed in `balance.objects`. Workbenches built later from the recipe
+  (5.6) are crafted placeables and follow the placeable rules.
 - **Condition exemptions**: these are never removed, charred or made empty
   by a condition pass: any object holding `fixedLoot` (the per-floor food
   guarantee container, Mara's note cabinet, the Novak wardrobe with the
@@ -1317,15 +1613,12 @@ after the pick, so they keep the logical layout as charred shapes.
   burned; her bathroom has no zombies and a jammed interior door.
 - **Start flat food**: exactly **1 canned food** (fridge fixedLoot), as in
   the tutorial (section 8). The start flat does not count toward the
-  per-floor food guarantee; the right wing of floor 15 gets its own, so
-  it never rolls `storage_utility` (no kitchen or break room to hold it).
-- **Storage cages stay crowbar-only** (no slow or loud hand-opening). A
-  storage unit without a crowbar is a deliberate early goal: the first
-  time the hero taps Search on a padlocked cage without a crowbar, the
-  thought "Padlocked. A crowbar would do it." shows (once per game); later
-  taps show the same thought only, no action. Crowbar costs 3 metal (5.6),
-  so it is reachable within the first few floors' scavenging. A jammed
-  front door can still be bashed open by hand (`world.jammedDoorHits`).
+  per-floor food guarantee; another floor 15 unit holds it.
+- **Storage cages stay crowbar-only** (no slow or loud hand-opening). The
+  first time the hero taps Search on a padlocked cage without a crowbar,
+  the thought "Padlocked. A crowbar would do it." shows (once per game);
+  later taps show the same thought only, no action. A jammed front door can
+  still be bashed open by hand (`world.jammedDoorHits`).
 - **Scarcity**: every consumable rolled is qty 1 (5.5); loot tables stay
   lean and most emptiness comes from `generator.conditions.*.emptyChance`
   (normal 30%, ransacked 70%, burned 85%). The guarantees (1 food item and
@@ -1339,42 +1632,188 @@ after the pick, so they keep the logical layout as charred shapes.
   kitchen drawer, filing cabinet) and shown once as a paper card; the Menu
   keeps them under "Notes".
 - Each unit has a **flavour line** from its template's pool, shown once
-  when the hero first steps into it, as small text at the bottom of the
-  screen for 4 s: "The TV is still on standby. Nobody's watched it in a
-  week.", "Toys lined up by the door, as if someone was coming back."
+  when the hero first steps through its front door, as small text at the
+  bottom of the screen for 4 s: "The TV is still on standby. Nobody's
+  watched it in a week.", "Toys lined up by the door, as if someone was
+  coming back."
 - Hero **thoughts** replace tutorial arrows and most toasts: one short line
   in italics at the bottom ("I need to eat something.", "The door won't
   hold like this."). Max one every 20 s; never more than one line.
 
+### 5.17 Vision: field of view, shadows and memory (new, iso rebuild)
+The hero sees only what his eyes reach. Keys `vision.*`.
+
+**Tile vision states** (per floor, per tile):
+- **Visible**: seen right now. Drawn in full with its light (section 9);
+  zombies, survivors, decals, fire and moving things on it are drawn.
+- **Remembered**: was Visible before, not now. Drawn darkened and
+  desaturated: floor, walls, doors (in the state last seen), windows and
+  objects (in the state last seen: searched = ajar, dismantled = gone).
+  **Zombies, corpses, decals and fire are never drawn on Remembered
+  tiles.** Remembered objects and doors can be tapped (the hero walks
+  there). Memory is saved and never fades in M2.
+- **Unknown**: never seen. Drawn near-black `#0b0c0e` (alpha 1). Nothing on
+  it is drawn or tappable except the floor itself (taps walk, section 4).
+- A wall edge or door is drawn in the best state of its two neighbouring
+  tiles. At New game, the start flat's tiles are Remembered; claiming a
+  unit makes its tiles Remembered.
+
+**What is Visible**. A tile T is Visible if there is **line of sight** from
+the hero's tile to T and either:
+- **close circle**: T is within **1.5 tiles** (`vision.closeRadiusTiles`;
+  all 8 neighbours, in every direction, any light), or
+- **cone**: the angle between the hero's facing and the direction to T is
+  within half the **cone angle**, and T is within the **view range**.
+  - Cone angle, by the light of the **hero's own tile**: Lit **120**, Grey
+    **110**, Dim **90**, Dark **70** degrees (`vision.coneDegrees.*`),
+    minus the Panic tunnel-vision penalty (5.2), never below 40.
+  - View range, by the light of the **target tile** T: Lit **9**, Grey
+    **7**, Dim **4**, Dark **2.5** tiles (`vision.rangeTiles.*`), minus **1**
+    while Tired is L3+ (`vision.tiredRangePenaltyTiles`). So a lamp-lit
+    room is seen from far down a dark corridor, but a dark corner a few
+    steps away stays black.
+  - Hard cap **9 tiles** (`vision.maxRangeTiles`) for performance.
+- **Soft edges**: tiles in the outer **1 tile** of their range
+  (`vision.edgeFadeTiles`) or within **10 degrees** of the cone edge
+  (`vision.edgeFadeDegrees`) are Visible but drawn with the "edge" overlay
+  (section 9). Zombies on edge tiles are drawn (they are Visible).
+
+**Line of sight (shadow casting)**. Only **walls, closed doors and jammed
+doors** block sight (chosen for performance: furniture, barricades and
+characters never block; tall objects only fade, section 2).
+- Test: the straight segment from the centre of the hero's tile to the
+  centre of T. LOS is blocked if the segment crosses a blocking edge. If it
+  passes exactly through a grid corner, it is blocked when either pair of
+  edges meeting at that corner blocks (no peeking through diagonal gaps).
+  The blocking edges of T itself (its own far walls) don't hide T: walls
+  are seen from inside.
+- Windows are wall edges and block sight (the outside is not part of the
+  game); open doorways and open doors don't.
+- The same LOS test is used for zombie sight (5.4), attacks (5.4), lamp
+  light (5.3), throws (5.11).
+- **Recompute** when the hero changes tile, when his facing changes by
+  15 degrees or more (`vision.recomputeTurnDegrees`), when a door, barricade
+  or lamp changes state, at most **10 times per second**
+  (`vision.recomputeMaxHz`). Zombie visibility (on a Visible tile or not)
+  is re-checked every frame against the latest result.
+- Edge cases: standing in a doorway tile, the hero sees into both rooms
+  (normal LOS). Closing a door makes the tiles beyond it Remembered at the
+  next recompute. A zombie stepping from an Unknown tile onto a Visible one
+  pops in with a 0.15 s fade, never instantly.
+
+**Hearing what you can't see** (no visual markers; audio in section 10):
+- Every zombie within **12 tiles** (`audio.zombieHearRadiusTiles`) on the
+  hero's floor makes occasional shuffles and low breaths every **4-9 s**
+  (`audio.zombieSoundGapSeconds`), panned by its screen position and
+  **muffled** (low-pass, x0.5 volume, `audio.occludedVolumeMult`) when the
+  hero has no line of sight to it. Zombies banging on doors are heard
+  within **15 tiles** (`audio.doorBangHearTiles`). At most **3** zombie
+  voices play at once, nearest first (`audio.maxZombieVoices`).
+- A door that a zombie pushes or bangs **rattles visibly** if the door is
+  Visible or Remembered (it is the door that moves, not a marker).
+- Unseen zombies never raise Panic and never interrupt actions until they
+  see the hero.
+
+**Interplay**
+- **Stealth**: you see zombies' facing only when they are Visible; a
+  zombie facing away inside your cone is the opening for an unaware x3
+  hit. Zombies use the same walls and doors to block their own sight, so
+  closing a door hides you both ways.
+- **Moodles**: Panic narrows the cone (5.2); Tired L3+ shortens the range.
+- **Light**: lamps and (M3) the flashlight extend what you see but make you
+  easier to see (5.4, 5.11). Night (M3) turns Grey to Dim.
+- **Actions**: while searching or dismantling the hero faces the object;
+  the player can't look around without cancelling (except a hold-to-look,
+  which does not cancel an action in progress but turns the hero: he
+  keeps working while looking; the progress ring stays).
+
+### 5.18 Doors and claustrophobia (new, iso rebuild)
+**Doors** (keys `doors.*`)
+- **Kinds**: interior doors (salvage, 5.6 #9), front doors (one per unit;
+  not salvage; barricade spot when claimed), the propped stairwell fire
+  door (always open in M2), the dead elevator door (not usable in M2).
+- **States**: open, closed, jammed (front doors 25%, Mara's bathroom),
+  broken (permanently open, cannot be closed; a broken interior door can
+  still be dismantled for **2 wood**, `doors.brokenYield`).
+- **Hero**: tap a closed door -> he walks to the nearest tile touching the
+  door and opens it in **0.4 s** (`doors.openSeconds`, quiet: a creak, not
+  noise). Tap an open door -> menu **Close** (0.4 s, `doors.closeSeconds`,
+  quiet) and Dismantle / Claim. A door cannot close while anyone (hero,
+  zombie, survivor) stands on one of the two tiles it touches; the hero
+  thinks "Something's in the way." Walking or running paths go through
+  closed, unjammed doors: the hero opens them on the way (0.4 s each) and
+  **does not close them behind him**. A door opened by running bursts
+  open: Noisy, radius **4 tiles** (`doors.runOpenNoiseTiles`).
+- **Sight**: closed and jammed doors block sight (5.17); open, broken and
+  barricaded doors don't.
+- **Zombies cannot open doors.** A zombie whose path to the hero, his last
+  seen tile or a noise crosses a closed door may path around it: a closed
+  door costs **+10 tiles** in zombie pathing (`doors.zombiePathDoorCost`).
+  If the door is still the best way, it stands at the door and **bangs**:
+  each attack interval deals its damage x**0.4** (`doors.zombieDamageMult`)
+  to the door. Door HP: interior **60** (`doors.interiorHp`), front door
+  **120** (`doors.frontHp`). At 0 the door bursts (state broken). One
+  walker breaks an interior door in about 24 s. A zombie bangs only while
+  aggroed (until it loses track, 5.4) or for **10 s** after it reached a
+  noise (`doors.noiseBangSeconds`); then it gives up and returns. Door
+  damage is not repaired in M2 and is shown in 3 stages by HP ratio
+  (intact above 0.66, splintered above 0.33, hanging above 0;
+  `doors.visualStages`), never as numbers.
+- **Front doors**: closed at New game; tapping a jammed one shows the
+  menu **Force** (3 hits, or 1 s with a crowbar, 5.3). A claimed unit's
+  barricade sits on the inside of its front door (5.8).
+- **Saved**: every door's state and damage.
+
+**Claustrophobia rules** (design checks for level data, art and code)
+- **Tight spaces**: corridor 2 tiles wide; apartment hallways 1-2 wide; no
+  room over 36 tiles; a 1-wide pinch on the way into every apartment
+  (5.15).
+- **Doors you must open**: front doors start closed; 60% of interior doors
+  start closed; you don't see what's behind a closed door until you open
+  it, and opening it is a commitment (0.4 s, facing the doorway).
+- **Darkness at the edges**: a screen-space **vignette** from 55% of the
+  half-diagonal to the screen edge, up to alpha **0.65** at the corners
+  (`vision.vignette.innerRadiusRatio`, `outerAlpha`), always on in the
+  world view (not on panels).
+- **Limited view distance**: at most 9 tiles, usually 4-7 (5.17).
+- **No minimap, no map screen, no floor overview.** The only map is your
+  memory of seen tiles; the camera can be panned over it.
+- **One floor at a time**: nothing of other floors is drawn; you hear them
+  only (attack cue, distant thuds).
+- **Sound over sight**: zombies are heard through walls before they are
+  seen.
+
 ## 6. Progression and difficulty
 - **Long-term goal**: reclaim all 30 floors (all Secured), build the Radio
   set and the Rooftop beacon, then choose to leave or stay (section 1).
-- Difficulty rises with distance from floor 15 (5.15 step 7); M3 adds
+- Difficulty rises with distance from floor 15 (5.15 step 8); M3 adds
   floors 8-22, M4 all 30 with brutes. Rarer loot (axes, medkits,
   antibiotics) deeper/higher.
 - Tool gating: crowbar and wrench open bigger, richer objects (wardrobes,
-  storage cages, fridges, washing machines).
+  storage cages, fridges, washing machines) and jammed doors.
 - Attacks grow with days survived; defenses with barricades, secured floors
   and guards.
-- Saved: world seed and generated layout, every removed object, pile and
-  placeable with its fuel, claimed apartments and main home, timestamp,
-  settings, stats, notes read, ending choice.
+- Saved: world seed and generated layout, door states and damage, tile
+  memory per floor, every removed object, pile and placeable with its
+  fuel, claimed apartments and main home, timestamp, settings, stats, notes
+  read, ending choice.
 
 ## 7. Content
-| | Milestone 1 (done) | Milestone 2 | Version 1 (release) |
+| | Milestone 1 (done) | Milestone 2 (iso) | Version 1 (release) |
 |---|---|---|---|
-| Floors | 5 authored (13-17) | 5 generated (13-17), 3120 px wide | 30 + roof |
-| Unit templates | - | 7 + start flat, 14 room types, 3 conditions | ~12 templates |
-| Zombie types | Crawler, Walker | same, rebalanced (slow, heavy, groups) | + Runner? (M3), Brute (M4) |
+| View | Side cutaway | Isometric 2.5D, vision cone, one floor visible | same |
+| Floors | 5 authored (13-17) | 5 generated (13-17), 30 x 22 tiles, 4 apartments + 1 small unit each | 30 + roof |
+| Unit templates | - | 6 apartment + 3 small + start flat, 2+ blueprints each, 14 room types, 3 conditions | ~12 templates |
+| Zombie types | Crawler, Walker | same, rebalanced (slow, heavy, groups, 8 facings) | + Runner? (M3), Brute (M4) |
 | Weapons | Fists, knife, spiked bat | same | + lead pipe, pipe spear, fire axe |
 | Tools | Crowbar, wrench | same | + saw, flashlight, tool wraps |
 | Materials | 10 | 10 | 19 |
-| Objects | 20 | 30 | ~50 |
+| Objects | 20 | 30 + doors you open and close | ~50 |
 | Recipes | 14 | 16 (+ oil lamp, workbench) | ~49 |
 | UI | need bars, numbers | moodles, no numbers | moodles (+ Sick, Infected) |
 | Survivors | 1 (Mara) | 1 (Mara) | 4 |
 | Story | intro, ~5 notes | ~12 notes, unit flavour lines | ~25 notes + radio, ending |
-| Attacks | siren + 60 s banner | 15 s diegetic cue, main home target | + traps, dog growl |
+| Attacks | siren + 60 s banner | 15 s diegetic cue, up the stairwell to the main home | + traps, dog growl |
 
 ## 8. Screens and flow
 1. **Title**: dark tower in rain, one window lit amber, "Tap to start"
@@ -1382,27 +1821,37 @@ after the pick, so they keep the logical layout as charred shapes.
    day N", Replay ending, New game.
 2. **New game**: 3 short lines on black, one at a time ("You wake up.",
    "It's quiet. Too quiet for a Tuesday.", "Something is scratching at the
-   door."), then fade into the dark start flat.
-3. **Tutorial by doing (first ~60 s), no arrows, no highlights**: the
+   door."), then fade into the start flat's bedroom: the hero stands by
+   the bed facing the closed bedroom door.
+3. **Tutorial by doing (first ~60-90 s), no arrows, no highlights**: the
    camera gently pans to each target and the hero thinks one line:
-   fridge ("I need to eat something." -> Search -> 1 canned food); chair,
-   then table ("This could hold the door." -> Dismantle -> 6 wood); kitchen
-   drawer (Search -> 2 metal, "A tin of nails."); workbench (craft
-   Barricade Lv1, placed at the front door); then scratching at the door,
-   it opens onto the landing and a crawler drags itself in (tap it). After
-   that: "Anything here can be taken apart." Later systems get one thought
-   the first time ("Bleach. That'll make the water safe." on first
-   chemicals; "Nobody lives here now. It could be mine." the first time a
-   unit is clear).
+   - Bedroom door (closed): "Dark in here." -> tap the door -> it opens
+     (teaches doors; the hallway beyond becomes Visible).
+   - Fridge ("I need to eat something." -> Search -> 1 canned food).
+   - Chair, then table ("This could hold the door." -> Dismantle -> 6 wood).
+   - Kitchen drawer (Search -> 2 metal, "A tin of nails.").
+   - Workbench (craft Barricade Lv1, placed at the front door).
+   - Scratching from behind the hero, panned and muffled: "Behind me?" ->
+     the step completes when the hero faces the sound (tap himself to turn
+     round, or hold to look). Teaches turning without text.
+   - Front door: the step completes when the hero is within **1.5 tiles**
+     of the start flat's front door on floor 15 (`tutorial.doorTriggerTiles`,
+     inclusive, walking or running); the door opens onto the corridor and
+     a crawler drags itself in (tap it).
+   - After that: "Anything here can be taken apart." Later systems get one
+     thought the first time ("Bleach. That'll make the water safe." on
+     first chemicals; "Nobody lives here now. It could be mine." the first
+     time a unit is clear; "Close it. Close it." the first time a zombie
+     bangs a door the hero is behind).
 4. **Returning**: "While you were away" note (5.1, one tap closes).
-5. **Play**: the tower view with **no top HUD** except the moodle column
-   (top right). No need bars, day counter, attack timer or power readout.
-   Bottom bar: Home, Inventory, Workbench, Survivors, Menu, Throw when
-   carried. Bottom bar follows the **muted UI style** below: icons only,
-   no text labels, ever (CD decision, 12).
+5. **Play**: the iso floor view with **no top HUD** except the moodle column
+   (top right). No need bars, day counter, attack timer, power readout,
+   minimap or compass. Bottom bar: Home, Inventory, Workbench, Survivors,
+   Menu, Throw when carried. Bottom bar follows the **muted UI style**
+   below: icons only, no text labels, ever (CD decision, 12).
 
-**Muted UI style (M2, BUG QA "non-gamey HUD"; keys `ui.*`)**. The UI must
-read as worn objects in a dark room, not as game buttons.
+**Muted UI style (M2; keys `ui.*`)**. The UI must read as worn objects in a
+dark room, not as game buttons.
 - **Bottom bar**: icon buttons, no text, no outline. Plate **72 game px**
   (`ui.bottomBar.iconPlatePx`) inside a **96 px** hit area; plate
   near-black `#0b0c0e` at alpha **0.55**, pictogram UI text `#bdb8ab` at
@@ -1411,6 +1860,7 @@ read as worn objects in a dark room, not as game buttons.
   (Menu), bottle (Throw). The equipped weapon shows as a hand / knife / bat
   pictogram on the bag-side slot (tap = Inventory weapon tab). Sound on/off
   lives in Menu as a speaker icon (crossed when muted), not in the bar.
+  World taps under the bottom bar's 96 px band are not passed to the world.
 - **Panels** (inventory, workbench, survivor, moodle cards): background
   deep shadow `#16191d` at alpha **0.9**, world behind dimmed by **0.4**.
   Buttons are flat `#23272c` with UI text `#bdb8ab`; disabled `#5d6166`
@@ -1423,12 +1873,13 @@ read as worn objects in a dark room, not as game buttons.
   height (`ui.panel.maxHeightRatio`), one recipe per 96 px row, no title
   bar, no tabs in caps; it opens with a **0.2 s** fade (`ui.panel.fadeSeconds`),
   no slide or bounce.
-- **Floor numbers**: faded stencil paint on the stairwell wall only, never
-  in apartments or the HUD: light concrete `#5d6166` at alpha **0.6**,
-  **48 game px** tall (16 art px), with 2-3 chipped gaps and one drip.
+- **Floor numbers**: faded stencil paint on the landing's north wall only,
+  never in apartments or the HUD: light concrete `#5d6166` at alpha
+  **0.6**, **48 game px** tall (16 art px), with 2-3 chipped gaps and one
+  drip.
 6. **Inventory**: carry slots and the stash of the claimed apartment the
    hero is in (a tab per claimed apartment; only the current one is
-   usable, others are read-only "Floor 14, right").
+   usable, others are read-only "Floor 14, north-east").
 7. **Menu**: day N (the only place it is shown), sound, music, notes read,
    replay ending (once unlocked), resume. Pausing does not stop real time.
 8. **Pass the torch** -> pick survivor -> play.
@@ -1438,9 +1889,10 @@ read as worn objects in a dark room, not as game buttons.
 Toasts (short system lines such as "Needs crowbar") are off-white small
 text at the bottom for 2 s, no icon, no sound.
 
-## 9. Art direction (M2 rework)
+## 9. Art direction (M2, isometric)
 - **Look**: muted, desaturated, dark, damp. Think a grey wet evening with
-  the power almost gone. Pixel art, 1 art pixel = 3 game px.
+  the power almost gone, seen from above through a cone of torchless
+  sight. Pixel art, **1 art px = 3 game px**, 2:1 isometric.
 - **Saturation rule**: nothing above ~35% saturation except lamp light,
   fire and blood.
 - **Palette**: near-black `#0b0c0e`, deep shadow `#16191d`, shadow concrete
@@ -1449,70 +1901,98 @@ text at the bottom for 2 s, no icon, no sound.
   `#4e1c1a`, zombie skin `#5f6650`, pale skin `#a99886`, hero jacket faded
   teal `#34494b`, window daylight `#8a9399`, lamp amber `#c08a3e`, fire
   `#d07a2c`, UI text `#bdb8ab`. Moodle squares L1 `#7d7350`, L2 `#8a6a3a`,
-  L3 `#7a4630`, L4 `#5e2422`. The M1 warning red `#c0392b` is removed.
-- **Lighting** (drawn as a darkness overlay per visible floor, with light
-  pools erased out of it; alphas in `light.*`):
-  - Dark rooms **0.97** black; only a faint wall edge shows, plus object
-    and moving-zombie silhouettes in deep shadow `#16191d` (5.3).
-  - Dim rooms **0.72**, plus a soft circle of **150 px** around the hero
-    (eyes adjusting) at half that darkness.
-  - Grey rooms **0.45**, cool tint, soft light shafts from the window;
-    window panes show **rain streaks** (2-3 frame loop) and the dark city
-    beyond.
-  - Lit rooms **0.2**, warm amber pool of 220 px around each lamp,
-    flickering +/-5%.
-  - Landings: Dim, one emergency light that flickers at random 50-150 ms
+  L3 `#7a4630`, L4 `#5e2422`.
+- **Tiles**: floor diamonds **32x16 art px** (96x48 game px): concrete
+  (corridor, landing, service rooms), worn lino (kitchen, bathroom), wood
+  boards (living, bedroom), carpet (office), each with 2-3 variants. Stair
+  flights as 2-tile-wide step tiles.
+- **Walls**: one sprite per tile edge, full height **40 art px** (120 game
+  px) plus the 16x8 art px edge footprint; cut stub **12 art px**. Two
+  faces (NW-facing and NE-facing edges), plain concrete, wallpaper,
+  bathroom tiles; a top cap line on every wall so cut and full walls read
+  clearly. Doorway frames, door leaves (closed, open, splintered,
+  hanging, broken), window frames with glass, rain streaks (2-3 frame
+  loop) and a dark city beyond; broken window variant.
+- **Characters**: **16x32 art px** (48x96 game px), **8 facings** from 5
+  drawn directions (S, SE, E, NE, N) mirrored for SW, W, NW. Frames: idle
+  1, walk 4, run 4 (hero), attack 2, wind-up 1 (zombie lean-in), hurt 1,
+  slump 3. Facing must read at a glance: pale face and hands on the front,
+  dark hair and coat on the back. 1 px near-black outline on characters
+  only.
+- **Props**: iso, 1x1 props within **32x40 art px**, 1x2 props within
+  **48x48 art px**, 2x2 (bed) within **64x48 art px**; tall props up to 48
+  art px high. Each wall-layer prop drawn in 2 orientations (backed to an
+  NW-facing or NE-facing wall) and mirrored for the other two. Material
+  icons 8x8 art px. Searched containers drawn ajar; dismantled objects
+  leave a faint floor mark and a 3-frame dust puff.
+- **Lighting and vision** (one darkness overlay per tile, alphas in
+  `vision.overlayAlpha.*`; light pools erased out of it):
+  - Visible tiles: Lit **0.1** (warm amber pool around each lamp,
+    flickering +/-5%), Grey **0.3** (cool tint, soft window light shafts
+    on the floor), Dim **0.5**, Dark **0.7**. Close-circle tiles use half
+    their light's alpha (eyes adjusting).
+  - Edge tiles (5.17 soft edges): **0.8**.
+  - Remembered tiles: **0.82**, desaturated **80%**
+    (`vision.memoryDesaturate`), no animation (no rain streaks, no
+    flicker).
+  - Unknown tiles: **1.0** (`#0b0c0e`).
+  - Screen vignette: 5.18.
+  - Landing: Dim, one emergency light that flickers at random 50-150 ms
     dips (`light.stairwellFlickerMs`), more during the attack cue.
-  - **Dust motes**: 6-10 slow grey particles per visible entered room
-    (`light.dustMotesPerRoom`), drifting through light.
-  - Performance: overlays only for the floors on screen; at most 4 light
-    pools per floor.
-- **Sprites**: characters **16x24** art px (48x72 game px); zombies 16x24,
-  hunched, with a slow 4-frame shamble and a lean-in wind-up; props 16x16
-  (large 32x32); a floor is 1040x80 art px. Material icons 8x8 art px.
-- 1 px near-black outline on characters only (props are read by shape and
-  light, not outlines). **No pulse, glow, sparkle or highlight on
-  interactables** (the M1 amber pulse is removed). Searched containers are
-  drawn ajar; dismantled objects leave a faint floor mark and a 3-frame
-  dust puff.
+  - **Dust motes**: 6-10 slow grey particles per Visible room
+    (`light.dustMotesPerRoom`), drifting through light (nice-to-have).
+  - Performance: only the current floor is drawn; static floor tiles and
+    walls are baked per floor into a render texture on load (re-baked when
+    an object is removed or placed); the vision overlay is redrawn only on
+    recompute (<= 10 Hz) with a 0.15 s cross-fade; at most 4 light pools
+    per floor. Target 60 fps, never below 30 on a mid-range phone.
 - **Burned units**: soot-black walls, charred shapes, broken windows.
   **Ransacked**: open drawers, papers and clothes on the floor.
-- Barricade: 5 damage stages (5.8), splinters on hits.
+- Barricade and doors: 5 / 3 damage stages, splinters on hits.
 - Fire: 3-frame flame loop (molotov). Blood is limited to dark hit
-  splashes, floor stains and drips (5.4, dried blood `#4e1c1a`); no
-  dismemberment or body parts; corpses slump and fade.
+  splashes, floor stains and drips (5.4); no dismemberment or body parts;
+  corpses slump and fade.
+- **No pulse, glow, sparkle or highlight on interactables.** The only
+  outline in the game is the dashed spot-pick diamond (5.6).
 - **UI art**: follows the muted UI style in section 8. Moodle pictograms
   24x24 art px (72 game px); bottom-bar pictograms 16x16 art px centred on
-  the 72 px plate; floor numerals are stencil sprites 0-9, 10x16 art px.
-  The bright orange wall numerals and teal buttons of stage 1 are removed.
+  the 72 px plate; floor numerals are stencil sprites 0-9, 10x16 art px,
+  painted on the landing's back wall in iso perspective.
 - **App icon**: the dark tower silhouette in rain against a grey-green sky,
-  one lit amber window near the middle; 512x512, readable at 48 px.
+  one lit amber window near the middle; 512x512, readable at 48 px
+  (unchanged).
 
-## 10. Audio direction (M2 rework)
+## 10. Audio direction (M2)
 - **Mood**: mostly silence. The building makes the sounds: wind, rain on
   glass, pipes ticking, a door creaking somewhere, a distant groan, a
   muffled thud from another floor. Silence is part of the design.
-- **Ambience**: a quiet room-tone bed (wind + rain) per light state (rain
-  louder near windows). Random one-shots every **20-60 s**
-  (`audio.ambientGapSeconds`): creak, pipe knock, distant thud, glass
-  tinkle. Distant groans every **45-120 s** (`audio.distantGroanGapSeconds`),
-  which also hide the attack cue (5.8).
-- **Zombies are heard before seen**: each zombie on the hero's floor within
-  **600 px** (`audio.zombieHearRadiusPx`) makes occasional shuffles and low
-  breaths, panned left/right by position, through walls and in Dark rooms.
+- **Listener = the hero.** Positional sounds are panned by the source's
+  screen x relative to the hero's (full left/right at **360 game px**,
+  `audio.panWidthPx`) and attenuated by straight-line tile distance: full
+  volume within **2 tiles** (`audio.fullVolumeTiles`), linear to 0 at the
+  sound's hear radius. Sounds without line of sight are muffled (low-pass,
+  x0.5). Sounds from other floors are not positional.
+- **Ambience**: a quiet room-tone bed (wind + rain) per light level (rain
+  louder within 3 tiles of a window, and through broken windows). Random
+  one-shots every **20-60 s** (`audio.ambientGapSeconds`): creak, pipe
+  knock, distant thud, glass tinkle. Distant groans every **45-120 s**
+  (`audio.distantGroanGapSeconds`), which also hide the attack cue (5.8).
+- **Zombies are heard before seen**: 5.17 (12 tiles, 4-9 s gaps, max 3
+  voices, muffled through walls; door banging 15 tiles).
 - **Music**: sparse and sad (a few piano or cello notes, 20-60 s pieces),
   never during danger. Plays at most once per **8-12 min**
   (`audio.musicCooldownMinutes`) and on moments: first claim, after an
   attack ends, a survivor joins. 3 pieces in M2, plus the ending cue (M5).
   No tense attack loop. Total audio under 3 MB.
 - **SFX (M2 list)**: footsteps (walk soft, run heavy), stairs, door
-  open/creak, jammed door hit, cupboard open, drawer slide, rustle, pick up
-  (soft cloth/handling, no chime), punch, blunt hit, blade hit (stab)
-  (picked per weapon by `combat.weapons.<id>.hitSound`, 5.4), weapon
-  break, zombie breath/shuffle/groan/lean-in/death slump, hero hurt breath,
-  barricade hit/creak/break, hammer, wood crack, metal clang,
-  cloth rip, water pour, glass shatter, fire whoosh, lamp wick hiss, rain,
-  wind, pipe knock, stairwell banging (cue), moodle cues (5.2), eat, drink.
+  open/close/creak, door burst (run), door bang (zombie), door splinter,
+  jammed door hit, cupboard open, drawer slide, rustle, pick up (soft
+  cloth/handling, no chime), punch, blunt hit, blade hit (stab) (picked
+  per weapon by `combat.weapons.<id>.hitSound`, 5.4), weapon break, zombie
+  breath/shuffle/groan/lean-in/death slump, hero hurt breath, barricade
+  hit/creak/break, hammer, wood crack, metal clang, cloth rip, water pour,
+  glass shatter, fire whoosh, lamp wick hiss, rain, wind, pipe knock,
+  stairwell banging (cue), moodle cues (5.2), eat, drink, Mara's sob.
 - **Removed**: attack siren, UI tap blips, noise alert sting, pickup chime,
   any "level up" or success jingles. UI buttons make a faint paper or
   cloth sound at most.
@@ -1526,45 +2006,55 @@ CD playtest on the phone.
 - **M1 "First playable"** (done): 5 authored floors, tap movement,
   scavenging, salvage, 14 recipes, combat, needs, offline catch-up, Mara,
   attacks, save/load.
-- **M2 "The tower breathes"** (current). Floors stay **13-17**: five
-  generated floors x two 1440 px wings = 10 units, ~25-30 screens of
-  apartment, already more than M1 had. More floors would multiply
-  generator testing before the look and feel are proven; floors expand in
-  M3.
+- **M2 "The tower breathes"** (current, rebuilt as isometric). Floors stay
+  **13-17**: 5 floors x (4 apartments + 1 small unit) = 25 units, already
+  much more than M1 had. Stage 1 (mood, moodles, cue, audio, rebalance,
+  scarcity, run) is done on the side view and its systems carry over.
   - **Must-haves**
-    1. Wide floors (3120 px, two 6-module wings, central stairwell shaft),
-       axis-locked drag, horizontal camera follow with dead zone.
-    2. Generator: seed, 7 templates + start flat, 14 room types, slot
-       pools, 3 conditions, zombie placement, guarantees, saved layout;
-       `templates.json` by level-designer.
-    3. 10 new objects (5.6 #21-30) and their loot tables; loot scarcity
-       (0-2 rolls, empty chances, consumables qty 1).
-    4. Home claiming: claim, stashes per apartment, build spots from empty
-       slots, beds, main home by sleeping, Workbench recipe, barricade per
-       claimed door, Leave this place.
-    5. Attacks: 15 s diegetic cue (groans, stairwell banging, flicker), no
-       siren/banner/timer, target = main home, barricade x0.4 damage.
-    6. Moodles replace need bars (6 moodles, 4 levels, tap cards with one
-       action); no floating numbers, no barricade HP, no damage numbers;
-       barricade damage stages.
-    7. Zombie rebalance: stats, sight radii by light, hearing, run noise,
-       unaware x3 hit, lose track, groups.
-    8. Lighting: Dark/Dim/Grey/Lit rooms, hero eye radius, landing flicker,
-       oil lamp recipe and fuel.
-    9. Art pass to the new palette; no interactable highlights; ajar
-       containers; rain on windows.
-    10. Audio pass: ambience, positional zombie sounds, moodle cues, sparse
-        music; siren and UI blips removed.
-    11. Thoughts, flavour lines, ~12 notes; tutorial without arrows;
-        prose "While you were away".
-    12. Save version 2 (M1 saves reset).
-    13. Run on double tap (5.4): faster, noisy, costs energy.
+    1. Iso renderer: 96x48 tiles, walls with height, cutaway and occluder
+       fade, draw order, one floor visible, camera follow with look-ahead,
+       drag pan, clamp.
+    2. Grid movement: tap to walk (A*, 8 directions, no corner cutting),
+       double tap run, hold to look, tap hero to turn, iso hit-testing
+       with forgiveness.
+    3. Vision: cone + close circle + LOS shadows (walls, doors), tile
+       memory, zombies only on Visible tiles, soft edges, vignette,
+       muffled positional zombie sounds.
+    4. Doors: open/close, block sight and zombies, zombie banging and door
+       HP, jammed front doors.
+    5. Floor plans: 30x22 floors 13-17 with core stairwell and stairs;
+       blueprints; objects on tiles with footprints, facing and access
+       tiles.
+    6. Generator: seed, templates + blueprints, mirroring, conditions,
+       object fill rules, zombie placement, guarantees, saved layout.
+    7. The 30 objects (5.6) and their loot tables; loot scarcity (carried
+       from Stage 1).
+    8. Home claiming: claim, stashes per apartment, build spots from tiles
+       and window edges, beds, main home by sleeping, Workbench recipe,
+       barricade per claimed door, Leave this place.
+    9. Attacks up the stairwell to the main home's door (cue from Stage 1),
+       max 3 at the door.
+    10. Zombie rules in tiles: 8 facings, sight cones with LOS, hearing
+        through walls, unaware x3 hit, lose track, groups, door banging.
+    11. Tile light: base room light, lamp pools, landing flicker, oil lamp
+        recipe and fuel.
+    12. Iso art: tiles, walls (full + stub), doors, windows, 8-facing
+        characters, all props in iso, palette and UI as Stage 1.
+    13. Audio: hero as listener, panning and muffling (Stage 1 sounds
+        carried).
+    14. Thoughts, flavour lines, ~12 notes, tutorial without arrows
+        (section 8), prose "While you were away" (carried).
+    15. Save version 2 (side-view saves reset).
+    16. Carried from Stage 1, must keep working: moodles, no numbers,
+        barricade stages, diegetic cue, run, hit feedback, muted UI.
   - **Nice-to-haves** (only if the must-haves are done and playtested)
     1. Dust motes and window light shafts.
     2. Ransacked/burned visual dressing beyond tint (papers, soot decals).
     3. A 4th music piece and more ambience one-shots.
-    4. More templates (e.g. `dentist`, `hoarder_flat`) and notes (to 20).
-  - **Delivery**: in 4 playable stages (11.3), each ending with a CD
+    4. More templates and blueprints (e.g. `dentist`, `hoarder_flat`) and
+       notes (to 20).
+    5. Pinch zoom, if the CD wants it (12).
+  - **Delivery**: in 4 playable stages A-D (11.3), each ending with a CD
     playtest.
 - **M3 "Night and fever"**: floors 8-22; day/night on the device clock;
   the dog (growl cue); infection and sickness as moodles; paper, meds,
@@ -1573,54 +2063,119 @@ CD playtest on the phone.
   survivors 2-3, Medic and Cook; runner re-evaluated; ~20 notes.
 - **M4 "Power and defense"**: all 30 floors, brutes; rope, wire, rubber,
   leather, container; power, traps, Barricade Lv3, gear, tool wraps, water
-  tank, lockbox; stairwell barricades between floors; antiviral; survivor
-  4, Mechanic.
+  tank, lockbox; stairwell fire-door barricades between floors; antiviral;
+  survivor 4, Mechanic.
 - **M5 "Beacon"**: roof, radio set, supply caches, elevator, Rooftop
   beacon, leave/stay ending, remaining notes, balancing pass.
 
-### 11.2 What changes from M1 (for programmers)
-| M1 system | M2 change |
-|---|---|
-| `public/data/levels/floors.json` authored layouts | Replaced by `public/data/levels/templates.json` (templates, room types, pools, flavour lines, notes) + a seeded generator (5.15). floors.json is kept only as the source of the start flat's authored objects and Mara's fixed data, or folded into templates.json (level-designer decides). |
-| Floor 720 px: stairwell 120 left + 2 x 300 apartments | 3120 px: wing 1440 / shaft 240 / wing 1440; 240 px modules, slots at 72/168. `world.apartmentWidthPx` removed; `world.floorWidthPx`, `world.stairwellWidthPx` changed; `world.wingWidthPx`, `moduleWidthPx`, `modulesPerWing`, `slotOffsetsPx`, `doorwayClearancePx` added. |
-| Vertical drag only, camera y follow | Axis-locked drag, x and y follow, dead zone (`controls.cameraDeadzoneXPx`, `cameraLerp`). |
-| Home = `f15_left` (+ `f15_right` once Cleared) | Claimed apartments (max 3), main home by bed; `home.floor` renamed `home.startFloor`; `home.windowSpots`, `home.floorSpots` removed (spots = empty slots); `objects.window_pane.allowedInHome` removed; `home.maxClaimed`, `claimSeconds`, `startStashSlots`, `claimedStashSlots`, `startWing` added. One stockpile -> one stash per claimed apartment. |
-| Barricade at the home stairwell | Barricade per claimed front door; `buildSpot` `stairwell` -> `front_door`; attacks hit the main home's door. |
-| `attacks.warningSeconds` 60, red banner, siren, HUD attack timer | Removed. `attacks.cueSeconds` 15 and `attacks.cue.*`; no UI at all. |
-| Need bars, status icons, numbers, "You're starving: eat?" prompt | Moodles (`moodles.*`); `needs.onlinePromptThreshold` renamed `needs.lastResortThreshold`; prompt removed. |
-| Floating "+5 morale", damage numbers, barricade HP bar, noise "!" | Removed; barricade damage stages (`barricade.visualStages`). |
-| Amber pulse on interactables | Removed. |
-| Zombie aggro: room entry or `zombies.aggroRadius` 200 | Sight by light and facing (`zombies.sight.*`: `frontPx`, `dimFrontPx`, `darkFrontPx`, `behindWalkPx`, `behindRunPx`, turn timings); `aggroRadius` removed; the old `sightRadiusPx` / `dimSightRadiusPx` / `darkSightRadiusPx` stay only as deprecated aliases until code and tests read `zombies.sight.*`, then delete them. Lose track, unaware hit (`combat.unawareHitMult`), barricade damage mult (`zombies.barricadeDamageMult`). |
-| Crawler 15/25/4/2.0, Walker 30/40/8/1.5, wind-up 0.6, stun 0.25, knockback 12 | Crawler 20/15/8/2.5, Walker 45/26/14/2.2, wind-up 0.9, stun 0.35, knockback 8, wander pause 2-5 s. |
-| Loot 1-3 rolls, search 2 s | 0-2 rolls, empty chance by condition, consumables qty 1, search 3 s. |
-| Hero 120 px/s, stairs 1.2 s | Walk 100, run 170 (noise 250 px), stairs 1.4 s. |
-| Cleared = no zombies and all containers searched | Cleared = no living zombies. |
-| Tutorial arrows | Camera pans + thought lines. |
-| Report with numbers | Prose report. |
-| Save version 1 | Save version 2; M1 saves are reset. |
+### 11.2 Side view -> isometric: what carries over, changes, is dropped
+**Carries over unchanged** (code and data keep working; only callers that
+pass positions change):
+- Time, offline catch-up, autosave, background handling (5.1).
+- Needs, moodles and their cards, nap, auto-use, morale events (5.2),
+  except Panic's distance rule and tunnel vision.
+- Scavenging rules, loot tables, scarcity, inventory and stacks (5.5).
+- Materials, object stats (size, tool, noise, primary, yields), recipes and
+  costs, producers, refunds (5.6).
+- Survivors, Mara's trait, jobs, pass the torch (5.7).
+- Attack strength math, cue timeline (groans, bang beats, flicker), offline
+  resolve, barricade levels, HP and visual stages (5.8).
+- Combat stats (damage, cooldown, durability, hit sounds, unaware x3,
+  stun, wind-up, corpse time), zombie HP/damage/intervals, hit FX numbers.
+- Lamp fuel, comfort, all M3-M5 systems (with distances converted).
+- Notes, flavour lines, thoughts, prose report, muted UI style, bottom bar,
+  panels, moodle column, palette, audio direction and SFX list, the
+  "Tap to start" flow, save/lifecycle core (`src/core/`).
+- `templates.json` room types, pools, flavour lines, notes and loot.json
+  (extended, not replaced).
 
-### 11.3 M2 delivery stages (CD decision)
-M2 ships in 4 stages. Each stage keeps `main` playable, ends with a CD
-playtest, and builds only on finished stages. Numbers refer to the M2
-must-haves in 11.1.
+**Changes** (new rules in the listed section; new keys in balance.json):
+| Side-view system | Iso rule | Keys |
+|---|---|---|
+| Positions in px on a 3120 x 240 strip | Tiles on a 30 x 22 grid, iso projection | `iso.*`, `grid.*` |
+| Walk 100 / run 170 px/s, run noise 250 px | 2.0 / 3.4 tiles/s, noise 5 tiles | `hero.walkTilesPerSecond`, `runTilesPerSecond`, `runNoiseRadiusTiles` |
+| Walking along x | A* 8-direction pathfinding, occupancy, doors on the way | 5.3 |
+| Camera: axis-locked drag, x dead zone, vertical floor scroll | Free 2D pan, follow with look-ahead, 2D dead zone, one floor | `controls.cameraDeadzonePx`, `cameraLookAheadPx`, `cameraIsoEdgePadPx`, `floorFadeSeconds`, `zoom` |
+| Tap tests on side sprites | Iso hit-testing order, snap 96 px | `controls.tapSnapRadiusPx`, `tapSnapWalkTiles`, `iso.bodyRaisePx` |
+| Hold: none | Hold to look; tap hero to turn | `controls.lookHoldSeconds`, `lookTurnDegreesPerSecond`, `walkTurnDegreesPerSecond`, `heroTapTurnSeconds` |
+| Room light Dark/Dim/Grey/Lit, Dark until entered | Tile light Lit/Grey/Dim/Dark by room type and lamp LOS; vision states Visible/Remembered/Unknown | `light.lampRadiusTiles`, `light.darkTimeMult`, `vision.*` |
+| Zombie facing left/right, sight by \|dx\| | 8 facings, 120-degree cone with LOS, ranges in tiles | `zombies.sight.coneDegrees`, `frontTiles`, `behindWalkTiles`, `behindRunTiles`, `idleTurnChances` |
+| Zombie speeds px/s, ranges px | tiles/s, tiles | `zombies.types.<id>.speedTilesPerSecond`, `zombies.attackRangeTiles`, `zombies.tuning.*Tiles`, `combat.weapons.<id>.rangeTiles` |
+| Noise radii px | tiles, through walls | `salvage.noiseRadiusTiles` |
+| Interior doors: salvage only, never block | Open/close, block sight and zombies, door HP, banging | `doors.*`, `generator.doorClosedChance` |
+| Wings of 6 modules, 2 slots per module | Blueprints (12x10 / 6x10), wall/floor/mounted layers, footprints, access tiles, per-room pick counts | `generator.blueprintsFile`, `roomSizeTiles`, `wallTilesPerPick`, `floorTilesPerPick`, `doorwayClearanceTiles`, `curtainChance`, `windowEveryTiles`, `mirrorXChance`, `iso.footprints`, `iso.mountedObjects` |
+| 2 units per floor (left/right wing) | 4 apartments + 1 small unit; `home.startWing` -> `home.startUnit` "NW" | `grid.slots`, `home.startUnit` |
+| Zombies per wing by distance | Per unit, with a floor cap | `generator.zombiesPerUnitByDistance`, `zombiesPerFloorCap`, `zombieNoSpawnTilesFromFrontDoor`, `pairMinDistanceFromEntranceTiles` |
+| Attackers arrive at 16-70 px from the door | Come up the stairs, walk to the door, max 3 hit at once | `attacks.maxAttackersAtDoor` |
+| Bang falloff by camera x distance (px) | By hero tile distance | `attacks.cue.bangFalloff.nearTiles`, `farTiles` |
+| Zombie sounds panned by x within 600 px | Hero listener, 12 tiles, muffled without LOS | `audio.*Tiles`, `panWidthPx`, `occludedVolumeMult`, `zombieSoundGapSeconds`, `maxZombieVoices` |
+| Throw 300 px arc, molotov 120 px wide | 6 tiles, Visible target; molotov radius 1 tile | `throw.rangeTiles`, `molotov.radiusTiles` |
+| Panic within 400 px | Within 8 tiles and Visible; tunnel vision | `moodles.panic.aggroedWithinTiles`, `coneDegreesPenalty` |
+| Tutorial door trigger 60 px | 1.5 tiles; new door and turn steps | `tutorial.doorTriggerTiles` |
+| Build spots = empty slots, spot pick across floors | Empty floor tiles / pane-less window edges, hero's floor only | 5.3, 5.6 |
+| Art: side sprites 16x24, 1040x80 floor strips | Iso tiles, wall edges, 8-facing 16x32 characters, iso props | section 9 |
+| Save version 1 | Save version 2 (side-view saves reset) | 5.1 |
 
-| Stage | Content | Must-haves | Done when (playtest checks) |
+**Dropped** (delete the code paths and keys once the iso code no longer
+reads them; the keys are listed in `_deprecatedSideViewKeys` in
+balance.json):
+- The side cutaway renderer: floor strips, several floors on screen,
+  vertical drag between floors, axis-locked drag, horizontal dead zone,
+  camera edge pad in px, the 1040x80 floor art and side-view wall modules.
+- `world.floorWidthPx`, `floorHeightPx`, `wingWidthPx`,
+  `stairwellWidthPx`, `moduleWidthPx`, `modulesPerWing`, `slotOffsetsPx`,
+  `doorwayClearancePx`; `controls.cameraDeadzoneXPx`, `cameraEdgePadPx`;
+  `hero.walkSpeed`, `runSpeed`, `runNoiseRadiusPx`; `zombies.sightRadiusPx`,
+  `dimSightRadiusPx`, `darkSightRadiusPx`, `zombies.sight.frontPx`,
+  `dimFrontPx`, `darkFrontPx`, `behindWalkPx`, `behindRunPx`,
+  `zombies.attackRange`, `zombies.tuning.wanderRadiusPx`,
+  `loseTrackDistancePx`, `groupSpacingPx`, `wanderSpawnMinHeroDistancePx`,
+  `zombies.types.<id>.speed`; `combat.weapons.<id>.rangePx`;
+  `light.dimVisionPx`, `darkSilhouetteRangePx`, `lampRadiusPx`, the four
+  room overlay alphas; `salvage.noiseRadius`; `throw.rangePx`;
+  `molotov.widthPx`; `audio.zombieHearRadiusPx`; `moodles.panic.
+  aggroedWithinPx`; `attacks.cue.bangFalloff.nearPx/farPx`;
+  `attacks.tuning.arrivalXRange`; `tutorial.doorTriggerPx`;
+  `generator.zombiesPerWingByDistance`, `zombieNoSpawnModulesFromFrontDoor`,
+  `pairMinDistanceFromEntrancePx`, `guarantees.minFlatWingsPerFloor`;
+  `home.startWing`; `inventory.stockpileSlots`, `shelfSlots` (M1 leftovers).
+- Dark-until-entered rooms and dark-room object silhouettes (replaced by
+  vision and memory).
+- Room-order rules (`fixedFirst`, shuffle, `adjacent` as ordering) in
+  templates: geometry now comes from blueprints; `adjacent` becomes a
+  blueprint check.
+- The old M2 Stage 2 ("wide floors") and Stage 3 / 4 plans (replaced by
+  Stages A-D). Stage 2 work in progress for 3120 px floors
+  (`public/data/levels/tower_m2.json`, wide-floor camera) is not merged.
+- Pathing "via the stairwell" by tapping another floor (other floors are
+  not visible); only the Home double tap paths across floors.
+
+### 11.3 M2 delivery stages (iso rebuild)
+M2 continues in 4 stages, **A-D**, after the finished Stage 1. Each stage
+keeps `main` playable, ends with a CD playtest, and builds only on
+finished stages. **The side-view Stage 1 build stays on `main` until Stage
+A passes review and QA**; Stage A work happens on a branch. Numbers refer
+to the must-haves in 11.1.
+
+| Stage | Content | Must-haves | Done when (CD playtest checks) |
 |---|---|---|---|
-| **1. Mood on the old tower** | On the existing M1 layout (720 px floors, authored floors 13-17): new palette and art pass, moodles instead of bars, no floating/damage/HP numbers, barricade damage stages, prose "While you were away", audio pass (ambience, positional zombie sounds, moodle cues, sparse music; siren and blips removed), 15 s diegetic attack cue, zombie rebalance (stats, sight, hearing, unaware hit, lose track, groups), scarcer loot (0-2 rolls, empty chances, qty 1, search 3 s), run on double tap. | 3 (scarcity only), 5, 6, 7, 9, 10, 13 | No bar, number or siren appears anywhere; an attack can be missed if the phone is quiet; a walker in the open is dangerous with fists; running is clearly louder than walking. |
-| **2. Wide floors** | Floors 13-17 at 3120 px (two 6-module wings, central stairwell shaft), axis-locked drag, horizontal camera follow with dead zone, the 10 new objects (5.6 #21-30) and their loot tables. Layouts are **authored** by level-designer for this stage (temporary, replaced in Stage 3). Save version 2. | 1, 3 (objects), 12 | Panning and following feel smooth one-thumbed; most rooms are out of sight of the stairwell; an M1 save resets with "The building has changed." |
-| **3. Generator and homes** | Seeded generator (5.15) with `templates.json`, conditions, zombie placement, guarantees, saved layout; claiming (5.3): stashes per apartment, build spots from empty slots, beds, main home by sleeping, Workbench recipe, barricade per claimed door, attacks target the main home, Leave this place. Save version bumped again (older saves reset the same way). | 2, 4 | Two New games give clearly different floors; every floor has food and water; a claimed flat on floor 14 can become the main home and gets attacked. |
-| **4. Darkness and story** | Lighting (Dark/Dim/Grey/Lit, Dark-room silhouettes, hero eye radius, landing flicker), oil lamp recipe and fuel, ~12 notes, unit flavour lines, thoughts, tutorial without arrows (8). | 8, 11 | Entering an unexplored room feels tense but readable from the doorway; the first 60 s teach search, dismantle, craft and fight with no arrow or highlight. |
+| **A. Iso engine, one floor** | Iso renderer with cutaway and fade; camera; grid movement and all touch gestures; vision (cone, close circle, LOS, memory, vignette, soft edges); base room light (grey/dim/dark, no lamps yet); doors (open/close, sight, zombie banging); **floor 15 only**, authored by level-designer from blueprints (start flat + 3 apartments + small unit), with ~25 of the existing objects, search/dismantle/drain and crafting working; 3-5 zombies with 8 facings, sight cones, hearing, door banging; combat with tile ranges and hit FX; muffled positional zombie sounds; save v2. Stairs show "The stairs are blocked." Attacks, tutorial and Mara are off. | 1, 2, 3, 4, 10, 15 (+ parts of 5, 7, 12, 13) | Moving, looking and tapping objects work one-thumbed (the right menu opens on 9 of 10 taps on any Visible object); it feels **claustrophobic but readable**: you can't see round corners, a closed door hides what's behind it, a zombie heard behind a door is scary; walls never hide the hero or a zombie in his view; 30+ fps on the CD's phone. |
+| **B. The five floors** | Floors 13-17 as authored data (`floors_iso.json`, 5.15) with all 30 objects; stairs between floors with the fade; attacks up the stairwell to the start flat's door (max 3 at the door), barricade on its inside; Mara and her quest; wanderers; throwables in tiles; tutorial ported (door step, turn step, no arrows); offline catch-up and report working with the iso world; iso art for all props. Home = start flat only. | 5, 7, 9, 12, 13, (14 tutorial) | A full session: wake, tutorial, scout two floors, fight, come home for the first attack; floors 13 and 17 feel fair (5.4 encounter targets); attackers are heard on the stairs before they are seen. |
+| **C. Generator and homes** | Seeded generator on blueprints and templates (mirroring, conditions, fill rules, doors, zombies, guarantees, saved layout); `blueprints.json` with 2+ per template; claiming, stashes, build spots, beds, main home by sleeping, Workbench recipe, barricade per claimed door, attacks target the main home, Leave this place. Save version bumped (older saves reset). | 6, 8 | Two New games give clearly different floors that still look designed; every floor has food and water; a claimed flat on floor 14 becomes the main home and gets attacked. |
+| **D. Light and story** | Tile light from lamps (pools with LOS), landing flicker outside the cue, oil lamp recipe and fuel, light changing vision and zombie sight; ~12 notes, flavour lines, thoughts; final tutorial polish; nice-to-haves only after the D playtest. | 11, 14 | A lamp-lit room glows from down a dark corridor and makes you feel seen; the first 90 s teach search, dismantle, craft, doors, turning and fighting without arrows or highlights. |
 
 Stage rules:
-- **Before Stage 4** every room counts as **Grey** for sight (180 px) and
-  no Dim time multiplier applies; the landing counts as Dim (110 px).
-  Rooms are drawn fully (no Dark state) until Stage 4.
-- **Before Stage 3** home is the M1 home (floor 15, left; plus right once
-  Cleared) with its M1 stockpile and stairwell barricade, and attacks
-  target it. The M1 tutorial (with arrows) stays until Stage 4.
+- **Before Stage D** no lamps exist; tiles use only their room's base light
+  (5.3), and oil lamp objects are plain salvage.
+- **Before Stage C** home is the start flat (floor 15, NW) with its 40-slot
+  stash, its front-door barricade and its bed (the only bed with Sleep and
+  Nap); attacks target it; the hero starts at, and Home returns to, that
+  bed. Cleared = no living zombies on the floor.
+- **Stage A** has no attacks, no tutorial (New game starts in the start
+  flat's bedroom with one thought, "Dark in here."), no Mara; needs and
+  moodles run normally; the start flat has its food and water.
 - Any change of save format inside M2 bumps the save version; an older
   save is deleted on launch with the one line "The building has changed."
-- Nice-to-haves are considered only after Stage 4 has been playtested.
 
 **Stage 1 playtest result (CD)**: the tower feels creepier, "better"; the
 attack cue works as is (no change); floors 13 and 17 are fair (encounter
@@ -1632,7 +2187,8 @@ feedback (blood splash, per-weapon hit sounds, floor stains, drips, 5.4).
 multiplayer or any online feature, push notifications, leaderboards,
 multiple save slots, free placement of builds, outside-the-tower areas,
 weather beyond rain on windows, temperature, vehicles, voice acting, more
-than one pet, zombie smell and disguises, amputation.
+than one pet, zombie smell and disguises, amputation, a minimap or map
+screen, seeing more than one floor at a time.
 
 ## 12. Decisions and open questions
 
@@ -1660,9 +2216,9 @@ than one pet, zombie smell and disguises, amputation.
   creepy, not gamey survival.
 - **Attack cue**: no siren, no banner, no countdown; about 15 s of
   diegetic groans, stairwell banging and flicker, easy to miss.
-- **Layout**: bigger, varied apartments wider than one screen; layouts and
-  contents randomized per new game from templates; items placed logically
-  by room; any cleared apartment on any floor can be claimed as home.
+- **Layout**: bigger, varied apartments; layouts and contents randomized
+  per new game; items placed logically by room; any cleared apartment on
+  any floor can be claimed as home.
 - **UI**: moodles instead of need bars; no floating or damage numbers; no
   barricade HP numbers; tap a moodle for plain text.
 - **Mood**: darker desaturated look with light pools and rain; quiet
@@ -1670,12 +2226,6 @@ than one pet, zombie smell and disguises, amputation.
   items and found notes; no loot sparkle.
 - **Running**: double tap runs (fast, noisy, costs energy); single tap is a
   quiet walk (5.4).
-- **Unexplored rooms**: dark, but object silhouettes are visible from the
-  doorway; zombies inside are visible only when close or moving (5.3).
-- **M2 delivery**: 4 playable stages (11.3): 1 mood/UI/sound/attack
-  cue/zombie rebalance/scarcer loot/run on the existing layout; 2 wide
-  floors and horizontal camera; 3 generator and claiming homes; 4
-  lighting, silhouettes, notes, arrow-free tutorial.
 - **Bottom-bar labels** (Stage 1 playtest): the bottom bar is icons only;
   no text label ever shows (not on first sessions, not on long-press).
 - **Stage 1 feel** (playtest): the creepier mood, the 15 s attack cue and
@@ -1683,12 +2233,23 @@ than one pet, zombie smell and disguises, amputation.
 - **Zombie-hit feedback**: dark blood splash away from the hero (smaller
   for fists), stab/blunt/punch hit sounds by weapon, fading floor stains,
   occasional drip after kills (5.4).
+- **Isometric rebuild (CD direction change after Stage 1)**: switch now
+  from the side cutaway to a Project Zomboid-like **isometric 2.5D view**
+  with diamond floor tiles and walls with height that cut away near the
+  hero; a feeling of **claustrophobia**. Side-view Stage 2 is stopped;
+  everything that carries over is kept (11.2).
+- **Field of view**: a **vision cone plus a small circle** around the hero;
+  walls and doors block sight and cast shadows; zombies and items outside
+  view are hidden but can be heard (5.17).
+- **Controls**: **tap to move** with pathfinding, **double tap to run**,
+  tap objects/zombies to act; the hero faces where he walks and the cone
+  follows; **tap-and-hold to look/turn** (section 4).
 
 ### Decided (Producer approved; CD may revisit at playtest)
 - Scavenger job works only during offline catch-up (5.7).
-- Scripted first attack 10 min after the tutorial (now with the 15 s cue).
-- Attackers arrive one at a time and keep hitting while the hero is away;
-  they bite only on the attacked floor (5.8).
+- Scripted first attack 10 min after the tutorial (with the 15 s cue).
+- Attackers keep hitting while the hero is away; they bite only on the
+  attacked floor (5.8).
 - Online repel +5 morale only if the barricade never broke (5.8).
 - Hiding the app mid-attack settles the rest offline (5.8).
 - Pass the torch drops the bag at the death spot (5.7).
@@ -1699,11 +2260,42 @@ than one pet, zombie smell and disguises, amputation.
   apartment; attacks only target the main home; day/night, dog, infection,
   sickness, stove and power move to M3+ (11.1).
 
+### Decided by game-designer for the iso rebuild (CD may revisit at playtest)
+- Tile **96x48 game px** (32x16 art px at the existing 3x scale), wall
+  height 120 px, characters 16x32 art px with 8 facings.
+- Floor **30 x 22 tiles**: 2-wide corridor, central stairwell core, 4
+  apartments (12x10) + 1 small unit (6x10) per floor.
+- **Shadows from walls and closed/jammed doors only** (not furniture or
+  barricades), for performance on mid-range phones.
+- **Memory**: seen tiles stay as a dim, desaturated map with objects as
+  last seen; zombies are never remembered.
+- **Doors**: zombies can't open doors but bang them down (interior 60 HP,
+  front 120 HP, x0.4 damage); the hero opens doors on his path but never
+  closes them automatically.
+- Tap on the hero turns him around; hold 0.4 s to look (both silent).
+- Camera-facing walls are cut for the hero's room and any room he can see
+  into; other walls stay full height.
+- Attackers: max 3 at the door at once (the corridor is narrow).
+- Unseen zombies are **audio only**, plus doors that visibly rattle (open
+  question 2 below asks about muted phones).
+- New stages A-D (11.3).
+
 ### Open questions
-1. **Backstory names** ("grey fever", "river docks" group): keep, rename,
-   or also name the city/tower?
-2. **Survivor healing feel** (5.7): (a) keep +4/h; (b) back to +2/h and
-   rely on Treat; (c) +6/h so a breach costs about half a day.
-3. **Padlocked storage cages** (5.15, low priority, check at playtest):
+1. **Pinch zoom** (iso rebuild): (a) **no zoom**, fixed 1.0, one-thumb only
+   (current default); (b) pinch zoom between **0.75x and 1.5x**, two
+   fingers, as an optional extra; (c) a **zoom toggle** in the Menu (normal
+   / close-up 1.5x), still one thumb.
+2. **Playing with the sound off** (iso rebuild): unseen zombies are only
+   heard, and many phones are played muted. (a) keep it **audio only**
+   (purest dread; muted players miss warnings); (b) a **faint dark ripple
+   at the edge of the vision cone** in the direction of a loud unseen
+   sound (bangs, groans within 6 tiles), no icons; (c) (b) only as a Menu
+   option, "Show sounds", off by default.
+3. **Backstory names** ("grey fever", "river docks" group): keep, rename,
+   or also name the city/tower? (older, still open)
+4. **Survivor healing feel** (5.7): (a) keep +4/h; (b) back to +2/h and
+   rely on Treat; (c) +6/h so a breach costs about half a day. (older)
+5. **Padlocked storage cages** (5.15, low priority, check at playtest):
    (a) keep crowbar-only (current); (b) also open by hand in 8 s, Loud;
    (c) cap a storage room at 3 cages so it feels less like a wall of locks.
+   (older)
