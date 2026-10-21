@@ -144,12 +144,14 @@ describe('QA 3a: barricade edge cases', () => {
   it('breaking is reported once, HP never goes negative, repair from 0 takes 5 wood', () => {
     const s = fresh();
     buildBarricade(s, balance, 1);
-    expect(damageBarricade(s, 99)).toEqual({ hp: 1, broken: false });
+    const lv1 = balance.barricade.levels[0].hp;
+    expect(damageBarricade(s, lv1 - 1)).toEqual({ hp: 1, broken: false });
     expect(damageBarricade(s, 5)).toEqual({ hp: 0, broken: true });
     expect(damageBarricade(s, 5)).toEqual({ hp: 0, broken: false });
-    give(s, 'wood', 5);
-    for (let i = 0; i < 5; i++) expect(craft(s, 'barricade_repair').ok, `repair ${i}`).toBe(true);
-    expect(s.build.barricade.hp).toBe(100);
+    const repairs = Math.ceil(lv1 / balance.barricade.repairHpPerWood);
+    give(s, 'wood', repairs);
+    for (let i = 0; i < repairs; i++) expect(craft(s, 'barricade_repair').ok, `repair ${i}`).toBe(true);
+    expect(s.build.barricade.hp).toBe(lv1);
     expect(countItem(s.inventory, 'wood')).toBe(0);
     expect(craft(s, 'barricade_repair').ok).toBe(false);
   });
@@ -175,7 +177,7 @@ describe('QA 3a: barricade edge cases', () => {
   it('a loaded save with barricade HP above the level max is clamped (tampered save or retuned balance)', () => {
     const s = fresh();
     s.build.barricade = { level: 1, hp: 9999 };
-    expect(reload(s).build.barricade.hp).toBeLessThanOrEqual(100);
+    expect(reload(s).build.barricade.hp).toBeLessThanOrEqual(balance.barricade.levels[0].hp);
   });
   it('a loaded save with an unknown barricade level falls back to none', () => {
     const s = fresh();

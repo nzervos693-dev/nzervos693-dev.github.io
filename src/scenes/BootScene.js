@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { loadBalance } from '../core/balance.js';
 import { queueArt, registerAnimations } from './art.js';
 import { queueAudio } from './sfx.js';
+import { skipFrontEnd } from './debug.js';
 
 // Loads art by manifest and balance (save is loaded in main.js), then starts GameScene.
 export default class BootScene extends Phaser.Scene {
@@ -19,6 +20,6 @@ export default class BootScene extends Phaser.Scene {
 
   create() {
     registerAnimations(this);
-    loadBalance().finally(() => this.scene.start('Game'));
+    loadBalance().finally(() => this.scene.start(skipFrontEnd() ? 'Game' : 'Title'));
   }
 }

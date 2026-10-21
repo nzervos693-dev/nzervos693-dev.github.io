@@ -10,7 +10,7 @@ export const securedFloors = (state) => Object.keys(state.floorStates || {}).fil
 
 /** Recruited, living survivors with the Guard job. */
 export function guardCount(state) {
-  return Object.values(state.survivors || {}).filter((s) => s && s.recruited && !s.dead && s.job === 'guard').length;
+  return Object.entries(state.survivors || {}).filter(([id, s]) => s && s.recruited && !s.dead && s.job === 'guard' && id !== (state.activeId || 'hero')).length;
 }
 
 /**

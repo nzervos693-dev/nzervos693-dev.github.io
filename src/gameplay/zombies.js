@@ -46,6 +46,8 @@ const DOOR_PAD = 12;
 export const zombieId = (apt, i) => `${apt.id}#${i}`;
 export const isWanderer = (id) => id.startsWith('wander:');
 export const isScripted = (id) => id.startsWith('scripted:');
+/** Attack zombies (piece 3b) live in state.zombies only while the attack is fought; they are never saved. */
+export const isAttacker = (id) => id.startsWith('attack:');
 
 /** Fresh zombie record. */
 export function makeZombie(id, type, floor, x, balance, extra = {}) {

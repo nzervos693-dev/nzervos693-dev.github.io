@@ -15,7 +15,7 @@ export default class Hud {
   /**
    * @param {Phaser.Scene} scene
    * @param {object} balance
-   * @param {{onHome:Function,onBag:Function,onStoreAll:Function,onThrow:Function}} cb
+   * @param {{onHome:Function,onBag:Function,onStoreAll:Function,onThrow:Function,onCrew?:Function}} cb
    */
   constructor(scene, balance, cb) {
     this.scene = scene;
@@ -51,6 +51,8 @@ export default class Hud {
     this.throwBtn.setVisible(false);
     // equipped weapon: tap opens the bag (96x96)
     this.weaponBtn = this.add(button(scene, { text: '', onTap: () => this.cb.onBag(), size: 20, icon: { key: 'icons', name: 'kitchen_knife', scale: 5 } }));
+    this.crewBtn = this.add(button(scene, { text: 'Crew', onTap: () => this.cb.onCrew?.(), size: 22 }));
+    this.crewBtn.setVisible(false);
     this.soundBtn = this.add(button(scene, { text: '', onTap: () => toggleMute(), size: 20 }));
     this.storeBtn = this.add(button(scene, { w: 240, text: 'Store all', onTap: () => this.cb.onStoreAll(), size: 26, fill: COLORS.teal }));
     this.storeBtn.setVisible(false);
@@ -85,11 +87,10 @@ export default class Hud {
     this.bottomBg.setPosition(0, this.bottomY).setSize(w, bottomH);
     this.bottomBg.input.hitArea.setSize(w, bottomH);
     const by = this.bottomY + 16 + 48;
-    this.homeBtn.setPosition(left + 48 + 8, by);
-    this.bagBtn.setPosition(left + 48 + 8 + 120, by);
-    this.throwBtn.setPosition(left + 48 + 8 + 240, by);
-    this.weaponBtn.setPosition(left + 48 + 8 + 360, by);
-    this.soundBtn.setPosition(right - 48 - 8, by);
+    // six 96 px buttons spread evenly across the safe width, gaps of at least 16 px
+    const slots = [this.homeBtn, this.bagBtn, this.throwBtn, this.weaponBtn, this.crewBtn, this.soundBtn];
+    const gap = Math.max(16, (right - left - slots.length * 96) / (slots.length - 1));
+    slots.forEach((b, i) => b.setPosition(left + 48 + i * (96 + gap), by));
     this.storeBtn.setPosition(w / 2, this.bottomY - 64);
     this.last = {};
   }
@@ -122,6 +123,10 @@ export default class Hud {
       this.hintText.setText(s.hint);
     }
     this.storeBtn.setVisible(s.canStore);
+    if (this.last.crew !== !!s.crew) {
+      this.last.crew = !!s.crew;
+      this.crewBtn.setVisible(!!s.crew);
+    }
     this.updateCombat(s);
   }
 

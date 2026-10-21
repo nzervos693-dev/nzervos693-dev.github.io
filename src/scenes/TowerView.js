@@ -10,6 +10,7 @@ import {
 import { homeSpots } from '../gameplay/buildSpots.js';
 import { barricadeMaxHp } from '../gameplay/barricade.js';
 import { isProducerRecipe } from '../gameplay/producers.js';
+import { residentsAtHome, survivorHomeSpot } from '../gameplay/survivors.js';
 import { COLORS, CSS, FONT } from './ui.js';
 
 const ROOM_BG = { kitchen: 'wall_tile', bathroom: 'wall_tile', living: 'wall_wallpaper', bedroom: 'wall_wallpaper' };
@@ -39,6 +40,8 @@ export default class TowerView {
     this.pulsing = [];
     this.built = new Map(); // spot key -> { img, badge, x }
     this.barricade = null; // { img, text }
+    this.crew = new Map(); // recruited survivor id -> sprite at home
+    this.bodies = []; // sprites of dead characters
     this.build();
     this.refresh();
   }
@@ -143,7 +146,7 @@ export default class TowerView {
       const entered = !sp.roomKey || !!state.rooms[sp.roomKey];
       if (sp.fixture) continue;
       const os = state.objects[id] || {};
-      const gone = !!(sp.quest ? os.taken : os.dismantled);
+      const gone = !!(sp.survivor ? state.survivors[sp.survivor.id]?.recruited : sp.quest ? os.taken : os.dismantled);
       sp.img.setVisible(entered && !gone);
       sp.debris?.setVisible(entered && !!os.dismantled);
       sp.marker?.setVisible(entered && !gone && !!os.leftover?.length);
@@ -154,6 +157,38 @@ export default class TowerView {
     this.refreshPiles();
     this.refreshFloorLabels();
     this.refreshBuilt();
+    this.refreshCrew();
+    this.refreshBodies();
+  }
+
+  /** Recruited survivors stand at home (their bed); the one you play as is the hero sprite instead. */
+  refreshCrew() {
+    const { scene, state, tower, balance } = this;
+    const want = new Set(residentsAtHome(state));
+    for (const [id, img] of this.crew) {
+      if (!want.has(id)) { img.destroy(); this.crew.delete(id); }
+    }
+    for (const id of want) {
+      const sp = survivorHomeSpot(state, tower, balance, id);
+      let img = this.crew.get(id);
+      if (!img) {
+        img = scene.add.sprite(sp.x, floorLineY(tower, sp.floor), id, 0).setOrigin(0.5, 1).setScale(ART_SCALE).setDepth(D.prop + 2);
+        if (scene.anims.exists(`${id}_idle`)) img.play(`${id}_idle`);
+        this.crew.set(id, img);
+      }
+      img.setPosition(sp.x, floorLineY(tower, sp.floor));
+    }
+  }
+
+  /** Dead characters stay where they fell (their bag is a pile beside them). */
+  refreshBodies() {
+    const { scene, state, tower } = this;
+    const list = state.bodies || [];
+    for (let i = this.bodies.length; i < list.length; i++) {
+      const b = list[i];
+      const key = this.scene.textures.exists(`${b.char === 'hero' ? 'hero' : b.char}_death`) ? `${b.char}_death` : 'hero_death';
+      this.bodies.push(scene.add.image(b.x, floorLineY(tower, b.floor), key, 2).setOrigin(0.5, 1).setScale(ART_SCALE).setDepth(D.pile - 1));
+    }
   }
 
   /** Sync placed objects (rain collector, filter, planter, bed) and the barricade with state.build. */
@@ -253,6 +288,23 @@ export default class TowerView {
     }
   }
 
+  /**
+   * Where a pile is drawn and tapped: beside a standing floor-layer object at the same x, so the object does
+   * not steal the tap (wall and floor objects share slots).
+   */
+  pileX(p) {
+    const shift = p.x + 60 > this.tower.floorWidth - 16 ? -60 : 60;
+    for (const sp of this.sprites.values()) {
+      if (sp.floor !== p.floor || Math.abs(sp.cx - p.x) >= 60) continue;
+      const onFloor = sp.fixture ? sp.fixture.layer === 'floor' : sp.placement?.layer === 'floor';
+      if (onFloor && (sp.fixture || sp.img?.visible)) return p.x + shift;
+    }
+    for (const e of this.built.values()) {
+      if (e.floor === p.floor && !e.wall && Math.abs(e.x - p.x) < 60) return p.x + shift;
+    }
+    return p.x;
+  }
+
   refreshPiles() {
     const live = new Set(this.state.piles.map((p) => p.id));
     for (const [id, c] of this.pileSprites) {
@@ -271,6 +323,7 @@ export default class TowerView {
         this.pileSprites.set(p.id, c);
       }
       c.list[1].setFrame(frameOf('icons', first.id));
+      c.x = this.pileX(p);
     }
   }
 
@@ -319,9 +372,12 @@ export default class TowerView {
       }
       if (sp.roomKey && !state.rooms[sp.roomKey]) continue;
       const os = state.objects[id] || {};
-      if (sp.survivor) out.push({ type: 'survivor', id: sp.survivor.id, floor, x: sp.cx, cy: sp.cy, halfW: sp.halfW, sp });
+      if (sp.survivor) { if (!state.survivors[sp.survivor.id]?.recruited) out.push({ type: 'survivor', id: sp.survivor.id, floor, x: sp.cx, cy: sp.cy, halfW: sp.halfW, sp }); }
       else if (sp.quest) { if (!os.taken) out.push({ type: 'quest', id, floor, x: sp.cx, cy: sp.cy, halfW: sp.halfW, sp }); }
       else if (!os.dismantled) out.push({ type: 'object', id, floor, x: sp.cx, cy: sp.cy, halfW: sp.halfW, sp });
+    }
+    for (const [id, img] of this.crew) {
+      if (img.y === floorLineY(tower, floor)) out.push({ type: 'survivor', id, floor, x: img.x, cy: img.y - 48, halfW: 48, home: true });
     }
     for (const [key, e] of this.built) {
       if (e.floor === floor) out.push({ type: 'built', id: key, floor, x: e.x, cy: e.wall ? floorLineY(tower, floor) - WALL_LIFT - 48 : floorLineY(tower, floor) - 48, halfW: 48, sp: { img: e.img } });
@@ -332,7 +388,7 @@ export default class TowerView {
       out.push({ type: 'barricade', id: 'barricade', floor, x: tower.barricadeX, cy: floorLineY(tower, floor) - 48, halfW: 24 });
     }
     for (const p of state.piles) {
-      if (p.floor === floor) out.push({ type: 'pile', id: p.id, floor, x: p.x, cy: floorLineY(tower, floor) - 48, halfW: 48, pile: p });
+      if (p.floor === floor) out.push({ type: 'pile', id: p.id, floor, x: this.pileX(p), cy: floorLineY(tower, floor) - 48, halfW: 48, pile: p });
     }
     for (const apt of tower.floors.get(floor)?.apartments || []) {
       if (state.doors[apt.id]?.state === 'jammed') {

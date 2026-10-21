@@ -34,5 +34,49 @@ export function reportLines(report, balance, capped = false) {
     lines.push(`Used ${qty} x ${balance.items?.[id]?.name || id}`);
   }
   lines.push(...productionLines(report.production, balance));
+  lines.push(...survivorLines(report, balance));
+  lines.push(...attackLines(report.attacks, balance));
+  return lines;
+}
+
+const nameOf = (id, balance) => (id === 'active' || id === 'hero' ? 'You' : balance.survivors?.roster?.[id]?.name || id);
+
+/** Lines about survivors while you were away: missed upkeep, deaths and scavenged loot. */
+export function survivorLines(report, balance) {
+  const lines = [];
+  for (const e of report.survivorEvents || []) {
+    const n = nameOf(e.id, balance);
+    if (e.missed?.length) lines.push(Math.round(e.healthLost) > 0 ? `${n} had no ${e.missed.join(' or ')}: -${Math.round(e.healthLost)} health.` : `${n} had no ${e.missed.join(' or ')}.`);
+    if (e.died) lines.push(`${n} died.`);
+  }
+  const found = {};
+  for (const e of report.scavenged || []) {
+    if (e.stored) found[e.item.id] = (found[e.item.id] || 0) + e.item.qty;
+  }
+  const parts = Object.entries(found).map(([id, q]) => `${q} ${(balance.items?.[id]?.name || id).toLowerCase()}`);
+  if (parts.length) lines.push(`Scavenged: ${parts.join(', ')}`);
+  return lines;
+}
+
+/** Lines for each attack resolved while you were away (GDD 5.8: time, strength vs defense, damage, losses). */
+export function attackLines(attacks, balance) {
+  const lines = [];
+  for (const a of attacks || []) {
+    const when = a.interrupted ? 'Attack you left' : a.missed ? 'Attack while you were out' : `Attack ${formatDuration(a.offsetMs ?? 0)} in`;
+    const vs = `strength ${Math.round(a.strength)} vs defense ${Math.round(a.defense)}`;
+    // the popup fits about 40 characters per line
+    if (`${when}: ${vs}`.length <= 40) lines.push(`${when}: ${vs}`);
+    else lines.push(`${when}:`, vs[0].toUpperCase() + vs.slice(1));
+    if (a.repelled) {
+      lines.push(`Repelled. Barricade -${Math.round(a.barricadeLoss)} HP.`);
+      continue;
+    }
+    lines.push('BREACHED! The barricade fell.');
+    if (a.hurt?.length) lines.push(`Hurt: ${a.hurt.map((h) => `${nameOf(h.id, balance)} -${Math.round(h.damage)}`).join(', ')}`);
+    if (a.lost?.length) {
+      const names = a.lost.map((l) => (balance.items?.[l.id]?.name || l.id).toLowerCase()).join(', ');
+      lines.push(`Lost ${a.lost.length} stack${a.lost.length > 1 ? 's' : ''}${names.length <= 24 ? `: ${names}` : ''}.`);
+    }
+  }
   return lines;
 }

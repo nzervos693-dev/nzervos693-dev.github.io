@@ -39,7 +39,9 @@ export default class ActionMenu {
       b.setEnabled(a.enabled);
       c.add(b);
       if (!a.enabled && a.reason) {
-        c.add(label(scene, x, cy + 66, a.reason, 16, CSS.red, false).setStroke('#0d0f12', 4));
+        const reason = label(scene, x, cy + 66, a.reason, 16, CSS.red, false).setStroke('#0d0f12', 4);
+        reason.x = Math.max(reason.width / 2 + 8, Math.min(w - reason.width / 2 - 8, x)); // keep the text on screen
+        c.add(reason);
       }
     });
     this.c = c;

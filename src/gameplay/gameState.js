@@ -7,6 +7,8 @@ import { homeSpots } from './buildSpots.js';
 import { homeSpot, roomKey } from './layout.js';
 import { mergeItems } from './rng.js';
 import { initZombies } from './zombies.js';
+import { newStory } from './tutorial.js';
+import { startAttackClock } from './attacks.js';
 
 export const STATE_VERSION = 1;
 /**
@@ -64,6 +66,10 @@ export function createGameState(balance, tower, nowMs) {
     rooms: {},
     notes: [],
     survivors: {},
+    activeId: 'hero',
+    bodies: [],
+    story: newStory(),
+    attacks: { scriptedDone: false, nextAt: null, kind: 'scripted', current: null },
     flags: {},
     stats: { objectsSalvaged: 0 },
     times: { startedAt: nowMs, lastTickAt: nowMs },
@@ -99,6 +105,12 @@ export function normalizeGameState(raw, balance, tower, nowMs) {
   s.rooms = s.rooms || {};
   s.notes = Array.isArray(s.notes) ? s.notes : [];
   s.survivors = s.survivors || {};
+  s.activeId = typeof s.activeId === 'string' ? s.activeId : 'hero';
+  s.bodies = (Array.isArray(s.bodies) ? s.bodies : []).filter((b) => b && Number.isFinite(b.x) && tower.floors.has(b.floor));
+  const oldSave = !s.story; // a save from before the tutorial existed: no tutorial, attacks start now
+  s.story = s.story && typeof s.story === 'object' ? s.story : { tutorial: 'skipped', walked: true, doorOpened: true };
+  s.attacks = { scriptedDone: false, nextAt: null, kind: 'scripted', current: null, ...(s.attacks || {}) };
+  if (oldSave) startAttackClock(s, balance, nowMs);
   s.flags = s.flags || {};
   s.stats = { objectsSalvaged: 0, zombiesKilled: 0, ...(s.stats || {}) };
   s.wanderAt = s.wanderAt && typeof s.wanderAt === 'object' ? s.wanderAt : {};

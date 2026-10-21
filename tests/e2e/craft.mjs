@@ -129,7 +129,8 @@ try {
   await tapWorld(page, 372, line - 84 - 48);
   await craftViaPanel(page, 'barricade_lv1');
   const bar = await g(page, () => ({ ...window.__floor15.state.build.barricade, wood: 0 }));
-  check(bar.level === 1 && bar.hp === 100, `Barricade Lv1 built at full HP (${JSON.stringify(bar)})`);
+  const lv1hp = await g(page, () => window.__floor15.balance.barricade.levels[0].hp);
+  check(bar.level === 1 && bar.hp === lv1hp, `Barricade Lv1 built at full HP (${JSON.stringify(bar)})`);
   check(await bagCount(page, 'wood') === 1 && await bagCount(page, 'metal') === 0, 'materials were spent (1 wood left)');
   check(await g(page, () => window.__floor15.view.barricade?.img.visible === true), 'barricade sprite is drawn');
   await page.screenshot({ path: `${shots}/e2e-craft-panel-412x915.png` });
@@ -150,7 +151,7 @@ try {
     return { x: s.state.zombies['wander:e2e'].x, hp: s.state.build.barricade.hp, health: s.state.needs.health, hits: window.__barHits, mode: s.zombies.get('wander:e2e').ai.mode };
   });
   check(z.x <= 88.5 && z.x > 60, `zombie is held outside the barricade (x ${z.x.toFixed(1)})`);
-  check(z.hp < 100 && z.hits >= 2, `zombie damaged the barricade (${z.hp}/100 HP, ${z.hits} hits)`);
+  check(z.hp < lv1hp && z.hits >= 2, `zombie damaged the barricade (${z.hp}/${lv1hp} HP, ${z.hits} hits)`);
   check(z.health === 100, 'hero was not bitten through the barricade');
   await page.screenshot({ path: `${shots}/e2e-barricade-412x915.png` });
 

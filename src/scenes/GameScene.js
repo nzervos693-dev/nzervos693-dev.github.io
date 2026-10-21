@@ -3,7 +3,7 @@ import floorsData from '../../public/data/levels/floors.json';
 import lootData from '../../public/data/levels/loot.json';
 import { getBalance } from '../core/balance.js';
 import { getSave, writeSave, deleteSave } from '../core/save.js';
-import { now, offlineInfo, elapsedInfo } from '../core/clock.js';
+import { now, elapsedInfo } from '../core/clock.js';
 import { offlineCapMs } from '../core/balance.js';
 import { lifecycle } from '../core/lifecycle.js';
 import {
@@ -15,14 +15,23 @@ import { catchUp, pickAutoUseItem } from '../gameplay/offline.js';
 import { addPile } from '../gameplay/gameState.js';
 import { addItem, moveAll } from '../gameplay/inventory.js';
 import { heroWeapon, equipSlot, unequip, isEquipped, isEquippable, damageHero } from '../gameplay/combat.js';
-import { makeZombie, isWanderer } from '../gameplay/zombies.js';
+import { makeZombie, isWanderer, isAttacker } from '../gameplay/zombies.js';
 import { updateFloorStates } from '../gameplay/floorState.js';
 import { spawnDueWanderers, dropLostWanderTime } from '../gameplay/wanderers.js';
 import { livingSurvivors, gameOverStats } from '../gameplay/death.js';
+import {
+  recruitedAlive, residentsAtHome, interactSurvivor, setJob, talkTo, talkWaitMs, tickUpkeep, tickScavengers,
+  dropLostSurvivorTime, passTorch, killActiveSurvivor, activeId, isActive, jobInfo, regenSurvivors, treatOptions, treatSurvivor,
+} from '../gameplay/survivors.js';
+import { makeAttackHook, settleInterrupted, dropLostAttackTime } from '../gameplay/attacks.js';
+import {
+  currentStep, shouldOpenDoor, checkTutorialDone, skipTutorial, tutorialActive, TUTORIAL_TRIGGER,
+} from '../gameplay/tutorial.js';
+import { torchLine } from '../gameplay/storyText.js';
 import { limitWalk, planRoute, stairSeconds, stepToward, hitJammedDoor, doorStopX } from '../gameplay/routing.js';
 import { listActions, buildSpec, noiseFor, completeAction, heroHasTool } from '../gameplay/actions.js';
 import { pastKeepThreshold, spendToolUse, energyTimeMult } from '../gameplay/salvage.js';
-import { reportLines } from '../gameplay/report.js';
+import { reportLines, attackLines, formatDuration } from '../gameplay/report.js';
 import {
   recipeRows, USE_NAMES, craftCheck, costLines, effectText, performCraft, recipeKind,
 } from '../gameplay/crafting.js';
@@ -47,6 +56,11 @@ import GameOverPanel from './GameOverPanel.js';
 import CraftPanel from './CraftPanel.js';
 import FloorPicker from './FloorPicker.js';
 import Placement from './Placement.js';
+import Dialogue from './Dialogue.js';
+import SurvivorsPanel from './SurvivorsPanel.js';
+import TutorialView from './TutorialView.js';
+import AttackDirector from './AttackDirector.js';
+import { debugOn, skipFrontEnd, attacksOn, exposeScene } from './debug.js';
 import { label, COLORS, CSS } from './ui.js';
 import { playSfx, stopSfx } from './sfx.js';
 import { isAudioUnlocked } from '../core/audio.js';
@@ -61,9 +75,10 @@ const DOOR_SHAKE_PX = 4;
 const MENU_BOTTOM_MARGIN = 8;
 const SWING_ANIM_MS = 280;
 const STEP_SECONDS = 0.3;
-/** Debug hooks (window.__floor15, ?give=) exist only in dev builds or builds made with VITE_DEBUG_HOOKS=1. */
-const DEBUG_BUILD = import.meta.env.DEV || import.meta.env.VITE_DEBUG_HOOKS === '1';
-const debugOn = () => DEBUG_BUILD && new URLSearchParams(location.search).has('debug');
+/** Pause before the pass the torch card so the death animation plays. */
+const TORCH_DELAY_MS = 1200;
+/** Distance the hero must walk before the tutorial counts "walk" as done, px. */
+const TUTORIAL_WALK_PX = 40;
 const TOAST_PANEL_GAP = 45;
 const TOAST_PROMPT_LIFT = 140;
 
@@ -79,6 +94,8 @@ const TOAST_PROMPT_LIFT = 140;
  *   'crafted' {id, kind}  'object-placed' {id, key}  'built-dismantled' {id, key}  'built-used' {id, key, collected, loaded}
  *   'barricade-built' {level}  'barricade-hit' {hp, zombie}  'barricade-broken'  'floor-secured' {floor}
  *   'hero-dead' {survivors, handled}  'item-used' {id}
+ *   'attack-warning' {arrivesAt}  'attack-start' {kind, strength, total}  'attack-end' {kind, repelled}
+ *   'survivor-recruited' {id}  'survivor-died' {id}  'torch-passed' {id}  'tutorial-done'
  *   'floor-cleared' {floor}      'zombie-killed' {id, type, floor}
  *   'tutorial_open_door' (and any floors.json scriptedSpawns trigger): emit it on `bus` to spawn that
  *   scripted zombie. Death: listeners of 'hero-dead' that run pass the torch set `payload.handled = true`.
@@ -123,6 +140,10 @@ export default class GameScene extends Phaser.Scene {
     this.stepT = 0;
     this.stepFlip = false;
     this.ambient = false;
+    this.attacksEnabled = attacksOn();
+    this.walkStartX = this.state.hero.x;
+    this.crewCount = recruitedAlive(this.state).length;
+    this.tutorialAt = 0;
 
     this.cameras.main.setBackgroundColor('#0d0f12');
     this.view = new TowerView(this, this.tower, this.state, balance);
@@ -134,6 +155,7 @@ export default class GameScene extends Phaser.Scene {
       onBag: () => this.toggleBag(),
       onStoreAll: () => this.storeAll(),
       onThrow: () => this.onThrowButton(),
+      onCrew: () => this.openCrew(),
     });
     this.toast = new Toast(this, this.hud.toastY);
     this.menu = new ActionMenu(this);
@@ -160,7 +182,20 @@ export default class GameScene extends Phaser.Scene {
     this.zombies = new Zombies(this);
     this.combat = new Combat(this);
     this.throwing = new Throwing(this);
+    this.dialogue = new Dialogue(this);
+    this.crewPanel = new SurvivorsPanel(this, {
+      rows: () => this.crewRows(),
+      onJob: (id, job) => this.onCrewJob(id, job),
+      onTalk: (id) => this.onCrewTalk(id),
+      onTreat: (id) => this.onCrewTreat(id),
+      onClose: () => {},
+    });
+    this.tutorialView = new TutorialView(this, () => this.onSkipTutorial());
+    this.tutorialView.layout(this.hud.topH);
+    this.attacks = new AttackDirector(this);
+    this.attacks.enabled = this.attacksEnabled;
     this.bus.on('noise', (n) => this.zombies.onNoise(n));
+    this.bus.on('hero-dead', (p) => this.offerTorch(p));
     for (const f of this.tower.floors.values()) {
       for (const sp of f.scriptedSpawns || []) this.bus.on(sp.trigger, () => this.spawnScripted(sp.trigger));
     }
@@ -178,26 +213,38 @@ export default class GameScene extends Phaser.Scene {
     });
 
     if (fresh) {
+      if (skipFrontEnd()) skipTutorial(this.state, balance, t0); // plain ?debug: no tutorial
       this.save();
-      this.toast.show('You wake up. Something is scratching at the door.', 4000);
     } else {
-      const info = offlineInfo();
+      // measured from the last game tick, not the save stamp: hiding on the title screen also writes the save
+      const info = elapsedInfo(this.state.times.lastTickAt, now(), offlineCapMs(balance));
       this.applyOffline(info.elapsedMs, info.capped);
     }
 
     if (this.state.flags.heroDead) this.showGameOver();
     if (debugOn()) window.__floor15 = this;
+    exposeScene(this);
   }
 
   // ---------------------------------------------------------------- setup
 
   createHero() {
-    this.heroSprite = this.add.sprite(0, 0, 'hero', 0).setOrigin(0.5, 1).setScale(3).setDepth(HERO_DEPTH);
-    this.heroSprite.play('hero_idle');
+    const key = this.charKey();
+    this.heroSprite = this.add.sprite(0, 0, key, 0).setOrigin(0.5, 1).setScale(3).setDepth(HERO_DEPTH);
+    this.heroSprite.play(`${key}_idle`);
     this.heroSprite.on('animationcomplete', (anim) => {
-      if (anim.key === 'hero_attack' && this.action?.spec.kind === 'dismantle') this.heroSprite.play('hero_attack');
+      if (anim.key.endsWith('_attack') && this.action?.spec.kind === 'dismantle') this.heroSprite.play(anim.key);
     });
     this.zzz = label(this, 0, 0, 'Zzz', 30, CSS.text, false).setDepth(HERO_DEPTH + 1).setVisible(false);
+  }
+
+  /** Sprite/texture key of the character you play: 'hero', or a survivor id after pass the torch. */
+  charId() { return activeId(this.state); }
+
+  /** Playable sprite sheet of the active character: 'hero' or `${survivorId}_play` (walk and swing frames). */
+  charKey() {
+    const id = this.charId();
+    return id === 'hero' ? 'hero' : (this.textures.exists(`${id}_play`) ? `${id}_play` : id);
   }
 
   createActionBar() {
@@ -207,11 +254,15 @@ export default class GameScene extends Phaser.Scene {
 
   setupLifecycle() {
     const onHide = () => this.onHide();
-    const onResume = (ms, info) => this.applyOffline(info.elapsedMs, info.capped);
+    const onResume = () => {
+      const info = elapsedInfo(this.state.times.lastTickAt, now(), offlineCapMs(this.balance));
+      this.applyOffline(info.elapsedMs, info.capped);
+    };
     this.game.events.on('floor15:hide', onHide);
     lifecycle.on('resume', onResume);
     this.events.once('shutdown', () => {
       stopSfx('heartbeat');
+      stopSfx('siren');
       this.bus.removeAllListeners();
       this.game.events.off('floor15:hide', onHide);
       lifecycle.off('resume', onResume);
@@ -306,7 +357,9 @@ export default class GameScene extends Phaser.Scene {
 
   setHeroAnim(name) {
     if (name !== 'attack' && this.time.now < this.swingAnimUntil) return; // let a swing finish
-    const key = `hero_${name}`;
+    const k = this.charKey();
+    let key = `${k}_${name}`;
+    if (!this.anims.exists(key)) key = `${k}_idle`; // survivors only have an idle animation
     if (this.heroSprite.anims.currentAnim?.key !== key) this.heroSprite.play(key);
   }
 
@@ -336,7 +389,10 @@ export default class GameScene extends Phaser.Scene {
   /** One-shot swing animation (weapon swing, door hit, throw). */
   playSwingAnim() {
     this.swingAnimUntil = this.time.now + SWING_ANIM_MS;
-    this.heroSprite.play('hero_attack');
+    const key = `${this.charKey()}_attack`;
+    if (this.anims.exists(key)) { this.heroSprite.play(key); return; }
+    const lean = this.heroSprite.flipX ? -0.2 : 0.2; // no swing frames: a quick lean
+    this.tweens.add({ targets: this.heroSprite, rotation: lean, yoyo: true, duration: 90 });
   }
 
   /** Plan a walk (and stairs) to floor/x; `pending` runs on arrival. */
@@ -409,7 +465,7 @@ export default class GameScene extends Phaser.Scene {
   // ---------------------------------------------------------------- taps
 
   onWorldTap(wx, wy) {
-    if (this.gameOver || this.popup.isOpen || this.panel.isOpen || this.craftPanel.isOpen || this.floorPicker.isOpen) return;
+    if (this.gameOver || this.dead || this.popup.isOpen || this.panel.isOpen || this.craftPanel.isOpen || this.floorPicker.isOpen || this.crewPanel.isOpen || this.dialogue.isOpen) return;
     if (this.placement.active) {
       const zt = this.zombies.hitTest(wx, wy); // you can still fight while placing
       if (zt) this.attackZombie(zt); else this.placement.handleTap(wx, wy);
@@ -533,10 +589,7 @@ export default class GameScene extends Phaser.Scene {
         break;
       case 'build-use': this.useBuiltObject(t); break;
       case 'build-dismantle': this.beginBuildDismantle(t); break;
-      case 'survivor':
-        this.bus.emit('survivor-tap', { id: t.id });
-        this.toast.show('Someone is hiding here.');
-        break;
+      case 'survivor': this.onSurvivorTap(t.id); break;
       case 'quest': this.takeQuestItem(t); break;
       case 'pile': this.takePile(t.pile); break;
       case 'door': this.interactDoor(t.apt); break;
@@ -752,6 +805,8 @@ export default class GameScene extends Phaser.Scene {
     tickProducers(state, balance, gap / 1000);
     this.view.refreshBuilt();
     this.tickWanderers(t);
+    this.tickSurvivors(t, gap / 1000);
+    this.attacks.check(t);
     if (this.sleeping && state.needs.energy >= balance.needs.max) {
       this.wake();
       this.toast.show('Rested.');
@@ -791,27 +846,65 @@ export default class GameScene extends Phaser.Scene {
     this.deny(need === 'food' ? 'Nothing to eat.' : 'Nothing to drink.');
   }
 
-  /** Offline catch-up on launch, resume, or a long frame gap. */
+  /**
+   * Offline catch-up on launch, resume, or a long frame gap: needs, wanderers, production, survivors
+   * (upkeep, scavengers) and attacks, in 10-minute steps. An attack interrupted by closing the app settles first.
+   */
   applyOffline(elapsedMs, capped, awake = false) {
     const { state, balance } = this;
     if (state.flags.heroDead || this.gameOver) return;
     const t = now();
+    this.attacks.onHide(); // a fight cut short by a long gap settles below
+    const startMs = state.times.lastTickAt;
+    let report = null;
+    const attackResults = [];
+    const attackHook = makeAttackHook(state, balance, this.rng, startMs);
+    attackHook.settle(startMs, { attacks: attackResults }); // an interrupted fight first (counts toward the cap)
     if (elapsedMs > 0) {
       const sim = { needs: state.needs, stockpile: state.stockpile, ctx: heroCtx(state, balance) };
       const wander = (_sim, _seconds, atMs) => spawnDueWanderers(state, this.tower, balance, atMs, this.rng, { hero: homeSpot(this.tower) });
       const produce = (_sim, seconds, _atMs, rep) => tickProducers(state, balance, seconds, rep);
-      const report = catchUp(sim, elapsedMs, balance, { startMs: state.times.lastTickAt, awake, stepHooks: [wander, produce] });
-      if (capped) dropLostWanderTime(state, t, balance);
-      this.zombies.syncRecords();
-      if (elapsedMs >= 60000) {
-        this.popup.show('While you were away', reportLines(report, balance, capped));
+      const crew = (_sim, seconds, atMs, rep) => {
+        tickUpkeep(state, balance, atMs, { offline: true }, (rep.survivorEvents ||= [])); // health floor always applies
+        regenSurvivors(state, balance, seconds);
+        tickScavengers(state, balance, this.tower, this.tables, seconds, this.rng, (rep.scavenged ||= []));
+      };
+      const hooks = [wander, produce, crew];
+      if (this.attacksEnabled) hooks.push(attackHook);
+      report = catchUp(sim, elapsedMs, balance, { startMs, awake, stepHooks: hooks });
+      if (capped) {
+        dropLostWanderTime(state, t, balance);
+        dropLostSurvivorTime(state, balance, t);
+        dropLostAttackTime(state, balance, t, this.rng);
       }
+      attackResults.push(...(report.attacks || []));
+      report.attacks = attackResults;
+    }
+    this.zombies.syncRecords();
+    if (report ? (elapsedMs >= 60000 || attackResults.length || report.survivorEvents?.length) : attackResults.length) {
+      const lines = report ? reportLines(report, balance, capped) : attackLines(attackResults, balance);
+      this.popup.show('While you were away', lines);
     }
     state.times.lastTickAt = t;
+    this.refreshCrewCount();
     this.view.refresh();
     this.panel.refresh();
     this.save();
   }
+
+  /** An attack came due while the game was not ticking (e.g. the app was open on the title): settle it offline. */
+  settleDueAttacks(t) {
+    const report = { attacks: [] };
+    makeAttackHook(this.state, this.balance, this.rng, t)(null, 0, t, report);
+    if (!report.attacks.length) return;
+    for (const a of report.attacks) a.missed = true;
+    this.popup.show('While you were away', attackLines(report.attacks, this.balance));
+    this.refreshCrewCount();
+    this.view.refresh();
+    this.save();
+  }
+
+  refreshCrewCount() { this.crewCount = recruitedAlive(this.state).length; }
 
   onHide() {
     this.closeBuildUi();
@@ -823,15 +916,19 @@ export default class GameScene extends Phaser.Scene {
       const home = homeSpot(this.tower);
       addPile(this.state, home.floor, home.x, [{ id: inFlight.id, qty: 1 }]);
     }
+    this.attacks.onHide();
+    this.crewPanel.close();
     this.zombies.resetAll();
     this.route.length = 0;
     this.pending = null;
     this.stair = null;
     this.wake();
     this.menu.close();
-    const spot = homeSpot(this.tower);
-    this.state.hero.floor = spot.floor;
-    this.state.hero.x = spot.x;
+    if (!this.dead) { // a dead hero stays where he fell until the torch is passed
+      const spot = homeSpot(this.tower);
+      this.state.hero.floor = spot.floor;
+      this.state.hero.x = spot.x;
+    }
     this.placeHero();
   }
 
@@ -1039,7 +1136,8 @@ export default class GameScene extends Phaser.Scene {
     const z = rt.rec;
     this.state.stats.zombiesKilled += 1;
     this.bus.emit('zombie-killed', { id: z.id, type: z.type, floor: z.floor });
-    if (isWanderer(z.id)) delete this.state.zombies[z.id]; // wanderers leave no record; authored and scripted ones stay dead
+    this.attacks.onKilled(z);
+    if (isWanderer(z.id) || isAttacker(z.id)) delete this.state.zombies[z.id]; // wanderers and attackers leave no record; authored and scripted ones stay dead
     const cleared = updateFloorStates(this.tower, this.state, this.balance, now());
     this.view.refresh();
     for (const n of cleared) {
@@ -1079,10 +1177,11 @@ export default class GameScene extends Phaser.Scene {
     this.save();
   }
 
-  /** The hero's health hit 0 while playing. */
+  /** The active character's health hit 0 while playing. */
   onHeroDeath() {
     if (this.dead) return;
     this.dead = true;
+    this.deathSpot = { floor: this.stair ? this.stair.to : this.state.hero.floor, x: this.stair ? this.tower.stairwell.entryX : this.state.hero.x };
     this.cancelAction();
     this.combat.clear();
     this.throwing.reset();
@@ -1092,28 +1191,69 @@ export default class GameScene extends Phaser.Scene {
     this.menu.close();
     this.needPrompt.hide();
     this.heroDeathAnim();
+    killActiveSurvivor(this.state); // a survivor you played is gone for good
     const payload = { survivors: livingSurvivors(this.state), handled: false };
     this.bus.emit('hero-dead', payload);
-    // TODO(piece 3): pass the torch. A 'hero-dead' listener that shows the survivor picker must set
-    // payload.handled = true, then call scene.clearDeathState() when the new character takes over.
     if (payload.handled) return;
     this.state.flags.heroDead = true;
     this.save();
     this.showGameOver();
   }
 
-  /** Hero death one-shot (last frame stays). */
-  heroDeathAnim() {
-    this.heroSprite.clearTint().setTexture('hero_death', 0);
-    this.heroSprite.play('hero_death_death');
+  /** 'hero-dead' listener: with someone left, show the pass the torch card (GDD 5.7) instead of game over. */
+  offerTorch(payload) {
+    if (!payload.survivors.length) return;
+    payload.handled = true;
+    this.time.delayedCall(TORCH_DELAY_MS, () => this.askTorch(payload.survivors));
   }
 
-  /** Undo the dead state after a successful pass the torch (piece 3). */
+  /** Pick who to continue as (one survivor: just the card). */
+  askTorch(ids) {
+    const names = ids.map((id) => this.balance.survivors.roster[id]?.name || id);
+    if (ids.length === 1) {
+      this.dialogue.show({ lines: [torchLine(names[0])], big: true, onDone: () => this.takeOver(ids[0]) });
+      return;
+    }
+    const rows = ids.map((id, i) => ({ floor: i, text: `Carry on as ${names[i]}` }));
+    this.floorPicker.open('Who carries on?', rows, (i) => {
+      this.dialogue.show({ lines: [torchLine(names[i])], big: true, onDone: () => this.takeOver(ids[i]) });
+    }, () => this.askTorch(ids));
+  }
+
+  /** The chosen survivor becomes the character you play; the dead body and bag stay where they fell. */
+  takeOver(id) {
+    const { state, balance, tower } = this;
+    const spot = this.deathSpot || { floor: state.hero.floor, x: state.hero.x };
+    const r = passTorch(state, balance, id, spot, homeSpot(tower));
+    if (!r.ok) { this.state.flags.heroDead = true; this.showGameOver(); return; }
+    this.stair = null;
+    this.refreshCrewCount();
+    this.clearDeathState();
+    this.promptArmed = { food: true, water: true };
+    this.view.refresh();
+    this.panel.refresh();
+    this.placeHero();
+    this.jumpCameraToHero();
+    this.following = true;
+    this.bus.emit('torch-passed', { id });
+    this.toast.show(`${balance.survivors.roster[id].name} carries on. Your bag lies where you fell.`, 3600);
+    this.save();
+  }
+
+  /** Death one-shot (last frame stays). */
+  heroDeathAnim() {
+    const k = this.charId();
+    this.heroSprite.clearTint().setTexture(`${k}_death`, 0);
+    this.heroSprite.play(`${k}_death_death`);
+  }
+
+  /** Undo the dead state after a successful pass the torch. */
   clearDeathState() {
     this.dead = false;
     this.state.flags.heroDead = false;
-    this.heroSprite.clearTint().setTexture('hero', 0);
-    this.heroSprite.play('hero_idle');
+    const k = this.charKey();
+    this.heroSprite.clearTint().setTexture(k, 0);
+    this.heroSprite.play(`${k}_idle`);
   }
 
   showGameOver() {
@@ -1124,14 +1264,15 @@ export default class GameScene extends Phaser.Scene {
     this.panel.close();
     this.popup.close();
     this.closeBuildUi();
-    if (this.heroSprite.texture.key !== 'hero_death') this.heroSprite.setTexture('hero_death', 2);
+    const dk = `${this.charId()}_death`;
+    if (this.heroSprite.texture.key !== dk) this.heroSprite.setTexture(dk, 2);
     this.gameOverPanel.show(gameOverStats(this.state, now()), () => this.newGame());
   }
 
   /** New game: delete the save and restart the scene from scratch. */
   newGame() {
     deleteSave();
-    this.scene.restart();
+    this.scene.start(skipFrontEnd() ? 'Game' : 'Intro');
   }
 
   // ---------------------------------------------------------------- crafting, building, barricade
@@ -1216,6 +1357,7 @@ export default class GameScene extends Phaser.Scene {
       this.bus.emit('floor-secured', { floor: target.floor });
     } else if (res.kind === 'place') {
       msg = `${rec.name} placed.`;
+      if (rec.effect?.type === 'survivor_bed' && this.state.survivors.mara?.quest === 'asked' && !this.state.survivors.mara.recruited) msg += '\nMara can join now: bring her the bag.';
       this.bus.emit('object-placed', { id, key: target.spot });
     }
     this.bus.emit('crafted', { id, kind: res.kind });
@@ -1311,6 +1453,181 @@ export default class GameScene extends Phaser.Scene {
     if (r.broken) this.save();
   }
 
+  // ---------------------------------------------------------------- survivors, tutorial
+
+  /** Once a second: survivor upkeep (and scavengers, only if balance.survivors.scavengeOnline is set; GDD: offline only). */
+  tickSurvivors(t, seconds) {
+    const { state, balance } = this;
+    this.refreshCrewCount();
+    if (!this.crewCount) return;
+    const events = tickUpkeep(state, balance, t, { offline: false });
+    regenSurvivors(state, balance, seconds);
+    if (balance.survivors.scavengeOnline) tickScavengers(state, balance, this.tower, this.tables, seconds, this.rng);
+    for (const e of events) {
+      const name = balance.survivors.roster[e.id]?.name || e.id;
+      if (e.died) {
+        this.bus.emit('survivor-died', { id: e.id });
+        this.view.refresh();
+        this.toast.show(`${name} died. Morale ${balance.needs.morale.events.survivorDies}.`, 4000);
+      } else {
+        this.toast.show(`${name} had no ${e.missed.join(' or ')}${Math.round(e.healthLost) > 0 ? `: -${Math.round(e.healthLost)} health` : ''}. Stock the stockpile.`, 4000);
+      }
+    }
+    if (events.length) { this.crewPanel.refresh(); this.save(); }
+  }
+
+  /** Tap on a survivor: the recruit quest talk (not yet home) or the Crew screen (at home). */
+  onSurvivorTap(id) {
+    const { state, balance } = this;
+    this.bus.emit('survivor-tap', { id });
+    if (state.survivors[id]?.recruited) { this.openCrew(); return; }
+    const name = balance.survivors.roster[id].name;
+    const r = interactSurvivor(state, balance, id, now());
+    this.dialogue.show({ speaker: name, lines: r.lines, blip: true });
+    if (r.gaveBag) {
+      this.bus.emit('quest-done', { id });
+      this.floatText(state.hero.x, this.heroLineY() - HERO_FEET_TO_HEAD - 20, `+${balance.needs.morale.events.questDone} morale`, CSS.amber);
+    }
+    if (r.recruited) {
+      this.bus.emit('survivor-recruited', { id });
+      playSfx(this, 'craft');
+    }
+    this.refreshCrewCount();
+    this.view.refresh();
+    this.panel.refresh();
+    this.save();
+  }
+
+  openCrew() {
+    this.menu.close();
+    if (this.crewPanel.isOpen) { this.crewPanel.close(); return; }
+    this.panel.close();
+    this.crewPanel.open();
+  }
+
+  /** Rows for the Crew screen. */
+  crewRows() {
+    const { state, balance } = this;
+    const sv = balance.survivors;
+    const ev = balance.needs.morale.events;
+    const t = now();
+    return recruitedAlive(state).map((id) => {
+      const def = sv.roster[id];
+      const s = state.survivors[id];
+      const active = isActive(state, id);
+      const wait = talkWaitMs(state, balance, id, t);
+      const mult = def.trait?.bandageHealMult;
+      return {
+        id,
+        name: def.name,
+        role: def.role,
+        health: active ? state.needs.health : s.health,
+        maxHealth: balance.needs.max,
+        trait: def.trait ? `${def.trait.name}: bandages heal +${Math.round((mult - 1) * 100)}%` : '',
+        upkeep: `Meal in ${formatDuration(Math.max(0, (s.upkeepAt ?? t) - t))} (${sv.upkeepFood} food, ${sv.upkeepWater} water)`,
+        jobs: jobInfo(balance).map((j) => ({ ...j, on: s.job === j.id })),
+        active,
+        treat: this.treatState(s),
+        talk: { label: wait > 0 ? `Talk again in ${formatDuration(wait)}` : `Talk (+${ev.talkToSurvivor} morale)`, enabled: wait === 0 },
+      };
+    });
+  }
+
+  /** Treat button state: medicine on a survivor, only while the active character is home (GDD 5.7). */
+  treatState(s) {
+    if (s.health >= this.balance.needs.max) return { label: 'Full health', enabled: false };
+    if (!this.inHome()) return { label: 'Treat (go home)', enabled: false };
+    if (!treatOptions(this.state, this.balance).length) return { label: 'No medicine', enabled: false };
+    return { label: 'Treat', enabled: true };
+  }
+
+  /** Pick a medicine item to use on a survivor. */
+  onCrewTreat(id) {
+    const opts = treatOptions(this.state, this.balance);
+    if (!opts.length || !this.inHome()) { this.crewPanel.refresh(); return; }
+    const rows = opts.map((o, i) => ({ floor: i, text: `${o.name} +${o.heal} (${o.qty}${o.from === 'stock' ? ', stockpile' : ''})` }));
+    this.floorPicker.open('Treat with', rows, (i) => {
+      const o = opts[i];
+      const r = treatSurvivor(this.state, this.balance, id, o.id, o.from);
+      if (r.ok) {
+        playSfx(this, 'eat');
+        this.toast.show(`${this.balance.survivors.roster[id].name} +${Math.round(r.healed)} health`, 2400);
+        this.panel.refresh();
+        this.save();
+      } else this.deny(r.reason);
+      this.crewPanel.refresh();
+    });
+  }
+
+  onCrewJob(id, job) {
+    const r = setJob(this.state, this.balance, id, job);
+    if (r.ok) {
+      const name = this.balance.survivors.roster[id].name;
+      const info = jobInfo(this.balance).find((j) => j.id === r.job);
+      this.toast.show(r.job ? `${name} is now a ${info.name} (${info.sub}).` : `${name} has no job.`, 2400);
+      this.view.refreshBuilt();
+      this.save();
+    }
+    this.crewPanel.refresh();
+  }
+
+  onCrewTalk(id) {
+    const r = talkTo(this.state, this.balance, id, now());
+    if (r.ok) {
+      playSfx(this, 'survivor_blip');
+      this.toast.show(`You talk with ${this.balance.survivors.roster[id].name}. +${r.gain} morale`, 2400);
+      this.save();
+    }
+    this.crewPanel.refresh();
+  }
+
+  /** World position the tutorial arrow points at for a step, or null. */
+  tutorialTarget(step) {
+    const t = step.target;
+    if (!t) return null;
+    const line = floorLineY(this.tower, this.tower.homeFloor);
+    if (t.object || t.fixture) {
+      const sp = this.view.sprites.get(t.object || `fixture:${t.fixture}`);
+      return sp ? { x: sp.cx, y: sp.cy - 52 } : null;
+    }
+    if (t.door) return { x: this.tower.home.doorX, y: line - 110 };
+    if (t.crawler) {
+      const z = this.state.zombies['scripted:tutorial_crawler'];
+      return z && !z.dead ? { x: z.x, y: line - 100 } : null;
+    }
+    return null;
+  }
+
+  /** ~10 times a second: tutorial progress, the door trigger and the hint bar. */
+  updateTutorial() {
+    const { state, balance } = this;
+    if (!tutorialActive(state)) { if (this.tutorialView.shown) this.tutorialView.update(null, null); return; }
+    const story = state.story;
+    const h = state.hero;
+    if (!story.walked && Math.abs(h.x - this.walkStartX) >= TUTORIAL_WALK_PX) story.walked = true;
+    if (!story.doorOpened && shouldOpenDoor(state, h, this.tower.homeFloor, this.tower.home.doorX)) {
+      story.doorOpened = true;
+      this.bus.emit(TUTORIAL_TRIGGER, {});
+      this.toast.show('Something is out there!', 2400);
+    }
+    if (checkTutorialDone(state, balance, now())) {
+      this.tutorialView.update(null, null);
+      this.bus.emit('tutorial-done', {});
+      this.toast.show('That is the start. Build, scavenge, and hold the tower.', 4000);
+      this.save();
+      return;
+    }
+    const step = currentStep(state);
+    this.tutorialView.update(step, step && !this.dead ? this.tutorialTarget(step) : null);
+  }
+
+  onSkipTutorial() {
+    skipTutorial(this.state, this.balance, now());
+    this.tutorialView.update(null, null);
+    this.toast.show('Tutorial skipped.', 1800);
+    this.save();
+  }
+
   // ---------------------------------------------------------------- debug (?debug)
 
   /** Add items to the bag (testing). @returns {boolean} everything fit */
@@ -1370,11 +1687,13 @@ export default class GameScene extends Phaser.Scene {
     this.zombies.update(dt);
     this.throwing.update(dt);
     this.updateAction(dt);
+    this.attacks.update(dt);
     this.placeHero();
     this.updateCamera(dt);
     if (time - this.pulseAt > 100) {
       this.pulseAt = time;
       this.view.update(time);
+      this.updateTutorial();
       const w = heroWeapon(this.state, this.balance);
       this.hudCombat = { weapon: { id: w.id, name: w.name, uses: w.uses }, canThrow: this.throwing.ids().length > 0 };
     }
@@ -1389,8 +1708,9 @@ export default class GameScene extends Phaser.Scene {
       weapon: this.hudCombat.weapon,
       canThrow: this.hudCombat.canThrow,
       armed: !!this.throwing.armed,
+      crew: this.crewCount > 0,
     });
-    const modalBottom = this.craftPanel.isOpen ? this.craftPanel.bottomY : this.panel.isOpen ? this.panel.bottomY : 0;
+    const modalBottom = this.craftPanel.isOpen ? this.craftPanel.bottomY : this.panel.isOpen ? this.panel.bottomY : this.crewPanel.isOpen ? this.crewPanel.bottomY : 0;
     this.toast.setY(modalBottom ? modalBottom + TOAST_PANEL_GAP : this.hud.toastY - (this.needPrompt.isOpen ? TOAST_PROMPT_LIFT : 0));
   }
 }

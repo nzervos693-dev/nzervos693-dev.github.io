@@ -122,7 +122,7 @@ describe('needs', () => {
     expect(n.health).toBeCloseTo(45);
     const m = { ...initNeeds(balance), health: 50 };
     tickNeeds(m, 3600, {}, balance);
-    expect(m.health).toBeCloseTo(52);
+    expect(m.health).toBeCloseTo(50 + balance.needs.health.regen);
   });
   it('items: food, dirty water cost, Mara bandage, not-needed refusal', () => {
     const n = { ...initNeeds(balance), food: 50, water: 50, health: 50 };
@@ -218,7 +218,7 @@ describe('game state and actions', () => {
     expect(s.hero.floor).toBe(15);
     expect(s.needs.food).toBe(12);
     expect(s.needs.water).toBe(80);
-    expect(s.inventory.length).toBe(8);
+    expect(s.inventory.length).toBe(balance.inventory.carrySlots);
   });
   it('Steady hands only when Mara recruited and alive', () => {
     const s = fresh();
@@ -252,7 +252,7 @@ describe('game state and actions', () => {
   });
   it('dismantle with full inventory drops a pile, pile can be picked up', () => {
     const s = fresh();
-    for (let i = 0; i < 8; i++) addItem(s.inventory, 'chemicals', 20, balance);
+    for (let i = 0; i < balance.inventory.carrySlots; i++) addItem(s.inventory, 'chemicals', 20, balance);
     const def = balance.objects.table;
     const spec = buildSpec('dismantle', def, 't', s, balance);
     const r = completeAction(s, spec, { x: 270 }, def, { balance, tables, rng: seededRng(1), loc: { floor: 15, x: 270 } });

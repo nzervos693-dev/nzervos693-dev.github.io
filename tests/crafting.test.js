@@ -102,8 +102,9 @@ describe('crafting items', () => {
   });
   it('a full bag sends the output to the stockpile, then to a pile', () => {
     const s = fresh();
-    for (let i = 0; i < 7; i++) s.inventory[i] = { id: i % 2 ? 'wood' : 'metal', qty: 20 };
-    s.inventory[7] = { id: 'cloth', qty: 5 }; // 3 left after paying: the slot stays taken
+    const slots = balance.inventory.carrySlots;
+    for (let i = 0; i < slots - 1; i++) s.inventory[i] = { id: i % 2 ? 'wood' : 'metal', qty: 20 };
+    s.inventory[slots - 1] = { id: 'cloth', qty: 5 }; // 3 left after paying: the slot stays taken
     let r = craft(s, 'bandage', { loc: { floor: 15, x: 200 } });
     expect(r.gained.stock).toEqual([{ id: 'bandage', qty: 1 }]);
     expect(countItem(s.stockpile, 'bandage')).toBe(1);
@@ -226,7 +227,7 @@ describe('barricade', () => {
     const s = fresh();
     give(s, 'wood', 15); give(s, 'metal', 7); give(s, 'duct_tape', 2);
     expect(craft(s, 'barricade_lv1').ok).toBe(true);
-    expect(s.build.barricade).toEqual({ level: 1, hp: 100 });
+    expect(s.build.barricade).toEqual({ level: 1, hp: balance.barricade.levels[0].hp });
     expect(barricadeDefense(s, balance)).toBe(10);
     expect(craft(s, 'barricade_lv1').reason).toBe('Already built');
     damageBarricade(s, 30);
@@ -248,7 +249,7 @@ describe('barricade', () => {
     expect(s.build.barricade.hp).toBe(20);
     expect(barricadeUp(s)).toBe(true);
     damageBarricade(s, 20 - 10); // 10 left
-    s.build.barricade.hp = 95;
+    s.build.barricade.hp = balance.barricade.levels[0].hp - 5;
     expect(repairBarricade(s, balance)).toBe(5);
     expect(countItem(s.inventory, 'wood')).toBe(9); // repairBarricade alone does not pay
   });
@@ -384,7 +385,7 @@ describe('producers', () => {
     craft(s, 'planter', { spot: '15:s1' });
     const p = s.build.spots['15:s1'];
     p.stored = 3;
-    for (let i = 0; i < 8; i++) s.inventory[i] = { id: 'wood', qty: 20 };
+    for (let i = 0; i < balance.inventory.carrySlots; i++) s.inventory[i] = { id: 'wood', qty: 20 };
     s.stockpile.fill(null);
     s.stockpile.forEach((_, i) => { s.stockpile[i] = { id: 'wood', qty: 20 }; });
     s.stockpile[0] = null;
@@ -457,12 +458,12 @@ describe('breach latch, side rule and wanderer rule', () => {
     expect(latchBreach(s)).toBe(true);
     expect(latchBreach(s)).toBe(false);
     give(s, 'wood', 10);
-    damageBarricade(s, 100);
+    damageBarricade(s, balance.barricade.levels[0].hp);
     craft(s, 'barricade_repair'); // 20 HP: not full, still latched
     expect(latchBreach(s)).toBe(false);
     resetBreachLatch(s);
     expect(latchBreach(s)).toBe(true);
-    s.build.barricade.hp = 80;
+    s.build.barricade.hp = balance.barricade.levels[0].hp - 20;
     craft(s, 'barricade_repair'); // full again: re-armed
     expect(s.build.breachLatched).toBe(false);
   });

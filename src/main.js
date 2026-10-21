@@ -2,6 +2,8 @@
 import Phaser from 'phaser';
 import BootScene from './scenes/BootScene.js';
 import GameScene from './scenes/GameScene.js';
+import TitleScene from './scenes/TitleScene.js';
+import IntroScene from './scenes/IntroScene.js';
 import { initSafeArea } from './core/safeArea.js';
 import { initLifecycle } from './core/lifecycle.js';
 import { initAudio } from './core/audio.js';
@@ -29,7 +31,7 @@ const game = new Phaser.Game({
   input: { activePointers: 3 },
   fps: { smoothStep: false }, // game time = real time, no delta smoothing
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-  scene: [BootScene, GameScene],
+  scene: [BootScene, TitleScene, IntroScene, GameScene],
 });
 
 initSafeArea(game);

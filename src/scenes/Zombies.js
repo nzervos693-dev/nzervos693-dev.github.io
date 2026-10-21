@@ -3,9 +3,9 @@
  * the zombies that matter, and routes hits, noise and deaths. Rules live in gameplay/zombies.js
  * and gameplay/combat.js.
  */
-import { floorAtY, floorLineY } from '../gameplay/layout.js';
+import { floorAtY, floorLineY, homeSpot } from '../gameplay/layout.js';
 import {
-  makeAi, stepZombie, hearNoise, startChase, resetZombie, roomRefAt, movementBounds, zombieTuning,
+  makeAi, isAttacker, stepZombie, hearNoise, startChase, resetZombie, roomRefAt, movementBounds, zombieTuning,
   STEP_ATTACK, STEP_AGGRO, STEP_BARRICADE,
 } from '../gameplay/zombies.js';
 import { barricadeUp } from '../gameplay/barricade.js';
@@ -29,6 +29,8 @@ export default class Zombies {
     this.bounds = { min: 0, max: 0 };
     /** The home barricade as zombies see it (refreshed every frame): a wall while up. */
     this.barricade = { up: false, floor: scene.tower.homeFloor, x: scene.tower.barricadeX };
+    /** Where attackers head when the hero is elsewhere: inside the home apartment. */
+    this.siegeX = homeSpot(scene.tower).x;
     this.env = {
       tower: scene.tower, doors: scene.state.doors, heroFloor: null, heroX: 0, heroRoom: null,
       types: scene.balance.zombies.types, aggroRadius: scene.balance.zombies.aggroRadius,
@@ -85,16 +87,23 @@ export default class Zombies {
     env.heroFloor = scene.zombieTargetFloor();
     env.heroX = scene.state.hero.x;
     env.heroRoom = env.heroFloor == null ? null : roomRefAt(scene.tower, env.heroFloor, env.heroX);
+    const realFloor = env.heroFloor;
+    const realX = env.heroX;
+    const realRoom = env.heroRoom;
     for (let i = 0; i < this.list.length; i++) {
       const rt = this.list[i];
       if (rt.dying) continue;
       const m = rt.ai.mode;
-      const active = rt.rec.floor === env.heroFloor || m === 'chase' || m === 'attack' || m === 'return';
+      // attackers (siege) keep pounding the barricade even when the hero is on another floor
+      const siege = rt.rec.siege && realFloor !== rt.rec.floor;
+      const active = siege || rt.rec.floor === env.heroFloor || m === 'chase' || m === 'attack' || m === 'return';
       if (active) {
+        if (siege) { env.heroFloor = rt.rec.floor; env.heroX = this.siegeX; env.heroRoom = null; }
         const flags = stepZombie(rt.rec, rt.ai, env, dt);
-        if (flags & STEP_AGGRO) scene.onZombieAggro(rt);
+        if (siege) { env.heroFloor = realFloor; env.heroX = realX; env.heroRoom = realRoom; }
+        if (flags & STEP_AGGRO && !siege) scene.onZombieAggro(rt);
         if (flags & STEP_BARRICADE) scene.onBarricadeHit(rt, env.types[rt.rec.type].damage);
-        if (flags & STEP_ATTACK) scene.onZombieBite(rt, env.types[rt.rec.type].damage);
+        if (flags & STEP_ATTACK && !siege) scene.onZombieBite(rt, env.types[rt.rec.type].damage);
       }
       this.view.sync(rt);
     }
@@ -137,6 +146,18 @@ export default class Zombies {
     if (i >= 0) this.list.splice(i, 1);
     this.byId.delete(rt.rec.id);
     this.scene.onZombieKilled(rt);
+  }
+
+  /** Remove every attack zombie (app hidden mid-attack): runtimes, sprites and records. */
+  removeAttackers() {
+    for (let i = this.list.length - 1; i >= 0; i--) {
+      const rt = this.list[i];
+      if (!isAttacker(rt.rec.id)) continue;
+      this.view.destroy(rt);
+      this.list.splice(i, 1);
+      this.byId.delete(rt.rec.id);
+    }
+    for (const id of Object.keys(this.scene.state.zombies)) if (isAttacker(id)) delete this.scene.state.zombies[id];
   }
 
   /** App hidden: everyone walks back to their spawn point and calms down (hp kept). */
