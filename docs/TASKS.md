@@ -8,14 +8,14 @@
 - [x] Set up Vite + Phaser, folder layout, scaling, core systems (engine-programmer)
 - [x] Unit tests and browser smoke test set up (qa-tester)
 - [x] GitHub Pages auto-deploy, share playtest link (engine-programmer) — live at https://nzervos693-dev.github.io, confirmed on phone
-- [ ] Core loop with touch controls (gameplay-programmer)
+- [x] Core loop with touch controls (gameplay-programmer)
   - [x] Piece 1: tower, movement, salvage, inventory, needs, offline
   - [x] Piece 2: zombies, tap combat, door hits, sound
-  - [ ] Piece 3: crafting, barricades, attacks, Mara, tutorial
+  - [x] Piece 3: crafting, barricades, attacks, Mara, tutorial
 - [x] Floors 13–17 and loot tables (level-designer)
 - [x] Placeholder art (art-generator)
-- [ ] Basic sounds: tap, hit, pickup, lose (audio-designer)
-- [ ] QA pass (qa-tester)
+- [x] Sounds and ambience (audio-designer)
+- [x] QA pass (qa-tester)
 - [ ] Creative Director playtest on phone
 
 ## Milestone 2 – Vertical slice
