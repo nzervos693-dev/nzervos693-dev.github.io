@@ -121,7 +121,7 @@ One thumb, taps and drags only. No hold-to-act, no multi-touch.
 | Drag, mostly horizontal | Anywhere | Pans the camera along the floor. Momentum, clamped to the floor's 0-3120 px. |
 | Tap | Moodle icon | Shows its plain-text card (5.2). |
 | Tap | "Home" button (bottom bar) | Camera jumps to the hero; second tap within 1 s sends the hero to the main home's bed. |
-| Tap | Bottom bar buttons | Inventory, Workbench, Survivors, Menu; **Throw** (only while a throwable is carried, 5.11). |
+| Tap | Bottom bar buttons (icons only, section 8) | Inventory, Workbench, Survivors, Menu; **Throw** (only while a throwable is carried, 5.11). Sound toggle is in Menu. |
 
 **Drag rules**: a touch that moves more than **16 game px**
 (`controls.dragThresholdPx`) is a drag, not a tap. The axis is locked when
@@ -232,7 +232,7 @@ shows when the stat is **below** the N-th value of its `below` array
 | Hungry | food | 60 / 40 / 20 / 1 | Peckish / Hungry / Very hungry / Starving | L4: -5 health/h (empty need) |
 | Thirsty | water | 60 / 40 / 20 / 1 | Thirsty / Very thirsty / Parched / Dying of thirst | L4: -5 health/h |
 | Tired | energy | 50 / 35 / 20 / 5 | Tired / Very tired / Exhausted / Can barely stand | L3+: speed and damage -30% (`needs.energy.lowPenalty`) |
-| Injured | health | 80 / 60 / 35 / 15 | Hurt / Injured / Badly injured / Close to death | none (health is the effect) |
+| Injured | health | 80 / 60 / 35 / 15 | Hurt / Injured / Badly hurt / Close to death | none (health is the effect) |
 | Depressed | morale | 50 / 35 / 25 / 10 | Low / Unhappy / Depressed / Hopeless | L3+: damage -20%, energy drain x1.5, survivors refuse quests |
 | Panic | aggroed zombies within 400 px, same floor | 1 / 2 / 3 / 5 zombies | Uneasy / Scared / Panicked / Terrified | damage -0 / -10 / -20 / -30% (`moodles.panic.damagePenalty`) |
 | Sick (M3) | status | - | Queasy ... | see 5.10 |
@@ -244,8 +244,8 @@ shows when the stat is **below** the N-th value of its `below` array
 - **Panic** decays one level every **5 s** (`moodles.panic.decaySecondsPerLevel`)
   once fewer aggroed zombies are near. It never rises from the attack cue
   (5.8), only from zombies that have seen the hero.
-- **Display**: a column of icons at the top right, **48 game px** each
-  (`moodles.iconPx`) with a 96 px hit area, max 6 (`moodles.maxShown`),
+- **Display**: a column of icons at the top right, **72 game px** each
+  (`moodles.iconPx`, 24x24 art px) with a 96 px hit area, max 6 (`moodles.maxShown`),
   worst level first. The icon is a simple pictogram (empty plate, drop,
   closed eye, bandage, cloud, wide eye) on a square whose colour darkens
   with severity (section 9). No numbers. When a moodle appears or changes
@@ -292,6 +292,16 @@ shows when the stat is **below** the N-th value of its `below` array
   (`needs.offlineHealthFloor`). Death only happens while playing.
 - Fairness: 12 h offline drains at most 36 food / 48 water, so 80/80 never
   wakes to an empty need.
+- **Early water budget (QA check)**: start 80 water lasts 20 h to empty;
+  the start flat's toilet tank (2 dirty) + kitchen chemicals purify to 2
+  clean water (+40, ~10 h). Health regen stops below 50 water (after
+  ~7.5 h), which hurts fighting, so floors **14 and 16** each guarantee
+  **1 clean-water item** (water bottle 70% / clean water 30%) in a flat
+  kitchen container (`generator.guarantees.cleanWaterFloors`,
+  `cleanWaterItemsPerFloor`). Total before any drains: ~190 water, about
+  45 h. A rain collector (3 plastic, 2 metal) yields 6.7 water/h against a
+  4/h drain, so it is self-sustaining once built; its cost is reachable on
+  floors 14-16 in one 5-minute session.
 - **Sleep**: main home bed -> *Sleep* (+25 energy/h); any tap wakes. Closed
   app = characters in claimed apartments are asleep (offline +10/h).
 - **Quick nap** (`needs.energy.nap`): bed -> *Nap*. The active character
@@ -427,17 +437,35 @@ usually wiser.
   cooldown). Hits knock back **8 px** and flash pale for **60 ms**
   (`combat.knockbackPx`, `combat.hitFlashMs`). No damage numbers. Weapon
   rows live in `combat.weapons.<id>`, zombie rows in `zombies.types.<id>`.
-- **Sight** (replaces M1's room-entry aggro and `zombies.aggroRadius`): a
-  zombie notices the hero when he is on the same floor, with no closed
-  barricade or jammed door between them, and within **180 px** if the hero
-  stands in a Grey or Lit room (`zombies.sightRadiusPx`), **110 px** in a
-  Dim room or the landing (`zombies.dimSightRadiusPx`), **70 px** in a Dark
-  room (`zombies.darkSightRadiusPx`). Entering a zombie's room no longer
-  wakes it by itself.
+- **Sight with facing** (BUG-031 fix; keys `zombies.sight.*`, replacing
+  the old `zombies.sightRadiusPx` / `dimSightRadiusPx` /
+  `darkSightRadiusPx`, kept briefly as aliases, see 11.2): every zombie faces left or right. It notices the
+  hero (same floor, no closed barricade or jammed door between) when the
+  horizontal distance |dx| is:
+  - **in front** (hero on the side it faces): within **180 px** if the
+    hero stands in a Grey or Lit room (`frontPx`), **110 px** in Dim or the
+    landing (`dimFrontPx`), **70 px** in Dark (`darkFrontPx`);
+  - **behind**: within **24 px** while the hero walks (`behindWalkPx`,
+    below fists range 40 px, so a walking hero can always strike first),
+    within **60 px** while he runs (`behindRunPx`; run noise usually wakes
+    it sooner anyway). Light does not change the behind values.
+  - **Facing rules**: a wandering zombie faces its walk direction. A paused
+    idle zombie turns around every **4-8 s** (random, `idleTurnSeconds`);
+    the turn shows as a **0.4 s** head-turn frame before the facing flips
+    (`turnSeconds`, sight still uses the old facing during it). An aggroed
+    zombie always faces the hero. A zombie hit while unaware turns to the
+    hero instantly and aggroes. Authored zombies take `facing` from level
+    data; generated zombies face away from the unit's front door with
+    chance **0.7** (`spawnFacingAwayChance`), else toward it.
+  - Entering a zombie's room never wakes it by itself.
 - **Hearing**: noise (running, noisy/loud salvage, molotovs, jammed-door
-  hits) aggros zombies as in 5.6; **running** is noise with radius
-  **250 px**, fired once per second while running (`hero.runNoiseRadiusPx`).
-  Walking is silent.
+  hits) aggros zombies as in 5.6 regardless of facing; **running** is
+  noise with radius **250 px**, fired once per second while running
+  (`hero.runNoiseRadiusPx`). Walking is silent, and a melee hit makes no
+  noise (other zombies notice only by sight).
+- **Stealth target (QA)**: walking up behind an idle walker and hitting
+  first succeeds in at least 4 of 5 tries when the hero starts outside its
+  front sight.
 - **Running** (CD decision): double tap = run (4), single tap = quiet walk.
   Running costs **0.2 energy per second** (`hero.runEnergyPerSecond`; a
   full wing at 170 px/s costs about 1.7). The Tired L3+ speed penalty
@@ -449,7 +477,8 @@ usually wiser.
 - **Unaware hit**: the first hit on a zombie that has not noticed the hero
   deals **x3** damage (`combat.unawareHitMult`). A walker (45 HP) dies to
   one unaware spiked bat hit plus one more. This is the main tool for
-  thinning rooms.
+  thinning rooms. A zombie that lost track (below) and is back at its spawn
+  point counts as unaware again, so the x3 hit applies again.
 - **Losing track**: an aggroed zombie that has not seen the hero for **8 s**
   (`zombies.tuning.loseTrackSeconds`) while he is more than **400 px** away
   (`zombies.tuning.loseTrackDistancePx`) or on another floor gives up and
@@ -509,6 +538,16 @@ usually wiser.
   walkers with a spiked bat: ~25-45 damage taken. Three aware walkers with
   fists: likely death. Running away at 170 px/s always outpaces a walker
   (26 px/s).
+- **Encounter targets (BUG-033, placement rules for level data)**: on
+  floors 13-17 the first room a hero meets in any unit holds at most **one
+  walker** (crawlers extra). A walker pair (2 in one room) must be skippable
+  or approachable from behind (starts facing away, at least one room-width,
+  150 px, from the unit's entrance and from any jammed door the hero must
+  hit). Three walkers never share a room before M3. Target win rates:
+  fists + stealth vs 1 walker 5/5 survive; fists vs an aware pair may lose;
+  a bat or a stealth opener vs a pair survives 4/5. Stats are unchanged;
+  the fix is placement and facing. Generator: `generator.maxWalkersPerRoom`
+  = 2 and distance-2 wings roll **1-3** zombies.
 - Armor (M4) reduces damage taken; throwables (5.11) add area damage.
 
 ### 5.5 Scavenging and inventory
@@ -750,7 +789,9 @@ you scavenge saves walking.
     carried items and that apartment's stash (carried first). Bandage +15
     (+22 with Steady hands), medkit +40, capped at 100. Greyed "Not hurt"
     or "No medicine". The Crew screen shows a survivor's condition as the
-    same moodle icons as the hero, never as numbers.
+    same moodle icons as the hero, never as numbers. Condition wording is
+    identical on the Crew panel and the moodle card: Hurt / Injured /
+    **Badly hurt** / Close to death ("Badly injured" is not used anywhere).
   - Offline auto-use never spends medicine on survivors.
   - When a survivor becomes the active character (pass the torch), they
     keep their health and switch to the hero's need rules (5.2) with needs
@@ -811,12 +852,16 @@ you scavenge saves walking.
     positional, as if from far below. Indistinguishable in kind from the
     random distant groans that play every 45-120 s
     (`audio.distantGroanGapSeconds`); only their clustering gives it away.
+    A second groan cluster plays at **T-12 s** (`cue.secondGroanAtSeconds`).
   - **T-8 s** (`cue.stairwellAtSeconds`): banging and shuffling in the
     stairwell, positional: loud if the camera is on the main home's floor,
     fading out beyond **2 floors** (`cue.stairwellAudibleFloors`). From
     T-8 s the emergency light on the main home's landing flickers
     (`cue.flickerFromSeconds`; dips of 0.09 s, `attacks.tuning.flickerSeconds`).
-    A nap in progress is interrupted here (5.2).
+    A nap in progress is interrupted here (5.2). Stairwell bangs play at
+    **T-8, T-5 and T-2.5 s** (`cue.bangBeatsSeconds` [8, 5, 2.5]); the first
+    beat must equal `cue.stairwellAtSeconds` (8). If the two differ, code
+    uses `cue.stairwellAtSeconds` as the first beat.
   - **T-0**: the first attacker shambles onto the landing of the main
     home's floor; more follow **3 s** apart (`attacks.tuning.spawnGapSeconds`),
     at a random 16-70 px from the door (`attacks.tuning.arrivalXRange`).
@@ -825,7 +870,9 @@ you scavenge saves walking.
 - Online: ceil(A / 10) (`attacks.strengthPerZombie`) attackers hit the main
   home's barricade (damage x0.4, 5.4) until all are dead. They keep hitting
   while the hero is anywhere; they only bite the active character if he is
-  on that floor and they can reach him. A fallen barricade lets them in.
+  on that floor and they can reach him. While attackers are banging on the
+  barricade, a bang sound plays every **2-3 s** (random in
+  `cue.fightBangGapSeconds` [2, 3]). A fallen barricade lets them in.
   Nothing on screen says an attack ended: it is over when the banging
   stops.
 - **Repelled online** (all attackers dead): +5 morale (silent) only if the
@@ -1331,8 +1378,34 @@ after the pick, so they keep the logical layout as charred shapes.
 5. **Play**: the tower view with **no top HUD** except the moodle column
    (top right). No need bars, day counter, attack timer or power readout.
    Bottom bar: Home, Inventory, Workbench, Survivors, Menu, Throw when
-   carried. Bottom bar is dark, low-contrast, icons only with a 1-word
-   label.
+   carried. Bottom bar follows the **muted UI style** below: icons only,
+   no text labels.
+
+**Muted UI style (M2, BUG QA "non-gamey HUD"; keys `ui.*`)**. The UI must
+read as worn objects in a dark room, not as game buttons.
+- **Bottom bar**: icon buttons, no text, no outline. Plate **72 game px**
+  (`ui.bottomBar.iconPlatePx`) inside a **96 px** hit area; plate
+  near-black `#0b0c0e` at alpha **0.55**, pictogram UI text `#bdb8ab` at
+  alpha **0.7**, pressed alpha **0.9**. Icons: house (Home), bag
+  (Inventory), hammer (Workbench), two heads (Survivors), three dots
+  (Menu), bottle (Throw). The equipped weapon shows as a hand / knife / bat
+  pictogram on the bag-side slot (tap = Inventory weapon tab). Sound on/off
+  lives in Menu as a speaker icon (crossed when muted), not in the bar.
+- **Panels** (inventory, workbench, survivor, moodle cards): background
+  deep shadow `#16191d` at alpha **0.9**, world behind dimmed by **0.4**.
+  Buttons are flat `#23272c` with UI text `#bdb8ab`; disabled `#5d6166`
+  text; the one confirm action per panel (Craft, Eat, Drink, Use) uses rust
+  brown `#5a3a2a`. **No teal, orange or saturated colour anywhere in the
+  UI** (teal is the hero's jacket only). Text only where an icon cannot say
+  it (recipe names, item names, card lines); costs are material icons plus
+  a number.
+- **Workbench menu**: a bottom sheet covering at most **55%** of the screen
+  height (`ui.panel.maxHeightRatio`), one recipe per 96 px row, no title
+  bar, no tabs in caps; it opens with a **0.2 s** fade (`ui.panel.fadeSeconds`),
+  no slide or bounce.
+- **Floor numbers**: faded stencil paint on the stairwell wall only, never
+  in apartments or the HUD: light concrete `#5d6166` at alpha **0.6**,
+  **48 game px** tall (16 art px), with 2-3 chipped gaps and one drip.
 6. **Inventory**: carry slots and the stash of the claimed apartment the
    hero is in (a tab per claimed apartment; only the current one is
    usable, others are read-only "Floor 14, right").
@@ -1386,6 +1459,10 @@ text at the bottom for 2 s, no icon, no sound.
   **Ransacked**: open drawers, papers and clothes on the floor.
 - Barricade: 5 damage stages (5.8), splinters on hits.
 - Fire: 3-frame flame loop (molotov). No gore; corpses slump and fade.
+- **UI art**: follows the muted UI style in section 8. Moodle pictograms
+  24x24 art px (72 game px); bottom-bar pictograms 16x16 art px centred on
+  the 72 px plate; floor numerals are stencil sprites 0-9, 10x16 art px.
+  The bright orange wall numerals and teal buttons of stage 1 are removed.
 - **App icon**: the dark tower silhouette in rain against a grey-green sky,
   one lit amber window near the middle; 512x512, readable at 48 px.
 
@@ -1490,7 +1567,7 @@ CD playtest on the phone.
 | Need bars, status icons, numbers, "You're starving: eat?" prompt | Moodles (`moodles.*`); `needs.onlinePromptThreshold` renamed `needs.lastResortThreshold`; prompt removed. |
 | Floating "+5 morale", damage numbers, barricade HP bar, noise "!" | Removed; barricade damage stages (`barricade.visualStages`). |
 | Amber pulse on interactables | Removed. |
-| Zombie aggro: room entry or `zombies.aggroRadius` 200 | Sight radii by light (`zombies.sightRadiusPx`, `dimSightRadiusPx`, `darkSightRadiusPx`); `aggroRadius` removed. Lose track, unaware hit (`combat.unawareHitMult`), barricade damage mult (`zombies.barricadeDamageMult`). |
+| Zombie aggro: room entry or `zombies.aggroRadius` 200 | Sight by light and facing (`zombies.sight.*`: `frontPx`, `dimFrontPx`, `darkFrontPx`, `behindWalkPx`, `behindRunPx`, turn timings); `aggroRadius` removed; the old `sightRadiusPx` / `dimSightRadiusPx` / `darkSightRadiusPx` stay only as deprecated aliases until code and tests read `zombies.sight.*`, then delete them. Lose track, unaware hit (`combat.unawareHitMult`), barricade damage mult (`zombies.barricadeDamageMult`). |
 | Crawler 15/25/4/2.0, Walker 30/40/8/1.5, wind-up 0.6, stun 0.25, knockback 12 | Crawler 20/15/8/2.5, Walker 45/26/14/2.2, wind-up 0.9, stun 0.35, knockback 8, wander pause 2-5 s. |
 | Loot 1-3 rolls, search 2 s | 0-2 rolls, empty chance by condition, consumables qty 1, search 3 s. |
 | Hero 120 px/s, stairs 1.2 s | Walk 100, run 170 (noise 250 px), stairs 1.4 s. |
@@ -1594,3 +1671,6 @@ than one pet, zombie smell and disguises, amputation.
 3. **Padlocked storage cages** (5.15, low priority, check at playtest):
    (a) keep crowbar-only (current); (b) also open by hand in 8 s, Loud;
    (c) cap a storage room at 3 cages so it feels less like a wall of locks.
+4. **Muted HUD check** (section 8, check at playtest): is an icon-only
+   bottom bar readable enough, or should a 1-word label show (a) never
+   (current), (b) for the first 3 sessions, (c) on long-press only?
