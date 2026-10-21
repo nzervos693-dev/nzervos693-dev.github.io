@@ -5,6 +5,9 @@ import { TUTORIAL_TEXT } from '../gameplay/storyText.js';
 const BAR_H = 112;
 const SKIP_W = 150;
 const ARROW_DEPTH = 45;
+/** Distance of the off-screen chevron from the screen edge, px, and how far off-screen counts (arrow tip needs this margin). */
+const EDGE_INSET = 44;
+const VIEW_MARGIN = 30;
 
 /**
  * Tutorial hint bar (one line + Skip) under the top HUD, and a bobbing arrow over the thing to tap.
@@ -25,6 +28,8 @@ export default class TutorialView {
     this.skip = button(scene, { x: 0, y: 0, w: SKIP_W - 20, h: 96, text: 'Skip', size: 24, onTap: onSkip });
     this.skip.setDepth(DEPTH.hud + 6);
     this.arrow = scene.add.triangle(0, 0, 0, 0, 44, 0, 22, 34, COLORS.amber).setStrokeStyle(3, COLORS.ink).setDepth(ARROW_DEPTH);
+    // off-screen target: a small chevron at the screen edge pointing toward it (BUG-037)
+    this.edge = scene.add.triangle(0, 0, 0, 34, 44, 34, 22, 0, COLORS.amber).setStrokeStyle(3, COLORS.ink).setScrollFactor(0).setDepth(ARROW_DEPTH).setVisible(false);
     this.bobBase = 0;
     this.offSafe = onSafeAreaChange(() => this.layout(scene.hud.topH));
     scene.events.once('shutdown', () => this.offSafe());
@@ -33,9 +38,13 @@ export default class TutorialView {
 
   setVisible(v) {
     for (const o of [this.bg, this.text, this.skip]) o.setVisible(v);
-    if (!v) this.arrow.setVisible(false);
+    if (!v) { this.arrow.setVisible(false); this.edge.setVisible(false); }
     this.shown = v;
   }
+
+  topLimit() { return this.scene.hud.topH + BAR_H + 16; }
+
+  bottomLimit() { return 130; }
 
   /** Where the hint bar sits (below the top HUD). */
   layout(topY) {
@@ -58,7 +67,20 @@ export default class TutorialView {
       this.stepId = step.id;
       this.text.setText(TUTORIAL_TEXT[step.id] || '');
     }
-    if (at) {
+    const cam = this.scene.cameras.main;
+    const sx = at ? at.x - cam.scrollX : 0;
+    const sy = at ? at.y - cam.scrollY : 0;
+    const offscreen = !!at && (sx < VIEW_MARGIN || sx > cam.width - VIEW_MARGIN || sy < this.topLimit() || sy > cam.height - this.bottomLimit());
+    if (at && offscreen) {
+      this.arrow.setVisible(false);
+      const cx = cam.width / 2;
+      const cy = cam.height / 2;
+      const ang = Math.atan2(sy - cy, sx - cx);
+      const x = Math.min(cam.width - EDGE_INSET, Math.max(EDGE_INSET, sx));
+      const y = Math.min(cam.height - this.bottomLimit() - EDGE_INSET / 2, Math.max(this.topLimit() + EDGE_INSET, sy));
+      this.edge.setVisible(true).setPosition(x, y).setRotation(ang + Math.PI / 2);
+    } else this.edge.setVisible(false);
+    if (at && !offscreen) {
       // the tween moves y; keep x/anchor in sync with the target
       this.arrow.setVisible(true).setX(at.x);
       if (Math.abs(this.bobBase - (at.y - 50)) > 1) {

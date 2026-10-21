@@ -42,7 +42,8 @@ async function toScreen(page, wx, wy, fixed = false) {
     const r = document.querySelector('canvas').getBoundingClientRect();
     const k = r.width / 720;
     const cy = fx ? 0 : s.cameras.main.scrollY;
-    return { x: r.left + x * k, y: r.top + (y - cy) * k };
+    const cx = fx ? 0 : s.cameras.main.scrollX; // floors are 3120 px wide: the camera pans horizontally
+    return { x: r.left + (x - cx) * k, y: r.top + (y - cy) * k };
   }, [wx, wy, fixed]);
 }
 
@@ -71,9 +72,11 @@ const gotoHero = (page, floor, x) => g(page, ([f, hx]) => {
 /** Stand near a zombie, wait for the first bite, then tap it until it is dead. */
 async function fight(page, id, label) {
   const z0 = await zombieInfo(page, id);
-  await gotoHero(page, z0.floor, Math.max(140, z0.x - 70));
+  // stand 70 px toward the front door (left wing zombies are left of the stairwell, right wing ones right of it)
+  const heroX = z0.x < 1440 ? z0.x + 70 : z0.x - 70;
+  await gotoHero(page, z0.floor, heroX);
   // zombies only see 180 px in front: make this one face the hero so the fight starts (stealth has its own tests)
-  await g(page, (zid) => { const rt = window.__floor15.zombies.get(zid); if (rt) rt.ai.facing = -1; }, id);
+  await g(page, ([zid, face]) => { const rt = window.__floor15.zombies.get(zid); if (rt) rt.ai.facing = face; }, [id, z0.x < 1440 ? 1 : -1]);
   await sleep(300);
   let bitten = false;
   const t0 = Date.now();
@@ -121,37 +124,37 @@ try {
     };
   });
   const authoredTotal = start.authored;
-  check(start.alive === authoredTotal, `${authoredTotal} zombies spawned from floors.json (${start.alive})`);
+  check(start.alive === authoredTotal, `${authoredTotal} zombies spawned from tower_m2.json (${start.alive})`);
   check(start.states.every((t) => t === 'Infested'), 'floors start Infested (no on-screen status label)');
   check(start.throwBtn === false || start.throwBtn === true, 'hud built');
 
-  await fight(page, 'f14_left#0', 'crawler floor 14');
-  await fight(page, 'f16_left#0', 'crawler floor 16');
-  await fight(page, 'f13_left#0', 'walker floor 13');
-  await fight(page, 'f17_left#0', 'walker floor 17');
+  await fight(page, 'f14L-z2', 'crawler floor 14 (left wing)');
+  await fight(page, 'f16L-z2', 'crawler floor 16 (left wing)');
+  await fight(page, 'f13R-z1', 'walker floor 13 (right wing, camera pans across the floor)');
+  await fight(page, 'f17R-z1', 'walker floor 17 (right wing)');
   await page.screenshot({ path: `${shots}/e2e-combat-412x915.png` });
 
-  // door hits: cooldown + energy per swing
-  await gotoHero(page, 14, 300);
+  // door hits: cooldown + energy per swing (Mara's flat on 13 has a jammed front door; hit it from the landing)
+  await gotoHero(page, 13, 1560);
   const door = await g(page, () => {
     const s = window.__floor15;
-    const apt = s.tower.apartments.get('f14_right');
+    const d = s.tower.doors.get('f13L');
     s.state.needs.energy = 100;
-    return { x: apt.doorX, y: s.view.lineY(14) - 48 };
+    return { x: d.x, y: s.view.lineY(13) - 48 };
   });
   let e0 = 100;
   for (let i = 0; i < 4; i++) {
     await tapWorld(page, door.x, door.y);
     await sleep(700);
-    const st = await g(page, () => window.__floor15.state.doors.f14_right.state);
+    const st = await g(page, () => window.__floor15.state.doors.f13L.state);
     if (st === 'open') break;
   }
-  const doorEnd = await g(page, () => ({ st: window.__floor15.state.doors.f14_right.state, en: window.__floor15.state.needs.energy }));
-  check(doorEnd.st === 'open', 'jammed door opens after 3 hit taps');
+  const doorEnd = await g(page, () => ({ st: window.__floor15.state.doors.f13L.state, en: window.__floor15.state.needs.energy }));
+  check(doorEnd.st === 'open', 'jammed front door opens after 3 hit taps (from the landing side)');
   check(Math.abs(e0 - doorEnd.en - 1.5) < 0.1, `door hits cost energyPerSwing (energy ${doorEnd.en.toFixed(2)})`);
 
   // molotov: Throw button then tap the target
-  await gotoHero(page, 16, 450);
+  await gotoHero(page, 14, 1800);
   await sleep(200);
   const hasBtn = await g(page, () => window.__floor15.hud.throwBtn.visible);
   check(hasBtn, 'Throw button visible while carrying a molotov');
@@ -159,15 +162,15 @@ try {
   await tapFixed(page, btn.x, btn.y);
   await sleep(150);
   check(await g(page, () => window.__floor15.throwing.armed === 'molotov'), 'tap Throw arms the molotov');
-  const target = await zombieInfo(page, 'f16_right#0');
+  const target = await zombieInfo(page, 'f14R-z1');
   await tapWorld(page, target.x, target.line - 36);
   await sleep(700);
   const fireOn = await g(page, () => window.__floor15.throwing.fires.length);
   check(fireOn === 1, 'molotov lands and burns');
   await page.screenshot({ path: `${shots}/e2e-fire-412x915.png` });
   const t2 = Date.now();
-  let burnt = await zombieInfo(page, 'f16_right#0');
-  while (!burnt.dead && Date.now() - t2 < 10000) { await sleep(300); burnt = await zombieInfo(page, 'f16_right#0'); }
+  let burnt = await zombieInfo(page, 'f14R-z1');
+  while (!burnt.dead && Date.now() - t2 < 10000) { await sleep(300); burnt = await zombieInfo(page, 'f14R-z1'); }
   check(burnt.dead, 'fire kills the crawler');
   check(await g(page, () => window.__floor15.state.inventory.filter((s) => s?.id === 'molotov').reduce((n, s) => n + s.qty, 0)) === 1, 'one molotov used');
 
@@ -180,7 +183,7 @@ try {
   await sleep(500);
   const after = await g(page, () => {
     const s = window.__floor15;
-    const ids = ['f14_left#0', 'f16_left#0', 'f13_left#0', 'f17_left#0', 'f16_right#0'];
+    const ids = ['f14L-z2', 'f16L-z2', 'f13R-z1', 'f17R-z1', 'f14R-z1'];
     return { dead: ids.every((i) => s.state.zombies[i].dead), sprites: ids.some((i) => s.zombies.byId.has(i)), alive: s.zombies.list.length };
   });
   check(after.dead && !after.sprites, 'reload: dead zombies stay dead');
@@ -190,7 +193,7 @@ try {
   await g(page, () => {
     const s = window.__floor15;
     for (const apt of s.tower.apartments.values()) for (const r of apt.rooms) s.state.rooms[`${apt.id}:${r.id}`] = true;
-    s.debugGoto(13, 520);
+    s.debugGoto(13, 520); // Mara's flat: the crawler in the bedroom is 160 px away
     s.state.needs.health = 4;
   });
   const t3 = Date.now();
@@ -202,7 +205,7 @@ try {
   await sleep(500);
   const fresh = await g(page, () => {
     const s = window.__floor15;
-    return { over: s.gameOver, health: s.state.needs.health, alive: s.zombies.list.length, dead13: s.state.zombies['f14_left#0'].dead, floor: s.state.hero.floor };
+    return { over: s.gameOver, health: s.state.needs.health, alive: s.zombies.list.length, dead13: s.state.zombies['f14L-z2'].dead, floor: s.state.hero.floor };
   });
   check(!fresh.over && fresh.health === 100 && fresh.alive === authoredTotal && !fresh.dead13 && fresh.floor === 15, 'New game starts a fresh tower');
 

@@ -19,7 +19,7 @@ export default class Combat {
   constructor(scene) {
     this.scene = scene;
     this.cd = 0;
-    /** @type {{type:'zombie', id:string}|{type:'door', apt:object}|null} */
+    /** @type {{type:'zombie', id:string}|{type:'door', door:object}|null} */
     this.order = null;
     /** Last sound variant per class, to avoid an immediate repeat. */
     this.lastHit = {};
@@ -41,7 +41,7 @@ export default class Combat {
 
   orderZombie(rt) { return this.submit({ type: 'zombie', id: rt.rec.id }); }
 
-  orderDoor(apt) { return this.submit({ type: 'door', apt }); }
+  orderDoor(door) { return this.submit({ type: 'door', door }); }
 
   /** Per-frame: cooldown, approach and swing. Call after the hero's normal movement. */
   update(dt) {
@@ -50,8 +50,8 @@ export default class Combat {
     const s = this.scene;
     if (!o || s.stair || s.sleeping || s.action) return;
     if (o.type === 'door') {
-      if (s.state.doors[o.apt.id].state !== 'jammed' || s.state.hero.floor !== o.apt.floor) { this.order = null; return; }
-      if (this.cd <= 0) { this.order = null; this.swing(null, o.apt); }
+      if (s.state.doors[o.door.id].state !== 'jammed' || s.state.hero.floor !== o.door.floor) { this.order = null; return; }
+      if (this.cd <= 0) { this.order = null; this.swing(null, o.door); }
       return;
     }
     const rt = s.zombies.get(o.id);
@@ -81,14 +81,14 @@ export default class Combat {
     h.x = nx;
     s.checkRoomEntry();
     // a jammed door in the way: give up (the tap order must be reissued after opening it)
-    if (lim.blockedApt && nx === lim.x && lim.x !== want) { this.order = null; s.deny('The door is jammed.', 1600); }
+    if (lim.blockedDoor && nx === lim.x && lim.x !== want) { this.order = null; s.deny('The door is jammed.', 1600); }
   }
 
   /**
-   * Perform one swing at a zombie, or at a jammed door when `apt` is given.
+   * Perform one swing at a zombie, or at a jammed door when `door` is given.
    * Costs energyPerSwing and starts the weapon cooldown either way.
    */
-  swing(rt, apt, weapon) {
+  swing(rt, door, weapon) {
     const s = this.scene;
     const { state, balance } = s;
     const w = weapon || heroWeapon(state, balance);
@@ -98,7 +98,7 @@ export default class Combat {
     if (rt) s.heroSprite.setFlipX(rt.rec.x < h.x);
     s.playSwingAnim();
     playSfx(s, 'swing');
-    if (!rt) { s.applyDoorHit(apt); return; }
+    if (!rt) { s.applyDoorHit(door); return; }
     // the first hit on a zombie that has not noticed the hero deals x3 (GDD 5.4); no damage numbers
     const dmg = swingDamage(w, state.needs, balance, { unaware: !isAware(rt.ai), panic: s.panic.level });
     playSfx(s, hitSoundKey(w.id, this.lastHit));

@@ -4,8 +4,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import balance from '../public/data/balance.json';
-import floorsData from '../public/data/levels/floors.json';
-import { buildTower } from '../src/gameplay/layout.js';
+import { towerData, makeTower } from './helpers/tower.js';
 import { createGameState, normalizeGameState } from '../src/gameplay/gameState.js';
 import { addItem, countItem } from '../src/gameplay/inventory.js';
 import { craftCheck, performCraft, USE_ORDER, LATER_STAGE_EFFECTS } from '../src/gameplay/crafting.js';
@@ -14,7 +13,7 @@ import { buildBarricade, damageBarricade, repairBarricade, barricadeMaxHp } from
 import { advanceProducer, newProducer } from '../src/gameplay/producers.js';
 import { getDefense } from '../src/gameplay/defense.js';
 
-const tower = buildTower(floorsData, balance);
+const tower = makeTower(balance);
 const fresh = () => createGameState(balance, tower, 1000);
 const give = (s, id, n, where = 'inventory') => addItem(s[where], id, n, balance);
 const craft = (s, id, target) => performCraft(s, tower, balance, id, target);
@@ -61,7 +60,7 @@ describe('QA 3a: recipe data is consistent with the rest of balance.json', () =>
     expect(R.planter.effect.waterPerUnit).toBeGreaterThanOrEqual(1);
     expect(R.rain_collector.effect.waterPerUnit).toBe(0);
   });
-  it('every placeable recipe has at least one build spot of its kind in floors.json (regression: window spots)', () => {
+  it('every placeable recipe has at least one build spot of its kind in tower_m2.json (regression: window spots)', () => {
     for (const kind of ['window', 'floor']) {
       const n = homeSpots(tower, balance).filter((s) => s.kind === kind).length;
       expect(n, `home ${kind} spots`).toBeGreaterThanOrEqual(1);
@@ -192,8 +191,8 @@ describe('QA 3a: barricade edge cases', () => {
   });
   it('a loaded save with a producer record holding junk numbers is sane', () => {
     const s = fresh();
-    s.build.spots['15:s1'] = { id: 'planter', floor: 15, spot: 's1', stored: 99, progress: -5, queue: 0 };
-    const p = reload(s).build.spots['15:s1'];
+    s.build.spots['15:f15L-spot-hallway-floor0'] = { id: 'planter', floor: 15, spot: 'f15L-spot-hallway-floor0', stored: 99, progress: -5, queue: 0 };
+    const p = reload(s).build.spots['15:f15L-spot-hallway-floor0'];
     expect(p.stored).toBeLessThanOrEqual(balance.recipes.planter.effect.maxStored);
     expect(p.progress).toBeGreaterThanOrEqual(0);
   });

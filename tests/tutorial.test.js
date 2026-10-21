@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import balance from '../public/data/balance.json';
-import floorsData from '../public/data/levels/floors.json';
-import { buildTower } from '../src/gameplay/layout.js';
+import { towerData, makeTower } from './helpers/tower.js';
 import { createGameState, normalizeGameState } from '../src/gameplay/gameState.js';
 import { attackState } from '../src/gameplay/attacks.js';
 import { INTRO_CARDS, TUTORIAL_TEXT } from '../src/gameplay/storyText.js';
@@ -9,7 +8,7 @@ import {
   TUTORIAL_STEPS, TUTORIAL_CRAWLER, currentStep, shouldOpenDoor, checkTutorialDone, skipTutorial, tutorialActive,
 } from '../src/gameplay/tutorial.js';
 
-const tower = buildTower(floorsData, balance);
+const tower = makeTower(balance);
 const T0 = 9_000_000;
 const fresh = () => createGameState(balance, tower, T0);
 const doorX = tower.home.doorX;
@@ -19,10 +18,10 @@ function doUntil(s, id) {
   for (const st of TUTORIAL_STEPS) {
     if (st.id === id) return;
     if (st.id === 'walk') s.story.walked = true;
-    else if (st.id === 'fridge') s.objects['f15L-03'] = { searched: true };
-    else if (st.id === 'chair') s.objects['f15L-01'] = { dismantled: true };
-    else if (st.id === 'table') s.objects['f15L-02'] = { dismantled: true };
-    else if (st.id === 'drawer') s.objects['f15L-05'] = { searched: true };
+    else if (st.id === 'fridge') s.objects['f15L-2-floor0'] = { searched: true };
+    else if (st.id === 'chair') s.objects['f15L-1-floor0'] = { dismantled: true };
+    else if (st.id === 'table') s.objects['f15L-1-floor1'] = { dismantled: true };
+    else if (st.id === 'drawer') s.objects['f15L-2-wall0'] = { searched: true };
     else if (st.id === 'workbench') s.build.barricade = { level: 1, hp: 100 };
     else if (st.id === 'door') s.story.doorOpened = true;
     else if (st.id === 'fight') s.zombies[TUTORIAL_CRAWLER] = { dead: true };
@@ -49,39 +48,54 @@ describe('tutorial steps', () => {
   });
   it('doing things out of order just skips ahead', () => {
     const s = fresh();
-    s.objects['f15L-01'] = { dismantled: true };
+    s.objects['f15L-1-floor0'] = { dismantled: true };
     s.story.walked = true;
     expect(currentStep(s).id).toBe('fridge');
-    s.objects['f15L-03'] = { searched: true };
+    s.objects['f15L-2-floor0'] = { searched: true };
     expect(currentStep(s).id).toBe('table');
   });
   it('"dismantled" also counts as searched for the fridge and drawer', () => {
     const s = fresh();
     s.story.walked = true;
-    s.objects['f15L-03'] = { dismantled: true };
+    s.objects['f15L-2-floor0'] = { dismantled: true };
     expect(currentStep(s).id).toBe('chair');
   });
-  it('every target object exists in floors.json', () => {
+  it('every target object exists in tower_m2.json', () => {
     for (const st of TUTORIAL_STEPS) if (st.target?.object) expect(tower.objects.has(st.target.object), st.id).toBe(true);
     expect(tower.home.fixtures.some((f) => f.kind === 'workbench')).toBe(true);
-    expect(floorsData.floors.find((f) => f.number === 15).scriptedSpawns[0].id).toBe('tutorial_crawler');
+    expect(towerData.floors.find((f) => f.number === 15).scriptedSpawns[0].id).toBe('tutorial_crawler');
   });
 });
 
 describe('door trigger', () => {
-  it('fires only on the door step, when the hero walks out of the apartment', () => {
+  const side = tower.home.side;
+  it('fires only on the door step, when the hero walks up to the front door from inside', () => {
     const s = fresh();
-    expect(shouldOpenDoor(s, { floor: 15, x: doorX - 5 }, 15, doorX)).toBe(false); // too early
+    expect(side).toBe('left');
+    expect(shouldOpenDoor(s, { floor: 15, x: doorX - 5 }, 15, doorX, side)).toBe(false); // too early
     doUntil(s, 'door');
     expect(currentStep(s).id).toBe('door');
-    expect(shouldOpenDoor(s, { floor: 15, x: 250 }, 15, doorX)).toBe(false);
-    expect(shouldOpenDoor(s, { floor: 14, x: 50 }, 15, doorX)).toBe(false);
-    expect(shouldOpenDoor(s, { floor: 15, x: doorX }, 15, doorX)).toBe(true);
+    expect(shouldOpenDoor(s, { floor: 15, x: 900 }, 15, doorX, side)).toBe(false);
+    expect(shouldOpenDoor(s, { floor: 14, x: doorX }, 15, doorX, side)).toBe(false);
+    expect(shouldOpenDoor(s, { floor: 15, x: doorX - balance.tutorial.doorTriggerPx }, 15, doorX, side, balance.tutorial.doorTriggerPx)).toBe(true);
+    expect(shouldOpenDoor(s, { floor: 15, x: doorX }, 15, doorX, side)).toBe(true);
+  });
+  it('mirrors for a home in the right wing', () => {
+    const s = fresh();
+    doUntil(s, 'door');
+    expect(shouldOpenDoor(s, { floor: 15, x: 1680 + 20 }, 15, 1680, 'right')).toBe(true);
+    expect(shouldOpenDoor(s, { floor: 15, x: 2400 }, 15, 1680, 'right')).toBe(false);
+  });
+  it('the scripted crawler waits on the landing outside the front door', () => {
+    const sp = towerData.floors.find((f) => f.number === 15).scriptedSpawns[0];
+    expect(sp.trigger).toBe('tutorial_open_door');
+    expect(sp.x).toBeGreaterThan(doorX);
+    expect(sp.x).toBeLessThan(tower.stairwell.xMax);
   });
   it('never when the tutorial was skipped', () => {
     const s = fresh();
     skipTutorial(s, balance, T0);
-    expect(shouldOpenDoor(s, { floor: 15, x: 10 }, 15, doorX)).toBe(false);
+    expect(shouldOpenDoor(s, { floor: 15, x: 1440 }, 15, doorX, side)).toBe(false);
   });
 });
 

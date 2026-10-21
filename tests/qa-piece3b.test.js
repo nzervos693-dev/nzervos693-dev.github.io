@@ -5,8 +5,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import balance from '../public/data/balance.json';
-import floorsData from '../public/data/levels/floors.json';
-import { buildTower } from '../src/gameplay/layout.js';
+import { towerData, makeTower } from './helpers/tower.js';
 import { createGameState } from '../src/gameplay/gameState.js';
 import { seededRng } from '../src/gameplay/rng.js';
 import { addItem, countItem } from '../src/gameplay/inventory.js';
@@ -21,7 +20,7 @@ import {
 import { interactSurvivor, passTorch, tickUpkeep, tickScavengers, regenSurvivors } from '../src/gameplay/survivors.js';
 import { DIALOGUE, TUTORIAL_TEXT, INTRO_CARDS, torchLine } from '../src/gameplay/storyText.js';
 
-const tower = buildTower(floorsData, balance);
+const tower = makeTower(balance);
 const T0 = 9_000_000;
 const HOUR = 3600 * 1000;
 const DAY = 24 * HOUR;
@@ -88,11 +87,13 @@ describe('balance numbers for attacks and survivors', () => {
     expect(sv.treatItems.every((id) => balance.items[id])).toBe(true);
     expect(sv.joinMinMorale).toBe(balance.needs.morale.lowThreshold);
   });
-  it('Mara, the medical bag quest item and her floor exist in floors.json', () => {
-    const f13 = floorsData.floors.find((f) => f.number === 13);
-    expect(f13.apartments.some((ap) => (ap.survivors || []).some((x) => x.id === 'mara'))).toBe(true);
-    const f14 = floorsData.floors.find((f) => f.number === 14);
-    expect(f14.apartments.some((ap) => (ap.questItems || []).some((q) => q.itemId === 'medical_bag'))).toBe(true);
+  it('Mara, the medical bag quest item and her floor exist in tower_m2.json', () => {
+    const f13 = towerData.floors.find((f) => f.number === 13);
+    expect([f13.left, f13.right].some((ap) => (ap.survivors || []).some((x) => x.id === 'mara'))).toBe(true);
+    const f14 = towerData.floors.find((f) => f.number === 14);
+    const bag = [f14.left, f14.right].flatMap((ap) => (ap.questItems || []).map((q) => ({ ap, q }))).find((e) => e.q.id === 'medical_bag');
+    expect(bag).toBeTruthy();
+    expect(bag.ap.objects.find((o) => o.id === bag.q.container).fixedLoot).toEqual([{ id: 'medical_bag', qty: 1 }]);
   });
   it('story text has every dialogue key the code uses', () => {
     for (const k of ['intro', 'reminder', 'thanks', 'join', 'needBed', 'refuse']) {

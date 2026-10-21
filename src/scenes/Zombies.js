@@ -29,7 +29,7 @@ export default class Zombies {
     this.byId = new Map();
     this.bounds = { min: 0, max: 0 };
     /** The home barricade as zombies see it (refreshed every frame): a wall while up. */
-    this.barricade = { up: false, floor: scene.tower.homeFloor, x: scene.tower.barricadeX };
+    this.barricade = { up: false, floor: scene.tower.homeFloor, x: scene.tower.barricadeX, inside: scene.tower.barricadeInside };
     /** Where attackers head when the hero is elsewhere: inside the home apartment. */
     this.siegeX = homeSpot(scene.tower).x;
     this.env = {

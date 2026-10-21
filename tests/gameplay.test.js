@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import balance from '../public/data/balance.json';
-import floorsData from '../public/data/levels/floors.json';
+import { towerData, makeTower } from './helpers/tower.js';
 import lootData from '../public/data/levels/loot.json';
 import { seededRng } from '../src/gameplay/rng.js';
 import {
@@ -15,7 +15,7 @@ import { limitWalk, planRoute, stepToward } from '../src/gameplay/routing.js';
 import { createGameState, normalizeGameState, heroCtx, takeFromPile } from '../src/gameplay/gameState.js';
 import { listActions, buildSpec, completeAction } from '../src/gameplay/actions.js';
 
-const tower = buildTower(floorsData, balance);
+const tower = makeTower(balance);
 const tables = lootData.tables;
 const fresh = () => createGameState(balance, tower, 1000);
 
@@ -176,23 +176,26 @@ describe('offline catch-up', () => {
 
 describe('tower layout and routing', () => {
   it('indexes home and rooms from data', () => {
-    expect(tower.home.id).toBe('f15_left');
-    expect(roomAt(tower, 15, 270).room.id).toBe('kitchen'); // boundary -> first room
-    expect(roomAt(tower, 15, 300).room.id).toBe('living');
-    expect(roomAt(tower, 15, 60)).toBe(null);
-    expect(homeSpot(tower).floor).toBe(15);
+    expect(tower.home.id).toBe('f15L');
+    expect(roomAt(tower, 15, 1100).room.id).toBe('living');
+    expect(roomAt(tower, 15, 600).room.id).toBe('kitchen');
+    expect(roomAt(tower, 15, 480).room.id).toBe('kitchen'); // boundary -> first room (lower x)
+    expect(roomAt(tower, 15, 1560)).toBe(null); // the stairwell landing is no room
+    expect(roomAt(tower, 15, 2000).room.id).toBe('living'); // right flat
+    expect(homeSpot(tower)).toEqual({ floor: 15, x: 408 }); // at the start flat's bed
   });
   it('floor <-> y', () => {
     expect(floorAtY(tower, floorLineY(tower, 14) - 5)).toBe(14);
     expect(floorAtY(tower, 0)).toBe(null);
   });
-  it('jammed doors block rightward walking only', () => {
-    const doors = { f15_left: { state: 'open' }, f15_right: { state: 'jammed' } };
-    const r = limitWalk(tower, doors, 15, 200, 700);
-    expect(r.blockedApt.id).toBe('f15_right');
-    expect(r.x).toBeLessThan(430);
-    expect(limitWalk(tower, doors, 15, 600, 200).blockedApt).toBe(null);
-    expect(limitWalk(tower, doors, 15, 200, 300).x).toBe(300);
+  it('jammed doors block walking in both directions', () => {
+    const doors = { f15L: { state: 'open' }, f15R: { state: 'jammed' } };
+    const r = limitWalk(tower, doors, 15, 1560, 2500);
+    expect(r.blockedDoor.id).toBe('f15R');
+    expect(r.x).toBe(1638);
+    expect(limitWalk(tower, doors, 15, 1560, 900).blockedDoor).toBe(null);
+    expect(limitWalk(tower, doors, 15, 2500, 1560).x).toBe(1722);
+    expect(limitWalk(tower, doors, 15, 1500, 1600).x).toBe(1600);
   });
   it('plans stairs route', () => {
     const steps = planRoute(tower, { floor: 15, x: 300 }, { floor: 13, x: 500 });
@@ -210,8 +213,9 @@ describe('game state and actions', () => {
   it('new state starts home with home rooms entered', () => {
     const s = fresh();
     expect(s.hero.floor).toBe(15);
-    expect(s.rooms['f15_left:kitchen']).toBe(true);
-    expect(s.doors.f15_right.state).toBe('jammed');
+    expect(s.rooms['f15L:kitchen']).toBe(true);
+    expect(s.doors.f15R.state).toBe('jammed');
+    expect(s.doors['f13L-door3'].state).toBe('jammed'); // Mara's bathroom door
   });
   it('normalize repairs partial saves', () => {
     const s = normalizeGameState({ hero: { floor: 99, x: 1 }, needs: { food: 12 } }, balance, tower, 5);
@@ -240,15 +244,15 @@ describe('game state and actions', () => {
   });
   it('search home fridge gives fixed loot once', () => {
     const s = fresh();
-    const pl = tower.objects.get('f15L-03');
+    const pl = tower.objects.get('f15L-2-floor0');
     const def = balance.objects.fridge;
-    const spec = buildSpec('search', def, 'f15L-03', s, balance);
+    const spec = buildSpec('search', def, 'f15L-2-floor0', s, balance);
     const r = completeAction(s, spec, pl.placement, def, { balance, tables, rng: seededRng(1), loc: { floor: 15, x: pl.placement.x } });
-    expect(countItem(s.inventory, 'canned_food')).toBe(2);
-    expect(s.objects['f15L-03'].searched).toBe(true);
-    expect(r.gained).toEqual([{ id: 'canned_food', qty: 2 }]);
+    expect(countItem(s.inventory, 'canned_food')).toBe(1);
+    expect(s.objects['f15L-2-floor0'].searched).toBe(true);
+    expect(r.gained).toEqual([{ id: 'canned_food', qty: 1 }]);
     expect(s.needs.energy).toBe(99);
-    expect(listActions(def, 'f15L-03', s, balance).map((a) => a.kind)).toEqual(['dismantle']);
+    expect(listActions(def, 'f15L-2-floor0', s, balance).map((a) => a.kind)).toEqual(['dismantle']);
   });
   it('dismantle with full inventory drops a pile, pile can be picked up', () => {
     const s = fresh();
@@ -311,9 +315,9 @@ describe('jammed doors and report', () => {
 
 describe('review fixes', () => {
   it('jammed door only blocks walks that reach the door', () => {
-    const jam = { f15_right: { state: 'jammed', hits: 0 } };
-    expect(limitWalk(tower, jam, 15, 200, 420).blockedApt).toBe(null);
-    expect(limitWalk(tower, jam, 15, 200, 430).blockedApt?.id).toBe('f15_right');
+    const jam = { f15R: { state: 'jammed', hits: 0 } };
+    expect(limitWalk(tower, jam, 15, 1560, 1670).blockedDoor).toBe(null);
+    expect(limitWalk(tower, jam, 15, 1560, 1680).blockedDoor?.id).toBe('f15R');
   });
   it('normalizeSlots never trims filled slots and drops unknown ids', () => {
     const raw = createSlots(50); raw[45] = { id: 'wood', qty: 3 }; raw[2] = { id: 'zzz', qty: 1 };

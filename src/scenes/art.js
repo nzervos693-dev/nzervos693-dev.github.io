@@ -40,12 +40,19 @@ export function registerAnimations(scene) {
   }
 }
 
+const PROP_SHEETS = [['props_s', 16], ['props_l', 32], ['props_s2', 16], ['props_l2', 32]];
+
 /**
- * Sprite sheet + frame + native size (art px) for a salvage object id.
- * @returns {{key:string, frame:number, size:number}|null}
+ * Sprite sheet + frame + native size (art px) for a salvage object id, plus the frame of its "searched/ajar"
+ * variant (`<id>_open`) when the art has one.
+ * @param {string} objectId
+ * @param {{charredSmall?:boolean}} [opts] charredSmall: a burned small object (charred_small frame)
+ * @returns {{key:string, frame:number, openFrame:number, size:number}|null}
  */
-export function propSprite(objectId) {
-  if (hasFrame('props_s', objectId)) return { key: 'props_s', frame: frameOf('props_s', objectId), size: 16 };
-  if (hasFrame('props_l', objectId)) return { key: 'props_l', frame: frameOf('props_l', objectId), size: 32 };
+export function propSprite(objectId, opts = {}) {
+  const name = objectId === 'charred_debris' && opts.charredSmall ? 'charred_small' : objectId;
+  for (const [key, size] of PROP_SHEETS) {
+    if (hasFrame(key, name)) return { key, frame: frameOf(key, name), openFrame: frameOf(key, `${name}_open`), size };
+  }
   return null;
 }

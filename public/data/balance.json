@@ -17,7 +17,11 @@
     "runDoubleTapMaxDistancePx": 48,
     "buttonSizePx": 96,
     "minHitAreaPx": 96,
-    "attackBuffer": 1
+    "attackBuffer": 1,
+    "cameraEdgePadPx": 48
+  },
+  "tutorial": {
+    "doorTriggerPx": 60
   },
   "hero": {
     "walkSpeed": 100,
@@ -611,7 +615,8 @@
       "stairwellAudibleFloors": 2,
       "secondGroanAtSeconds": 12,
       "bangBeatsSeconds": [8, 5, 2.5],
-      "fightBangGapSeconds": [2, 3]
+      "fightBangGapSeconds": [2, 3],
+      "bangFalloff": { "nearPx": 480, "farPx": 1500, "minVolume": 0.3 }
     },
     "scheduledZombieType": "walker",
     "characterDefense": 10,

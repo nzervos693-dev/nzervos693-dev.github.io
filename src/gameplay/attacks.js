@@ -20,7 +20,7 @@ const HOUR_MS = 3600 * 1000;
 /** Tunables the GDD gives no numbers for. Override via balance.attacks.tuning.<key>. */
 export const ATTACK_TUNE_DEFAULTS = {
   spawnGapSeconds: 3, // between attackers arriving from the stairs
-  spawnXMin: 16, // arrival x range in the stairwell, left of the barricade
+  spawnXMin: 16, // arrival offset from the stairs (stairwell.entryX) toward the home door, px
   spawnXMax: 70,
   flickerSeconds: 0.09, // how often the landing light changes during the cue
 };

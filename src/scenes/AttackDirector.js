@@ -86,7 +86,10 @@ export default class AttackDirector {
     const { scene } = this;
     const t = attackTuning(scene.balance);
     const type = this.queue.shift();
-    const x = Math.round(t.spawnXMin + scene.rng() * (t.spawnXMax - t.spawnXMin));
+    // arrive from the stairs and walk to the home door: 16-70 px from the stairs toward the home side (the door side)
+    const tw = scene.tower;
+    const off = Math.round(t.spawnXMin + scene.rng() * (t.spawnXMax - t.spawnXMin));
+    const x = tw.stairwell.entryX + tw.barricadeInside * off;
     const id = `attack:${this.n}:${this.seq++}`;
     const rec = makeZombie(id, type, scene.tower.homeFloor, x, scene.balance, { siege: true });
     scene.state.zombies[id] = rec;

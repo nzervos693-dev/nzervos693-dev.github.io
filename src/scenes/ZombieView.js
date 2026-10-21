@@ -2,11 +2,12 @@
  * Zombie sprites, hit flash, hit sparks, death and corpse fade. View only: no rules here.
  * No health bars and no noise rings (GDD 5.4, 5.6): damage reads from the zombie, noise from the sound.
  */
-import { floorLineY, roomKey, ART_SCALE } from '../gameplay/layout.js';
-import { roomRefAt } from '../gameplay/zombies.js';
+import { floorLineY, ART_SCALE } from '../gameplay/layout.js';
 import { HIT_FX, decalAlpha } from '../gameplay/hitfx.js';
 
 const ZOMBIE_DEPTH = 15;
+/** Zombies this far outside the camera view are hidden, px. */
+const VIEW_MARGIN = 150;
 const SPARK_DEPTH = 25;
 const SPARK_POOL = 6;
 const SPARK_SCALE = 4;
@@ -31,8 +32,6 @@ export default class ZombieView {
     this.tower = tower;
     this.state = state;
     this.balance = balance;
-    this.keyOf = new Map();
-    for (const apt of tower.apartments.values()) for (const r of apt.rooms) this.keyOf.set(r, roomKey(apt, r));
     this.sparks = [];
     for (let i = 0; i < SPARK_POOL; i++) {
       const sp = scene.add.sprite(0, 0, 'fx_spark', 0).setScale(SPARK_SCALE).setDepth(SPARK_DEPTH).setVisible(false);
@@ -63,10 +62,15 @@ export default class ZombieView {
     return { key, y, sprite, anim: null, visible: true };
   }
 
-  /** Is the room under x already entered? (Stairwell is always visible.) */
+  /**
+   * Stage 2: every room is drawn (no Dark state until stage 4), so a zombie is visible whenever it is inside the
+   * camera view (plus a margin); the ones outside are hidden explicitly.
+   */
   revealed(floor, x) {
-    const room = roomRefAt(this.tower, floor, x);
-    return !room || !!this.state.rooms[this.keyOf.get(room)];
+    const cam = this.scene.cameras.main;
+    const y = floorLineY(this.tower, floor);
+    return x > cam.scrollX - VIEW_MARGIN && x < cam.scrollX + cam.width + VIEW_MARGIN
+      && y > cam.scrollY - VIEW_MARGIN && y < cam.scrollY + cam.height + VIEW_MARGIN;
   }
 
   /** Per-frame sync of a living zombie's sprite with its record and AI. */

@@ -6,27 +6,32 @@
 export const DOOR_STOP_MARGIN = 42;
 
 /**
- * Clamp a horizontal walk so it does not pass a jammed door (walking right only).
- * Only walks that reach the door itself are blocked; targets inside the flat before the door are fine.
+ * Clamp a horizontal walk so it does not pass a jammed door (front or interior; either direction).
+ * Only walks that reach the door itself are blocked; targets before the door are fine.
  * @param {object} tower from buildTower
  * @param {Object<string,{state:string}>} doors state.doors
- * @returns {{x:number, blockedApt:object|null}}
+ * @returns {{x:number, blockedDoor:object|null}}
  */
 export function limitWalk(tower, doors, floor, fromX, toX) {
   const f = tower.floors.get(floor);
-  if (!f || toX <= fromX) return { x: toX, blockedApt: null };
-  const jammed = f.apartments
-    .filter((a) => doors[a.id]?.state === 'jammed')
-    .sort((a, b) => a.doorX - b.doorX);
-  for (const a of jammed) {
-    const stop = a.doorX - DOOR_STOP_MARGIN;
-    if (fromX <= stop + 0.5 && toX >= a.doorX) return { x: stop, blockedApt: a };
+  if (!f || toX === fromX) return { x: toX, blockedDoor: null };
+  const dir = toX > fromX ? 1 : -1;
+  let best = null;
+  let bestAhead = Infinity;
+  for (const d of f.doors) {
+    if (doors[d.id]?.state !== 'jammed') continue;
+    const ahead = (d.x - fromX) * dir;
+    if (ahead <= 0 || (toX - d.x) * dir < 0 || ahead >= bestAhead) continue;
+    bestAhead = ahead;
+    best = d;
   }
-  return { x: toX, blockedApt: null };
+  if (!best) return { x: toX, blockedDoor: null };
+  const stop = best.x - dir * DOOR_STOP_MARGIN;
+  return { x: (stop - fromX) * dir < 0 ? fromX : stop, blockedDoor: best };
 }
 
-/** Stop position in front of an apartment's door. */
-export const doorStopX = (apt) => apt.doorX - DOOR_STOP_MARGIN;
+/** Stop position in front of a door when coming from `fromX`. */
+export const doorStopX = (door, fromX) => door.x - Math.sign(door.x - fromX || 1) * DOOR_STOP_MARGIN;
 
 /**
  * Plan a route as steps. Walk steps are limited by doors when executed.
@@ -62,7 +67,7 @@ export function stepToward(x, target, speed, dt) {
 
 /**
  * Register a hit on a jammed door (mutates the door state).
- * @param {{state:string, hits:number}} door state.doors[aptId]
+ * @param {{state:string, hits:number}} door state.doors[doorId]
  * @returns {{opened:boolean, hits:number, needed:number}}
  */
 export function hitJammedDoor(door, balance) {

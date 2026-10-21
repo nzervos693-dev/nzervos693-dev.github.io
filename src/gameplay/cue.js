@@ -50,6 +50,22 @@ export function stairVolume(cameraFloor, attackFloor, balance) {
   return 1 - d / (n + 1);
 }
 
+/**
+ * Volume factor for the banging from the camera's horizontal distance to the home front door (balance
+ * attacks.cue.bangFalloff {nearPx, farPx, minVolume}): it comes from the stairwell side of the door, so panning
+ * away down the wing makes it distant but still audible.
+ */
+export function doorDistanceFactor(cameraCenterX, doorX, balance) {
+  const f = balance?.attacks?.cue?.bangFalloff || {};
+  const near = f.nearPx ?? 480;
+  const far = f.farPx ?? 1500;
+  const min = f.minVolume ?? 0.3;
+  const d = Math.abs(cameraCenterX - doorX);
+  if (d <= near) return 1;
+  if (d >= far) return min;
+  return 1 - (1 - min) * ((d - near) / (far - near));
+}
+
 /** Landing light dip alpha: mostly steady, with dips. Deterministic for a step counter. */
 export function landingDip(step, max = 0.6) {
   const h = Math.sin(step * 12.9898) * 43758.5453;

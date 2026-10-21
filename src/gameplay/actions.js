@@ -26,7 +26,13 @@ export function listActions(def, id, state, balance) {
   const p = def.primary;
   if (p?.type === 'search') {
     if (os.leftover?.length) out.push({ kind: 'take', label: 'Take', enabled: true });
-    else if (!os.searched) out.push({ kind: 'search', label: 'Search', enabled: true });
+    else if (!os.searched) {
+      const lock = p.tool && !heroHasTool(state, p.tool); // storage cages: padlocked, crowbar only
+      out.push({
+        kind: 'search', label: 'Search', enabled: !lock,
+        reason: lock ? `Needs ${toolLabel(p.tool, balance).toLowerCase()}` : undefined,
+      });
+    }
   } else if (p?.type === 'drain' && !os.drained) {
     const need = p.tool && !heroHasTool(state, p.tool);
     out.push({
@@ -50,7 +56,7 @@ export function buildSpec(kind, def, id, state, balance) {
   const energy = state.needs.energy;
   const os = state.objects[id] || {};
   if (kind === 'take') return { kind, id, seconds: 0, energy: 0, tool: null, noise: 'quiet' };
-  if (kind === 'search') return { kind, id, ...searchSpec(energy, balance), tool: null, noise: 'quiet' };
+  if (kind === 'search') return { kind, id, ...searchSpec(energy, balance), tool: def.primary?.tool || null, noise: 'quiet' };
   if (kind === 'drain') {
     return { kind, id, ...drainSpec(energy, balance), tool: def.primary.tool || null, noise: 'quiet' };
   }
@@ -90,7 +96,10 @@ function give(state, items, loc, balance, result) {
  */
 export function completeAction(state, spec, placement, def, ctx) {
   const { balance, tables, rng, loc } = ctx;
-  const lootOpts = { emptyChance: emptyChanceFor(ctx.apt, balance) };
+  // GDD 5.5: a container of a normal (or unmarked) unit is empty with the condition's chance (30%); ransacked and
+  // burned units are emptied by the level data itself (`empty: true`), so no second roll there. fixedLoot is never empty.
+  const cond = ctx.apt?.condition || 'normal';
+  const lootOpts = { emptyChance: cond === 'normal' ? emptyChanceFor(ctx.apt, balance) : 0 };
   const os = objState(state, spec.id);
   const result = { kind: spec.kind, gained: [], piled: [], kept: [], toolBroke: null, note: null };
 

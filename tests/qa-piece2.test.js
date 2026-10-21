@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import balance from '../public/data/balance.json';
-import floorsData from '../public/data/levels/floors.json';
-import { buildTower } from '../src/gameplay/layout.js';
+import { towerData, makeTower } from './helpers/tower.js';
 import { createGameState } from '../src/gameplay/gameState.js';
 import { pastKeepThreshold } from '../src/gameplay/salvage.js';
 import {
@@ -11,7 +10,7 @@ import { hitZombie, burnZombie, damageHero, swingDamage, heroWeapon } from '../s
 import { updateFloorStates } from '../src/gameplay/floorState.js';
 import { createFire, fireCovers } from '../src/gameplay/throwables.js';
 
-const tower = buildTower(floorsData, balance);
+const tower = makeTower(balance);
 const tune = zombieTuning(balance);
 const env = (state, over = {}) => ({
   tower, doors: state.doors, heroFloor: 14, heroX: 200, heroRoom: null, types: balance.zombies.types,

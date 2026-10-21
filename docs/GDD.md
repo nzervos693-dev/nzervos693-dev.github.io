@@ -118,7 +118,7 @@ One thumb, taps and drags only. No hold-to-act, no multi-touch.
 | Tap | Object | Opens the **action menu** above the object (see below). |
 | Tap | Zombie | If in weapon range: attack now. If out of range: walk toward it, attack once on arrival. |
 | Drag, mostly vertical | Anywhere | Scrolls the camera between floors. Momentum, clamped to floors 13-17 in M2. |
-| Drag, mostly horizontal | Anywhere | Pans the camera along the floor. Momentum, clamped to the floor's 0-3120 px. |
+| Drag, mostly horizontal | Anywhere | Pans the camera along the floor. Momentum, clamped to the floor's 0-3120 px plus a 48 px pad past each edge (`controls.cameraEdgePadPx`). |
 | Tap | Moodle icon | Shows its plain-text card (5.2). |
 | Tap | "Home" button (bottom bar) | Camera jumps to the hero; second tap within 1 s sends the hero to the main home's bed. |
 | Tap | Bottom bar buttons (icons only, section 8) | Inventory, Workbench, Survivors, Menu; **Throw** (only while a throwable is carried, 5.11). Sound toggle is in Menu. |
@@ -137,6 +137,13 @@ with lerp **0.12** per frame (`controls.cameraLerp`). Follow pauses for
 **2 s** after any player drag (`controls.cameraFollowPauseSeconds`). When
 the hero changes floor, the camera follows vertically and keeps its x
 relative to the stairwell shaft.
+
+**Camera edge pad** (`controls.cameraEdgePadPx` **48**): the camera may
+pan up to 48 px past the left (x < 0) and right (x > 3120) world edges, so
+objects at a wing's far end can be centred away from Android's back-swipe
+gesture zone at the screen edges. Drag, momentum and follow all use the
+same clamp: camera view left edge >= -48, right edge <= 3120 + 48. The pad
+area is drawn as plain outer wall (not walkable; taps there do nothing).
 
 **Action menu**: a small header with the object's name (e.g. "Kitchen
 cupboard") and up to 2 buttons, each **96x96 game px** (icon + label),
@@ -181,7 +188,9 @@ Home double tap 1 s (`controls.homeDoubleTapSeconds`), run double tap
 `controls.runDoubleTapMaxDistancePx`), camera follow pause 2 s
 (`controls.cameraFollowPauseSeconds`), buttons and hit areas 96 px
 (`controls.buttonSizePx`, `controls.minHitAreaPx`), 1 buffered attack tap
-(`controls.attackBuffer`). M2 floors 13-17 (`world.floorMin`,
+(`controls.attackBuffer`), camera edge pad 48 px
+(`controls.cameraEdgePadPx`), tutorial front-door trigger 60 px
+(`tutorial.doorTriggerPx`, 11.3 Stage 2 rules). M2 floors 13-17 (`world.floorMin`,
 `world.floorMax`); floor geometry in `world.*`; start flat on floor 15,
 left wing (`home.startFloor`, `home.startWing`).
 
@@ -882,6 +891,15 @@ you scavenge saves walking.
     **T-8, T-5 and T-2.5 s** (`cue.bangBeatsSeconds` [8, 5, 2.5]); the first
     beat must equal `cue.stairwellAtSeconds` (8). If the two differ, code
     uses `cue.stairwellAtSeconds` as the first beat.
+  - **Bang falloff** (`cue.bangFalloff`, Stage 2+): stairwell and door
+    bangs (cue beats and fight bangs) also fade with horizontal camera
+    distance from the main home's front door. d = |camera centre x - door
+    x|. Volume multiplier = 1 if d <= **480 px** (`nearPx`); linear from 1
+    down to **0.3** (`minVolume`) between 480 and **1500 px** (`farPx`);
+    0.3 beyond 1500 px. It never reaches 0, so a bang is always faintly
+    audible on the home floor. It multiplies the floor fade above
+    (`cue.stairwellAudibleFloors`); beyond that floor range the bang is
+    silent as before.
   - **T-0**: the first attacker shambles onto the landing of the main
     home's floor; more follow **3 s** apart (`attacks.tuning.spawnGapSeconds`),
     at a random 16-70 px from the door (`attacks.tuning.arrivalXRange`).
@@ -1618,6 +1636,25 @@ Stage rules:
 - **Before Stage 3** home is the M1 home (floor 15, left; plus right once
   Cleared) with its M1 stockpile and stairwell barricade, and attacks
   target it. The M1 tutorial (with arrows) stays until Stage 4.
+  Exception from Stage 2: the home is the start flat (floor 15, left
+  wing) and its bed, as below.
+
+**Stage 2 rules (Producer approved)**:
+- **Cleared** = no living zombies on the floor. Containers no longer need
+  to be searched (same as 5.3; applies from Stage 2, not only Stage 3).
+- **Sleep / Nap**: only the bed in the start flat (`your_flat`, floor 15
+  left) shows Sleep and Nap in Stage 2. Every other bed or mattress is a
+  normal object (Dismantle only). Beds elsewhere become sleepable with
+  claiming in Stage 3 (5.3).
+- **Start and Home**: a New game places the hero standing at the start-flat
+  bed. The Home button's second tap (within `controls.homeDoubleTapSeconds`)
+  walks the hero to the start-flat bed.
+- **Tutorial door step** (`tutorial.doorTriggerPx` **60**): the tutorial
+  step "open the door" completes when the hero's x is within **60 px** of
+  the start flat's front door x on floor 15 (inclusive), whether he walked
+  or ran there. Being farther away or on another floor does not count.
+- **Camera edge pad** (`controls.cameraEdgePadPx` 48, section 4) and **bang
+  falloff** (`attacks.cue.bangFalloff`, 5.8) apply from Stage 2.
 - Any change of save format inside M2 bumps the save version; an older
   save is deleted on launch with the one line "The building has changed."
 - Nice-to-haves are considered only after Stage 4 has been playtested.
@@ -1698,6 +1735,12 @@ than one pet, zombie smell and disguises, amputation.
   = where you last slept; max 3 claimed apartments; one stash per claimed
   apartment; attacks only target the main home; day/night, dog, infection,
   sickness, stove and power move to M3+ (11.1).
+- **Stage 2** (11.3): a floor is Cleared when no zombies are alive
+  (containers no longer required); only the start-flat bed offers
+  Sleep/Nap (other beds become sleepable with claiming in Stage 3); the
+  hero starts at, and Home returns to, the start-flat bed. Stage 2 code
+  constants: `tutorial.doorTriggerPx` 60, `controls.cameraEdgePadPx` 48,
+  `attacks.cue.bangFalloff` {nearPx 480, farPx 1500, minVolume 0.3}.
 
 ### Open questions
 1. **Backstory names** ("grey fever", "river docks" group): keep, rename,

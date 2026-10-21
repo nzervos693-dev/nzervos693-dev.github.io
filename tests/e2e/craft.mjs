@@ -4,8 +4,9 @@
  * Uses the ?debug hooks (window.__floor15) only to read state, give items, spawn a zombie and rewind the
  * save clock; walking, dismantling, searching, crafting, placing, fighting and collecting are real taps.
  *
- * Flow: dismantle chair + table, search the drawer, craft Barricade Lv1 at the workbench (auto-placed),
- * a zombie spawned outside on floor 15 is blocked and damages it, the hero can walk through it,
+ * Flow (start flat on the wide floor 15): dismantle chair + table, search the drawer, craft Barricade Lv1 at the
+ * workbench (it goes on the front door, x 1440), a zombie spawned on the landing is blocked and damages it, the hero
+ * can walk through it,
  * craft + place a rain collector, rewind the clock 7 h, reload, collect, dismantle for the refund.
  */
 import { chromium } from 'playwright-core';
@@ -41,7 +42,14 @@ async function toScreen(page, wx, wy, fixed = false) {
     const s = window.__floor15;
     const r = document.querySelector('canvas').getBoundingClientRect();
     const k = r.width / 720;
-    return { x: r.left + x * k, y: r.top + (y - (fx ? 0 : s.cameras.main.scrollY)) * k };
+    const cam = s.cameras.main;
+    if (!fx && (x < cam.scrollX + 24 || x > cam.scrollX + 696)) {
+      // floors are 3120 px wide: pan the camera to the target first (the drag itself is covered in smoke.mjs)
+      s.following = false;
+      s.dragPauseUntil = Date.now() + 60000;
+      s.setScrollX(x - 360);
+    }
+    return { x: r.left + (x - (fx ? 0 : cam.scrollX)) * k, y: r.top + (y - (fx ? 0 : cam.scrollY)) * k };
   }, [wx, wy, fixed]);
 }
 const tapWorld = async (page, wx, wy) => { const p = await toScreen(page, wx, wy); await page.touchscreen.tap(p.x, p.y); };
@@ -115,18 +123,18 @@ try {
   const line = await lineY(page, 15);
 
   // ---- gather wood and metal with real taps
-  await tapWorld(page, 168, line - 48); // chair: one action, starts straight away
-  check(await until(page, () => window.__floor15.state.objects["f15L-01"]?.dismantled, null, 20000), 'chair dismantled by tap');
-  await tapWorld(page, 270, line - 48); // table
-  check(await until(page, () => window.__floor15.state.objects['f15L-02']?.dismantled, null, 25000), 'table dismantled by tap');
-  await tapWorld(page, 270, line - 84 - 48); // kitchen drawer: Search / Dismantle menu
-  check(await until(page, () => window.__floor15.menu.isOpen, null, 10000), 'drawer tap opens the action menu');
+  await tapWorld(page, 1128, line - 48); // chair (living room): one action, starts straight away
+  check(await until(page, () => window.__floor15.state.objects['f15L-1-floor0']?.dismantled, null, 30000), 'chair dismantled by tap');
+  await tapWorld(page, 1032, line - 48); // table
+  check(await until(page, () => window.__floor15.state.objects['f15L-1-floor1']?.dismantled, null, 30000), 'table dismantled by tap');
+  await tapWorld(page, 648, line - 84 - 48); // kitchen drawer: Search / Dismantle menu
+  check(await until(page, () => window.__floor15.menu.isOpen, null, 15000), 'drawer tap opens the action menu');
   check(await tapMenu(page, 'Search'), 'Search button tapped');
-  check(await until(page, () => window.__floor15.state.objects['f15L-05']?.searched, null, 15000), 'drawer searched');
+  check(await until(page, () => window.__floor15.state.objects['f15L-2-wall0']?.searched, null, 15000), 'drawer searched');
   check(await bagCount(page, 'wood') === 6 && await bagCount(page, 'metal') === 2, `bag holds 6 wood + 2 metal (${await bagCount(page, 'wood')}/${await bagCount(page, 'metal')})`);
 
   // ---- quick nap at the hero bed: menu, 5 s fade, energy up, cooldown label; a tap cancels a second try
-  const bed = await g(page, () => { const sp = window.__floor15.view.sprites.get('fixture:bed'); return { x: sp.cx, y: sp.cy }; });
+  const bed = await g(page, () => { const sp = window.__floor15.view.sprites.get('f15L-3-floor0'); return { x: sp.cx, y: sp.cy }; });
   await g(page, () => { window.__floor15.state.needs.energy = 40; window.__floor15.zombies.resetAll(); }); // noise from dismantling may have aggroed zombies
   await tapWorld(page, bed.x, bed.y);
   check(await until(page, () => window.__floor15.menu.isOpen, null, 10000), 'bed tap opens the Sleep / Nap menu');
@@ -141,7 +149,7 @@ try {
   await g(page, () => window.__floor15.menu.close());
 
   // ---- craft Barricade Lv1 at the workbench
-  await tapWorld(page, 372, line - 84 - 48);
+  await tapWorld(page, 888, line - 48); // the workbench stands on the floor line
   await craftViaPanel(page, 'barricade_lv1');
   const bar = await g(page, () => ({ ...window.__floor15.state.build.barricade, wood: 0 }));
   const lv1hp = await g(page, () => window.__floor15.balance.barricade.levels[0].hp);
@@ -151,26 +159,27 @@ try {
   await page.screenshot({ path: `${shots}/e2e-craft-panel-412x915.png` });
   await g(page, () => window.__floor15.craftPanel.close());
 
-  // ---- a zombie outside is blocked and damages it
+  // ---- a zombie on the landing is blocked by the front door barricade and damages it
   await g(page, () => {
     const s = window.__floor15;
     s.state.needs.health = 100;
-    s.debugGoto(15, 200);
-    const rec = { id: 'wander:e2e', type: 'crawler', floor: 15, x: 40, homeX: 40, hp: 15, dead: false };
+    s.debugGoto(15, 1300);
+    const rec = { id: 'wander:e2e', type: 'crawler', floor: 15, x: 1500, homeX: 1500, hp: 15, dead: false };
     s.state.zombies[rec.id] = rec;
     s.zombies.add(rec, true);
   });
-  await sleep(6500);
+  await sleep(10000);
   const z = await g(page, () => {
     const s = window.__floor15;
     return { x: s.state.zombies['wander:e2e'].x, hp: s.state.build.barricade.hp, health: s.state.needs.health, hits: window.__barHits, mode: s.zombies.get('wander:e2e').ai.mode };
   });
-  check(z.x <= 88.5 && z.x > 60, `zombie is held outside the barricade (x ${z.x.toFixed(1)})`);
+  check(z.x >= 1451.5 && z.x < 1500, `zombie is held outside the front door barricade (x ${z.x.toFixed(1)})`);
   check(z.hp < lv1hp && z.hits >= 2, `zombie damaged the barricade (${z.hp}/${lv1hp} HP, ${z.hits} hits)`);
   check(z.health === 100, 'hero was not bitten through the barricade');
+  await g(page, () => { window.__floor15.cameras.main.scrollX = 1100; });
   await page.screenshot({ path: `${shots}/e2e-barricade-412x915.png` });
 
-  // kill it with taps, then walk through the barricade
+  // kill it with taps (the hero steps through his own barricade), then walk out to the stairwell
   const t1 = Date.now();
   while (Date.now() - t1 < 30000) {
     const zi = await g(page, () => { const r = window.__floor15.state.zombies['wander:e2e']; return { dead: !r || r.dead, x: r?.x ?? 0 }; }); // wanderer records vanish when killed
@@ -180,36 +189,30 @@ try {
     await sleep(450);
   }
   check(await g(page, () => window.__floor15.state.zombies['wander:e2e']?.dead ?? true), 'zombie killed with taps through the barricade');
-  await tapWorld(page, 62, line - 20); // stairwell side of the barricade (x < 100)
-  check(await until(page, () => window.__floor15.state.hero.x < 90, null, 8000), 'the hero walks through his own barricade');
+  await tapWorld(page, 1560, line - 20); // the landing, beyond the barricade
+  check(await until(page, () => window.__floor15.state.hero.x > 1470, null, 12000), 'the hero walks through his own barricade');
 
   // ---- rain collector: craft, place, offline production
-  // window spots live in f15_right: clear that flat (debug hooks) so its spots open up (GDD 5.3 / 5.6)
+  // window spots of the start flat (living room wall x 1032, bedroom wall x 312) are free from the start
   await g(page, () => {
     const s = window.__floor15;
     s.debugGive('plastic', 3); s.debugGive('metal', 2);
-    s.state.doors.f15_right.state = 'open';
-    for (const id of ['f15R-01', 'f15R-02', 'f15R-03', 'f15R-04', 'f15R-05', 'f15R-06']) s.state.objects[id] = { searched: true, dismantled: true };
-    const rt = s.zombies.get('f15_right#0');
-    if (rt) s.zombies.kill(rt);
-    for (const r of s.tower.apartments.get('f15_right').rooms) s.state.rooms[`f15_right:${r.id}`] = true;
-    s.view.refresh();
-    s.debugGoto(15, 300);
+    s.debugGoto(15, 900);
   });
-  check(await g(page, () => window.__floor15.inHome() === true), 'hero at x 300 is at home');
+  check(await g(page, () => window.__floor15.inHome() === true), 'hero at x 900 is at home');
   await sleep(300);
-  await tapWorld(page, 372, line - 84 - 48);
+  await tapWorld(page, 888, line - 48);
   await craftViaPanel(page, 'rain_collector');
   check(await g(page, () => window.__floor15.placement.active), 'placement mode starts after crafting a placeable');
   const spots = await g(page, () => window.__floor15.placement.spots.map((s) => ({ x: s.x, cy: s.cy, key: s.key })));
-  check(spots.length === 2 && spots.every((s) => s.key.includes(':w')) && spots[0].x === 468, 'two window spots (right flat) are highlighted');
-  check(await g(page, () => window.__floor15.state.build.spots['15:w1'] === undefined), 'nothing is spent before a spot is chosen');
+  check(spots.length === 2 && spots.every((s) => s.key.includes('-wall1')) && spots[0].x === 1032, 'two window spots (start flat) are highlighted');
+  check(await g(page, () => window.__floor15.state.build.spots['15:f15L-spot-living-wall1'] === undefined), 'nothing is spent before a spot is chosen');
   await page.screenshot({ path: `${shots}/e2e-placement-412x915.png` });
   await tapWorld(page, spots[0].x, spots[0].cy);
   await sleep(300);
-  const placed = await g(page, () => window.__floor15.state.build.spots['15:w1']?.id);
+  const placed = await g(page, () => window.__floor15.state.build.spots['15:f15L-spot-living-wall1']?.id);
   check(placed === 'rain_collector', 'tap on a spot places the rain collector');
-  check(await g(page, () => window.__floor15.view.built.has('15:w1')), 'placed object is drawn');
+  check(await g(page, () => window.__floor15.view.built.has('15:f15L-spot-living-wall1')), 'placed object is drawn');
   check(await bagCount(page, 'plastic') === 0, 'rain collector cost was paid');
 
   await g(page, () => window.__floor15.save());
@@ -228,7 +231,7 @@ try {
   const away = await g(page, () => {
     const s = window.__floor15;
     return {
-      stored: s.state.build.spots['15:w1'].stored,
+      stored: s.state.build.spots['15:f15L-spot-living-wall1'].stored,
       popup: s.popup.isOpen,
       lines: (s.popup.c?.list || []).filter((o) => o.type === 'Text').map((o) => o.text),
       barricade: s.state.build.barricade,
@@ -240,18 +243,18 @@ try {
   await g(page, () => window.__floor15.popup.close());
 
   // collect with Use
-  await tapWorld(page, 468, line - 84 - 48);
+  await tapWorld(page, 1032, line - 84 - 48);
   check(await until(page, () => window.__floor15.menu.isOpen, null, 8000), 'tap on the rain collector opens its menu');
   check(await g(page, () => window.__floor15.menu.c.list.length) >= 2, 'menu offers Collect and Dismantle');
   check(await tapMenu(page, 'Collect'), 'Collect button tapped');
   check(await until(page, () => window.__floor15.state.inventory.some((s) => s?.id === 'clean_water' && s.qty === 2), null, 10000), 'collected 2 clean water into the bag');
-  check(await g(page, () => window.__floor15.state.build.spots['15:w1'].stored) === 0, 'collector is empty again');
+  check(await g(page, () => window.__floor15.state.build.spots['15:f15L-spot-living-wall1'].stored) === 0, 'collector is empty again');
 
   // dismantle for the 50% refund
-  await tapWorld(page, 468, line - 84 - 48);
+  await tapWorld(page, 1032, line - 84 - 48);
   check(await until(page, () => window.__floor15.menu.isOpen, null, 8000), 'menu opens again');
   check(await tapMenu(page, 'Dismantle'), 'Dismantle button tapped');
-  check(await until(page, () => !window.__floor15.state.build.spots['15:w1'], null, 10000), 'collector dismantled');
+  check(await until(page, () => !window.__floor15.state.build.spots['15:f15L-spot-living-wall1'], null, 10000), 'collector dismantled');
   check(await bagCount(page, 'plastic') === 1 && await bagCount(page, 'metal') === 1, 'refund is 50% of the cost rounded down (1 plastic, 1 metal)');
 
   check(errors.length === 0, `no console errors${errors.length ? ': ' + errors.join(' | ') : ''}`);

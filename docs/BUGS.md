@@ -4,6 +4,51 @@
 
 ## Open
 
+### Milestone 2 stage 2 QA (wide floors, uncommitted working tree, e2e build, 360x800 and 412x915, 2026-10-21)
+
+### BUG-036 · "Tap an empty spot to walk" only works in a thin band: object hit areas tile the whole floor · major (UX, confirm on a phone)
+- **Steps:** Floor 15 (any floor), start flat. Tap on the floor at about the hero's feet or body height between two pieces of furniture. Measured in the e2e build with `view.hitTest` along every x of the 13-17 floors (landing excluded).
+- **Expected:** GDD 4: a tap on an empty spot in a room walks the hero there; objects only take taps that are on them.
+- **Actual:** the 96x96 object hit areas (floor objects cover y = line-96..line, wall objects line-156..line-60, 96 px apart per slot) leave only 10-18% of the floor length as a plain walk tap at body height (percent free by floor 13/14/15/16/17: 18/18/17/10/15 at the floor line, 11/15/11/10/12 at line-96). The only fully free strip is the floor slab below the line: 30 game px = 15 CSS px tall at 360 wide (100% free), and the upper wall above line-120 (43-53% free). A tap that lands on an object opens its menu instead (the second tap then closes the menu and may hit the next object). The e2e tests had to tap `lineY + 20` to walk.
+- **Why it matters:** the stage 2 level data fills almost every slot (16-21 objects per 1440 px wing), so the main control is hard to use in dense rooms. The 96 px minimum for objects and walkable gaps conflict.
+- **Likely file:** `src/scenes/TowerView.js` `hitTest` / `targetsOnFloor` (for example hit area = sprite bounds clipped to 96 px only where no neighbour is closer, make the slab band taller, or treat taps above and below the sprite as ground) and/or the level density in `public/data/levels/tower_m2.json`. Needs a decision from game-designer and the Creative Director after a phone playtest.
+
+### BUG-037 · Tutorial arrow points off-screen at the chair and the door, with no direction hint · major (UX)
+- **Steps:** `?debug&story`, new game, finish the fridge (hero stands at x 648, camera 127..847). The step becomes "Tap the chair to take it apart." and the arrow is at x 1128. Same at the "Open the door: walk out." step after Barricade Lv1: hero at the workbench (x 888, camera 367..1087), door/arrow at x 1440.
+- **Expected:** a first-time player can see what the hint is about (M1 tutorial with arrows stays until stage 4).
+- **Actual:** the arrow is a world object, so it is simply off-screen (281 px and 353 px past the view edge). The hint text names the thing but nothing says where; the player has to guess to drag sideways. The other steps (fridge, table, drawer, workbench) are in view. `tests/e2e/story.mjs` does not notice because its helper pans the camera to the target before every tap.
+- **Likely file:** `src/scenes/TutorialView.js` (clamp the arrow to the screen edge pointing the right way, or pan the camera to the target when the step changes) and `src/scenes/GameScene.js` `updateTutorial`.
+
+### BUG-038 · The start flat's workbench floats in mid-air · minor (art/data)
+- **Steps:** Floor 15, living room, x 888 (screenshot `render-f15-x500-360x800.png`, `crop-workbench.png`).
+- **Expected:** a workbench stands on the floor like the table next to it.
+- **Actual:** it is hung at wall height (84 px up), legs in the air, with a sofa below it. Data: `f15L-1-wall2`, `"layer": "wall"`, `fixture: true`.
+- **Likely file:** `public/data/levels/tower_m2.json` (f15L-1-wall2 layer and slot; moving it to a floor slot also changes the build spots `f15L-spot-living-floor2` x 888) or the fixture drawing in `src/scenes/TowerView.js` (`fx.layer === 'wall' ? WALL_LIFT`).
+
+### BUG-039 · After the app is hidden and shown again the camera stays where it was while the hero is sent home · minor
+- **Steps:** `?debug`, go to floor 17 far right (x 2800, camera 2440). Hide the page (visibilitychange hidden), then show it.
+- **Expected:** resume cleanly (CLAUDE.md): the player sees their hero.
+- **Actual:** `onHide` moves the hero to the bed (floor 15, x 408) but nothing moves the camera: it stays on floor 17 at scrollX 2440 and `following` is false, so the hero is off-screen with no cue. The Home button recovers it. It was already true on 720 px floors for the vertical axis; with 3120 px floors the player lands in an unrelated part of the building.
+- **Likely file:** `src/scenes/GameScene.js` `onHide` / the resume handler (call `jumpCameraToHero()` after placing the hero).
+
+### BUG-040 · Padlocked cage menu: the two greyed "Needs crowbar" labels overlap · minor (cosmetic)
+- **Steps:** Floor 17 right wing, tap a storage cage with no crowbar (screenshot `loot-cage-padlocked-412x915.png`).
+- **Expected:** readable labels.
+- **Actual:** both buttons (Search and Dismantle) are greyed with "Needs crowbar" and the two red labels run into each other ("Needs crowtNeeds crowbar"). Search does nothing (correct), the cage stays closed (correct).
+- **Likely file:** `src/scenes/ActionMenu.js` (shorten the reason to "Crowbar", or show it once under the header when both buttons share the same reason).
+
+### BUG-041 · Camera numbers in balance.json are not read: `controls.cameraEdgePadPx`; momentum and vertical follow constants are hard-coded · minor
+- **Steps:** change `controls.cameraEdgePadPx` (48) in `public/data/balance.json`; nothing changes. The code uses `CAMERA_EDGE_PAD_PX = 48` from `src/gameplay/camera.js`. Also hard-coded: momentum decay `Math.exp(-3.5 * dt)`, minimum speed 8, vertical follow `-6 * dt` (`GameScene.updateCamera`). `cameraDeadzoneXPx`, `cameraLerp`, `cameraFollowPauseSeconds`, `dragThresholdPx` are read correctly.
+- **Expected:** CLAUDE.md: numbers live in balance.json (same family as BUG-021 / BUG-030).
+- **Likely file:** `src/gameplay/camera.js`, `src/scenes/GameScene.js` (`setScrollX`, `jumpCameraToHero`, `updateCamera`).
+
+### Stage 2 notes (not bugs, for the Producer)
+- `/.well-known/assetlinks.json` is not in `dist/` (no `public/.well-known`). Expected until the Creative Director has the PWABuilder key; needed before release.
+- `public/data/levels/floors.json` (the M1 layout, 20 KB) is no longer read by any code but is still shipped and precached. Delete when stage 3 is in.
+- Floor 17 right wing has 8 padlocked storage cages (`f17R-0-floor0..5`, `f17R-2-floor1/2`): this is the "wall of locks" in GDD 12 open question 3. Each opens only with a crowbar (the crowbar breaks after 20 uses) and one cage in the test rolled "Empty. Someone ate well here once." (a normal-condition empty line on a storage cage reads oddly).
+- Placement mode (`Placement.start`) only outlines the spots; it centres the camera on the hero, so spots 300+ px away (start flat: x 1368 and the bedroom window x 312 when the hero is at the workbench; after f15R is cleared: up to 1500 px away) are off-screen with no hint. The player must pan during placement.
+- Cleared f15R offers build spots only for slots whose object has been dismantled (by design of `requiresEmptySlot`): none at first.
+
 ### Milestone 2 stage 1 QA (uncommitted working tree, e2e build, 360x800 and 412x915, 2026-10-21)
 
 ### BUG-028 · Moodle cue sounds never play (wrong sound keys) · major
@@ -220,3 +265,9 @@ Full ?debug&story playthrough with real taps took about 20 min wall time in soft
 ## Milestone 2 stage 1 QA result (Chromium 360x800 and 412x915, touch, e2e build)
 Passed: no need bars or numbers in HUD, panels, toasts, away report, barricade, zombies (only wall-painted floor numbers, bag slot count "1/10" and craft material counts "0/3"); 4 moodle levels exact at every threshold, worst first, wobble 0.5 s, tap card with one line, Eat / Drink / Use bandage work; attack cue timeline measured against fake arrival: groans T-14.3 and T-11.9, shuffle and first bang T-7.9, bangs T-4.9 / T-2.5, flicker from T-7.9, no banner/countdown text or object; attack ends silently when attackers die; nap cancelled at T-8 with no cooldown; run by double tap (153 px/s, 0.16-0.2 energy/s, noise aggroes a zombie 240 px away and not one 270 px away, stops below 5, walks at energy 4); unaware hit x3 (20 -> 5 when lured); lose track after 8 s and 500 px; barricade 5 distinct visual stages and word toasts; prose away report; "Nothing."/"Someone got here first." on empty containers; no music during the cue or fight; deprecated sounds never played; no sound before the first tap; context suspends on hide; save survives reload; 4 h hidden applied on resume; 40 rapid taps, two fingers, rotation, 4 quick reloads fine; 0 console errors. `npm test` 377 passed + 4 expected fail; `npm run test:e2e` green twice (after fixing three stale hard-coded zombie counts).
 Note: headless Chromium runs the game at a few fps while driven by CDP, so a real 0.3 s double tap could only be tested by queuing both taps in one frame; the timing window itself is covered by unit tests only.
+
+## Milestone 2 stage 2 QA result (Chromium 360x800 and 412x915, touch, e2e build)
+Passed: `npm run build`, `npm test` (433 passed incl. new `tests/qa-m2s2.test.js` data checks), existing `npm run test:e2e` (smoke, combat, craft, story: 188 checks green) and story.mjs again at 412x915 (107 green; `E2E_VIEW=412x915`). New scripts `tests/e2e/s2-*.mjs` (helper `tests/e2e/stage2.mjs`, not in run.mjs): stale M1 save popup (v1, v1 without game.v; corrupt and empty saves give no popup; popup does not return after reload), spawn at the bed with camera centred, tap-walk with dead zone (camera starts moving at hero offset 163-169, never past 171, speed 100 px/s), horizontal pan bounds -48 and 2448, momentum respects both bounds (fling injected, see limits below), axis lock (x-dominant diagonal moves only x, y-dominant only y, a drag that turns horizontal stays on y), follow pause 1.9 s after a drag then follow resumes, vertical scroll range is only 300 px (whole 5-floor tower fits the 720x1280 view), every floor 13-17 and both units screenshot at 7 scroll positions (wall modules per room type, burned f16R, ransacked f13R/f14L, doorways, windows with rain, shaft with light and floor numbers all draw), jammed front doors (f13L, f15R, f16R) and the interior bathroom door stop the hero from both sides and block chasing zombies from both sides (landing side too), 3 taps open a door, crowbar pry works, empty containers show prose by condition, fixedLoot (fridge, drawer), notes on first search (empty and normal containers), padlocked cage greyed without crowbar and opens with one, tutorial chain through Barricade Lv1 and the landing crawler (story.mjs), attack on the wide layout (shaft light flickers, attackers appear on the stairs, walk to the home door at x 1440, stop at 1452, hit the barricade), Mara path (jammed bathroom door, Novak wardrobe bag, bed, recruit; story.mjs), f15R cleared becomes home (latched, Store all works, survivor bed placed there after a slot is freed), wanderers online and after 12 h offline (inside the wings, cap 3), edge slots x 72 and 3048 are tappable, the menu stays on screen and the hero walks to x 30, two fingers (second finger ignored), 30 rapid taps, rotation to landscape and back, 5 New games and 5 reloads (no leaked sprites, zombies or listeners), no console errors anywhere, PWA (manifest linked, 126 precache entries, boots offline in the production build).
+Walk times (hero 100 px/s, run 170, stairs 1.4 s per floor): far end of a wing to the stairs 15.0 s (9.0 s running); floor 13 far right to floor 17 far left 35.7 s.
+FPS: software GL headless runs the whole 5-floor tower (468 of 698 objects rendered every frame) at 12-25 fps, same as the stage 1 baseline (~16); not a phone number.
+Limits: CDP touch events arrive about 3 per second in this environment, so real fling feel, smoothness of the lerp and thumb ergonomics cannot be judged here; momentum was checked by injecting velocity and with in-page TouchEvents (works, clamps at both bounds).

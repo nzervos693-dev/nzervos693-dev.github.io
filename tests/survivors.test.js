@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import balance from '../public/data/balance.json';
-import floorsData from '../public/data/levels/floors.json';
+import { towerData, makeTower } from './helpers/tower.js';
 import lootData from '../public/data/levels/loot.json';
-import { buildTower } from '../src/gameplay/layout.js';
+import { homeSpot } from '../src/gameplay/layout.js';
 import { createGameState, heroCtx } from '../src/gameplay/gameState.js';
 import { seededRng } from '../src/gameplay/rng.js';
 import { addItem, countItem } from '../src/gameplay/inventory.js';
@@ -19,11 +19,11 @@ import {
   freeBeds, regenSurvivors, treatOptions, treatSurvivor, residentsAtHome, survivorHomeSpot, dropLostSurvivorTime, jobInfo, activeName, recruitedAlive,
 } from '../src/gameplay/survivors.js';
 
-const tower = buildTower(floorsData, balance);
+const tower = makeTower(balance);
 const T0 = 5_000_000;
 const HOUR = 3600 * 1000;
 const fresh = () => createGameState(balance, tower, T0);
-const withBed = (s) => { s.build.spots['15:s1'] = { id: 'survivor_bed', floor: 15, spot: 's1' }; };
+const withBed = (s) => { s.build.spots['15:f15L-spot-hallway-floor0'] = { id: 'survivor_bed', floor: 15, spot: 'f15L-spot-hallway-floor0' }; };
 const withBag = (s) => addItem(s.inventory, 'medical_bag', 1, balance);
 const recruited = (s, extra = {}) => {
   withBed(s);
@@ -98,10 +98,10 @@ describe('Mara recruit quest', () => {
   });
   it('a real crafted Survivor bed counts', () => {
     const s = fresh();
-    s.objects['f15L-01'] = { dismantled: true }; // the chair's slot is free
+    s.objects['f15L-1-floor0'] = { dismantled: true }; // the chair's slot is free
     addItem(s.inventory, 'wood', 6, balance);
     addItem(s.inventory, 'cloth', 2, balance);
-    const r = performCraft(s, tower, balance, 'survivor_bed', { spot: '15:s1', loc: { floor: 15, x: 168 } });
+    const r = performCraft(s, tower, balance, 'survivor_bed', { spot: '15:f15L-spot-hallway-floor0', loc: { floor: 15, x: 1368 } });
     expect(r.ok).toBe(true);
     expect(freeBeds(s, balance)).toBe(1);
   });
@@ -142,10 +142,10 @@ describe('jobs and talk', () => {
     expect(tenderMult(s, balance)).toBe(1);
     setJob(s, balance, 'mara', 'tender');
     expect(tenderMult(s, balance)).toBe(1.5);
-    s.build.spots['15:w1'] = { id: 'rain_collector', floor: 15, spot: 'w1', stored: 0, progress: 0, queue: 0 };
+    s.build.spots['15:f15L-spot-living-wall1'] = { id: 'rain_collector', floor: 15, spot: 'f15L-spot-living-wall1', stored: 0, progress: 0, queue: 0 };
     const iv = balance.recipes.rain_collector.effect.intervalHours * 3600;
     tickProducers(s, balance, iv / 1.5 + 1);
-    expect(s.build.spots['15:w1'].stored).toBe(1);
+    expect(s.build.spots['15:f15L-spot-living-wall1'].stored).toBe(1);
   });
   it('talking gives +5 morale once per 12 h', () => {
     const s = recruited(fresh());
@@ -296,16 +296,16 @@ describe('pass the torch', () => {
 describe('home placement', () => {
   it('Mara stands at her survivor bed, else near the hero bed', () => {
     const s = recruited(fresh());
-    expect(survivorHomeSpot(s, tower, balance, 'mara')).toEqual({ floor: 15, x: 168 });
+    expect(survivorHomeSpot(s, tower, balance, 'mara')).toEqual({ floor: 15, x: 1368 });
     s.build.spots = {};
     const spot = survivorHomeSpot(s, tower, balance, 'mara');
     expect(spot.floor).toBe(15);
-    expect(spot.x).toBeGreaterThan(120);
+    expect(spot.x).toBe(homeSpot(tower).x - 60);
   });
   it('placeObject finds the real survivor bed spot', () => {
     const s = fresh();
-    s.objects['f15L-01'] = { dismantled: true };
-    expect(placeObject(s, tower, balance, 'survivor_bed', '15:s1')).not.toBeNull();
+    s.objects['f15L-1-floor0'] = { dismantled: true };
+    expect(placeObject(s, tower, balance, 'survivor_bed', '15:f15L-spot-hallway-floor0')).not.toBeNull();
     updateFloorStates(tower, s, balance, T0);
   });
 });

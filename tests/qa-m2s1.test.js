@@ -5,13 +5,12 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import balance from '../public/data/balance.json';
-import floorsData from '../public/data/levels/floors.json';
+import { towerData, makeTower } from './helpers/tower.js';
 import audioManifest from '../public/assets/audio/manifest.json';
-import { buildTower } from '../src/gameplay/layout.js';
 import { makeZombie, makeAi, stepZombie, sightRadius, zombieTuning } from '../src/gameplay/zombies.js';
 import { MOODLE_IDS, MOODLE_CUE_SOUND, activeMoodles } from '../src/gameplay/moodles.js';
 
-const tower = buildTower(floorsData, balance);
+const tower = makeTower(balance);
 const tune = zombieTuning(balance);
 
 const srcText = (dir) => readdirSync(dir).filter((f) => f.endsWith('.js')).map((f) => readFileSync(`${dir}/${f}`, 'utf8')).join('\n');
@@ -101,20 +100,19 @@ describe('stealth is reachable by sneaking up (GDD 5.4 "main tool for thinning r
 });
 
 describe('early floors vs the new zombie stats (data checks)', () => {
-  const zombiesOf = (floor) => floorsData.floors.find((f) => f.number === floor).apartments.flatMap((a) => (a.zombies || []).map((z) => ({ ...z, apt: a.id })));
-  it('every authored zombie type exists and stands inside its apartment, away from the stairwell entry', () => {
-    for (const f of floorsData.floors) for (const a of f.apartments) for (const z of a.zombies || []) {
+  const units = (f) => [f.left, f.right];
+  it('every authored zombie type exists and stands deep inside its wing, away from the front door and the landing', () => {
+    for (const f of towerData.floors) for (const a of units(f)) for (const z of a.zombies || []) {
       expect(balance.zombies.types[z.type], `${a.id} ${z.type}`).toBeTruthy();
-      expect(z.x).toBeGreaterThanOrEqual(170); // beyond landing sight (110) from the entry x 60
+      expect(z.x < 1440 - balance.world.moduleWidthPx || z.x > 1680 + balance.world.moduleWidthPx, z.id).toBe(true);
     }
   });
-  it('a hero opening a door sees no zombie at 180 px without being seen: all room zombies are within sight of the doorway or beyond', () => {
-    // Documents the shape of the early game: Mara's flat holds two walkers 110 and 140 px from its front door,
-    // so opening it means being seen (sight 180 in a room). Fists lose that fight (see docs/BUGS.md, playtest notes).
-    const door = tower.apartments.get('f13_left').doorX;
-    const xs = zombiesOf(13).filter((z) => z.apt === 'f13_left').map((z) => z.x - door);
-    expect(xs.length).toBeGreaterThanOrEqual(2);
-    expect(Math.min(...xs)).toBeLessThan(balance.zombies.sightRadiusPx);
+  it('walker pairs stand far from the front door, so a hero opening it is not seen at once (sight 180 in a room)', () => {
+    for (const f of towerData.floors) for (const a of units(f)) {
+      const door = a.id.endsWith('L') ? 1440 : 1680;
+      const walkers = a.zombies.filter((z) => z.type === 'walker').map((z) => Math.abs(z.x - door));
+      if (walkers.length >= 2) expect(Math.min(...walkers), a.id).toBeGreaterThan(balance.zombies.sight.frontPx);
+    }
   });
   it('expected damage: two aware walkers out-damage a fists hero (13.1 dps vs 100 hp) and a spiked bat takes less', () => {
     const w = balance.zombies.types.walker;

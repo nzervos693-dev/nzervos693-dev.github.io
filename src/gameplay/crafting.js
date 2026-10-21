@@ -149,7 +149,7 @@ export function effectText(balance, id) {
   if (e.type === 'converter') return `1 ${item(e.input)} to ${e.qty} ${item(e.produces)} per ${hours(e.intervalHours)}. Queue of ${e.queueMax}. Floor spot.`;
   if (e.type === 'barricade') {
     const lv = barricadeLevel(balance, e.level);
-    return `Planks across the stairwell door.${lv.requiresLevel ? ' Replaces Lv1.' : ''}`;
+    return `Planks across your front door.${lv.requiresLevel ? ' Replaces Lv1.' : ''}`;
   }
   if (e.type === 'repair_barricade') return 'Patches up the barricade.';
   if (e.type === 'secure_floor') return 'Seal a cleared floor so nothing wanders in.';

@@ -45,8 +45,17 @@ async function toScreen(page, x, y, world) {
   return g(page, ([px, py, w]) => {
     const r = document.querySelector('canvas').getBoundingClientRect();
     const k = r.width / 720;
-    const cy = w ? window.__floor15.cameras.main.scrollY : 0;
-    return { x: r.left + px * k, y: r.top + (py - cy) * k };
+    const s = window.__floor15;
+    const cam = s?.cameras.main;
+    if (w && (px < cam.scrollX + 24 || px > cam.scrollX + 696)) {
+      // floors are 3120 px wide: pan the camera to the target first (the drag itself is covered in smoke.mjs)
+      s.following = false;
+      s.dragPauseUntil = Date.now() + 60000;
+      s.setScrollX(px - 360);
+    }
+    const cy = w ? cam.scrollY : 0;
+    const cx = w ? cam.scrollX : 0;
+    return { x: r.left + (px - cx) * k, y: r.top + (py - cy) * k };
   }, [x, y, world]);
 }
 const tapFixed = async (page, x, y) => { const p = await toScreen(page, x, y, false); await page.touchscreen.tap(p.x, p.y); };
@@ -161,7 +170,7 @@ try {
   await waitForServer();
   const browser = await chromium.launch();
   const ctx = await browser.newContext({
-    viewport: { width: 360, height: 800 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2,
+    viewport: { width: Number((process.env.E2E_VIEW || '360x800').split('x')[0]), height: Number((process.env.E2E_VIEW || '360x800').split('x')[1]) }, hasTouch: true, isMobile: true, deviceScaleFactor: 2,
   });
   await ctx.addInitScript(() => {
     const cfg = sessionStorage.getItem('rewind');
@@ -220,35 +229,35 @@ try {
   check(t.tutorial === 'active' && t.shown && t.step === 'walk' && t.text.includes('walk'), `tutorial starts with the walk hint ("${t.text}")`);
   check(await g(page, () => window.__floor15.state.attacks.nextAt === null), 'no attack is scheduled while the tutorial runs');
   await page.screenshot({ path: `${shots}/e2e-tutorial-walk-360x800.png` });
-  await tapWorld(page, 310, line + 24);
+  await tapWorld(page, 520, line + 24);
   check(await until(page, () => window.__floor15.tutorialView.stepId === 'fridge', null, 8000), 'walking moves the hint to the fridge');
   t = await tut();
-  check(t.arrow && Math.abs(t.ax - 168) < 6, `arrow points at the fridge (x ${Math.round(t.ax)})`);
+  check(t.arrow && Math.abs(t.ax - 648) < 6, `arrow points at the fridge (x ${Math.round(t.ax)})`);
   await page.screenshot({ path: `${shots}/e2e-tutorial-fridge-360x800.png` });
-  await tapWorld(page, 168, line - 84 - 48);
+  await tapWorld(page, 648, line - 48); // the fridge is a floor object now
   check(await until(page, () => window.__floor15.menu.isOpen, null, 8000), 'fridge tap opens the action menu');
   check(await tapMenu(page, 'Search'), 'Search tapped');
   check(await until(page, () => window.__floor15.tutorialView.stepId === 'chair', null, 15000), 'searching the fridge moves the hint to the chair');
-  await tapWorld(page, 168, line - 48);
-  check(await until(page, () => window.__floor15.state.objects['f15L-01']?.dismantled, null, 25000), 'chair dismantled');
+  await tapWorld(page, 1128, line - 48);
+  check(await until(page, () => window.__floor15.state.objects['f15L-1-floor0']?.dismantled, null, 30000), 'chair dismantled');
   check(await until(page, () => window.__floor15.tutorialView.stepId === 'table', null, 5000), 'hint moves to the table');
-  await tapWorld(page, 270, line - 48);
-  check(await until(page, () => window.__floor15.state.objects['f15L-02']?.dismantled, null, 30000), 'table dismantled');
+  await tapWorld(page, 1032, line - 48);
+  check(await until(page, () => window.__floor15.state.objects['f15L-1-floor1']?.dismantled, null, 30000), 'table dismantled');
   check(await until(page, () => window.__floor15.tutorialView.stepId === 'drawer', null, 5000), 'hint moves to the kitchen drawer');
-  await tapWorld(page, 270, line - 84 - 48);
+  await tapWorld(page, 648, line - 84 - 48);
   check(await until(page, () => window.__floor15.menu.isOpen, null, 8000), 'drawer tap opens the action menu');
   check(await tapMenu(page, 'Search'), 'drawer: Search tapped');
   check(await until(page, () => window.__floor15.tutorialView.stepId === 'workbench', null, 15000), 'hint moves to the workbench');
-  await tapWorld(page, 372, line - 84 - 48);
+  await tapWorld(page, 888, line - 48); // the workbench stands on the floor line
   await craftViaPanel(page, 'barricade_lv1');
   check(await g(page, () => window.__floor15.state.build.barricade.level) === 1, 'Barricade Lv1 built');
   check(await until(page, () => window.__floor15.tutorialView.stepId === 'door', null, 5000), 'hint moves to the door');
   await g(page, () => window.__floor15.craftPanel.close());
   check(await g(page, () => window.__floor15.state.zombies['scripted:tutorial_crawler'] === undefined), 'no crawler before the door');
   await page.screenshot({ path: `${shots}/e2e-tutorial-door-360x800.png` });
-  await tapWorld(page, 60, line + 24);
-  check(await until(page, () => window.__floor15.state.zombies['scripted:tutorial_crawler'], null, 8000), 'walking out of the door spawns the tutorial crawler');
-  check(await g(page, () => window.__floor15.state.zombies['scripted:tutorial_crawler'].homeX < window.__floor15.tower.barricadeX), 'the crawler spawns in the corridor, outside the barricade');
+  await tapWorld(page, 1560, line + 24); // out of the front door to the landing
+  check(await until(page, () => window.__floor15.state.zombies['scripted:tutorial_crawler'], null, 20000), 'walking up to the front door spawns the tutorial crawler');
+  check(await g(page, () => window.__floor15.state.zombies['scripted:tutorial_crawler'].homeX > window.__floor15.tower.barricadeX), 'the crawler spawns on the landing, outside the front door barricade');
   check(await until(page, () => window.__floor15.tutorialView.stepId === 'fight', null, 3000), 'hint says fight');
   await killAll(page, 'scripted:', 'tutorial crawler');
   check(await until(page, () => window.__floor15.state.story.tutorial === 'done', null, 5000), 'killing the crawler ends the tutorial');
@@ -269,7 +278,7 @@ try {
     s.balance.attacks.tuning = { spawnGapSeconds: 1.5 };
     s.state.build.barricade.hp = 1e6; // deterministic: the test's tap speed must not decide whether it holds
     s.state.needs.morale = 50;
-    s.debugGoto(15, 250);
+    s.debugGoto(15, 900);
     s.state.attacks.nextAt = Date.now() + 7000;
   });
   check(await until(page, () => window.__floor15.attacks.phase === 'cue', null, 6000), 'the cue phase starts before the attack');
@@ -316,41 +325,48 @@ try {
   await revealAll(page);
 
   // ------------------------------------------------------------ Mara: talk, bag, no bed, bed, moves in
-  await goto(page, 13, 200);
-  for (const id of ['f13_left#0', 'f13_left#1', 'f13_right#0', 'f13_right#1', 'f13_right#2']) await killZ(page, id); // all of floor 13 (level data may add more)
-  await g(page, () => { const s = window.__floor15; s.state.doors.f13_left.state = 'open'; s.view.refresh(); });
+  await goto(page, 13, 400);
+  for (const id of ['f13L-z1', 'f13L-z2', 'f13L-z3', 'f13R-z1', 'f13R-z2', 'f13R-z3']) await killZ(page, id); // all of floor 13 (level data may add more)
+  // Mara's bathroom door (x 240) is jammed: the hero bashes it open with taps (3 hits), like the front door
+  check(await g(page, () => window.__floor15.state.doors['f13L-door3'].state) === 'jammed', 'Mara\'s bathroom door is jammed');
   const l13 = await lineY(page, 13);
   const marax = await g(page, () => window.__floor15.tower.floors.get(13).apartments[0].survivors[0].x);
+  const door13 = await g(page, () => window.__floor15.tower.doors.get('f13L-door3').x);
+  // GDD 5.7: tapping Mara through her jammed bathroom door starts the talk and she unjams it from inside
   await tapWorld(page, marax, l13 - 48);
   const n1 = await readDialogue(page, 'Mara intro');
+  check(await g(page, () => window.__floor15.state.doors['f13L-door3'].state) === 'open', 'Mara unjams her bathroom door when the hero talks to her through it');
   check(n1 >= 3, `Mara speaks in short lines (${n1} taps)`);
   check(await g(page, () => window.__floor15.state.survivors.mara.quest) === 'asked', 'quest started: fetch the bag from 14');
   await tapWorld(page, marax, l13 - 48);
   await readDialogue(page, 'Mara reminder');
   check(await g(page, () => window.__floor15.state.survivors.mara.recruited) === false, 'no bag, no deal');
 
-  await goto(page, 14, 200);
-  await killZ(page, 'f14_left#0');
+  await goto(page, 14, 700);
+  await killZ(page, 'f14L-z1');
+  await killZ(page, 'f14L-z2');
   const l14 = await lineY(page, 14);
-  await tapWorld(page, 270, l14 - 48);
-  check(await until(page, () => window.__floor15.state.inventory.some((s) => s?.id === 'medical_bag'), null, 12000), 'tapping the medical bag on 14 picks it up');
-  await goto(page, 13, 200);
+  await tapWorld(page, 552, l14 - 48); // the Novak wardrobe holds the medical bag (fixedLoot)
+  check(await until(page, () => window.__floor15.menu.isOpen, null, 12000), 'wardrobe tap opens the action menu');
+  check(await tapMenu(page, 'Search'), 'wardrobe: Search tapped');
+  check(await until(page, () => window.__floor15.state.inventory.some((s) => s?.id === 'medical_bag'), null, 12000), 'searching the Novak wardrobe gives the medical bag');
+  await goto(page, 13, 400);
   await tapWorld(page, marax, l13 - 48);
   await readDialogue(page, 'Mara bag (no bed)');
   const noBed = await g(page, () => { const s = window.__floor15; return { q: s.state.survivors.mara.quest, rec: s.state.survivors.mara.recruited, bag: s.state.inventory.some((x) => x?.id === 'medical_bag') }; });
   check(noBed.q === 'asked' && !noBed.rec && noBed.bag, 'without a Survivor bed she says so and the bag stays with the hero');
 
-  await goto(page, 15, 300);
+  await goto(page, 15, 900);
   await g(page, () => { const s = window.__floor15; s.debugGive('wood', 6); s.debugGive('cloth', 2); });
   await sleep(300);
-  await tapWorld(page, 372, line - 84 - 48);
+  await tapWorld(page, 888, line - 48);
   await craftViaPanel(page, 'survivor_bed');
   check(await g(page, () => window.__floor15.placement.active), 'Survivor bed asks for a spot');
   const spot = await g(page, () => { const p = window.__floor15.placement.spots[0]; return { x: p.x, cy: p.cy }; });
   await tapWorld(page, spot.x, spot.cy);
   check(await until(page, () => Object.values(window.__floor15.state.build.spots).some((p) => p.id === 'survivor_bed'), null, 5000), 'Survivor bed placed');
   const m0 = await g(page, () => window.__floor15.state.needs.morale);
-  await goto(page, 13, 200);
+  await goto(page, 13, 400);
   await tapWorld(page, marax, l13 - 48);
   await readDialogue(page, 'Mara joins');
   const rec = await g(page, () => {
@@ -361,7 +377,7 @@ try {
   check(rec.rec && rec.health === 100 && rec.crew, 'Mara moves in: recruited, 100 health, standing at home');
   check(!rec.f13 && rec.crewBtn, 'she is gone from floor 13 and the Crew button appears');
   check(rec.morale >= Math.min(100, m0 + 15 - 1), `recruit morale bonus (+15 from ${Math.round(m0)} to ${Math.round(rec.morale)})`);
-  await goto(page, 15, 300);
+  await goto(page, 15, 900);
   await sleep(300);
 
   // Crew screen
@@ -415,7 +431,7 @@ try {
     s.debugGive('bandage', 2);
     s.state.survivors.mara.health = 64;
     s.state.needs.food = 12; s.state.needs.water = 14; s.state.needs.energy = 33;
-    s.debugGoto(15, 250);
+    s.debugGoto(15, 900);
   });
   const lineH = await lineY(page, 15);
   await g(page, () => { window.__floor15.state.needs.health = -5; }); // below 0: regen cannot lift it back above 0 before the next check
@@ -440,8 +456,8 @@ try {
   check(t2.bandage === 'Patches you up.', 'bandage still described in words as Mara (Steady hands maths is unit tested)');
   await page.screenshot({ path: `${shots}/e2e-as-mara-360x800.png` });
   // she can walk: tap the floor
-  await tapWorld(page, 320, lineH + 24);
-  check(await until(page, () => Math.abs(window.__floor15.state.hero.x - 320) < 3, null, 8000), 'Mara walks with taps');
+  await tapWorld(page, 800, lineH + 24);
+  check(await until(page, () => Math.abs(window.__floor15.state.hero.x - 800) < 3, null, 12000), 'Mara walks with taps');
   // Mara dies: game over
   await g(page, () => { window.__floor15.state.needs.health = -5; });
   check(await until(page, () => window.__floor15.gameOver, null, 8000), 'Mara dying (active) is game over');

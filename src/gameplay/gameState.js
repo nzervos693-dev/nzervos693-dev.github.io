@@ -10,7 +10,14 @@ import { initZombies } from './zombies.js';
 import { newStory } from './tutorial.js';
 import { startAttackClock } from './attacks.js';
 
-export const STATE_VERSION = 1;
+export const STATE_VERSION = 2;
+
+/**
+ * Is this saved game from an older milestone layout (stage 1 / M1 floors)? Such a save is deleted on launch with
+ * the line "The building has changed." (GDD 11.3). A save that never started a game is not stale.
+ */
+export const isStaleGame = (game) => !!game && typeof game === 'object' && !!game.started && !(game.v >= STATE_VERSION);
+export const STALE_SAVE_TITLE = 'The building has changed.';
 /**
  * STATE_MIGRATIONS[n] upgrades a version-n game state to n+1 (same pattern as core/save.js).
  * Add a step and bump STATE_VERSION when the shape changes.
@@ -118,8 +125,8 @@ export function normalizeGameState(raw, balance, tower, nowMs) {
   s.wanderAt = s.wanderAt && typeof s.wanderAt === 'object' ? s.wanderAt : {};
   s.equipped = s.equipped && Number.isInteger(s.equipped.slot) && typeof s.equipped.id === 'string' ? s.equipped : null;
   s.times = { startedAt: nowMs, lastTickAt: nowMs, ...(s.times || {}) };
-  for (const apt of tower.apartments.values()) {
-    if (!s.doors[apt.id]) s.doors[apt.id] = { state: apt.doorState || 'open', hits: 0 };
+  for (const d of tower.doors.values()) {
+    if (!s.doors[d.id]) s.doors[d.id] = { state: d.state || 'open', hits: 0 };
   }
   for (const [n, f] of tower.floors) if (!s.floorStates[n]) s.floorStates[n] = f.startState || 'Infested';
   s.build = normalizeBuild(s.build, balance, tower, s);
@@ -130,7 +137,7 @@ export function normalizeGameState(raw, balance, tower, nowMs) {
 
 /**
  * Complete and sanitise state.build: drop records of unknown recipes; refund (to the stockpile, else a
- * pile) records whose spot no longer exists in floors.json; clamp producer numbers; reset an unknown
+ * pile) records whose spot no longer exists in the level data; clamp producer numbers; reset an unknown
  * barricade level and clamp its HP to 0..max of its level.
  */
 function normalizeBuild(raw, balance, tower, s) {

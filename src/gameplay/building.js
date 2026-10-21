@@ -1,7 +1,7 @@
 /**
  * Build spots, placed objects and the Secure floor action (GDD 5.6). Pure, no Phaser.
  * State: state.build = { spots: { [key]: record }, barricade: { level, hp } }, key = `${floor}:${spotId}`.
- * Spots come from floors.json (home apartment buildSpots); counts are capped by balance.home.
+ * Spots come from the home units (buildSpots.js): free slots of the start flat and of the cleared unit next door.
  */
 import { addItem, countItem, removeItem, fitCount } from './inventory.js';
 import { addPile } from './gameState.js';

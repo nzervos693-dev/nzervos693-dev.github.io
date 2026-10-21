@@ -6,7 +6,7 @@
  */
 import { isAudioUnlocked } from '../core/audio.js';
 import { nextGroanGap, nextAmbientGap, pickNoRepeat, musicAllowed, musicCooldownMs, randBetween } from '../gameplay/soundscape.js';
-import { stairVolume, cueConfig } from '../gameplay/cue.js';
+import { stairVolume, cueConfig, doorDistanceFactor } from '../gameplay/cue.js';
 import { floorAtY } from '../gameplay/layout.js';
 import { roomRefAt } from '../gameplay/zombies.js';
 import { playSfx, stopSfx, setLoopVolume, hasSfx } from './sfx.js';
@@ -95,9 +95,17 @@ export default class Soundscape {
     setLoopVolume('stair_shuffle', 0);
   }
 
+  /** Stairwell volume 0..1: by floors from the camera, and by how far the camera is from the home door (x). */
+  stairLevel() {
+    const { scene } = this;
+    const cam = scene.cameras.main;
+    return stairVolume(this.cameraFloor(), scene.tower.homeFloor, scene.balance)
+      * doorDistanceFactor(cam.scrollX + cam.width / 2, scene.tower.barricadeX, scene.balance);
+  }
+
   /** One muffled bang from the stairwell, volume by distance of the camera's floor from the attacked floor. */
   bang(name) {
-    const v = stairVolume(this.cameraFloor(), this.scene.tower.homeFloor, this.scene.balance);
+    const v = this.stairLevel();
     if (v <= 0 || !hasSfx(this.scene, name)) return;
     playSfx(this.scene, name, { volume: v, rate: 0.97 + this.rng() * 0.06 });
   }
@@ -113,7 +121,7 @@ export default class Soundscape {
 
   updateStair(dt) {
     const st = this.stair;
-    const target = st.on ? stairVolume(this.cameraFloor(), this.scene.tower.homeFloor, this.scene.balance) * SHUFFLE_VOLUME : 0;
+    const target = st.on ? this.stairLevel() * SHUFFLE_VOLUME : 0;
     const step = dt / SHUFFLE_FADE_SECONDS;
     st.vol += Math.max(-step, Math.min(step, target - st.vol));
     if (st.vol > 0.001) { setLoopVolume('stair_shuffle', st.vol); st.playing = true; } else if (st.playing && !st.on) { stopSfx('stair_shuffle'); st.playing = false; }

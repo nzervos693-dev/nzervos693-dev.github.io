@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import balance from '../public/data/balance.json';
-import floorsData from '../public/data/levels/floors.json';
+import { towerData, makeTower } from './helpers/tower.js';
 import { tickNeeds, applyItem, initNeeds } from '../src/gameplay/needs.js';
 import { catchUp } from '../src/gameplay/offline.js';
 import { createSlots, addItem, moveAll, moveStack, countItem, removeItem, normalizeSlots, fitCount } from '../src/gameplay/inventory.js';
@@ -10,7 +10,7 @@ import { limitWalk, hitJammedDoor, stepToward, doorStopX } from '../src/gameplay
 import { elapsedInfo } from '../src/core/clock.js';
 import { formatDuration, reportLines } from '../src/gameplay/report.js';
 
-const tower = buildTower(floorsData, balance);
+const tower = makeTower(balance);
 const HOUR = 3600e3;
 
 describe('offline math matches balance.json (GDD 5.1/5.2)', () => {
@@ -189,21 +189,25 @@ describe('tower geometry', () => {
 });
 
 describe('routing edge cases', () => {
-  const jam = { f15_right: { state: 'jammed', hits: 0 } };
+  const jam = { f15R: { state: 'jammed', hits: 0 } }; // front door of the right flat, x 1680
   it('hero already past a jammed door is not blocked', () => {
-    expect(limitWalk(tower, jam, 15, 500, 650).x).toBe(650);
+    expect(limitWalk(tower, jam, 15, 1750, 2000).x).toBe(2000);
   });
-  it('walking left is never blocked', () => {
-    expect(limitWalk(tower, jam, 15, 388, 200).blockedApt).toBeNull();
+  it('a walk that moves away from the door is never blocked', () => {
+    expect(limitWalk(tower, jam, 15, 1600, 1500).blockedDoor).toBeNull();
   });
   it('a walk that ends before the door is not blocked', () => {
-    expect(limitWalk(tower, jam, 15, 200, 300).blockedApt).toBeNull();
+    expect(limitWalk(tower, jam, 15, 1500, 1620).blockedDoor).toBeNull();
   });
   it('hero standing exactly at the stop point is still held back', () => {
-    const apt = tower.apartments.get('f15_right');
-    const r = limitWalk(tower, jam, 15, doorStopX(apt), 600);
-    expect(r.x).toBe(doorStopX(apt));
-    expect(r.blockedApt).toBe(apt);
+    const door = tower.apartments.get('f15R').front;
+    const r = limitWalk(tower, jam, 15, doorStopX(door, 1500), 2000);
+    expect(r.x).toBe(doorStopX(door, 1500));
+    expect(r.blockedDoor).toBe(door);
+  });
+  it('a jammed door blocks from either side', () => {
+    const door = tower.apartments.get('f15R').front;
+    expect(limitWalk(tower, jam, 15, 2000, 1500)).toEqual({ x: 1722, blockedDoor: door });
   });
   it('extra hits on an open door do not re-close it', () => {
     const d = { state: 'open', hits: 3 };
@@ -236,11 +240,13 @@ describe('game state edge cases', () => {
   });
   it('normalize keeps open doors and entered rooms from a save', () => {
     const s = createGameState(balance, tower, 1);
-    s.doors.f15_right.state = 'open';
-    enterRoom(s, tower.apartments.get('f13_right'), tower.apartments.get('f13_right').rooms[0]);
+    s.doors.f15R.state = 'open';
+    s.doors['f13L-door3'].state = 'open';
+    enterRoom(s, tower.apartments.get('f13R'), tower.apartments.get('f13R').rooms[0]);
     const again = normalizeGameState(JSON.parse(JSON.stringify(s)), balance, tower, 9);
-    expect(again.doors.f15_right.state).toBe('open');
-    expect(again.rooms['f13_right:kitchen']).toBe(true);
+    expect(again.doors.f15R.state).toBe('open');
+    expect(again.doors['f13L-door3'].state).toBe('open');
+    expect(again.rooms['f13R:reception']).toBe(true);
   });
   it('piles on the same spot merge; a partial pickup leaves the rest', () => {
     const s = createGameState(balance, tower, 1);

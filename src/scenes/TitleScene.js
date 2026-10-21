@@ -4,6 +4,9 @@ import { isMuted, toggleMute, onMuteChange } from '../core/audio.js';
 import { getSafeArea } from '../core/safeArea.js';
 import { button, label, COLORS, CSS } from './ui.js';
 import { exposeScene } from './debug.js';
+import Popup from './Popup.js';
+import { STALE_SAVE_FLAG } from './BootScene.js';
+import { STALE_SAVE_TITLE } from '../gameplay/gameState.js';
 
 /**
  * Title screen (GDD 8.1): logo, Continue (when a game is saved), New game (asks first when a save
@@ -39,6 +42,11 @@ export default class TitleScene extends Phaser.Scene {
     upSound();
     const off = onMuteChange(upSound);
     this.events.once('shutdown', off);
+    if (this.registry.get(STALE_SAVE_FLAG)) { // an old save was cleared at boot: say so once
+      this.registry.set(STALE_SAVE_FLAG, false);
+      this.popup = new Popup(this);
+      this.popup.show(STALE_SAVE_TITLE, ['Your old game could not be kept. Start a new one.']);
+    }
     exposeScene(this);
   }
 

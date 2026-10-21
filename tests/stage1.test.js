@@ -4,8 +4,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import balance from '../public/data/balance.json';
-import floorsData from '../public/data/levels/floors.json';
-import { buildTower } from '../src/gameplay/layout.js';
+import { towerData, makeTower } from './helpers/tower.js';
 import { createGameState } from '../src/gameplay/gameState.js';
 import { seededRng } from '../src/gameplay/rng.js';
 import { addItem } from '../src/gameplay/inventory.js';
@@ -26,7 +25,7 @@ import { barricadeStage, barricadeDamage } from '../src/gameplay/barricade.js';
 import { rollLoot, emptyChanceFor } from '../src/gameplay/loot.js';
 import { conditionWord, wearWord } from '../src/gameplay/words.js';
 
-const tower = buildTower(floorsData, balance);
+const tower = makeTower(balance);
 const tune = zombieTuning(balance);
 const T0 = 1_000_000;
 const fresh = () => createGameState(balance, tower, T0);
@@ -247,8 +246,8 @@ describe('stealth and sight', () => {
     expect(first + bat).toBeGreaterThanOrEqual(z.hp);
   });
   it('sight radius: landing is Dim (110), a room is Grey in stage 1 (180)', () => {
-    expect(sightRadius(tower, 15, 40, balance)).toBe(110);
-    expect(sightRadius(tower, 15, 300, balance)).toBe(180);
+    expect(sightRadius(tower, 15, 1560, balance)).toBe(110);
+    expect(sightRadius(tower, 15, 900, balance)).toBe(180);
   });
   it('a noise-alerted zombie walks toward the noise, not the hero, and loses track after 8 s', () => {
     const z = makeZombie('t', 'walker', 14, 600, balance);

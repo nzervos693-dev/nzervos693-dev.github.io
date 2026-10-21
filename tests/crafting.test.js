@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import balance from '../public/data/balance.json';
-import floorsData from '../public/data/levels/floors.json';
-import { buildTower } from '../src/gameplay/layout.js';
+import { towerData, makeTower } from './helpers/tower.js';
 import { createGameState, normalizeGameState } from '../src/gameplay/gameState.js';
 import { addItem, countItem } from '../src/gameplay/inventory.js';
 import {
@@ -16,12 +15,12 @@ import {
 import { advanceProducer, tickProducers, tenderMult, productionLines, intervalSeconds } from '../src/gameplay/producers.js';
 import { atHome } from '../src/gameplay/buildSpots.js';
 import { getDefense } from '../src/gameplay/defense.js';
-import { movementBounds, makeAi, stepZombie, makeZombie, STEP_BARRICADE, STEP_ATTACK, zombieTuning, startChase } from '../src/gameplay/zombies.js';
+import { zombieId, barricadeInside, movementBounds, makeAi, stepZombie, makeZombie, STEP_BARRICADE, STEP_ATTACK, zombieTuning, startChase } from '../src/gameplay/zombies.js';
 import { catchUp } from '../src/gameplay/offline.js';
 import { reportLines } from '../src/gameplay/report.js';
 import { seededRng } from '../src/gameplay/rng.js';
 
-const tower = buildTower(floorsData, balance);
+const tower = makeTower(balance);
 const fresh = () => createGameState(balance, tower, 1000);
 const give = (s, id, n, where = 'inventory') => addItem(s[where], id, n, balance);
 /** Clear the home floor's apartments and dismantle everything so every home build spot is usable. */
@@ -29,11 +28,17 @@ const unlock = (s) => {
   for (const apt of tower.apartments.values()) {
     if (apt.floor !== 15) continue;
     for (const o of apt.objects) s.objects[o.id] = { searched: true, dismantled: true };
-    (apt.zombies || []).forEach((_, i) => { s.zombies[`${apt.id}#${i}`].dead = true; });
+    (apt.zombies || []).forEach((_, i) => { s.zombies[zombieId(apt, i)].dead = true; });
   }
 };
 /** Floor 13/14 zombies dead so a Cleared state is true. */
 const killFloor = (s, n) => { for (const z of Object.values(s.zombies)) if (z.floor === n) z.dead = true; };
+/** Stage 2 home spot keys: f15L spots are authored in tower_m2.json (start flat). */
+const SP = {
+  hall: '15:f15L-spot-hallway-floor0', living2: '15:f15L-spot-kitchen-floor1', kitchen1: '15:f15L-spot-kitchen-floor1',
+  chair: '15:f15L-spot-living-floor0', table: '15:f15L-spot-living-floor1',
+  win1: '15:f15L-spot-living-wall1', win2: '15:f15L-spot-bedroom-wall1',
+};
 const craft = (s, id, target) => performCraft(s, tower, balance, id, target);
 
 describe('recipe list', () => {
@@ -131,43 +136,44 @@ describe('crafting items', () => {
 });
 
 describe('build spots and placing', () => {
-  it('home has 2 window and 4 floor spots across f15_left and f15_right', () => {
+  it('the start flat lists 2 window and 5 floor spots (x 888 is taken by the workbench in practice; chair and table slots free once dismantled)', () => {
     const spots = homeSpots(tower, balance);
-    expect(spots.filter((x) => x.kind === 'window').map((x) => x.x)).toEqual([468, 570]);
-    expect(spots.filter((x) => x.kind === 'floor').map((x) => x.x)).toEqual([168, 270, 468, 570]);
-    expect(spots[0].key).toBe(spotKey(15, 's1'));
+    expect(spots.filter((x) => x.apt === 'f15L' && x.kind === 'window').map((x) => x.x)).toEqual([1032, 312]);
+    expect(spots.filter((x) => x.apt === 'f15L' && x.kind === 'floor').map((x) => x.x)).toEqual([1368, 1128, 1032, 888, 552]);
+    expect(spots.find((x) => x.kind === 'floor').key).toBe(spotKey(15, 'f15L-spot-hallway-floor0'));
   });
-  it('spots need their slot empty and f15_right cleared', () => {
+  it('spots need their slot empty, and the other flat of floor 15 must be cleared', () => {
     const s = fresh();
-    expect(homeSpots(tower, balance, s)).toEqual([]);
-    expect(craftCheck(s, tower, balance, 'planter').reason).toBe('No free spot');
-    s.objects['f15L-01'] = { dismantled: true }; // chair slot
-    expect(homeSpots(tower, balance, s).map((x) => x.key)).toEqual(['15:s1']);
-    s.objects['f15L-02'] = { dismantled: true };
-    expect(homeSpots(tower, balance, s).map((x) => x.key)).toEqual(['15:s1', '15:s2']);
-    // right flat: dismantled furniture is not enough while it is not cleared
-    for (const id of ['f15R-01', 'f15R-02', 'f15R-04', 'f15R-05']) s.objects[id] = { dismantled: true };
-    expect(homeSpots(tower, balance, s)).toHaveLength(2);
-    s.objects['f15R-02'].searched = true; s.objects['f15R-06'] = { searched: true };
-    expect(homeSpots(tower, balance, s)).toHaveLength(2); // its crawler still lives
-    s.zombies['f15_right#0'].dead = true;
-    expect(homeSpots(tower, balance, s)).toHaveLength(6);
-    s.zombies['f15_right#0'].dead = false; // latched: cleared stays cleared
-    expect(homeSpots(tower, balance, s)).toHaveLength(6);
+    expect(homeSpots(tower, balance, s).map((x) => x.key).sort()).toEqual([SP.hall, SP.kitchen1, SP.win1, SP.win2].sort());
+    s.objects['f15L-1-floor0'] = { dismantled: true }; // chair slot
+    expect(homeSpots(tower, balance, s).map((x) => x.key)).toContain(SP.chair);
+    s.objects['f15L-1-floor1'] = { dismantled: true };
+    expect(homeSpots(tower, balance, s).map((x) => x.key)).toContain(SP.table);
+    const base = homeSpots(tower, balance, s).length;
+    // right flat: its crawler still lives, so none of its slots are spots yet
+    s.zombies[zombieId(tower.apartments.get('f15R'), 0)].dead = false;
+    expect(homeSpots(tower, balance, s)).toHaveLength(base);
+    s.zombies[zombieId(tower.apartments.get('f15R'), 0)].dead = true;
+    const more = homeSpots(tower, balance, s);
+    expect(more.length).toBeGreaterThan(base); // every empty slot of f15R counts once cleared
+    expect(more.some((x) => x.apt === 'f15R' && x.kind === 'window')).toBe(true); // the kids' room wall slot is empty
+    s.zombies[zombieId(tower.apartments.get('f15R'), 0)].dead = false; // latched: cleared stays cleared
+    expect(homeSpots(tower, balance, s)).toHaveLength(more.length);
   });
-  it('home extends to f15_right once it is cleared', () => {
+  it('home extends to the right flat of floor 15 once it is cleared', () => {
     const s = fresh();
-    expect(atHome(tower, s, balance, 15, 300)).toBe(true);
-    expect(atHome(tower, s, balance, 15, 500)).toBe(false);
+    expect(atHome(tower, s, balance, 15, 900)).toBe(true);
+    expect(atHome(tower, s, balance, 15, 2000)).toBe(false);
     unlock(s);
-    expect(atHome(tower, s, balance, 15, 500)).toBe(true);
-    expect(atHome(tower, s, balance, 14, 500)).toBe(false);
+    expect(atHome(tower, s, balance, 15, 2000)).toBe(true);
+    expect(atHome(tower, s, balance, 15, 1560)).toBe(false); // the landing is never home
+    expect(atHome(tower, s, balance, 14, 2000)).toBe(false);
   });
   it('placed objects whose spot disappeared are refunded to the stockpile on load', () => {
     const s = fresh();
-    s.build.spots['15:s9'] = { id: 'rain_collector', floor: 15, spot: 's9', stored: 2, progress: 0, queue: 0 };
+    s.build.spots['15:f15L-gone'] = { id: 'rain_collector', floor: 15, spot: 'f15L-gone', stored: 2, progress: 0, queue: 0 };
     const n = normalizeGameState(JSON.parse(JSON.stringify(s)), balance, tower, 2000);
-    expect(n.build.spots['15:s9']).toBeUndefined();
+    expect(n.build.spots['15:f15L-gone']).toBeUndefined();
     expect(countItem(n.stockpile, 'plastic')).toBe(1);
     expect(countItem(n.stockpile, 'metal')).toBe(1);
     expect(countItem(n.stockpile, 'clean_water')).toBe(2);
@@ -176,46 +182,47 @@ describe('build spots and placing', () => {
     const s = fresh();
     unlock(s);
     give(s, 'plastic', 3); give(s, 'metal', 2);
-    expect(craft(s, 'rain_collector', { spot: '15:s1' })).toMatchObject({ ok: false, reason: 'Pick a free spot' });
+    expect(craft(s, 'rain_collector', { spot: SP.hall })).toMatchObject({ ok: false, reason: 'Pick a free spot' });
     expect(countItem(s.inventory, 'plastic')).toBe(3);
-    const r = craft(s, 'rain_collector', { spot: '15:w1' });
+    const r = craft(s, 'rain_collector', { spot: SP.win1 });
     expect(r.ok).toBe(true);
-    expect(s.build.spots['15:w1']).toMatchObject({ id: 'rain_collector', stored: 0 });
+    expect(s.build.spots[SP.win1]).toMatchObject({ id: 'rain_collector', stored: 0 });
     expect(countItem(s.inventory, 'plastic')).toBe(0);
-    expect(freeSpots(s, tower, balance, 'window')).toHaveLength(1);
+    expect(freeSpots(s, tower, balance, 'window').length).toBeGreaterThan(0);
   });
   it('is blocked when every spot of the kind is used', () => {
     const s = fresh();
     unlock(s);
-    for (const sp of ['w1', 'w2']) { give(s, 'plastic', 3); give(s, 'metal', 2); craft(s, 'rain_collector', { spot: `15:${sp}` }); }
+    for (const sp of [SP.win1, SP.win2]) { give(s, 'plastic', 3); give(s, 'metal', 2); craft(s, 'rain_collector', { spot: sp }); }
+    for (const sl of tower.apartments.get('f15R').slots.filter((x) => x.window)) { give(s, 'plastic', 3); give(s, 'metal', 2); craft(s, 'rain_collector', { spot: `15:${sl.id}` }); }
     give(s, 'plastic', 3); give(s, 'metal', 2);
-    expect(craft(s, 'rain_collector', { spot: '15:w1' }).reason).toBe('No free spot');
+    expect(craft(s, 'rain_collector', { spot: SP.win1 }).reason).toBe('No free spot');
   });
   it('survivor bed counts for piece 3b', () => {
     const s = fresh();
     unlock(s);
     give(s, 'wood', 6); give(s, 'cloth', 2);
-    craft(s, 'survivor_bed', { spot: '15:s3' });
+    craft(s, 'survivor_bed', { spot: SP.living2 });
     expect(survivorBeds(s, balance)).toBe(1);
   });
   it('dismantle refunds 50% of the cost rounded down plus stored output', () => {
     const s = fresh();
     unlock(s);
     give(s, 'plastic', 3); give(s, 'metal', 2);
-    craft(s, 'rain_collector', { spot: '15:w1' });
-    s.build.spots['15:w1'].stored = 2;
-    expect(dismantleRefund(s.build.spots['15:w1'], balance)).toEqual([
+    craft(s, 'rain_collector', { spot: SP.win1 });
+    s.build.spots[SP.win1].stored = 2;
+    expect(dismantleRefund(s.build.spots[SP.win1], balance)).toEqual([
       { id: 'plastic', qty: 1 }, { id: 'metal', qty: 1 }, { id: 'clean_water', qty: 2 },
     ]);
     give(s, 'wood', 3); give(s, 'plastic', 1); give(s, 'seeds', 1);
-    craft(s, 'planter', { spot: '15:s2' });
-    expect(dismantleRefund(s.build.spots['15:s2'], balance)).toEqual([{ id: 'wood', qty: 1 }]);
+    craft(s, 'planter', { spot: SP.living2 });
+    expect(dismantleRefund(s.build.spots[SP.living2], balance)).toEqual([{ id: 'wood', qty: 1 }]);
   });
   it('survives save normalisation and drops unknown recipes', () => {
     const s = fresh();
-    s.build.spots['15:s1'] = { id: 'nope' };
+    s.build.spots[SP.hall] = { id: 'nope' };
     const n = normalizeGameState(JSON.parse(JSON.stringify(s)), balance, tower, 2000);
-    expect(n.build.spots['15:s1']).toBeUndefined();
+    expect(n.build.spots[SP.hall]).toBeUndefined();
     expect(n.build.barricade).toEqual({ level: 0, hp: 0 });
     const old = normalizeGameState({ started: true }, balance, tower, 2000);
     expect(old.build.spots).toEqual({});
@@ -253,33 +260,34 @@ describe('barricade', () => {
     expect(repairBarricade(s, balance)).toBe(5);
     expect(countItem(s.inventory, 'wood')).toBe(9); // repairBarricade alone does not pay
   });
-  it('tower knows the barricade x from floors.json', () => {
-    expect(tower.barricadeX).toBe(100);
+  it('tower puts the barricade on the home front door (x 1440), inside is the left', () => {
+    expect(tower.barricadeX).toBe(1440);
+    expect(tower.barricadeInside).toBe(-1);
     expect(tower.floors.get(15).stairwell.xMax).toBe(tower.stairwell.xMax);
   });
 });
 
-describe('zombies and the barricade', () => {
-  const doors = { f15_right: { state: 'jammed' } };
-  const bar = (up) => ({ up, floor: 15, x: 100 });
+describe('zombies and the barricade (front door of the left home wing)', () => {
+  const doors = { f15R: { state: 'jammed' } };
+  const bar = (up) => ({ up, floor: 15, x: 1440, inside: -1 });
   it('is a wall for zombies on both sides while up, nothing when broken', () => {
     const out = { min: 0, max: 0 };
-    movementBounds(tower, doors, 15, 40, out, bar(true));
-    expect(out.max).toBe(88);
-    movementBounds(tower, doors, 15, 200, out, bar(true));
-    expect(out.min).toBe(112);
-    movementBounds(tower, doors, 15, 40, out, bar(false));
-    expect(out.max).toBeGreaterThan(300);
-    movementBounds(tower, doors, 14, 40, out, bar(true));
-    expect(out.max).toBeGreaterThan(300);
+    movementBounds(tower, doors, 15, 1560, out, bar(true)); // on the landing (outside)
+    expect(out.min).toBe(1452);
+    movementBounds(tower, doors, 15, 1300, out, bar(true)); // inside the flat
+    expect(out.max).toBe(1428);
+    movementBounds(tower, doors, 15, 1560, out, bar(false));
+    expect(out.min).toBeLessThan(1440);
+    movementBounds(tower, doors, 14, 1560, out, bar(true));
+    expect(out.min).toBeLessThan(1440);
   });
   function setup(up) {
     const types = balance.zombies.types;
     const env = {
-      tower, doors: {}, heroFloor: 15, heroX: 250, heroRoom: null, types, sightRadius: 200, attackRange: 30,
+      tower, doors: {}, heroFloor: 15, heroX: 1300, heroRoom: null, types, sightRadius: 200, attackRange: 30,
       tune: zombieTuning(balance), rng: seededRng(1), bounds: { min: 0, max: 0 }, barricade: bar(up),
     };
-    const z = makeZombie('t', 'crawler', 15, 40, balance);
+    const z = makeZombie('t', 'crawler', 15, 1560, balance);
     const ai = makeAi();
     startChase(ai, env.tune); // already hunting (an intact barricade blocks sight, so it cannot notice the hero through it)
     return { env, z, ai };
@@ -287,25 +295,31 @@ describe('zombies and the barricade', () => {
   it('a chasing zombie stops at the barricade and hits it, never the hero', () => {
     const { env, z, ai } = setup(true);
     let barHits = 0; let heroHits = 0;
-    for (let i = 0; i < 600; i++) {
-      const f = stepZombie(z, ai, { ...env, heroX: 120 }, 0.05);
+    for (let i = 0; i < 900; i++) {
+      const f = stepZombie(z, ai, { ...env, heroX: 1420 }, 0.05);
       if (f & STEP_BARRICADE) barHits++;
       if (f & STEP_ATTACK) heroHits++;
     }
-    expect(z.x).toBeCloseTo(88, 0);
+    expect(z.x).toBeCloseTo(1452, 0);
     expect(heroHits).toBe(0);
-    expect(barHits).toBeGreaterThanOrEqual(8); // 30 s at one hit per 2.5 s, after the windup
+    expect(barHits).toBeGreaterThanOrEqual(8); // ~30 s at one hit per 2.5 s, after the windup and the walk
   });
   it('walks through once the barricade is down', () => {
     const { env, z, ai } = setup(false);
-    for (let i = 0; i < 600; i++) stepZombie(z, ai, env, 0.05);
-    expect(z.x).toBeGreaterThan(200);
+    for (let i = 0; i < 1200; i++) stepZombie(z, ai, env, 0.05);
+    expect(z.x).toBeLessThan(1400);
   });
   it('a hero outside the barricade is bitten normally', () => {
     const { env, z, ai } = setup(true);
     let hero = 0;
-    for (let i = 0; i < 100; i++) if (stepZombie(z, ai, { ...env, heroX: 60 }, 0.05) & STEP_ATTACK) hero++;
+    for (let i = 0; i < 100; i++) if (stepZombie(z, ai, { ...env, heroX: 1540 }, 0.05) & STEP_ATTACK) hero++;
     expect(hero).toBeGreaterThan(0);
+  });
+  it('the hero standing in the doorway counts as inside; an inside zombie is never blocked outward by a hit on it', () => {
+    expect(barricadeInside(bar(true), 1440)).toBe(true);
+    expect(barricadeInside(bar(true), 1441)).toBe(false);
+    expect(barricadeInside(bar(true), 100)).toBe(true);
+    expect(barricadeInside({ up: true, floor: 15, x: 1680, inside: 1 }, 1680)).toBe(true);
   });
 });
 
@@ -343,8 +357,8 @@ describe('producers', () => {
     const s = fresh();
     unlock(s);
     give(s, 'wood', 3); give(s, 'plastic', 1); give(s, 'seeds', 1);
-    craft(s, 'planter', { spot: '15:s1' });
-    const p = s.build.spots['15:s1'];
+    craft(s, 'planter', { spot: SP.hall });
+    const p = s.build.spots[SP.hall];
     tickProducers(s, balance, 7 * 3600);
     expect(p.stored).toBe(0);
     expect(p.waiting).toBe(true);
@@ -361,8 +375,8 @@ describe('producers', () => {
     const s = fresh();
     unlock(s);
     give(s, 'plastic', 2); give(s, 'cloth', 2); give(s, 'parts', 1);
-    craft(s, 'water_filter', { spot: '15:s2' });
-    const p = s.build.spots['15:s2'];
+    craft(s, 'water_filter', { spot: SP.living2 });
+    const p = s.build.spots[SP.living2];
     give(s, 'dirty_water', 4); give(s, 'dirty_water', 5, 'stockpile');
     const loc = { floor: 15, x: 200 };
     expect(builtActions(s, balance, p)[0]).toMatchObject({ kind: 'use', label: 'Load', enabled: true });
@@ -383,8 +397,8 @@ describe('producers', () => {
     const s = fresh();
     unlock(s);
     give(s, 'wood', 3); give(s, 'plastic', 1); give(s, 'seeds', 1);
-    craft(s, 'planter', { spot: '15:s1' });
-    const p = s.build.spots['15:s1'];
+    craft(s, 'planter', { spot: SP.hall });
+    const p = s.build.spots[SP.hall];
     p.stored = 3;
     for (let i = 0; i < balance.inventory.carrySlots; i++) s.inventory[i] = { id: 'wood', qty: 20 };
     s.stockpile.fill(null);
@@ -410,11 +424,11 @@ describe('producers', () => {
     const s = fresh();
     unlock(s);
     give(s, 'plastic', 3); give(s, 'metal', 2);
-    craft(s, 'rain_collector', { spot: '15:w1' });
+    craft(s, 'rain_collector', { spot: SP.win1 });
     const sim = { needs: s.needs, stockpile: s.stockpile, ctx: {} };
     const hook = (_sim, seconds, _t, rep) => tickProducers(s, balance, seconds, rep);
     const report = catchUp(sim, 7 * 3600 * 1000, balance, { startMs: 0, stepHooks: [hook] });
-    expect(s.build.spots['15:w1'].stored).toBe(2);
+    expect(s.build.spots[SP.win1].stored).toBe(2);
     expect(report.production.rain_collector).toMatchObject({ made: 2, full: false });
     const lines = reportLines(report, balance);
     expect(lines).toContain('The rain collector made 2 clean water.');

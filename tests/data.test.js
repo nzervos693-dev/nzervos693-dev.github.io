@@ -1,22 +1,24 @@
 import { describe, it, expect } from 'vitest';
 import balance from '../public/data/balance.json';
-import floorsData from '../public/data/levels/floors.json';
+import { towerData, makeTower } from './helpers/tower.js';
 import lootData from '../public/data/levels/loot.json';
 import manifest from '../public/assets/art/manifest.json';
-import { buildTower, M1_FLOOR_WIDTH } from '../src/gameplay/layout.js';
 
 const items = balance.items;
 const allObjects = [];
-for (const f of floorsData.floors) {
-  for (const a of f.apartments) for (const o of a.objects || []) allObjects.push({ f, a, o });
+const unitsOf = (f) => [f.left, f.right].filter(Boolean);
+for (const f of towerData.floors) {
+  for (const a of unitsOf(f)) for (const o of a.objects || []) allObjects.push({ f, a, o });
 }
 const hasFrame = (key, name) => manifest.files.find((x) => x.key === key)?.names.includes(name);
 
 describe('data files: references resolve', () => {
   it('every placed object has a balance definition and art', () => {
     for (const { o } of allObjects) {
+      if (o.fixture) continue; // the workbench is a fixture: not in balance.objects, drawn from the build sheet
       expect(balance.objects[o.objectId], `${o.id} objectId ${o.objectId}`).toBeTruthy();
-      expect(hasFrame('props_s', o.objectId) || hasFrame('props_l', o.objectId), `art for ${o.objectId}`).toBe(true);
+      const art = ['props_s', 'props_l', 'props_s2', 'props_l2'].some((k) => hasFrame(k, o.objectId));
+      expect(art, `art for ${o.objectId}`).toBe(true);
     }
   });
 
@@ -54,9 +56,11 @@ describe('data files: references resolve', () => {
 
   it('fixedLoot, quest items and recipes reference real items', () => {
     for (const { o } of allObjects) for (const f of o.fixedLoot || []) expect(items[f.id], `${o.id} fixedLoot ${f.id}`).toBeTruthy();
-    for (const f of floorsData.floors) for (const a of f.apartments) for (const q of a.questItems || []) {
-      expect(items[q.itemId], q.id).toBeTruthy();
-      expect(hasFrame('icons', q.itemId), `icon for quest item ${q.itemId}`).toBe(true);
+    for (const f of towerData.floors) for (const a of unitsOf(f)) for (const q of a.questItems || []) {
+      // quest goods are fixedLoot of a container (tower_m2.json questItems point at it)
+      const box = a.objects.find((o) => o.id === q.container);
+      expect(box?.fixedLoot?.some((l) => l.id === q.id), `${q.id} in ${q.container}`).toBe(true);
+      expect(hasFrame('icons', q.id), `icon for quest item ${q.id}`).toBe(true);
     }
     for (const [id, r] of Object.entries(balance.recipes)) {
       for (const k of Object.keys(r.cost)) expect(items[k], `${id} cost ${k}`).toBeTruthy();
@@ -74,57 +78,84 @@ describe('data files: references resolve', () => {
 });
 
 describe('data files: level layout rules', () => {
-  const L = floorsData.layout;
+  const w = balance.world;
+  const doorX = { left: w.wingWidthPx, right: w.wingWidthPx + w.stairwellWidthPx };
+  const edge = (side, d) => (side === 'left' ? doorX.left - d : doorX.right + d);
+
   it('covers floors floorMin..floorMax once, with exactly one home on the home floor', () => {
-    const nums = floorsData.floors.map((f) => f.number).sort((a, b) => a - b);
+    const nums = towerData.floors.map((f) => f.number).sort((a, b) => a - b);
     const want = [];
-    for (let n = balance.world.floorMin; n <= balance.world.floorMax; n++) want.push(n);
+    for (let n = w.floorMin; n <= w.floorMax; n++) want.push(n);
     expect(nums).toEqual(want);
-    const homes = floorsData.floors.flatMap((f) => f.apartments.filter((a) => a.isHome).map(() => f.number));
+    const homes = towerData.floors.flatMap((f) => unitsOf(f).filter((a) => a.isHome).map(() => f.number));
     expect(homes).toEqual([balance.home.startFloor]);
   });
 
-  it('objects in one layer are at least minHitAreaPx apart on a floor', () => {
-    const min = balance.controls.minHitAreaPx;
-    for (const f of floorsData.floors) {
-      const objs = f.apartments.flatMap((a) => a.objects || []);
-      for (const layer of ['floor', 'wall']) {
-        const xs = objs.filter((o) => (o.layer || 'floor') === layer).map((o) => o.x).sort((a, b) => a - b);
-        for (let i = 1; i < xs.length; i++) expect(xs[i] - xs[i - 1], `floor ${f.number} ${layer} ${xs[i - 1]}/${xs[i]}`).toBeGreaterThanOrEqual(min);
-      }
-    }
-  });
-
-  it('every object lies inside its apartment rooms and apartments fit the floor', () => {
-    for (const f of floorsData.floors) for (const a of f.apartments) {
+  it('every unit has 6 modules of rooms laid out from the front door, with no gaps', () => {
+    for (const f of towerData.floors) for (const side of ['left', 'right']) {
+      const a = f[side];
+      let at = 0;
       for (const r of a.rooms) {
-        expect(r.xMin).toBeGreaterThanOrEqual(L.stairwell.xMax);
-        expect(r.xMax).toBeLessThanOrEqual(balance.world.floorWidthPx);
+        expect(r.startModule, `${a.id} ${r.ref}`).toBe(at);
+        at += r.modules;
+        expect([1, 2, 3]).toContain(r.modules);
       }
-      for (const o of a.objects || []) {
-        expect(o.x, `${o.id}`).toBeGreaterThanOrEqual(a.rooms[0].xMin);
-        expect(o.x, `${o.id}`).toBeLessThanOrEqual(a.rooms[a.rooms.length - 1].xMax);
-        if (o.room) expect(a.rooms.map((r) => r.id)).toContain(o.room);
+      expect(at, a.id).toBe(w.modulesPerWing);
+    }
+  });
+
+  it('every object sits on its slot formula x, in its room, at least 96 px from same-layer neighbours', () => {
+    const min = balance.controls.minHitAreaPx;
+    for (const f of towerData.floors) for (const side of ['left', 'right']) {
+      const a = f[side];
+      for (const o of a.objects) {
+        const room = a.rooms.find((r) => r.ref === o.room);
+        expect(room, `${o.id} room`).toBeTruthy();
+        const [, layer, k] = /^(floor|wall)(\d+)$/.exec(o.slot);
+        expect(o.layer, o.id).toBe(layer);
+        expect(Number(k), `${o.id} slot inside the room`).toBeLessThan(room.modules * 2);
+        const d = room.startModule * w.moduleWidthPx + w.moduleWidthPx * Math.floor(Number(k) / 2) + w.slotOffsetsPx[Number(k) % 2];
+        expect(o.x, `${o.id} x`).toBe(edge(side, d));
+        expect(o.id).toBe(`${a.id}-${a.rooms.indexOf(room)}-${o.slot}`);
+      }
+      for (const layer of ['floor', 'wall']) {
+        const xs = a.objects.filter((o) => o.layer === layer).map((o) => o.x).sort((p, q) => p - q);
+        for (let i = 1; i < xs.length; i++) expect(xs[i] - xs[i - 1], `${a.id} ${layer}`).toBeGreaterThanOrEqual(min);
+      }
+      const slots = a.objects.map((o) => `${o.room}:${o.slot}`);
+      expect(new Set(slots).size, `${a.id} one object per slot`).toBe(slots.length);
+    }
+  });
+
+  it('zombies stand inside their unit, outside its first module, and the tutorial crawler waits on the landing', () => {
+    for (const f of towerData.floors) for (const side of ['left', 'right']) {
+      const a = f[side];
+      for (const z of a.zombies) {
+        const d = side === 'left' ? doorX.left - z.x : z.x - doorX.right;
+        expect(d, z.id).toBeGreaterThan(w.moduleWidthPx);
+        expect(d, z.id).toBeLessThan(w.wingWidthPx);
+        expect(balance.zombies.types[z.type], z.id).toBeTruthy();
       }
     }
+    const sp = towerData.floors.find((f) => f.number === 15).scriptedSpawns[0];
+    expect(sp.x).toBeGreaterThan(doorX.left);
+    expect(sp.x).toBeLessThan(doorX.right);
   });
 
-  it('the home apartment holds no object flagged allowedInHome:false', () => {
-    for (const { a, o } of allObjects) if (a.isHome) expect(balance.objects[o.objectId].allowedInHome, o.id).not.toBe(false);
-  });
-
-  it('door states are open or jammed; the home apartment door is open', () => {
-    for (const f of floorsData.floors) for (const a of f.apartments) {
-      expect(['open', 'jammed', undefined]).toContain(a.doorState);
-      if (a.isHome) expect(a.doorState).not.toBe('jammed');
+  it('door states are open or jammed; the home front door is open', () => {
+    for (const f of towerData.floors) for (const a of unitsOf(f)) {
+      expect(['open', 'jammed']).toContain(a.frontDoor);
+      for (const r of a.rooms) expect(['open', 'jammed', 'none']).toContain(r.doorAfter);
+      if (a.isHome) expect(a.frontDoor).toBe('open');
     }
   });
 
-  it('every jammed door can still be reached: no object stands left of a door that blocks the way to the stairs', () => {
-    // hero walks from the stairwell (x=60) rightwards; a jammed left door at 130 must not hide the stairwell side
-    for (const f of floorsData.floors) for (const a of f.apartments) {
-      if (a.doorState === 'jammed') expect(L.doorX[a.side]).toBeGreaterThan(L.stairwell.xMax);
-    }
+  it('floors are 3120 wide in the tower index and the home is the start flat', () => {
+    const t = makeTower(balance);
+    expect(t.floorWidth).toBe(3120);
+    expect(t.home.id).toBe('f15L');
+    expect(t.stairwell.xMin).toBe(1440);
+    expect(t.stairwell.xMax).toBe(1680);
   });
 });
 
@@ -189,14 +220,5 @@ describe('balance.json sanity ranges', () => {
     expect(balance.salvage.keepProgressRatio).toBeGreaterThan(0);
     expect(balance.salvage.keepProgressRatio).toBeLessThan(1);
     expect(balance.world.jammedDoorHits).toBeGreaterThanOrEqual(1);
-  });
-
-  it('home spots and world sizes match the layout file', () => {
-    // stage 1 still runs the M1 720 px floors: balance.world is already the wide stage-2 geometry
-    // (3120 px), so the tower width comes from floors.json and the code default M1_FLOOR_WIDTH
-    expect(buildTower(floorsData, balance).floorWidth).toBe(M1_FLOOR_WIDTH);
-    expect(floorsData.layout.doorX.right + 290).toBe(M1_FLOOR_WIDTH);
-    expect(balance.world.floorWidthPx).toBeGreaterThan(M1_FLOOR_WIDTH);
-    expect(floorsData.layout.slots.left.length).toBe(3);
   });
 });

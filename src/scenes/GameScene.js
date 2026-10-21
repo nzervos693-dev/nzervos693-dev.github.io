@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
-import floorsData from '../../public/data/levels/floors.json';
+import towerData from '../../public/data/levels/tower_m2.json';
+import templatesData from '../../public/data/levels/templates.json';
 import lootData from '../../public/data/levels/loot.json';
 import { getBalance } from '../core/balance.js';
 import { getSave, writeSave, deleteSave } from '../core/save.js';
@@ -7,7 +8,7 @@ import { now, elapsedInfo } from '../core/clock.js';
 import { offlineCapMs } from '../core/balance.js';
 import { lifecycle } from '../core/lifecycle.js';
 import {
-  buildTower, floorAtY, floorTopY, floorLineY, roomAt, homeSpot, worldHeight,
+  buildTower, floorAtY, tapFloorAtY, floorTopY, floorLineY, roomAt, homeSpot, worldHeight,
 } from '../gameplay/layout.js';
 import { createGameState, normalizeGameState, enterRoom, heroCtx, takeFromPile, objState } from '../gameplay/gameState.js';
 import { tickNeeds, applyItem, itemEffect, speedMult } from '../gameplay/needs.js';
@@ -15,12 +16,12 @@ import { activeMoodles, moodleKey, moodleAction, moodleHint, makePanic, stepPani
 import { isRunTap, canRun, stepRun, runConfig } from '../gameplay/running.js';
 import { conditionWord, wearWord, itemWords } from '../gameplay/words.js';
 import { BARRICADE_WORDS, barricadeStage } from '../gameplay/barricade.js';
-import { EMPTY_LINES } from '../gameplay/storyText.js';
+import { lockAxis, deadZoneTarget, lerpFactor, clampScrollX, centerScrollX } from '../gameplay/camera.js';
 import { catchUp } from '../gameplay/offline.js';
 import { addPile } from '../gameplay/gameState.js';
 import { addItem, moveAll } from '../gameplay/inventory.js';
 import { heroWeapon, equipSlot, unequip, isEquipped, isEquippable, damageHero } from '../gameplay/combat.js';
-import { makeZombie, isWanderer, isAttacker, isAware } from '../gameplay/zombies.js';
+import { makeZombie, isWanderer, isAttacker, isAware, parseFacing } from '../gameplay/zombies.js';
 import { updateFloorStates } from '../gameplay/floorState.js';
 import { spawnDueWanderers, dropLostWanderTime } from '../gameplay/wanderers.js';
 import { livingSurvivors, gameOverStats, daysSurvived } from '../gameplay/death.js';
@@ -87,6 +88,10 @@ const TORCH_DELAY_MS = 1200;
 /** Distance the hero must walk before the tutorial counts "walk" as done, px. */
 const TUTORIAL_WALK_PX = 40;
 const TOAST_PANEL_GAP = 45;
+/** Camera drag momentum (px/s decay rate, speed below which it stops) and vertical follow rate, per second. */
+const MOMENTUM_DECAY = 3.5;
+const MOMENTUM_MIN_SPEED = 8;
+const VERTICAL_FOLLOW = 6;
 
 /**
  * Main play scene: tower cutaway, hero, tap-to-move, object actions, needs, inventory, save.
@@ -95,7 +100,7 @@ const TOAST_PANEL_GAP = 45;
  *   'noise' {floor, x, level, radius, source}  radius Infinity = whole floor
  *   'action-start' / 'action-done' / 'action-cancel' {spec, ...}
  *   'floor-changed' {floor}      'room-entered' {apt, room}
- *   'door-hit' {aptId, hits, needed}   'door-opened' {aptId}
+ *   'door-hit' {doorId, hits, needed}   'door-opened' {doorId}
  *   'workbench-open'             'survivor-tap' {id}
  *   'crafted' {id, kind}  'object-placed' {id, key}  'built-dismantled' {id, key}  'built-used' {id, key, collected, loaded}
  *   'barricade-built' {level}  'barricade-hit' {hp, zombie}  'barricade-broken'  'floor-secured' {floor}
@@ -103,7 +108,7 @@ const TOAST_PANEL_GAP = 45;
  *   'attack-cue' {arrivesAt}  'attack-stairwell' {arrivesAt}  'attack-start' {kind, strength, total}  'attack-end' {kind, repelled}
  *   'survivor-recruited' {id}  'survivor-died' {id}  'torch-passed' {id}  'tutorial-done'
  *   'floor-cleared' {floor}      'zombie-killed' {id, type, floor}
- *   'tutorial_open_door' (and any floors.json scriptedSpawns trigger): emit it on `bus` to spawn that
+ *   'tutorial_open_door' (and any tower_m2.json scriptedSpawns trigger): emit it on `bus` to spawn that
  *   scripted zombie. Death: listeners of 'hero-dead' that run pass the torch set `payload.handled = true`.
  */
 export default class GameScene extends Phaser.Scene {
@@ -112,7 +117,7 @@ export default class GameScene extends Phaser.Scene {
   create() {
     const balance = getBalance();
     this.balance = balance;
-    this.tower = buildTower(floorsData, balance);
+    this.tower = buildTower(towerData, balance, templatesData);
     this.tables = lootData.tables;
     this.rng = Math.random;
     this.bus = new Phaser.Events.EventEmitter();
@@ -141,6 +146,7 @@ export default class GameScene extends Phaser.Scene {
     this.queuedTap = null;
     this.drag = null;
     this.vy = 0;
+    this.vx = 0;
     this.pulseAt = 0;
     this.gameOver = false;
     this.swingAnimUntil = 0;
@@ -225,6 +231,7 @@ export default class GameScene extends Phaser.Scene {
     this.jumpCameraToHero();
     this.placeHero();
     this.view.refresh();
+    this.view.cull(this.cameras.main);
 
     this.applyDebugGive();
     this.checkFloorStates();
@@ -296,24 +303,33 @@ export default class GameScene extends Phaser.Scene {
       if (this.drag) return; // second finger: ignore, only the first pointer drives drag/tap
       const blocked = over.filter((o) => !o.getData?.('dragThrough')).length > 0;
       this.drag = blocked ? null : {
-        id: p.id, sx: p.x, sy: p.y, scroll0: cam.scrollY, moved: false, lastY: p.y, lastT: performance.now(),
-        swallowTap: over.length > 0,
+        id: p.id, sx: p.x, sy: p.y, scrollX0: cam.scrollX, scrollY0: cam.scrollY, moved: false, axis: null,
+        lastX: p.x, lastY: p.y, lastT: performance.now(), swallowTap: over.length > 0,
       };
       this.vy = 0;
+      this.vx = 0;
     });
     this.input.on('pointermove', (p) => {
       const d = this.drag;
       if (!d || d.id !== p.id || !p.isDown) return;
-      if (!d.moved && Math.hypot(p.x - d.sx, p.y - d.sy) > thr) {
+      if (!d.axis) {
+        // the axis is decided once, on the first `dragThresholdPx` of movement, and stays until release
+        d.axis = lockAxis(p.x - d.sx, p.y - d.sy, thr);
+        if (!d.axis) return;
         d.moved = true;
         this.menu.close();
       }
-      if (!d.moved) return;
       this.dragPauseUntil = now() + this.balance.controls.cameraFollowPauseSeconds * 1000;
-      this.setScroll(d.scroll0 - (p.y - d.sy));
       const t = performance.now();
       const dt = Math.max(0.001, (t - d.lastT) / 1000);
-      this.vy = Phaser.Math.Linear(this.vy, -(p.y - d.lastY) / dt, 0.5);
+      if (d.axis === 'y') {
+        this.setScroll(d.scrollY0 - (p.y - d.sy));
+        this.vy = Phaser.Math.Linear(this.vy, -(p.y - d.lastY) / dt, 0.5);
+      } else {
+        this.setScrollX(d.scrollX0 - (p.x - d.sx));
+        this.vx = Phaser.Math.Linear(this.vx, -(p.x - d.lastX) / dt, 0.5);
+      }
+      d.lastX = p.x;
       d.lastY = p.y;
       d.lastT = t;
     });
@@ -323,7 +339,7 @@ export default class GameScene extends Phaser.Scene {
       this.drag = null;
       if (!d) return;
       if (d.moved) {
-        if (performance.now() - d.lastT > 80) this.vy = 0; // finger rested before release
+        if (performance.now() - d.lastT > 80) { this.vy = 0; this.vx = 0; } // finger rested before release
         return;
       }
       if (over.length || d.swallowTap) return;
@@ -337,23 +353,43 @@ export default class GameScene extends Phaser.Scene {
 
   setScroll(y) { this.cameras.main.scrollY = Phaser.Math.Clamp(y, 0, this.maxScroll()); }
 
+  /** Horizontal scroll, clamped to the floor plus a small margin (keeps edge slots off the back-swipe zone). */
+  setScrollX(x) {
+    this.cameras.main.scrollX = clampScrollX(x, this.scale.width, this.tower.floorWidth, this.edgePad());
+  }
+
+  /** Scroll room past the floor ends (balance controls.cameraEdgePadPx). */
+  edgePad() { return this.balance.controls.cameraEdgePadPx ?? 0; }
+
   heroScrollTarget() {
     return floorTopY(this.tower, this.state.hero.floor) + this.tower.floorHeight / 2 - this.scale.height / 2;
   }
 
-  jumpCameraToHero() { this.setScroll(this.heroScrollTarget()); }
+  /** Jump the camera so the hero is centred (both axes). */
+  jumpCameraToHero() {
+    this.setScroll(this.heroScrollTarget());
+    this.cameras.main.scrollX = centerScrollX(this.state.hero.x, this.scale.width, this.tower.floorWidth, this.edgePad());
+  }
 
   updateCamera(dt) {
     const cam = this.cameras.main;
-    if (Math.abs(this.vy) > 8) {
+    if (Math.abs(this.vy) > MOMENTUM_MIN_SPEED) {
       this.setScroll(cam.scrollY + this.vy * dt);
-      this.vy *= Math.exp(-3.5 * dt);
+      this.vy *= Math.exp(-MOMENTUM_DECAY * dt);
     } else this.vy = 0;
+    if (Math.abs(this.vx) > MOMENTUM_MIN_SPEED) {
+      this.setScrollX(cam.scrollX + this.vx * dt);
+      this.vx *= Math.exp(-MOMENTUM_DECAY * dt);
+    } else this.vx = 0;
     const moving = this.route.length > 0 || this.stair;
     if (this.following && now() > this.dragPauseUntil && !this.drag?.moved) {
+      const ctl = this.balance.controls;
       const target = Phaser.Math.Clamp(this.heroScrollTarget(), 0, this.maxScroll());
-      cam.scrollY += (target - cam.scrollY) * (1 - Math.exp(-6 * dt));
-      if (!moving && Math.abs(target - cam.scrollY) < 1) this.following = false;
+      cam.scrollY += (target - cam.scrollY) * (1 - Math.exp(-VERTICAL_FOLLOW * dt));
+      const hx = this.stair ? this.tower.stairwell.entryX : this.state.hero.x;
+      const tx = clampScrollX(deadZoneTarget(cam.scrollX, hx, this.scale.width, ctl.cameraDeadzoneXPx), this.scale.width, this.tower.floorWidth, this.edgePad());
+      cam.scrollX += (tx - cam.scrollX) * lerpFactor(ctl.cameraLerp, dt);
+      if (!moving && Math.abs(target - cam.scrollY) < 1 && Math.abs(tx - cam.scrollX) < 1) this.following = false;
     }
   }
 
@@ -472,9 +508,9 @@ export default class GameScene extends Phaser.Scene {
     this.checkRoomEntry();
     if (nx === lim.x) {
       this.route.shift();
-      if (lim.blockedApt && lim.x !== step.x) {
+      if (lim.blockedDoor && lim.x !== step.x) {
         this.route.length = 0;
-        this.onBlockedByDoor(lim.blockedApt);
+        this.onBlockedByDoor(lim.blockedDoor);
       } else if (!this.route.length) this.onArrive();
     }
   }
@@ -551,7 +587,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   handleGround(wx, wy) {
-    const floor = floorAtY(this.tower, wy);
+    const floor = tapFloorAtY(this.tower, wy); // the zone under the floor line is a generous walk zone
     if (floor == null) return;
     // second tap within 0.3 s and 48 px of the first: run (single tap = quiet walk)
     const tap = { t: performance.now(), x: wx, y: wy };
@@ -559,12 +595,8 @@ export default class GameScene extends Phaser.Scene {
     this.lastGroundTap = run ? null : tap;
     const tw = this.tower;
     let x = Phaser.Math.Clamp(wx, 16, tw.floorWidth - 16);
-    if (x <= tw.stairwell.xMax) x = tw.stairwell.entryX;
-    const r = roomAt(tw, floor, x);
-    if (r && !this.state.rooms[`${r.apt.id}:${r.room.id}`]) {
-      // dark room: walk to its door
-      x = r.room === r.apt.rooms[0] ? r.apt.doorX : r.room.xMin + 10;
-    }
+    if (x >= tw.stairwell.xMin && x <= tw.stairwell.xMax) x = tw.stairwell.entryX; // the shaft: walk to the stairs
+    // stage 2: every room counts as lit, so there are no dark rooms to redirect to (stage 4)
     this.goTo(floor, x, null, run);
   }
 
@@ -573,6 +605,10 @@ export default class GameScene extends Phaser.Scene {
     switch (t.type) {
       case 'object': {
         const def = balance.objects[t.sp.placement.objectId];
+        if (t.id === this.tower.homeBedId) { // the main home bed: Sleep and Nap, never Dismantle (GDD 4)
+          this.openMenu(t, [{ kind: 'sleep', label: 'Sleep', enabled: true }, this.napButton()]);
+          break;
+        }
         const actions = listActions(def, t.id, state, balance);
         if (!actions.length) return;
         if (actions.length === 1 && actions[0].enabled) this.goTo(t.floor, t.x, { t, kind: actions[0].kind });
@@ -580,14 +616,7 @@ export default class GameScene extends Phaser.Scene {
         break;
       }
       case 'fixture':
-        if (t.id === 'bed') {
-          this.openMenu(t, [{ kind: 'sleep', label: 'Sleep', enabled: true }, this.napButton()]);
-          break;
-        }
-        this.goTo(t.floor, t.x, { t, kind: t.id === 'bed' ? 'sleep' : 'workbench' });
-        break;
-      case 'quest':
-        this.goTo(t.floor, t.x, { t, kind: 'quest' });
+        this.goTo(t.floor, t.x, { t, kind: 'workbench' });
         break;
       case 'pile':
         this.goTo(t.floor, t.x, { t, kind: 'pile' });
@@ -605,9 +634,11 @@ export default class GameScene extends Phaser.Scene {
         this.handleGround(wx, wy); // the hero also walks there: his own barricade is no obstacle
         break;
       }
-      case 'door':
-        this.goTo(t.floor, doorStopX(t.apt), { t, kind: 'door' });
+      case 'door': {
+        const hx = state.hero.floor === t.floor && !this.stair ? state.hero.x : this.tower.stairwell.entryX;
+        this.goTo(t.floor, doorStopX(t.door, hx), { t, kind: 'door' });
         break;
+      }
       default:
     }
   }
@@ -624,9 +655,36 @@ export default class GameScene extends Phaser.Scene {
 
   // ---------------------------------------------------------------- arrival and actions
 
-  onBlockedByDoor(apt) {
+  /**
+   * A survivor who is still waiting (not recruited) in the room right behind a jammed interior door, on the far side
+   * from the hero (GDD 5.7: she unlocks it when you talk to her through it).
+   */
+  survivorBehind(door) {
+    if (door.kind !== 'interior') return null;
+    const rooms = door.apt.rooms;
+    const idx = rooms.findIndex((r) => r.id === door.room);
+    const behind = rooms[idx + 1]?.id;
+    const hx = this.state.hero.x;
+    for (const sv of door.apt.survivors || []) {
+      if (sv.room !== behind || this.state.survivors[sv.id]?.recruited) continue;
+      if ((sv.x - door.x) * (hx - door.x) < 0) return sv;
+    }
+    return null;
+  }
+
+  /** She hears you at the door and unjams it from inside; the talk starts. */
+  talkThroughDoor(sv, door) {
+    this.state.doors[door.id].state = 'open';
+    this.afterDoorOpened(door);
+    this.toast.show('The lock clicks. She opens the door.', 2000);
+    this.onSurvivorTap(sv.id);
+  }
+
+  onBlockedByDoor(door) {
     const p = this.pending;
-    if (p?.kind === 'door' && p.t.apt === apt) this.onArrive();
+    const sv = this.survivorBehind(door);
+    if (sv && (p?.kind === 'survivor' || p?.kind === 'door')) { this.pending = null; this.talkThroughDoor(sv, door); return; }
+    if (p?.kind === 'door' && p.t.door === door) this.onArrive();
     else { this.pending = null; this.deny('The door is jammed. Tap it to force it open.'); }
   }
 
@@ -646,9 +704,8 @@ export default class GameScene extends Phaser.Scene {
       case 'build-use': this.useBuiltObject(t); break;
       case 'build-dismantle': this.beginBuildDismantle(t); break;
       case 'survivor': this.onSurvivorTap(t.id); break;
-      case 'quest': this.takeQuestItem(t); break;
       case 'pile': this.takePile(t.pile); break;
-      case 'door': this.interactDoor(t.apt); break;
+      case 'door': this.interactDoor(t.door); break;
       case 'attack': {
         const rt = this.zombies.get(p.zid);
         if (rt) this.combat.orderZombie(rt);
@@ -665,7 +722,7 @@ export default class GameScene extends Phaser.Scene {
     const acts = listActions(def, t.id, state, balance);
     const act = acts.find((a) => a.kind === kind);
     if (!act) return;
-    if (!act.enabled) { this.deny(act.reason || 'Cannot do that'); return; }
+    if (!act.enabled) { this.deny(kind === 'search' && def.primary?.tool ? 'Padlocked. A crowbar would do it.' : act.reason || 'Cannot do that'); return; }
     const spec = buildSpec(kind, def, t.id, state, balance);
     this.action = { spec, t, elapsed: 0, duration: spec.seconds };
     this.bus.emit('action-start', { spec, target: t });
@@ -741,7 +798,7 @@ export default class GameScene extends Phaser.Scene {
 
     const parts = [];
     if (res.gained.length) parts.push(this.itemList(res.gained, '+'));
-    else if (spec.kind === 'search') parts.push(EMPTY_LINES[Math.floor(this.rng() * EMPTY_LINES.length)]);
+    else if (spec.kind === 'search') parts.push(this.emptyLine(this.tower.objects.get(t.id)?.apt));
     if (res.piled.length) parts.push('Bag full: the rest is on the floor.');
     else if (res.kept.length) parts.push('Bag full: the rest stays inside.');
     if (res.toolBroke) parts.push(`Your ${this.balance.items[res.toolBroke].name.toLowerCase()} broke.`);
@@ -751,22 +808,14 @@ export default class GameScene extends Phaser.Scene {
     this.save();
   }
 
-  itemList(list, sign = '') {
-    return list.map((e) => `${sign}${e.qty} ${this.balance.items[e.id]?.name || e.id}`).join(', ');
+  /** A line for an empty container, by the unit's condition (loot.json emptyLines). */
+  emptyLine(apt) {
+    const lines = lootData.emptyLines?.[apt?.condition || 'normal'] || lootData.emptyLines?.normal || ['Nothing.'];
+    return lines[Math.floor(this.rng() * lines.length)];
   }
 
-  takeQuestItem(t) {
-    const os = objState(this.state, t.id);
-    const { itemId, name } = t.sp.placement;
-    if (addItem(this.state.inventory, itemId, 1, this.balance) > 0) {
-      this.deny('Bag full. Make room first.');
-      return;
-    }
-    os.taken = true;
-    this.view.refresh();
-    playSfx(this, 'pickup');
-    this.toast.show(`Picked up: ${name}`);
-    this.save();
+  itemList(list, sign = '') {
+    return list.map((e) => `${sign}${e.qty} ${this.balance.items[e.id]?.name || e.id}`).join(', ');
   }
 
   takePile(pile) {
@@ -778,41 +827,42 @@ export default class GameScene extends Phaser.Scene {
 
   // ---------------------------------------------------------------- jammed doors
 
-  interactDoor(apt) {
+  interactDoor(door) {
     const { state, balance } = this;
-    const door = state.doors[apt.id];
-    if (door.state !== 'jammed') return;
+    if (state.doors[door.id].state !== 'jammed') return;
+    const sv = this.survivorBehind(door);
+    if (sv) { this.talkThroughDoor(sv, door); return; } // she unjams it from inside; bashing still works when she is not there
     if (heroHasTool(state, 'crowbar')) {
-      const spec = { kind: 'pry', id: apt.id, seconds: balance.world.jammedDoorCrowbarSeconds, energy: 0, tool: 'crowbar', noise: 'noisy' };
-      this.action = { spec, t: { floor: apt.floor, x: apt.doorX, cy: floorLineY(this.tower, apt.floor) - 48, apt, door: true }, elapsed: 0, duration: spec.seconds };
+      const spec = { kind: 'pry', id: door.id, seconds: balance.world.jammedDoorCrowbarSeconds, energy: 0, tool: 'crowbar', noise: 'noisy' };
+      this.action = { spec, t: { floor: door.floor, x: door.x, cy: floorLineY(this.tower, door.floor) - 48, door, isDoor: true }, elapsed: 0, duration: spec.seconds };
       this.setHeroAnim('attack');
       return;
     }
-    this.hitDoor(apt);
+    this.hitDoor(door);
   }
 
   /**
    * Hit a jammed door: queued like any attack, so it follows the weapon cooldown, costs
    * combat.energyPerSwing and holds one buffered tap. The hit itself lands in applyDoorHit.
    */
-  hitDoor(apt) { this.combat.orderDoor(apt); }
+  hitDoor(door) { this.combat.orderDoor(door); }
 
   /** The door takes one hit (called by Combat when the swing happens). */
-  applyDoorHit(apt) {
-    const r = hitJammedDoor(this.state.doors[apt.id], this.balance);
-    const sprite = this.view.doorSprites.get(apt.id);
-    this.tweens.add({ targets: sprite, x: apt.doorX + DOOR_SHAKE_PX, yoyo: true, duration: 60, repeat: 1, onComplete: () => sprite.setX(apt.doorX) });
+  applyDoorHit(door) {
+    const r = hitJammedDoor(this.state.doors[door.id], this.balance);
+    const sprite = this.view.doorSprites.get(door.id);
+    if (sprite) this.tweens.add({ targets: sprite, x: door.x + DOOR_SHAKE_PX, yoyo: true, duration: 60, repeat: 1, onComplete: () => sprite.setX(door.x) });
     playSfx(this, 'door_hit');
-    this.bus.emit('noise', { floor: apt.floor, x: apt.doorX, level: 'noisy', radius: this.balance.salvage.noiseRadius, source: 'door' });
-    this.bus.emit('door-hit', { aptId: apt.id, hits: r.hits, needed: r.needed });
+    this.bus.emit('noise', { floor: door.floor, x: door.x, level: 'noisy', radius: this.balance.salvage.noiseRadius, source: 'door' });
+    this.bus.emit('door-hit', { doorId: door.id, hits: r.hits, needed: r.needed });
     this.toast.show(r.opened ? 'The door gives way.' : 'The door is stuck. Hit it again.');
-    if (r.opened) this.afterDoorOpened(apt);
+    if (r.opened) this.afterDoorOpened(door);
   }
 
-  afterDoorOpened(apt) {
+  afterDoorOpened(door) {
     this.view.refresh();
     playSfx(this, 'door_open');
-    this.bus.emit('door-opened', { aptId: apt.id });
+    this.bus.emit('door-opened', { doorId: door.id });
     this.save();
   }
 
@@ -825,7 +875,7 @@ export default class GameScene extends Phaser.Scene {
     this.state.doors[spec.id].state = 'open';
     this.toast.show(r?.broke ? 'The door pops open. Your crowbar broke.' : 'The door pops open.');
     this.setHeroAnim('idle');
-    this.afterDoorOpened(t.apt);
+    this.afterDoorOpened(t.door);
     this.runQueuedTap();
   }
 
@@ -1026,13 +1076,18 @@ export default class GameScene extends Phaser.Scene {
       this.state.hero.x = spot.x;
     }
     this.placeHero();
+    this.following = true; // resume: the player sees the hero (BUG-039)
+    this.dragPauseUntil = 0;
+    this.vx = 0;
+    this.vy = 0;
+    this.jumpCameraToHero();
   }
 
   save() { writeSave(); }
 
   // ---------------------------------------------------------------- inventory
 
-  /** At home: f15_left, plus f15_right once it is cleared (GDD 5.3). */
+  /** At home: the start flat, plus the other unit of floor 15 once it is cleared (GDD 5.3). */
   inHome() { const h = this.state.hero; return atHome(this.tower, this.state, this.balance, h.floor, h.x); }
 
   canStoreAll() {
@@ -1244,7 +1299,7 @@ export default class GameScene extends Phaser.Scene {
       for (const sp of f.scriptedSpawns || []) {
         const id = `scripted:${sp.id}`;
         if (sp.trigger !== trigger || this.state.zombies[id] || !this.balance.zombies.types[sp.type]) continue;
-        const rec = makeZombie(id, sp.type, f.number, sp.x, this.balance);
+        const rec = makeZombie(id, sp.type, f.number, sp.x, this.balance, { facing: parseFacing(sp.facing) ?? -1 });
         this.state.zombies[id] = rec;
         this.zombies.add(rec, true);
       }
@@ -1658,7 +1713,7 @@ export default class GameScene extends Phaser.Scene {
       const sp = this.view.sprites.get(t.object || `fixture:${t.fixture}`);
       return sp ? { x: sp.cx, y: sp.cy - 52 } : null;
     }
-    if (t.door) return { x: this.tower.home.doorX, y: line - 110 };
+    if (t.door) return { x: this.tower.barricadeX, y: line - 110 };
     if (t.crawler) {
       const z = this.state.zombies['scripted:tutorial_crawler'];
       return z && !z.dead ? { x: z.x, y: line - 100 } : null;
@@ -1673,7 +1728,7 @@ export default class GameScene extends Phaser.Scene {
     const story = state.story;
     const h = state.hero;
     if (!story.walked && Math.abs(h.x - this.walkStartX) >= TUTORIAL_WALK_PX) story.walked = true;
-    if (!story.doorOpened && shouldOpenDoor(state, h, this.tower.homeFloor, this.tower.home.doorX)) {
+    if (!story.doorOpened && shouldOpenDoor(state, h, this.tower.homeFloor, this.tower.home.doorX, this.tower.home.side, balance.tutorial?.doorTriggerPx)) {
       story.doorOpened = true;
       this.bus.emit(TUTORIAL_TRIGGER, {});
       this.toast.show('Something is out there!', 2400);
@@ -1759,6 +1814,7 @@ export default class GameScene extends Phaser.Scene {
     stepPanic(this.panic, this.countHunters(), dt, this.balance);
     this.placeHero();
     this.updateCamera(dt);
+    this.view.cull(this.cameras.main);
     if (time - this.pulseAt > 100) {
       this.pulseAt = time;
       this.refreshMoodles();

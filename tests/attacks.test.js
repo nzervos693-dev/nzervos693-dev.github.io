@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import balance from '../public/data/balance.json';
-import floorsData from '../public/data/levels/floors.json';
-import { buildTower } from '../src/gameplay/layout.js';
+import { towerData, makeTower } from './helpers/tower.js';
 import { createGameState } from '../src/gameplay/gameState.js';
 import { seededRng } from '../src/gameplay/rng.js';
 import { addItem } from '../src/gameplay/inventory.js';
@@ -14,7 +13,7 @@ import {
   settleInterrupted, dropLostAttackTime, attackTuning, cueStart, attackState,
 } from '../src/gameplay/attacks.js';
 
-const tower = buildTower(floorsData, balance);
+const tower = makeTower(balance);
 const T0 = 1_000_000;
 const HOUR = 3600 * 1000;
 const fresh = () => createGameState(balance, tower, T0);

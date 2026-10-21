@@ -49,21 +49,20 @@ export function pickSpawnX(rng, tower, floor, hero, minHeroDistance, state = nul
 /** Margin kept from the home apartment walls, px. */
 const HOME_MARGIN = 20;
 
-/** Home apartments on a floor that wanderers keep out of: the hero's, plus countsAsHome ones once cleared (latched). */
+/** Home units on a floor that wanderers keep out of: the start flat, plus countsAsHome ones once cleared (latched). */
 function homeRanges(tower, floor, state) {
   if (floor !== tower.homeFloor) return [];
   return [...tower.apartments.values()].filter((a) => a.floor === floor
-    && (a.isHome || (a.buildSpots?.countsAsHome && state?.flags?.aptCleared?.[a.id])));
+    && (a.isHome || (a.countsAsHome && state?.flags?.aptCleared?.[a.id])));
 }
 
 /**
- * x ranges where a wanderer may appear: the floor minus the stairwell and the home apartment(s).
- * Empty when nothing is left (every apartment of the floor counts as home).
+ * x ranges where a wanderer may appear: both wings (not the stairwell landing) minus the home unit(s).
+ * Empty when nothing is left (every unit of the floor counts as home).
  */
 export function spawnSegments(tower, floor, state = null) {
-  const lo = tower.stairwell.xMax + 60;
-  const hi = tower.floorWidth - 40;
-  let segs = [[lo, hi]];
+  const sw = tower.stairwell;
+  let segs = [[40, sw.xMin - 60], [sw.xMax + 60, tower.floorWidth - 40]].filter(([a, b]) => b > a);
   for (const a of homeRanges(tower, floor, state)) {
     const from = a.xMin - HOME_MARGIN;
     const to = a.xMax + HOME_MARGIN;
@@ -119,7 +118,12 @@ export function spawnDueWanderers(state, tower, balance, atMs, rng, opts = {}) {
         const id = `wander:${state.counters.wander}`;
         const x = pickSpawnX(rng, tower, n, opts.hero || null, tune.wanderSpawnMinHeroDistancePx, state);
         if (x == null) break; // nowhere outside the home apartments
-        const z = makeZombie(id, 'walker', n, x, balance, { roam: true, facing: rng() < 0.5 ? -1 : 1 });
+        // a wanderer roams only within the wing it appeared in (never across the stairwell)
+        const left = x < tower.stairwell.xMin;
+        const z = makeZombie(id, 'walker', n, x, balance, {
+          roam: true, facing: rng() < 0.5 ? -1 : 1,
+          roamMin: left ? 0 : tower.stairwell.xMax, roamMax: left ? tower.stairwell.xMin : tower.floorWidth,
+        });
         state.zombies[id] = z;
         made.push(z);
       }

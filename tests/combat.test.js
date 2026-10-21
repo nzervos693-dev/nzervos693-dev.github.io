@@ -1,8 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import balance from '../public/data/balance.json';
-import floorsData from '../public/data/levels/floors.json';
+import { towerData, makeTower } from './helpers/tower.js';
 import { seededRng } from '../src/gameplay/rng.js';
-import { buildTower } from '../src/gameplay/layout.js';
 import { createGameState, normalizeGameState } from '../src/gameplay/gameState.js';
 import { addItem } from '../src/gameplay/inventory.js';
 import { catchUp } from '../src/gameplay/offline.js';
@@ -20,7 +19,7 @@ import { spawnDueWanderers, wanderIntervalMs, pickSpawnX, dropLostWanderTime } f
 import { throwableIds, cycleArm, checkThrow, createFire, stepFire, fireCovers } from '../src/gameplay/throwables.js';
 import { livingSurvivors, gameOverStats, daysSurvived } from '../src/gameplay/death.js';
 
-const tower = buildTower(floorsData, balance);
+const tower = makeTower(balance);
 const tune = zombieTuning(balance);
 const fresh = () => createGameState(balance, tower, 1000);
 const rngFixed = (v) => () => v;
@@ -32,30 +31,30 @@ const makeEnv = (state, over = {}) => ({
   rng: rngFixed(0.5), bounds: { min: 0, max: 0 }, ...over,
 });
 
-const authored = (floor) => [...tower.apartments.values()].filter((a) => floor == null || a.floor === floor).reduce((n, a) => n + (a.zombies || []).length, 0); // follows floors.json
+const authored = (floor) => [...tower.apartments.values()].filter((a) => floor == null || a.floor === floor).reduce((n, a) => n + (a.zombies || []).length, 0); // follows tower_m2.json
 
 describe('zombie records', () => {
   it('spawns every authored zombie with full hp, once', () => {
     const s = fresh();
     expect(Object.keys(s.zombies)).toHaveLength(authored());
-    expect(s.zombies['f14_left#0']).toMatchObject({ type: 'crawler', floor: 14, x: 340, hp: 20, dead: false });
-    expect(s.zombies['f13_right#1']).toMatchObject({ type: 'walker', hp: 45 });
+    expect(s.zombies['f14L-z2']).toMatchObject({ type: 'crawler', floor: 14, x: 370, hp: 20, dead: false });
+    expect(s.zombies['f13R-z2']).toMatchObject({ type: 'walker', hp: 45 });
     expect(countAlive(s, 13)).toBe(authored(13));
     expect(countAlive(s, 15)).toBe(1);
   });
 
   it('keeps dead and damaged zombies across a reload and drops removed ones', () => {
     const s = fresh();
-    s.zombies['f14_left#0'].dead = true;
-    s.zombies['f16_left#0'].hp = 4;
+    s.zombies['f14L-z2'].dead = true;
+    s.zombies['f16L-z1'].hp = 4;
     s.zombies['ghost#9'] = makeZombie('ghost#9', 'crawler', 14, 300, balance);
     s.zombies['wander:1'] = makeZombie('wander:1', 'walker', 14, 500, balance, { roam: true });
     const again = normalizeGameState(JSON.parse(JSON.stringify(s)), balance, tower, 2000);
-    expect(again.zombies['f14_left#0'].dead).toBe(true);
-    expect(again.zombies['f16_left#0'].hp).toBe(4);
+    expect(again.zombies['f14L-z2'].dead).toBe(true);
+    expect(again.zombies['f16L-z1'].hp).toBe(4);
     expect(again.zombies['ghost#9']).toBeUndefined();
     expect(again.zombies['wander:1'].roam).toBe(true);
-    expect(initZombies(again, tower, balance)['f13_left#0'].dead).toBe(false);
+    expect(initZombies(again, tower, balance)['f13L-z1'].dead).toBe(false);
   });
 
   it('migrates an old save without zombies', () => {
@@ -93,8 +92,8 @@ describe('zombie AI', () => {
   it('entering a room does not wake anyone: sight radius is 110 on the landing, 180 in a room', () => {
     const s = fresh();
     const z = makeZombie('r', 'crawler', 16, 100, balance);
-    expect(sightRadius(tower, 16, 60, balance)).toBe(balance.zombies.sight.dimFrontPx); // the stairwell landing
-    expect(sightRadius(tower, 16, 575, balance)).toBe(balance.zombies.sight.frontPx); // stage 1: every room counts as Grey
+    expect(sightRadius(tower, 16, 1560, balance)).toBe(balance.zombies.sight.dimFrontPx); // the stairwell landing
+    expect(sightRadius(tower, 16, 900, balance)).toBe(balance.zombies.sight.frontPx); // stage 2: every room counts as Grey
     const far = stepZombie(z, makeAi(-1), makeEnv(s, { heroFloor: 16, heroX: 100 - 120, sightRadius: 110 }), 0.1);
     expect(far & STEP_AGGRO).toBe(0);
     const near = stepZombie(z, makeAi(-1), makeEnv(s, { heroFloor: 16, heroX: 100 - 100, sightRadius: 110 }), 0.1);
@@ -102,19 +101,20 @@ describe('zombie AI', () => {
   });
 
   it('a jammed door blocks sight and movement in both directions', () => {
-    const s = fresh(); // f14_right is jammed (door x 430)
-    expect(barrierBetween(tower, s.doors, 14, 300, 600)).toBe(true);
-    expect(barrierBetween(tower, s.doors, 14, 440, 600)).toBe(false);
-    const z = makeZombie('j', 'crawler', 14, 600, balance);
+    const s = fresh(); // f13L front door is jammed (x 1440); its bedroom door at x 240 too
+    expect(barrierBetween(tower, s.doors, 13, 1300, 1600)).toBe(true);
+    expect(barrierBetween(tower, s.doors, 13, 1450, 1600)).toBe(false);
+    expect(barrierBetween(tower, s.doors, 13, 300, 100)).toBe(true); // Mara's interior door
+    const z = makeZombie('j', 'crawler', 13, 1300, balance);
     const ai = makeAi();
-    expect(stepZombie(z, ai, makeEnv(s, { heroFloor: 14, heroX: 350 }), 0.1) & STEP_AGGRO).toBe(0);
+    expect(stepZombie(z, ai, makeEnv(s, { heroFloor: 13, heroX: 1560 }), 0.1) & STEP_AGGRO).toBe(0);
     // noise still alerts it, but it cannot pass the door
-    expect(hearNoise(z, ai, { floor: 14, x: 350, radius: Infinity }, tune)).toBe(true);
-    for (let i = 0; i < 2000; i++) stepZombie(z, ai, makeEnv(s, { heroFloor: 14, heroX: 350 }), 0.05);
-    expect(z.x).toBeGreaterThan(430);
-    expect(z.x).toBeCloseTo(430 + 12, 0);
-    const b = movementBounds(tower, s.doors, 14, 300, { min: 0, max: 0 });
-    expect(b.max).toBe(430 - 12);
+    expect(hearNoise(z, ai, { floor: 13, x: 1560, radius: Infinity }, tune)).toBe(true);
+    for (let i = 0; i < 4000; i++) stepZombie(z, ai, makeEnv(s, { heroFloor: 13, heroX: 1560 }), 0.05);
+    expect(z.x).toBeLessThan(1440);
+    expect(z.x).toBeCloseTo(1440 - 12, 0);
+    const b = movementBounds(tower, s.doors, 13, 1600, { min: 0, max: 0 });
+    expect(b.min).toBe(1440 + 12);
   });
 
   it('noise reaches same-floor zombies in radius only; loud is the whole floor, never other floors', () => {
@@ -341,16 +341,15 @@ describe('floor states', () => {
     }
   };
 
-  it('starts Infested; needs zombies dead and containers searched', () => {
+  it('starts Infested; M2 Cleared = no living zombies (containers need not be searched)', () => {
     const s = fresh();
     expect(s.floorStates[14]).toBe('Infested');
     expect(updateFloorStates(tower, s, balance, 5000)).toEqual([]);
-    kill(s, 14);
-    const p = floorProgress(tower, s, balance, 14);
-    expect(p.zombies).toBe(0);
-    expect(p.unsearched).toBeGreaterThan(0);
-    expect(updateFloorStates(tower, s, balance, 5000)).toEqual([]);
-    searchAll(s, 14);
+    const [first, ...rest] = Object.values(s.zombies).filter((z) => z.floor === 14);
+    for (const z of rest) z.dead = true;
+    expect(updateFloorStates(tower, s, balance, 5000)).toEqual([]); // one still lives
+    first.dead = true;
+    expect(floorProgress(tower, s, balance, 14)).toEqual({ zombies: 0, clear: true });
     expect(updateFloorStates(tower, s, balance, 5000)).toEqual([14]);
     expect(s.floorStates[14]).toBe('Cleared');
     expect(s.wanderAt[14]).toBe(5000 + wanderIntervalMs(balance));
@@ -431,7 +430,7 @@ describe('wanderers', () => {
     for (let i = 0; i < 50; i++) {
       const x = pickSpawnX(rng, tower, 14, { floor: 14, x: 300 }, 200);
       expect(Math.abs(x - 300)).toBeGreaterThanOrEqual(200);
-      expect(x).toBeGreaterThan(tower.stairwell.xMax);
+      expect(x < tower.stairwell.xMin || x > tower.stairwell.xMax).toBe(true); // never on the landing
     }
   });
 
@@ -554,21 +553,21 @@ describe('review fixes', () => {
     const s = fresh();
     s.zombies['wander:1'] = { ...makeZombie('wander:1', 'walker', 14, 500, balance), dead: true };
     s.zombies['scripted:t'] = { ...makeZombie('scripted:t', 'crawler', 15, 40, balance), dead: true };
-    s.zombies['f14_left#0'].dead = true;
+    s.zombies['f14L-z2'].dead = true;
     initZombies(s, tower, balance);
     expect(s.zombies['wander:1']).toBeUndefined();
     expect(s.zombies['scripted:t'].dead).toBe(true);
-    expect(s.zombies['f14_left#0'].dead).toBe(true);
+    expect(s.zombies['f14L-z2'].dead).toBe(true);
   });
 
   it('a record with a broken homeX falls back to the authored x; broken wanderers are dropped', () => {
     const s = fresh();
-    s.zombies['f14_left#0'].homeX = null;
-    s.zombies['f14_left#0'].x = 999;
+    s.zombies['f14L-z2'].homeX = null;
+    s.zombies['f14L-z2'].x = 999;
     s.zombies['wander:2'] = { ...makeZombie('wander:2', 'walker', 14, 500, balance), x: NaN };
     s.zombies['wander:3'] = { ...makeZombie('wander:3', 'walker', 14, 500, balance), homeX: undefined };
     initZombies(s, tower, balance);
-    expect(s.zombies['f14_left#0']).toMatchObject({ x: 340, homeX: 340 });
+    expect(s.zombies['f14L-z2']).toMatchObject({ x: 370, homeX: 370 });
     expect(s.zombies['wander:2']).toBeUndefined();
     expect(s.zombies['wander:3'].homeX).toBe(500);
   });

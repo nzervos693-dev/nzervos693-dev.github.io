@@ -1,0 +1,33 @@
+import { chromium } from 'playwright-core';
+import { serve } from './server.mjs';
+const srv = await serve('dist', 4399);
+const b = await chromium.launch();
+let bad = 0;
+const ck = (ok, m) => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${m}`); if (!ok) bad++; };
+for (const v of [{ width: 360, height: 800 }, { width: 412, height: 915 }]) {
+  const ctx = await b.newContext({ viewport: v, hasTouch: true, isMobile: true, deviceScaleFactor: 2 });
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); });
+  page.on('pageerror', (e) => errs.push(String(e)));
+  await page.goto(srv.url, { waitUntil: 'load' });
+  await page.waitForFunction(() => navigator.serviceWorker?.controller || navigator.serviceWorker?.ready, null, { timeout: 15000 });
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await page.reload({ waitUntil: 'load' });
+  await page.waitForFunction(() => !!navigator.serviceWorker.controller, null, { timeout: 15000 });
+  const link = await page.evaluate(() => document.querySelector('link[rel=manifest]')?.href);
+  ck(!!link, `manifest linked (${link})`);
+  await page.waitForSelector('canvas', { timeout: 15000 });
+  await page.waitForTimeout(3000);
+  await page.screenshot({ path: `/tmp/claude-0/-home-user-nzervos693-dev-github-io/ee4a5449-143d-5afc-8cde-fe621edca28e/scratchpad/qa-m2s2/prod-title-${v.width}x${v.height}.png` });
+  await ctx.setOffline(true);
+  await page.reload({ waitUntil: 'load' });
+  await page.waitForSelector('canvas', { timeout: 15000 });
+  await page.waitForTimeout(2500);
+  ck(true, `boots offline at ${v.width}x${v.height}`);
+  const sw = await page.evaluate(async () => { const keys = await caches.keys(); let n = 0; for (const k of keys) n += (await (await caches.open(k)).keys()).length; return n; });
+  ck(sw >= 100, `precache entries ${sw}`);
+  ck(errs.length === 0, `no console errors ${errs.join('|')}`);
+  await ctx.close();
+}
+await b.close(); srv.close(); process.exit(bad ? 1 : 0);

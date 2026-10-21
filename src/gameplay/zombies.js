@@ -2,7 +2,7 @@
  * Zombie records, aggro and the per-frame AI step. Pure, no Phaser.
  *
  * A zombie record (persisted in state.zombies[id]) is
- *   { id, type, floor, x, homeX, hp, dead, roam? }
+ *   { id, type, floor, x, homeX, hp, dead, roam?, roamMin?, roamMax? }
  * The AI keeps its transient fields in a separate `ai` object (never saved):
  *   { mode, cd, stun, pause, wanderTo, facing, moving }
  * modes: idle | wander | return | chase | attack
@@ -17,7 +17,8 @@
  *    and found nothing) gives up and shambles home.
  *  - aggro on noise: same floor within the noise radius (Infinity = whole floor); never other floors.
  *  - zombies never use stairs; when the hero leaves the floor they walk back home.
- *  - a jammed apartment door is a wall for zombies in both directions.
+ *  - a jammed door (front or interior) is a wall for zombies in both directions.
+ *  - the home barricade stands on the home front door; its inside is barricade.inside (-1 = lower x).
  */
 
 /** Tunables the GDD does not give numbers for. Override via balance.zombies.tuning.<key>. */
@@ -62,7 +63,7 @@ const EDGE_PAD = 16;
 const DOOR_PAD = 12;
 
 /** Id of the n-th zombie authored in an apartment. */
-export const zombieId = (apt, i) => `${apt.id}#${i}`;
+export const zombieId = (apt, i) => apt.zombies?.[i]?.id ?? `${apt.id}#${i}`;
 export const isWanderer = (id) => id.startsWith('wander:');
 export const isScripted = (id) => id.startsWith('scripted:');
 /** Attack zombies (piece 3b) live in state.zombies only while the attack is fought; they are never saved. */
@@ -130,7 +131,7 @@ export const makeAi = (facing = 1) => ({
   turnT: -1, turning: 0, // idle head-turn timers (turnT < 0: not scheduled yet)
 });
 
-/** Facing (+1 right, -1 left) from a floors.json `facing` field: -1/1, 'left'/'right', or null. */
+/** Facing (+1 right, -1 left) from a tower_m2.json `facing` field: -1/1, 'left'/'right', or null. */
 export function parseFacing(f) {
   if (f === 'left' || f === -1) return -1;
   if (f === 'right' || f === 1) return 1;
@@ -144,7 +145,7 @@ export function parseFacing(f) {
 export function spawnFacing(def, apt, x, rng, tune) {
   const set = parseFacing(def?.facing);
   if (set != null) return set;
-  const away = x >= apt.doorX ? 1 : -1;
+  const away = apt.side === 'left' ? -1 : 1;
   return rng() < tune.spawnFacingAwayChance ? away : -away;
 }
 
@@ -157,7 +158,7 @@ export const isAware = (ai) => (ai.mode === 'chase' || ai.mode === 'attack') && 
 /**
  * Front sight radius for a hero standing at x on a floor (zombies.sight.*): Grey/Lit room (frontPx 180),
  * Dim room or the landing (dimFrontPx 110). Behind a zombie it only sees 24 px (walking) or 60 px (running).
- * Stage 1: every apartment room counts as Grey, the stairwell landing as Dim. Dark (70) arrives with stage 4.
+ * Stage 2: every apartment room counts as Grey, the stairwell landing as Dim. Dark (70) arrives with stage 4.
  */
 export function sightRadius(tower, floor, x, balance) {
   const z = balance.zombies.sight || {};
@@ -188,22 +189,25 @@ export function roomRefAt(tower, floor, x) {
   return null;
 }
 
-/** Is a jammed door between x1 and x2 on this floor? */
+/** Is a jammed door (front or interior) between x1 and x2 on this floor? */
 export function barrierBetween(tower, doors, floor, x1, x2) {
   const f = tower.floors.get(floor);
   if (!f) return false;
   const lo = Math.min(x1, x2);
   const hi = Math.max(x1, x2);
-  for (const a of f.apartments) {
-    if (doors[a.id]?.state === 'jammed' && a.doorX > lo && a.doorX < hi) return true;
+  for (const d of f.doors) {
+    if (doors[d.id]?.state === 'jammed' && d.x > lo && d.x < hi) return true;
   }
   return false;
 }
 
+/** Is x on the inside of the home barricade? (Standing exactly on it counts as inside.) */
+export const barricadeInside = (bar, x) => (bar.inside < 0 ? x <= bar.x : x >= bar.x);
+
 /**
  * Walkable x range for something standing at x (jammed doors and a standing barricade are walls
  * for zombies). Writes into `out`.
- * @param {{up:boolean, floor:number, x:number}|null} [barricade] home barricade (up = built and above 0 HP)
+ * @param {{up:boolean, floor:number, x:number, inside:number}|null} [barricade] home barricade (up = built and above 0 HP)
  * @returns {{min:number,max:number}} out
  */
 export function movementBounds(tower, doors, floor, x, out, barricade = null) {
@@ -211,13 +215,13 @@ export function movementBounds(tower, doors, floor, x, out, barricade = null) {
   out.max = tower.floorWidth - EDGE_PAD;
   const f = tower.floors.get(floor);
   if (!f) return out;
-  for (const a of f.apartments) {
-    if (doors[a.id]?.state !== 'jammed') continue;
-    if (x >= a.doorX) out.min = Math.max(out.min, a.doorX + DOOR_PAD);
-    else out.max = Math.min(out.max, a.doorX - DOOR_PAD);
+  for (const d of f.doors) {
+    if (doors[d.id]?.state !== 'jammed') continue;
+    if (x >= d.x) out.min = Math.max(out.min, d.x + DOOR_PAD);
+    else out.max = Math.min(out.max, d.x - DOOR_PAD);
   }
   if (barricade && barricade.up && barricade.floor === floor) {
-    if (x >= barricade.x) out.min = Math.max(out.min, barricade.x + BARRICADE_PAD);
+    if (x > barricade.x || (x === barricade.x && barricade.inside > 0)) out.min = Math.max(out.min, barricade.x + BARRICADE_PAD);
     else out.max = Math.min(out.max, barricade.x - BARRICADE_PAD);
   }
   return out;
@@ -252,7 +256,7 @@ function sees(z, ai, env) {
   if (barrierBetween(env.tower, env.doors, z.floor, z.x, env.heroX)) return false;
   const bar = env.barricade;
   // an intact barricade blocks sight both ways
-  if (bar && bar.up && bar.floor === z.floor && (z.x >= bar.x) !== (env.heroX >= bar.x)) return false;
+  if (bar && bar.up && bar.floor === z.floor && barricadeInside(bar, z.x) !== barricadeInside(bar, env.heroX)) return false;
   const dx = env.heroX - z.x;
   const front = Math.abs(dx) < 1 || (dx < 0 ? -1 : 1) === ai.facing;
   const radius = front ? env.sightRadius : (env.heroRunning ? env.tune.behindRunPx : env.tune.behindWalkPx);
@@ -311,8 +315,8 @@ export function stepZombie(z, ai, env, dt) {
     if (Math.abs(dx) > 1) ai.facing = dx < 0 ? -1 : 1;
     const bar = env.barricade;
     if (bar && bar.up && bar.floor === z.floor) {
-      const zIn = z.x >= bar.x;
-      const hIn = env.heroX >= bar.x; // the hero standing exactly on the barricade counts as inside
+      const zIn = barricadeInside(bar, z.x);
+      const hIn = barricadeInside(bar, env.heroX); // the hero standing exactly on the barricade counts as inside
       if (zIn !== hIn) {
         // the barricade is between us and the hero: walk up to it; only a zombie outside hits it
         ai.moving = moveTo(z, aim, spec.speed, dt, b);
@@ -359,7 +363,12 @@ export function stepZombie(z, ai, env, dt) {
   }
   if (ai.wanderTo == null) {
     const r = env.rng();
-    const raw = z.roam ? b.min + r * (b.max - b.min) : z.homeX + (r * 2 - 1) * env.tune.wanderRadiusPx;
+    let raw;
+    if (z.roam) {
+      const lo = Math.max(b.min, z.roamMin ?? -Infinity); // wanderers stay in the wing they spawned in
+      const hi = Math.min(b.max, z.roamMax ?? Infinity);
+      raw = lo + r * Math.max(0, hi - lo);
+    } else raw = z.homeX + (r * 2 - 1) * env.tune.wanderRadiusPx;
     ai.wanderTo = Math.min(b.max, Math.max(b.min, raw));
   }
   ai.mode = 'wander';
