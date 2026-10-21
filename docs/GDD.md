@@ -779,7 +779,7 @@ you scavenge saves walking.
   (the generator forces one flat wing on floor 13 and puts her there; that
   wing's bathroom has a jammed interior door she opens when the hero
   speaks). Her quest: fetch her **medical bag** from floor 14. The
-  generator places the bag in a bedroom or hallway container of a flat on
+  generator places the bag in the bedroom wardrobe of a flat on
   floor 14 and a found note in her bathroom names the flat ("Left my bag at
   the Novaks', 14. Couldn't go back."); the bag container is never empty.
   Hand-over: tap Mara while carrying the bag -> *Use*. She joins only with
@@ -1250,7 +1250,8 @@ after the pick, so they keep the logical layout as charred shapes.
   burned; her bathroom has no zombies and a jammed interior door.
 - **Start flat food**: exactly **1 canned food** (fridge fixedLoot), as in
   the tutorial (section 8). The start flat does not count toward the
-  per-floor food guarantee; the right wing of floor 15 gets its own.
+  per-floor food guarantee; the right wing of floor 15 gets its own, so
+  it never rolls `storage_utility` (no kitchen or break room to hold it).
 - **Storage cages stay crowbar-only** (no slow or loud hand-opening). A
   storage unit without a crowbar is a deliberate early goal: the first
   time the hero taps Search on a padlocked cage without a crowbar, the
