@@ -16,6 +16,7 @@
     "fixedLoot": "As in floors.json: [{id, qty}] guaranteed on first search. With fixedLoot the container makes 0 table rolls unless 'rolls' [min,max] is given. fixedLoot ignores the condition's emptyChance and is never removed or charred by a condition.",
     "guarantees": "Applied after filling and after conditions (GDD 5.15 steps 8-9). Each guaranteed object is exempt from ransack removal, charring and emptiness.",
     "zombies": "Crawler/walker choice uses balance generator.zombieTypeWeights. Room zombieWeight (0 = never) weights which room gets a zombie; counts, group chance, per-room cap and the 'not in the first module' rule come from balance.generator.",
+    "zombiePlacement": "Rules from GDD 5.4 (numbers in balance.generator.*): (1) at most 1 walker in the first room of any unit (crawlers extra); (2) a walker pair in one room faces away from the unit door and both stand >= 150 px from the entrance; (3) never 3 walkers in a room, and at most 2 walkers per room (generator.maxWalkersPerRoom = 2); (4) floors 13 and 17 roll 1-3 zombies per wing; (5) each generated zombie gets facing away from the unit door with chance 0.7 (zombies.sight.spawnFacingAwayChance), else toward it. Re-roll the room pick when a rule fails.",
     "notes": "notes[] are found notes (GDD 5.16). Each id is used at most once per game. containers lists the object ids that may hold it; unitTypes limits by unit type (flat, office, service). Pick 1-2 per floor (notesPerFloor) in a container that exists; a note is delivered on first search even if the container has no other loot."
   },
   "notesPerFloor": [1, 2],
@@ -545,6 +546,20 @@
       "preferUnitType": "flat",
       "exemptFromCondition": true,
       "note": "Every bathroom has a toilet_tank as an 'always' object. The generator only has to make sure at least one toilet_tank on the floor is not charred (burned units char 70% of objects); if all are, restore one."
+    },
+    "cleanWater": {
+      "cleanWaterFloors": [14, 16],
+      "perFloor": 1,
+      "countStartFlat": false,
+      "candidateObjects": ["fridge", "kitchen_cupboard", "utility_shelf"],
+      "flatContainerOnly": true,
+      "note": "One flat kitchen container (fridge, kitchen cupboard or utility shelf) on floors 14 and 16 holds the water; its loot is fixed, so it makes 0 table rolls.",
+      "fixedLootChoices": [
+        { "id": "water_bottle", "qty": 1, "weight": 70 },
+        { "id": "clean_water", "qty": 1, "weight": 30 }
+      ],
+      "exemptFromCondition": true,
+      "ifNoCandidate": "set one wall slot of a kitchen or break_room to kitchen_cupboard (swap out a pool object)"
     },
     "flatWings": {
       "perFloor": 1,

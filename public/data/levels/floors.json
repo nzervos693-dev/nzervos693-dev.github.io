@@ -17,7 +17,7 @@
     "doorX": { "left": 130, "right": 430 },
     "rooms": "A room is an x range inside an apartment; an object belongs to the room containing its x (boundary x goes to the first room). Unentered rooms are dark.",
     "doorStates": "open | jammed (3 hits or crowbar 1 s). 'locked' is reserved, unused in M1.",
-    "zombieRule": "Left-apartment zombies stand at x >= 240, right-apartment zombies at x >= 500, so nothing waits on the stairwell entry; aggro radius 200 from the hero.",
+    "zombieRule": "Left-apartment zombies stand at x >= 240, right-apartment zombies at x >= 500, so nothing waits on the stairwell entry. Every zombie has facing 'left' or 'right' (GDD 5.4). Sight uses balance zombies.sight: in front 180 px Grey/Lit, 110 Dim, 70 Dark; behind 24 px walking, 60 px running; entering a room never wakes a zombie. Placement: at most 1 walker in the first room of a unit, walker pairs face away and sit >= 150 px from the entrance, never 3 walkers in a room.",
     "fixedLoot": "fixedLoot is a guaranteed list of {id, qty} given on first Search. If fixedLoot is present the object makes 0 table rolls unless 'rolls' [min,max] is given, then those rolls are added from its lootTable. Without fixedLoot the container uses balance.scavenge.lootRolls.",
     "foundNote": "Optional {id, text}: shown the first time the object is searched."
   },
@@ -53,7 +53,8 @@
             { "id": "mara", "x": 345, "layer": "floor", "room": "bathroom" }
           ],
           "zombies": [
-            { "type": "walker", "x": 255 }
+            { "type": "walker", "x": 240, "facing": "right" },
+            { "type": "crawler", "x": 270, "facing": "right" }
           ],
           "questItems": []
         },
@@ -79,8 +80,9 @@
           ],
           "survivors": [],
           "zombies": [
-            { "type": "walker", "x": 520 },
-            { "type": "crawler", "x": 625 }
+            { "type": "crawler", "x": 510, "facing": "right" },
+            { "type": "walker", "x": 600, "facing": "right" },
+            { "type": "walker", "x": 648, "facing": "right" }
           ],
           "questItems": []
         }
@@ -115,7 +117,7 @@
           ],
           "survivors": [],
           "zombies": [
-            { "type": "crawler", "x": 340 }
+            { "type": "crawler", "x": 340, "facing": "right" }
           ],
           "questItems": [
             { "id": "f14L-bag", "itemId": "medical_bag", "name": "Medical bag", "questId": "medical_bag", "x": 270, "layer": "floor", "room": "living" }
@@ -149,7 +151,8 @@
           ],
           "survivors": [],
           "zombies": [
-            { "type": "crawler", "x": 600 }
+            { "type": "crawler", "x": 590, "facing": "right" },
+            { "type": "crawler", "x": 625, "facing": "left" }
           ],
           "questItems": []
         }
@@ -163,7 +166,7 @@
       "expectedMinutes": 2,
       "stairwell": { "barricadeX": 100 },
       "scriptedSpawns": [
-        { "id": "tutorial_crawler", "type": "crawler", "x": 40, "trigger": "tutorial_open_door", "note": "Spawns in the stairwell/corridor outside the home barricade (x 100) when the hero first opens the home door. The hero is on the inside (x > 100)." }
+        { "id": "tutorial_crawler", "type": "crawler", "x": 40, "facing": "right", "trigger": "tutorial_open_door", "note": "Spawns in the stairwell/corridor outside the home barricade (x 100) when the hero first opens the home door. The hero is on the inside (x > 100)." }
       ],
       "apartments": [
         {
@@ -237,7 +240,7 @@
           ],
           "survivors": [],
           "zombies": [
-            { "type": "crawler", "x": 672 }
+            { "type": "crawler", "x": 672, "facing": "right" }
           ],
           "questItems": []
         }
@@ -274,7 +277,8 @@
           ],
           "survivors": [],
           "zombies": [
-            { "type": "crawler", "x": 340 }
+            { "type": "crawler", "x": 320, "facing": "right" },
+            { "type": "crawler", "x": 355, "facing": "left" }
           ],
           "questItems": []
         },
@@ -305,7 +309,7 @@
           ],
           "survivors": [],
           "zombies": [
-            { "type": "crawler", "x": 610 }
+            { "type": "crawler", "x": 610, "facing": "right" }
           ],
           "questItems": []
         }
@@ -338,7 +342,9 @@
           ],
           "survivors": [],
           "zombies": [
-            { "type": "walker", "x": 300 }
+            { "type": "walker", "x": 250, "facing": "right" },
+            { "type": "walker", "x": 280, "facing": "right" },
+            { "type": "crawler", "x": 350, "facing": "right" }
           ],
           "questItems": []
         },
@@ -369,8 +375,9 @@
           ],
           "survivors": [],
           "zombies": [
-            { "type": "walker", "x": 520 },
-            { "type": "walker", "x": 620 }
+            { "type": "walker", "x": 520, "facing": "right" },
+            { "type": "walker", "x": 610, "facing": "right" },
+            { "type": "crawler", "x": 650, "facing": "right" }
           ],
           "questItems": []
         }
