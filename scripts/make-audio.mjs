@@ -1,4 +1,4 @@
-// Procedural audio for Floor 15 (Milestone 1). Run: npm run audio
+// Procedural audio for Floor 15 (M1 + M2 stage 1 quiet/diegetic set). Run: npm run audio
 // Writes mono 22.05 kHz WAVs to a temp dir, then encodes OGG with ffmpeg
 // (required; fails loudly if missing). Also writes public/assets/audio/manifest.json.
 import { writeFileSync, mkdirSync, rmSync, mkdtempSync } from 'node:fs';
@@ -94,13 +94,55 @@ function seamless(x, fadeSec) {
   return o;
 }
 
+
+/** Schroeder-style reverb: returns dry+wet, lengthened by tail seconds. */
+function reverb(x, tail, wet = 0.4, fb = 0.84, size = 1) {
+  const n = x.length + Math.round(tail * SR), o = new Float32Array(n), acc = new Float32Array(n);
+  for (const d0 of [1116, 1188, 1277, 1356, 1422]) {
+    const d = Math.round(d0 / 2 * size), ring = new Float32Array(d); let idx = 0, filt = 0;
+    for (let i = 0; i < n; i++) {
+      const y = ring[idx]; filt = filt * 0.45 + y * 0.55;
+      ring[idx] = (i < x.length ? x[i] : 0) + filt * fb; idx = (idx + 1) % d; acc[i] += y;
+    }
+  }
+  let cur = acc;
+  for (const [d0, g] of [[225, 0.5], [556, 0.5]]) {
+    const d = Math.round(d0 / 2 * size), ring = new Float32Array(d), out = new Float32Array(n); let idx = 0;
+    for (let i = 0; i < n; i++) { const z = ring[idx]; const v = cur[i] - g * z; ring[idx] = v; out[i] = z + g * v; idx = (idx + 1) % d; }
+    cur = out;
+  }
+  for (let i = 0; i < n; i++) o[i] = (i < x.length ? x[i] : 0) + cur[i] * wet * 0.35;
+  return o;
+}
+/** Fold everything past L seconds back onto the start (for seamless loops with tails). */
+function wrapFold(x, L) {
+  const n = Math.round(L * SR), o = new Float32Array(n);
+  for (let i = 0; i < x.length; i++) o[i % n] += x[i];
+  return o;
+}
+/** Stick-slip creak: sawtooth pulsed at a rough rate, band-passed. */
+function creakSound(seed, dur, f0, f1, pulse, bpf) {
+  const r = rng(seed); let ph = 0, pp = 0;
+  const src = gen(dur, (t) => {
+    ph += (lerp(f0, f1, t / dur) * (1 + 0.08 * (r() - 0.5))) / SR; pp += pulse * (1 + 0.5 * (r() - 0.5)) / SR;
+    const gate = Math.max(0, Math.sin(TAU * pp)) ** 2;
+    return (saw(ph) * 0.7 + (r() * 2 - 1) * 0.3) * gate * Math.sin(Math.PI * t / dur) ** 1.5;
+  });
+  return bp(src, bpf, 2.5);
+}
+function cloth(seed, dur, lo, hi, g = 1) {
+  const n = bp(noise(Math.round(dur * SR), seed), (lo + hi) / 2, 0.7);
+  const r = rng(seed + 1), k = Array.from({ length: 8 }, () => 0.3 + r() * 0.7);
+  return gen(dur, (t, i) => { const p = t / dur * 7, a = Math.floor(p); return n[i] * lerp(k[a], k[Math.min(7, a + 1)], p - a) * Math.sin(Math.PI * t / dur) * g; });
+}
+
 // ---------- sound definitions ----------
 // Each: { gen: () => Float32Array, volume, loop, event, [fade]=false for loops }
 const S = {};
 const def = (key, event, volume, fn, opts = {}) => { S[key] = { event, volume, loop: false, fn, ...opts }; };
 
-def('ui_tap', 'Any button or menu tap', 0.5, () =>
-  mix(osc(0.09, (t) => lerp(1000, 650, t / 0.09), sq, (t) => 0.35 * exp(t, 0.025)), nburst(0.02, 1, 0.005, 0.4)));
+def('ui_tap', 'Any button or menu tap (near inaudible soft cloth/paper touch)', 0.14, () =>
+  mix(lp(cloth(1, 0.07, 700, 2200, 1), 3000), thud(0.05, 160, 110, 0.012, 0.25), 0.005), { norm: 0.5 });
 
 def('step_1', 'Hero walking tap-move (alternate with step_2)', 0.45, () => footstep(11, 700, 95));
 def('step_2', 'Hero walking tap-move (alternate with step_1)', 0.45, () => footstep(12, 520, 80));
@@ -153,12 +195,13 @@ def('drain', 'Drain / collect water (glug)', 0.5, () => {
   return o;
 });
 
-def('pickup', 'Item added to inventory', 0.5, () => {
-  const o = buf(0.25);
-  const nt = (f, at) => mix(o, osc(0.15, () => f, sq, (t) => 0.3 * exp(t, 0.05)), at);
-  nt(660, 0); nt(990, 0.07);
-  return lp(o, 4000);
-});
+def('pickup', 'Item added to inventory (soft cloth handling, no chime)', 0.3, () => {
+  const o = buf(0.3);
+  mix(o, lp(cloth(3, 0.22, 500, 1800, 1), 2500), 0);
+  mix(o, thud(0.1, 130, 85, 0.03, 0.45), 0.15);
+  mix(o, lp(nburst(0.06, 4, 0.012, 0.3), 900), 0.15);
+  return o;
+}, { norm: 0.6 });
 
 def('eat', 'Use food item (eat)', 0.75, () => {
   const o = buf(0.6);
@@ -247,11 +290,11 @@ def('heartbeat', 'Low health loop: play looped while health is low, stop on reco
   mix(o, thud(0.3, 62, 40, 0.07, 1), 0);
   mix(o, thud(0.3, 54, 36, 0.08, 0.75), 0.27);
   return lp(o, 250);
-}, { loop: true, noFade: true });
+}, { loop: true, noFade: true, deprecated: 'replaced by heartbeat_soft' });
 
 def('siren', 'Attack warning (scheduled/scripted attack incoming); play once per warning', 0.22, () =>
   lp(osc(2.4, (t) => 620 + 220 * Math.sin(TAU * t / 1.2 - Math.PI / 2), (p) => sq(p) * 0.6 + saw(p) * 0.4,
-    (t) => 0.6 * att(t, 0.1) * Math.min(1, (2.4 - t) / 0.2)), 2200, 0.9));
+    (t) => 0.6 * att(t, 0.1) * Math.min(1, (2.4 - t) / 0.2)), 2200, 0.9), { deprecated: 'siren removed (GDD 10); attack cue is diegetic: distant_groan + stair_bang + flicker' });
 
 def('barricade_hit', 'Zombies hit a barricade', 0.7, () => {
   const o = buf(0.55);
@@ -262,17 +305,15 @@ def('barricade_hit', 'Zombies hit a barricade', 0.7, () => {
   return o;
 });
 
-def('craft', 'Craft / build completes (hammer taps)', 0.55, () => {
-  const o = buf(0.8);
-  [0.02, 0.22, 0.42].forEach((at, k) => {
-    mix(o, thud(0.1, 180, 110, 0.03, 0.9), at);
-    mix(o, hp(nburst(0.06, 191 + k, 0.01, 1.2), 1800), at);
-    mix(o, osc(0.3, () => 1500 + k * 120, sine, (t) => 0.4 * exp(t, 0.06)), at);
+def('craft', 'Craft / build completes (cloth rustle then two wood knocks)', 0.4, () => {
+  const o = buf(0.9);
+  mix(o, lp(cloth(191, 0.45, 600, 2500, 0.7), 3000), 0);
+  [0.5, 0.72].forEach((at, k) => {
+    mix(o, thud(0.15, 210 - k * 25, 120, 0.035, 0.9), at);
+    mix(o, bp(nburst(0.08, 195 + k, 0.012, 1), 1100, 1.5), at, 0.6);
   });
-  mix(o, osc(0.3, () => 880, sine, (t) => 0.25 * exp(t, 0.12)), 0.6);
-  mix(o, osc(0.3, () => 1320, sine, (t) => 0.2 * exp(t, 0.12)), 0.65);
   return o;
-});
+}, { norm: 0.65 });
 
 def('survivor_blip', 'Survivor dialogue line text tick (play per word/line, vary playbackRate)', 0.4, () => {
   const o = buf(0.3), r = rng(201);
@@ -281,14 +322,14 @@ def('survivor_blip', 'Survivor dialogue line text tick (play per word/line, vary
     mix(o, osc(0.07, () => f, sq, (t) => 0.3 * exp(t, 0.03)), k * 0.075);
   }
   return lp(o, 2500);
-});
+}, { deprecated: 'UI/text blips removed (GDD 10)' });
 
 def('error', 'Denied: action impossible, inventory full, locked', 0.35, () => {
   const o = buf(0.3);
   mix(o, osc(0.12, () => 220, sq, (t) => 0.35 * exp(t, 0.08)), 0);
   mix(o, osc(0.16, () => 165, sq, (t) => 0.35 * exp(t, 0.1)), 0.11);
   return lp(o, 1800);
-});
+}, { deprecated: 'gamey square blip (GDD 10); use creak/muffled_thud or silence' });
 
 def('amb_tower', 'Tower ambience bed: loop quietly from first tap on the game scene', 0.3, () => {
   const L = 16, fade = 2, total = L + fade;
@@ -307,7 +348,7 @@ def('amb_tower', 'Tower ambience bed: loop quietly from first tap on the game sc
     o[i] = tone[i] * 0.55 + wl[i] * 5 * (0.6 + 0.4 * Math.sin(TAU * 2 * t / L));
   }
   return o;
-}, { loop: true, noFade: true });
+}, { loop: true, noFade: true, deprecated: 'replaced by amb_wind + amb_room_tone' });
 
 def('weapon_break', 'Weapon durability hits zero and it breaks', 0.65, () => {
   const o = buf(0.5);
@@ -344,7 +385,7 @@ def('alert_sting', 'Zombie notices the hero (aggro sting)', 0.5, () => {
   mix(o, osc(0.7, () => 247, saw, (t) => 0.5 * att(t, 0.01) * exp(t, 0.25)), 0); // minor second, tense
   mix(o, thud(0.4, 70, 45, 0.1, 0.9), 0);
   return lp(o, 2200);
-});
+}, { deprecated: 'noise alert sting removed (GDD 10)' });
 
 def('barricade_break', 'A barricade is destroyed', 0.75, () => {
   const o = buf(0.9);
@@ -355,6 +396,182 @@ def('barricade_break', 'A barricade is destroyed', 0.75, () => {
   mix(o, thud(0.3, 70, 40, 0.08, 0.8), 0.5);
   return o;
 });
+
+// ================= M2 stage 1: quiet, creepy, diegetic =================
+def('amb_wind', 'Ambience bed A: wind through broken windows + building creaks. Loop from first tap on the game scene; quiet', 0.22, () => {
+  const L = 30, fade = 3, total = L + fade;
+  const low = seamless(lp(noise(Math.round(total * SR), 401), 320, 0.7), fade);
+  const whA = seamless(bp(noise(Math.round(total * SR), 402), 540, 9), fade);
+  const whB = seamless(bp(noise(Math.round(total * SR), 403), 910, 9), fade);
+  const o = buf(L);
+  for (let i = 0; i < o.length; i++) {
+    const t = i / SR, u = TAU * t / L;
+    const gust = 0.45 + 0.3 * Math.sin(3 * u + 1) + 0.25 * Math.sin(5 * u + 2);
+    const ga = Math.max(0, Math.sin(4 * u + 0.5)) ** 2, gb = Math.max(0, Math.sin(7 * u + 2.2)) ** 2;
+    o[i] = low[i] * 5 * gust * gust + (whA[i] * ga + whB[i] * gb) * 0.9;
+  }
+  [[4.5, 401, 1.2, 70, 95, 6], [12, 402, 0.9, 120, 150, 9], [18.5, 403, 1.4, 60, 85, 5], [25, 404, 1.0, 95, 70, 8]]
+    .forEach(([at, sd, d, f0, f1, pu]) => mix(o, creakSound(sd, d, f0, f1, pu, 380), at, 0.5));
+  return o;
+}, { loop: true, noFade: true, norm: 0.7 });
+
+def('amb_room_tone', 'Ambience bed B: very quiet room tone (hum + air). Loop under everything, even quieter indoors', 0.1, () => {
+  const L = 10, fade = 2;
+  const air = seamless(lp(noise(Math.round((L + fade) * SR), 411), 220, 0.7), fade);
+  const hiss = seamless(hp(lp(noise(Math.round((L + fade) * SR), 412), 3000), 1200), fade);
+  const o = buf(L);
+  for (let i = 0; i < o.length; i++) {
+    const t = i / SR;
+    o[i] = air[i] * 4 * (0.7 + 0.3 * Math.sin(TAU * t / L)) + hiss[i] * 0.5 + Math.sin(TAU * 50 * t) * 0.05 + Math.sin(TAU * 100 * t) * 0.02;
+  }
+  return o;
+}, { loop: true, noFade: true, norm: 0.5 });
+
+const distantGroan = (seed, f0, dur, f1, f2, cut) => {
+  const g = drive(groan(seed, f0, f1, f2, dur, 3), 1.2);
+  const o = reverb(lp(lp(g, cut), cut), 2.2, 1.6, 0.88, 1.4);
+  return gen(o.length / SR, (t, i) => o[i] * att(t, 0.15));
+};
+def('distant_groan_1', 'Random far-away groan, 45-120 s apart; also the cue hiding place. Pick randomly of 1..4', 0.3, () => distantGroan(501, 85, 1.9, 420, 720, 600), { norm: 0.7 });
+def('distant_groan_2', 'Random far-away groan (lower, long)', 0.3, () => distantGroan(502, 62, 2.4, 380, 650, 520), { norm: 0.7 });
+def('distant_groan_3', 'Random far-away groan (higher, shorter)', 0.28, () => distantGroan(503, 110, 1.5, 480, 800, 650), { norm: 0.7 });
+def('distant_groan_4', 'Random far-away groan (two-part moan)', 0.3, () => {
+  const a = distantGroan(504, 90, 1.2, 440, 760, 560), b = distantGroan(505, 72, 1.8, 400, 700, 520), o = buf(4.8);
+  mix(o, a, 0); mix(o, b, 1.3, 0.9); return o;
+}, { norm: 0.7 });
+
+const stairHit = (seed, g = 1) => {
+  const o = buf(0.5);
+  mix(o, thud(0.5, 70, 36, 0.09, 1.2 * g), 0);
+  mix(o, lp(nburst(0.3, seed, 0.06, 1.2 * g), 380), 0);
+  mix(o, bp(nburst(0.15, seed + 1, 0.04, 0.5 * g), 260, 2), 0.02); // door/barricade rattle
+  return lp(o, 450);
+};
+def('stair_bang_1', 'Attack cue (T-8 s): single heavy muffled bang from the stairwell below', 0.5, () => {
+  const o = buf(2.4); mix(o, stairHit(511), 0); return reverb(o, 0.8, 1.0, 0.8, 1.0);
+}, { norm: 0.75 });
+def('stair_bang_2', 'Attack cue: two bangs, slightly uneven', 0.5, () => {
+  const o = buf(2.4); mix(o, stairHit(512), 0); mix(o, stairHit(513, 0.8), 0.78); return reverb(o, 0.8, 1.0, 0.8, 1.0);
+}, { norm: 0.75 });
+def('stair_bang_3', 'Attack cue: three bangs, building', 0.5, () => {
+  const o = buf(3.2); mix(o, stairHit(514, 0.7), 0); mix(o, stairHit(515, 0.9), 0.62); mix(o, stairHit(516, 1.1), 1.3);
+  return reverb(o, 0.8, 1.0, 0.8, 1.0);
+}, { norm: 0.75 });
+
+def('stair_shuffle', 'Loop: shuffling feet in the stairwell, muffled. Fade in with the attack cue, fade out when it ends', 0.3, () => {
+  const L = 6, r = rng(521), o = buf(L + 1);
+  for (let k = 0; k < 14; k++) {
+    const at = k * (L / 14) + r() * 0.15;
+    const sc = lp(cloth(530 + k, 0.2 + r() * 0.15, 300, 1000, 1), 900);
+    mix(o, sc, at, 0.6 + r() * 0.4);
+    if (r() < 0.4) mix(o, thud(0.12, 80, 55, 0.04, 0.4), at + 0.1);
+  }
+  return wrapFold(lp(o, 1200), L);
+}, { loop: true, noFade: true, norm: 0.6 });
+
+def('creak_1', 'Random ambient one-shot: floorboard creak (20-60 s gaps)', 0.3, () => creakSound(541, 1.0, 130, 175, 26, 700), { norm: 0.6 });
+def('creak_2', 'Random ambient one-shot: slow door hinge creak', 0.3, () => reverb(creakSound(542, 1.6, 240, 520, 18, 1100), 0.8, 0.8), { norm: 0.6 });
+def('creak_3', 'Random ambient one-shot: short wood settling', 0.3, () => creakSound(543, 0.55, 90, 140, 34, 500), { norm: 0.6 });
+
+def('muffled_thud_1', 'Random ambient one-shot: distant thud from another floor', 0.4, () => reverb(lp(mix(thud(0.5, 75, 38, 0.1, 1.2), nburst(0.3, 551, 0.05, 0.8), 0), 300), 1.2, 1.0, 0.82), { norm: 0.7 });
+def('muffled_thud_2', 'Random ambient one-shot: double thump far off', 0.4, () => {
+  const o = buf(1.2); mix(o, thud(0.4, 90, 40, 0.08, 1), 0); mix(o, thud(0.4, 70, 36, 0.09, 0.7), 0.42);
+  return reverb(lp(o, 280), 1.2, 1.0, 0.82);
+}, { norm: 0.7 });
+
+def('glass_tinkle', 'Random ambient one-shot: small glass pieces falling somewhere', 0.25, () => {
+  const o = buf(1.4), r = rng(561);
+  for (let k = 0; k < 7; k++) {
+    const f = 3000 + r() * 3500, at = r() * 0.5 * (k / 7 + 0.3) + k * 0.05;
+    mix(o, osc(0.3, () => f, sine, (t) => 0.4 * exp(t, 0.05) * att(t, 0.002)), at, 0.4 + r() * 0.6);
+  }
+  return reverb(lp(o, 6000), 1.0, 0.9);
+}, { norm: 0.5 });
+
+def('heartbeat_soft', 'Low-health loop: soft heartbeat felt more than heard (replaces heartbeat)', 0.3, () => {
+  const o = buf(1.1);
+  mix(o, thud(0.3, 55, 38, 0.07, 1), 0); mix(o, thud(0.3, 48, 34, 0.08, 0.6), 0.26);
+  return lp(o, 140);
+}, { loop: true, noFade: true, norm: 0.6 });
+
+// Sparse sad piano-like piece, A minor, 16 bars at 52 bpm (~74 s), seamless via tail fold.
+def('music_sad', 'Sparse melancholic piano piece; at most once per 8-12 min on moments (first claim, after attack, survivor joins). Never in danger', 0.22, () => {
+  const bpm = 52, beat = 60 / bpm, bars = 16, L = bars * 4 * beat, r = rng(571);
+  const hz = (m) => 440 * Math.pow(2, (m - 69) / 12);
+  const o = buf(L + 7);
+  const note = (m, at, g, dec = 1) => {
+    const f = hz(m), d = 1.8 * dec * Math.pow(220 / f, 0.35);
+    for (const det of [1, 1.003]) for (let k = 1; k <= 6; k++) {
+      const fk = f * k * Math.sqrt(1 + 0.0004 * k * k) * det;
+      if (fk > 5000) break;
+      const dk = d / (1 + 0.6 * (k - 1)), a = g / Math.pow(k, 1.25) * 0.5;
+      const n = Math.round(Math.min(6, dk * 6) * SR), s = Math.round(at * SR);
+      for (let i = 0; i < n && s + i < o.length; i++) { const t = i / SR; o[s + i] += Math.sin(TAU * fk * t) * a * Math.exp(-t / dk) * Math.min(1, t / 0.006); }
+    }
+    const h = lp(nburst(0.03, Math.round(m * 7), 0.006, 0.05 * g), 1500); mix(o, h, at);
+  };
+  const chords = [[45, 52, 57, 60], [41, 48, 53, 57], [48, 55, 60, 64], [43, 50, 55, 59], [45, 52, 57, 60], [41, 48, 53, 57], [38, 45, 50, 57], [40, 47, 52, 56]];
+  chords.forEach((c, ci) => {
+    const t0 = ci * 2 * 4 * beat;
+    note(c[0], t0 + (r() - 0.5) * 0.04, 0.9, 1.5);
+    note(c[1], t0 + 4 * beat, 0.6, 1.5);
+    note(c[2], t0 + 1.5 * beat + r() * 0.05, 0.35);
+    note(c[3], t0 + 2.5 * beat + r() * 0.05, 0.3);
+    if (ci % 2 === 1) note(c[2], t0 + 6 * beat, 0.3);
+  });
+  [[0, 2, 76], [1, 1, 72], [2, 2, 69], [3, 0, 72], [4, 2, 71], [5, 1, 67], [6, 2, 72], [7, 1, 71],
+   [8, 2, 69], [9, 2, 72], [10, 1, 69], [11, 2, 65], [12, 2, 74], [13, 1, 72], [14, 2, 68], [15, 1.5, 69]]
+    .forEach(([b, bt, m]) => note(m, (b * 4 + bt) * beat + (r() - 0.5) * 0.06, 0.75, 1.3));
+  const wet = reverb(lp(o, 3500), 4, 1.3, 0.86, 1.3);
+  return wrapFold(wet, L);
+}, { loop: true, noFade: true, norm: 0.7 });
+
+// ================= M2 stage 1b: remaining GDD 10 sounds =================
+def('amb_rain', 'Ambience bed C: soft rain on windows. Loop; louder near windows, off/very low in sealed rooms', 0.18, () => {
+  const L = 20, fade = 2, N = Math.round((L + fade) * SR);
+  const a = seamless(hp(lp(noise(N, 601), 4500), 700), fade), b = seamless(lp(noise(N, 602), 900, 0.7), fade);
+  const r = rng(603), o = buf(L);
+  for (let i = 0; i < o.length; i++) o[i] = a[i] * (0.8 + 0.2 * Math.sin(TAU * 3 * i / SR / L)) + b[i] * 0.8;
+  for (let k = 0; k < 110; k++) mix(o, osc(0.02, () => 2500 + r() * 2500, sine, (t) => 0.05 * exp(t, 0.004)), r() * (L - 0.05)); // pane ticks
+  return o;
+}, { loop: true, noFade: true, norm: 0.6 });
+
+def('pipe_knock_1', 'Random ambient one-shot: pipe knocks twice', 0.3, () => {
+  const o = buf(1.2);
+  [0, 0.26].forEach((at, k) => { mix(o, osc(0.4, () => 410 - k * 30, sine, (t) => 0.8 * exp(t, 0.09)), at); mix(o, osc(0.3, () => 1130, sine, (t) => 0.3 * exp(t, 0.05)), at); mix(o, hp(nburst(0.03, 611 + k, 0.005, 0.8), 1500), at); });
+  return reverb(o, 0.8, 0.7);
+}, { norm: 0.6 });
+def('pipe_knock_2', 'Random ambient one-shot: pipe tick-tick-knock (cooling metal)', 0.3, () => {
+  const o = buf(1.4);
+  [[0, 0.5, 520], [0.13, 0.4, 560], [0.7, 0.9, 340]].forEach(([at, g, f], k) => { mix(o, osc(0.5, () => f, sine, (t) => g * exp(t, 0.1)), at); mix(o, osc(0.3, () => f * 2.76, sine, (t) => g * 0.3 * exp(t, 0.04)), at); });
+  return reverb(o, 0.8, 0.7);
+}, { norm: 0.6 });
+
+def('lamp_hiss', 'Oil lamp lit: quiet loop of wick hiss + faint flame flutter; stop when lamp out', 0.1, () => {
+  const L = 6, fade = 1, N = Math.round((L + fade) * SR);
+  const h = seamless(hp(lp(noise(N, 621), 6000), 2500), fade), f = seamless(lp(noise(N, 622), 500, 0.7), fade), o = buf(L);
+  for (let i = 0; i < o.length; i++) o[i] = h[i] * (0.7 + 0.3 * Math.sin(TAU * 4 * i / SR / L * 1)) + f[i] * 1.5 * (0.5 + 0.5 * Math.sin(TAU * 3 * i / SR / L));
+  return o;
+}, { loop: true, noFade: true, norm: 0.5 });
+
+const breathy = (seed, dur, pitch) => lp(voice(dur, (t) => pitch * (1 - 0.15 * t / dur), (t) => Math.sin(Math.PI * t / dur) ** 1.5 * 0.9, 500, 900, seed, 1.2, 0.6), 1400);
+def('zombie_breath_1', 'Near zombie (within ~600 px, same floor): wet low exhale. Pan by position, volume by distance', 0.3, () => reverb(breathy(631, 1.3, 70), 0.5, 0.4), { norm: 0.65 });
+def('zombie_breath_2', 'Near zombie: slower rattling breath in then out', 0.3, () => {
+  const o = buf(2.4); mix(o, breathy(632, 0.9, 60), 0, 0.7); mix(o, breathy(633, 1.2, 75), 1.1); return reverb(o, 0.5, 0.4);
+}, { norm: 0.65 });
+def('zombie_shuffle', 'Near zombie: dragging shuffle, 2 steps. Play while it moves; pan by position', 0.3, () => {
+  const o = buf(1.4);
+  [0.05, 0.7].forEach((at, k) => { mix(o, lp(cloth(641 + k, 0.45, 200, 900, 1), 900), at); mix(o, thud(0.15, 75, 50, 0.05, 0.5), at + 0.3); });
+  return o;
+}, { norm: 0.6 });
+
+// Moodle cues (GDD 5.2): one soft physical sound per moodle appearing
+def('moodle_stomach', 'Hungry moodle appears: stomach growl', 0.25, () => lp(voice(1.0, (t) => 55 + 25 * Math.sin(TAU * 2.2 * t), (t) => Math.sin(Math.PI * t) * (0.6 + 0.4 * Math.sin(TAU * 6 * t)), 300, 520, 651, 0.8, 0.9), 700), { norm: 0.6 });
+def('moodle_swallow', 'Thirsty moodle appears: dry swallow', 0.25, () => lp(cloth(652, 0.12, 400, 1200, 0.8), 1500), { norm: 0.5 });
+def('moodle_yawn', 'Tired moodle appears: yawn', 0.25, () => lp(voice(1.4, (t) => 150 * (1 + 0.2 * Math.sin(Math.PI * t / 1.4)) - 40 * t, (t) => Math.sin(Math.PI * t / 1.4) ** 1.2, 600, 1000, 653, 0.7, 0.2), 1800), { norm: 0.6 });
+def('moodle_pain', 'Injured moodle appears: pained breath through teeth', 0.25, () => hp(lp(cloth(654, 0.5, 1500, 4000, 1.2), 4500), 900), { norm: 0.5 });
+def('moodle_sigh', 'Low-spirits moodle appears: sigh', 0.25, () => lp(voice(1.2, (t) => 130 - 30 * t, (t) => att(t, 0.25) * exp(Math.max(0, t - 0.3), 0.4), 500, 900, 655, 1.0, 0.1), 1500), { norm: 0.55 });
+// fast-heartbeat cue: reuse heartbeat_soft with playbackRate ~1.5 for a few seconds.
 
 // ---------- encode ----------
 function wavBytes(x) {
@@ -385,7 +602,7 @@ for (const [key, d] of Object.entries(S)) {
   const wav = join(tmp, key + '.wav'); writeFileSync(wav, wavBytes(x));
   execFileSync('ffmpeg', ['-y', '-v', 'error', '-i', wav, '-fflags', '+bitexact', '-flags:a', '+bitexact',
     '-ac', '1', '-ar', String(SR), '-c:a', 'libvorbis', '-q:a', '2', join(OUT, key + '.ogg')]);
-  manifest.sounds[key] = { files: [key + '.ogg'], volume: d.volume, loop: d.loop, duration: +(x.length / SR).toFixed(2), event: d.event };
+  manifest.sounds[key] = { files: [key + '.ogg'], volume: d.volume, loop: d.loop, duration: +(x.length / SR).toFixed(2), event: d.event, ...(d.deprecated ? { deprecated: true, deprecatedReason: d.deprecated } : {}) };
 }
 rmSync(tmp, { recursive: true, force: true });
 writeFileSync(join(OUT, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
