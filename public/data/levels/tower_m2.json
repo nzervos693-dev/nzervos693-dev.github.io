@@ -1,0 +1,498 @@
+{
+  "version": 1,
+  "milestone": "M2",
+  "stage": 2,
+  "authored": true,
+  "format": {
+    "summary": "Authored stage 2 tower (floors 13-17, 3120 px wide). Same shape the stage 3 generator will output, so the loader and renderer written now keep working; only the source changes (this file now, a saved generated layout later). Instances of templates.json templates; numbers from balance.world / balance.generator.",
+    "floor": "{number, purpose, difficulty (1-10), expectedMinutes, stairwell, scriptedSpawns?, left, right}. left = west wing (x 0-1440), right = east wing (x 1680-3120).",
+    "stairwell": "{xMin 1440, xMax 1680, landing:{xMin,xMax,stairsX}}. The stairs/shaft are in the middle (stairsX 1560). Each wing's front door is at its stairwell edge: x 1440 (left) and x 1680 (right). The landing is not part of any unit.",
+    "unit": "{id (f<floor><L|R>), template (templates.json id), condition (normal|ransacked|burned), name, flavour, frontDoor (open|jammed), rooms[], objects[], zombies[], survivors[], questItems[]}.",
+    "room": "{ref, type (templates.json roomTypes), modules, startModule (0 = at the front door, 5 = far end), doorAfter (open|jammed|none)}. Array order is the room index used in ids, laid out from the front door outward. doorAfter is the interior door on the room's FAR boundary at d = (startModule + modules) * 240; it is not a slot object and never blocks walking. Room x span: left wing x = 1440 - d, right wing x = 1680 + d.",
+    "slotFormula": "Room of N modules has floor0..floor(2N-1) and wall0..wall(2N-1), numbered outward from the room's front-door side. For slot k: d = startModule*240 + 240*floor(k/2) + (k even ? 72 : 168); left x = 1440 - d, right x = 1680 + d. Equivalent lookup by absolute index a = 2*startModule + k: left x = [1368,1272,1128,1032,888,792,648,552,408,312,168,72][a], right x = [1752,1848,1992,2088,2232,2328,2472,2568,2712,2808,2952,3048][a]. Same-layer pairs are >= 96 px apart; every slot is >= 72 px from a doorway. The outermost slots sit 72 px from the world edge (x 72 and 3048) by formula.",
+    "object": "{id (f<floor><L|R>-<roomIndex>-<slot>), objectId (balance.objects), room (room ref), slot (floorN|wallN), x, layer (floor|wall), lootTable? (defaults to balance.objects[objectId].primary.lootTable), fixedLoot? [{id,qty}] (first search gives exactly these, 0 table rolls unless rolls), rolls? [min,max], foundNote? {id} (text in templates.json notes[] / floorOverrides / authored), empty? true (ransacked or burned container: searching gives the empty line from loot.json emptyLines; fixedLoot objects are never empty), was? (objectId a burned charred_debris replaced), fixture? true (workbench: Use only), note? (designer comment, ignore at runtime)}.",
+    "zombie": "{id, type (crawler|walker), x, facing (left|right), room (ref)}. facing is the world direction the zombie looks. In the left wing 'away from the unit door' = left, in the right wing = right.",
+    "survivors": "[{id, x, layer, room}]. questItems: [{id, container (object id)}] pointing at fixedLoot quest goods.",
+    "buildSpots": "Optional on a unit (f15L now; stage 3 derives it from empty slots). {barricade:{x}, floor:[{id,room,slot,x,requiresEmptySlot?}], window:[...]}. Floor spots are empty floor slots, window spots empty wall slots; requiresEmptySlot = usable only once the object in that slot is dismantled.",
+    "notesCount": "Quest and tutorial notes (note_mara_bag, hint_nails) do not count toward notesPerFloor.",
+    "scriptedSpawns": "Floor 15: [{id, type, x, facing, trigger}] spawned on the landing outside the start flat when the trigger fires.",
+    "condition": "Marks flavour and loot. ransacked: some objects absent, containers marked empty (drawers open, papers). burned: charred_debris with 'was', broken windows, containers empty. Objects with fixedLoot and the guaranteed toilet tank are exempt.",
+    "guaranteesApplied": "Food (fixedLoot canned_food/dry_snack in a kitchen cupboard) on every floor, in a flat. Clean water (water_bottle) on 14 and 16 in a fridge. Drainable toilet tank (uncharred) on every floor. Floor 15 food is in the right flat; the start flat fridge does not count.",
+    "zombieRules": "No zombie in module 0 of any unit. At most 1 walker in a unit's first room (none are placed there at all). Walker pairs: same room, both face away from the unit door, both >= 150 px from the unit entrance (d >= 150; here all pairs are d >= 800). Never more than 2 walkers in a room. Most zombies face away from the unit door; a few crawlers face toward it (the generator uses 0.7 away)."
+  },
+  "floors": [
+    {
+      "number": 13,
+      "purpose": "Mara's floor and the hardest stage-2 floor with 17. Teaches reading a room before crossing it: a sneaking walker pair in the living room, a crawler near the jammed bathroom door, and a ransacked office as a risky second wing.",
+      "difficulty": 5,
+      "expectedMinutes": 4,
+      "stairwell": { "xMin": 1440, "xMax": 1680, "landing": { "xMin": 1440, "xMax": 1680, "stairsX": 1560 } },
+      "left": {
+        "id": "f13L",
+        "template": "couple_flat",
+        "condition": "normal",
+        "name": "Mara's flat",
+        "flavour": "Scrubs drying on the radiator. A bathroom door pulled shut from the inside.",
+        "frontDoor": "jammed",
+        "rooms": [
+          { "ref": "hallway", "type": "hallway", "modules": 1, "startModule": 0, "doorAfter": "open" },
+          { "ref": "living", "type": "living", "modules": 2, "startModule": 1, "doorAfter": "none" },
+          { "ref": "kitchen", "type": "kitchen", "modules": 1, "startModule": 3, "doorAfter": "none" },
+          { "ref": "bedroom", "type": "bedroom", "modules": 1, "startModule": 4, "doorAfter": "jammed" },
+          { "ref": "bathroom", "type": "bathroom", "modules": 1, "startModule": 5, "doorAfter": "none" }
+        ],
+        "objects": [
+          { "id": "f13L-0-floor0", "objectId": "chair", "room": "hallway", "slot": "floor0", "x": 1368, "layer": "floor" },
+          { "id": "f13L-0-floor1", "objectId": "toolbox", "room": "hallway", "slot": "floor1", "x": 1272, "layer": "floor" },
+          { "id": "f13L-1-floor0", "objectId": "sofa", "room": "living", "slot": "floor0", "x": 1128, "layer": "floor" },
+          { "id": "f13L-1-floor1", "objectId": "table", "room": "living", "slot": "floor1", "x": 1032, "layer": "floor" },
+          { "id": "f13L-1-floor2", "objectId": "tv", "room": "living", "slot": "floor2", "x": 888, "layer": "floor" },
+          { "id": "f13L-1-wall0", "objectId": "window_pane", "room": "living", "slot": "wall0", "x": 1128, "layer": "wall" },
+          { "id": "f13L-1-wall2", "objectId": "curtains", "room": "living", "slot": "wall2", "x": 888, "layer": "wall" },
+          { "id": "f13L-1-wall3", "objectId": "oil_lamp", "room": "living", "slot": "wall3", "x": 792, "layer": "wall" },
+          { "id": "f13L-2-floor0", "objectId": "fridge", "room": "kitchen", "slot": "floor0", "x": 648, "layer": "floor" },
+          { "id": "f13L-2-floor1", "objectId": "chair", "room": "kitchen", "slot": "floor1", "x": 552, "layer": "floor" },
+          { "id": "f13L-2-wall0", "objectId": "kitchen_cupboard", "room": "kitchen", "slot": "wall0", "x": 648, "layer": "wall", "fixedLoot": [ { "id": "dry_snack", "qty": 1 } ], "note": "Floor 13 food guarantee." },
+          { "id": "f13L-2-wall1", "objectId": "kitchen_drawer", "room": "kitchen", "slot": "wall1", "x": 552, "layer": "wall" },
+          { "id": "f13L-3-floor0", "objectId": "bed_frame", "room": "bedroom", "slot": "floor0", "x": 408, "layer": "floor" },
+          { "id": "f13L-3-floor1", "objectId": "wardrobe", "room": "bedroom", "slot": "floor1", "x": 312, "layer": "floor", "foundNote": { "id": "note_knock" } },
+          { "id": "f13L-3-wall0", "objectId": "curtains", "room": "bedroom", "slot": "wall0", "x": 408, "layer": "wall" },
+          { "id": "f13L-4-floor0", "objectId": "toilet_tank", "room": "bathroom", "slot": "floor0", "x": 168, "layer": "floor", "note": "Floor 13 drainable water." },
+          { "id": "f13L-4-floor1", "objectId": "laundry_basket", "room": "bathroom", "slot": "floor1", "x": 72, "layer": "floor" },
+          { "id": "f13L-4-wall0", "objectId": "medicine_cabinet", "room": "bathroom", "slot": "wall0", "x": 168, "layer": "wall", "fixedLoot": [ { "id": "chemicals", "qty": 1 }, { "id": "bandage", "qty": 1 } ], "rolls": [0, 1], "foundNote": { "id": "note_mara_bag" } }
+        ],
+        "zombies": [
+          { "id": "f13L-z1", "type": "walker", "x": 1000, "facing": "left", "room": "living" },
+          { "id": "f13L-z2", "type": "walker", "x": 920, "facing": "left", "room": "living" },
+          { "id": "f13L-z3", "type": "crawler", "x": 360, "facing": "right", "room": "bedroom" }
+        ],
+        "survivors": [
+          { "id": "mara", "x": 120, "layer": "floor", "room": "bathroom" }
+        ],
+        "questItems": []
+      },
+      "right": {
+        "id": "f13R",
+        "template": "office",
+        "condition": "ransacked",
+        "name": "Hartley Insurance",
+        "flavour": "A phone off the hook. The screen says 14 missed calls.",
+        "frontDoor": "open",
+        "rooms": [
+          { "ref": "reception", "type": "reception", "modules": 1, "startModule": 0, "doorAfter": "open" },
+          { "ref": "office1", "type": "office", "modules": 2, "startModule": 1, "doorAfter": "none" },
+          { "ref": "office2", "type": "office", "modules": 1, "startModule": 3, "doorAfter": "open" },
+          { "ref": "break", "type": "break_room", "modules": 1, "startModule": 4, "doorAfter": "none" },
+          { "ref": "bathroom", "type": "bathroom", "modules": 1, "startModule": 5, "doorAfter": "none" }
+        ],
+        "objects": [
+          { "id": "f13R-0-floor0", "objectId": "desk", "room": "reception", "slot": "floor0", "x": 1752, "layer": "floor", "empty": true, "foundNote": { "id": "note_back_five" } },
+          { "id": "f13R-0-floor1", "objectId": "chair", "room": "reception", "slot": "floor1", "x": 1848, "layer": "floor" },
+          { "id": "f13R-0-wall0", "objectId": "window_pane", "room": "reception", "slot": "wall0", "x": 1752, "layer": "wall" },
+          { "id": "f13R-1-floor0", "objectId": "desk", "room": "office1", "slot": "floor0", "x": 1992, "layer": "floor" },
+          { "id": "f13R-1-floor1", "objectId": "filing_cabinet", "room": "office1", "slot": "floor1", "x": 2088, "layer": "floor" },
+          { "id": "f13R-1-floor3", "objectId": "filing_cabinet", "room": "office1", "slot": "floor3", "x": 2328, "layer": "floor", "empty": true },
+          { "id": "f13R-1-wall0", "objectId": "window_pane", "room": "office1", "slot": "wall0", "x": 1992, "layer": "wall" },
+          { "id": "f13R-1-wall2", "objectId": "curtains", "room": "office1", "slot": "wall2", "x": 2232, "layer": "wall" },
+          { "id": "f13R-2-floor0", "objectId": "desk", "room": "office2", "slot": "floor0", "x": 2472, "layer": "floor", "empty": true },
+          { "id": "f13R-2-floor1", "objectId": "potted_plant", "room": "office2", "slot": "floor1", "x": 2568, "layer": "floor" },
+          { "id": "f13R-2-wall0", "objectId": "window_pane", "room": "office2", "slot": "wall0", "x": 2472, "layer": "wall" },
+          { "id": "f13R-3-floor0", "objectId": "table", "room": "break", "slot": "floor0", "x": 2712, "layer": "floor" },
+          { "id": "f13R-3-floor1", "objectId": "chair", "room": "break", "slot": "floor1", "x": 2808, "layer": "floor" },
+          { "id": "f13R-3-wall0", "objectId": "kitchen_cupboard", "room": "break", "slot": "wall0", "x": 2712, "layer": "wall", "empty": true },
+          { "id": "f13R-3-wall1", "objectId": "microwave", "room": "break", "slot": "wall1", "x": 2808, "layer": "wall" },
+          { "id": "f13R-4-floor0", "objectId": "toilet_tank", "room": "bathroom", "slot": "floor0", "x": 2952, "layer": "floor" },
+          { "id": "f13R-4-floor1", "objectId": "sink_pipes", "room": "bathroom", "slot": "floor1", "x": 3048, "layer": "floor" },
+          { "id": "f13R-4-wall0", "objectId": "bathroom_cabinet", "room": "bathroom", "slot": "wall0", "x": 2952, "layer": "wall" }
+        ],
+        "zombies": [
+          { "id": "f13R-z1", "type": "walker", "x": 2200, "facing": "right", "room": "office1" },
+          { "id": "f13R-z2", "type": "walker", "x": 2520, "facing": "right", "room": "office2" },
+          { "id": "f13R-z3", "type": "crawler", "x": 2760, "facing": "left", "room": "break" }
+        ],
+        "survivors": [],
+        "questItems": []
+      }
+    },
+    {
+      "number": 14,
+      "purpose": "Easy floor with the medical bag and the first clean water. Teaches wardrobes (crowbar), kids' rooms and a ransacked flat where only the quest wardrobe is full. One walker and one crawler on the way, one crawler across the stairwell.",
+      "difficulty": 3,
+      "expectedMinutes": 3,
+      "stairwell": { "xMin": 1440, "xMax": 1680, "landing": { "xMin": 1440, "xMax": 1680, "stairsX": 1560 } },
+      "left": {
+        "id": "f14L",
+        "template": "family_flat",
+        "condition": "ransacked",
+        "name": "Novak flat",
+        "flavour": "Crayon on the wall, at exactly the height of a four-year-old.",
+        "frontDoor": "open",
+        "rooms": [
+          { "ref": "hallway", "type": "hallway", "modules": 1, "startModule": 0, "doorAfter": "open" },
+          { "ref": "living", "type": "living", "modules": 1, "startModule": 1, "doorAfter": "none" },
+          { "ref": "kitchen", "type": "kitchen", "modules": 1, "startModule": 2, "doorAfter": "open" },
+          { "ref": "bedroom", "type": "bedroom", "modules": 1, "startModule": 3, "doorAfter": "none" },
+          { "ref": "kids", "type": "kids_room", "modules": 1, "startModule": 4, "doorAfter": "open" },
+          { "ref": "bathroom", "type": "bathroom", "modules": 1, "startModule": 5, "doorAfter": "none" }
+        ],
+        "objects": [
+          { "id": "f14L-0-floor0", "objectId": "chair", "room": "hallway", "slot": "floor0", "x": 1368, "layer": "floor" },
+          { "id": "f14L-1-floor0", "objectId": "sofa", "room": "living", "slot": "floor0", "x": 1128, "layer": "floor" },
+          { "id": "f14L-1-wall0", "objectId": "curtains", "room": "living", "slot": "wall0", "x": 1128, "layer": "wall" },
+          { "id": "f14L-1-wall1", "objectId": "window_pane", "room": "living", "slot": "wall1", "x": 1032, "layer": "wall" },
+          { "id": "f14L-2-floor0", "objectId": "fridge", "room": "kitchen", "slot": "floor0", "x": 888, "layer": "floor", "empty": true },
+          { "id": "f14L-2-floor1", "objectId": "chair", "room": "kitchen", "slot": "floor1", "x": 792, "layer": "floor" },
+          { "id": "f14L-2-wall0", "objectId": "kitchen_cupboard", "room": "kitchen", "slot": "wall0", "x": 888, "layer": "wall", "empty": true },
+          { "id": "f14L-2-wall1", "objectId": "kitchen_drawer", "room": "kitchen", "slot": "wall1", "x": 792, "layer": "wall", "empty": true, "foundNote": { "id": "note_rice" } },
+          { "id": "f14L-3-floor0", "objectId": "bed_frame", "room": "bedroom", "slot": "floor0", "x": 648, "layer": "floor" },
+          { "id": "f14L-3-floor1", "objectId": "wardrobe", "room": "bedroom", "slot": "floor1", "x": 552, "layer": "floor", "fixedLoot": [ { "id": "medical_bag", "qty": 1 } ], "note": "Novak wardrobe: the medical bag (quest item). Never removed, charred or empty." },
+          { "id": "f14L-3-wall0", "objectId": "curtains", "room": "bedroom", "slot": "wall0", "x": 648, "layer": "wall" },
+          { "id": "f14L-3-wall1", "objectId": "oil_lamp", "room": "bedroom", "slot": "wall1", "x": 552, "layer": "wall" },
+          { "id": "f14L-4-floor0", "objectId": "mattress", "room": "kids", "slot": "floor0", "x": 408, "layer": "floor" },
+          { "id": "f14L-4-floor1", "objectId": "toy_box", "room": "kids", "slot": "floor1", "x": 312, "layer": "floor", "empty": true },
+          { "id": "f14L-4-wall0", "objectId": "curtains", "room": "kids", "slot": "wall0", "x": 408, "layer": "wall" },
+          { "id": "f14L-5-floor0", "objectId": "toilet_tank", "room": "bathroom", "slot": "floor0", "x": 168, "layer": "floor" },
+          { "id": "f14L-5-floor1", "objectId": "laundry_basket", "room": "bathroom", "slot": "floor1", "x": 72, "layer": "floor" },
+          { "id": "f14L-5-wall0", "objectId": "bathroom_cabinet", "room": "bathroom", "slot": "wall0", "x": 168, "layer": "wall", "empty": true }
+        ],
+        "zombies": [
+          { "id": "f14L-z1", "type": "walker", "x": 1040, "facing": "left", "room": "living" },
+          { "id": "f14L-z2", "type": "crawler", "x": 370, "facing": "left", "room": "kids" }
+        ],
+        "survivors": [],
+        "questItems": [
+          { "id": "medical_bag", "container": "f14L-3-floor1" }
+        ]
+      },
+      "right": {
+        "id": "f14R",
+        "template": "studio_laundry",
+        "condition": "normal",
+        "name": "Studio and laundry",
+        "flavour": "Warm lint smell. The last cycle never finished.",
+        "frontDoor": "open",
+        "rooms": [
+          { "ref": "laundry", "type": "laundry", "modules": 2, "startModule": 0, "doorAfter": "open" },
+          { "ref": "studio", "type": "studio", "modules": 3, "startModule": 2, "doorAfter": "none" },
+          { "ref": "bathroom", "type": "bathroom", "modules": 1, "startModule": 5, "doorAfter": "none" }
+        ],
+        "objects": [
+          { "id": "f14R-0-floor0", "objectId": "washing_machine", "room": "laundry", "slot": "floor0", "x": 1752, "layer": "floor" },
+          { "id": "f14R-0-floor1", "objectId": "washing_machine", "room": "laundry", "slot": "floor1", "x": 1848, "layer": "floor" },
+          { "id": "f14R-0-floor2", "objectId": "laundry_basket", "room": "laundry", "slot": "floor2", "x": 1992, "layer": "floor" },
+          { "id": "f14R-0-floor3", "objectId": "washing_machine", "room": "laundry", "slot": "floor3", "x": 2088, "layer": "floor" },
+          { "id": "f14R-0-wall0", "objectId": "utility_shelf", "room": "laundry", "slot": "wall0", "x": 1752, "layer": "wall" },
+          { "id": "f14R-0-wall2", "objectId": "utility_shelf", "room": "laundry", "slot": "wall2", "x": 1992, "layer": "wall" },
+          { "id": "f14R-1-floor0", "objectId": "mattress", "room": "studio", "slot": "floor0", "x": 2232, "layer": "floor" },
+          { "id": "f14R-1-floor1", "objectId": "sofa", "room": "studio", "slot": "floor1", "x": 2328, "layer": "floor" },
+          { "id": "f14R-1-floor2", "objectId": "table", "room": "studio", "slot": "floor2", "x": 2472, "layer": "floor" },
+          { "id": "f14R-1-floor3", "objectId": "fridge", "room": "studio", "slot": "floor3", "x": 2568, "layer": "floor", "fixedLoot": [ { "id": "water_bottle", "qty": 1 } ], "note": "Floor 14 clean water guarantee." },
+          { "id": "f14R-1-floor4", "objectId": "chair", "room": "studio", "slot": "floor4", "x": 2712, "layer": "floor" },
+          { "id": "f14R-1-floor5", "objectId": "tv", "room": "studio", "slot": "floor5", "x": 2808, "layer": "floor" },
+          { "id": "f14R-1-wall0", "objectId": "curtains", "room": "studio", "slot": "wall0", "x": 2232, "layer": "wall" },
+          { "id": "f14R-1-wall1", "objectId": "window_pane", "room": "studio", "slot": "wall1", "x": 2328, "layer": "wall" },
+          { "id": "f14R-1-wall3", "objectId": "kitchen_cupboard", "room": "studio", "slot": "wall3", "x": 2568, "layer": "wall", "fixedLoot": [ { "id": "canned_food", "qty": 1 } ], "note": "Floor 14 food guarantee." },
+          { "id": "f14R-1-wall4", "objectId": "kitchen_drawer", "room": "studio", "slot": "wall4", "x": 2712, "layer": "wall", "foundNote": { "id": "note_water" } },
+          { "id": "f14R-1-wall5", "objectId": "window_pane", "room": "studio", "slot": "wall5", "x": 2808, "layer": "wall" },
+          { "id": "f14R-2-floor0", "objectId": "toilet_tank", "room": "bathroom", "slot": "floor0", "x": 2952, "layer": "floor" },
+          { "id": "f14R-2-floor1", "objectId": "sink_pipes", "room": "bathroom", "slot": "floor1", "x": 3048, "layer": "floor" },
+          { "id": "f14R-2-wall0", "objectId": "medicine_cabinet", "room": "bathroom", "slot": "wall0", "x": 2952, "layer": "wall" }
+        ],
+        "zombies": [
+          { "id": "f14R-z1", "type": "crawler", "x": 2040, "facing": "right", "room": "laundry" }
+        ],
+        "survivors": [],
+        "questItems": []
+      }
+    },
+    {
+      "number": 15,
+      "purpose": "Home floor. Left is the authored start flat with the tutorial chain (fridge, chair, table, drawer, workbench, front door, crawler). Right is a first jammed door and one crawler: the first taste of scouting a flat that is not yours.",
+      "difficulty": 1,
+      "expectedMinutes": 3,
+      "stairwell": { "xMin": 1440, "xMax": 1680, "landing": { "xMin": 1440, "xMax": 1680, "stairsX": 1560 } },
+      "scriptedSpawns": [
+        { "id": "tutorial_crawler", "type": "crawler", "x": 1490, "facing": "left", "trigger": "tutorial_open_door", "note": "Spawns on the landing just outside the start flat's front door (x 1440) when the hero first opens it; the hero is inside (x < 1440), so it drags itself in through the door. Stairs stay clear at x 1560." }
+      ],
+      "left": {
+        "id": "f15L",
+        "template": "your_flat",
+        "condition": "normal",
+        "name": "Your apartment",
+        "flavour": "Pills on the nightstand, the radio muttering static. Something scratches at the door.",
+        "frontDoor": "open",
+        "isHome": true,
+        "buildSpots": {
+          "barricade": { "x": 1440, "note": "Front door." },
+          "floor": [
+            { "id": "f15L-spot-hallway-floor0", "room": "hallway", "slot": "floor0", "x": 1368 },
+            { "id": "f15L-spot-living-floor0", "room": "living", "slot": "floor0", "x": 1128, "requiresEmptySlot": true, "note": "Chair slot, free once dismantled." },
+            { "id": "f15L-spot-living-floor1", "room": "living", "slot": "floor1", "x": 1032, "requiresEmptySlot": true, "note": "Table slot, free once dismantled." },
+            { "id": "f15L-spot-living-floor2", "room": "living", "slot": "floor2", "x": 888 },
+            { "id": "f15L-spot-kitchen-floor1", "room": "kitchen", "slot": "floor1", "x": 552 }
+          ],
+          "window": [
+            { "id": "f15L-spot-living-wall1", "room": "living", "slot": "wall1", "x": 1032 },
+            { "id": "f15L-spot-bedroom-wall1", "room": "bedroom", "slot": "wall1", "x": 312 }
+          ]
+        },
+        "rooms": [
+          { "ref": "hallway", "type": "hallway", "modules": 1, "startModule": 0, "doorAfter": "open" },
+          { "ref": "living", "type": "living", "modules": 2, "startModule": 1, "doorAfter": "none" },
+          { "ref": "kitchen", "type": "kitchen", "modules": 1, "startModule": 3, "doorAfter": "open" },
+          { "ref": "bedroom", "type": "bedroom", "modules": 1, "startModule": 4, "doorAfter": "open" },
+          { "ref": "bathroom", "type": "bathroom", "modules": 1, "startModule": 5, "doorAfter": "none" }
+        ],
+        "objects": [
+          { "id": "f15L-0-floor1", "objectId": "potted_plant", "room": "hallway", "slot": "floor1", "x": 1272, "layer": "floor" },
+          { "id": "f15L-1-floor0", "objectId": "chair", "room": "living", "slot": "floor0", "x": 1128, "layer": "floor", "note": "Tutorial: dismantle." },
+          { "id": "f15L-1-floor1", "objectId": "table", "room": "living", "slot": "floor1", "x": 1032, "layer": "floor", "note": "Tutorial: dismantle." },
+          { "id": "f15L-1-floor3", "objectId": "sofa", "room": "living", "slot": "floor3", "x": 792, "layer": "floor" },
+          { "id": "f15L-1-wall0", "objectId": "window_pane", "room": "living", "slot": "wall0", "x": 1128, "layer": "wall" },
+          { "id": "f15L-1-wall2", "objectId": "workbench", "room": "living", "slot": "wall2", "x": 888, "layer": "wall", "fixture": true },
+          { "id": "f15L-1-wall3", "objectId": "curtains", "room": "living", "slot": "wall3", "x": 792, "layer": "wall" },
+          { "id": "f15L-2-floor0", "objectId": "fridge", "room": "kitchen", "slot": "floor0", "x": 648, "layer": "floor", "fixedLoot": [ { "id": "canned_food", "qty": 1 } ] },
+          { "id": "f15L-2-wall0", "objectId": "kitchen_drawer", "room": "kitchen", "slot": "wall0", "x": 648, "layer": "wall", "fixedLoot": [ { "id": "metal", "qty": 2 } ], "foundNote": { "id": "hint_nails" } },
+          { "id": "f15L-2-wall1", "objectId": "kitchen_cupboard", "room": "kitchen", "slot": "wall1", "x": 552, "layer": "wall", "fixedLoot": [ { "id": "chemicals", "qty": 1 } ] },
+          { "id": "f15L-3-floor0", "objectId": "bed_frame", "room": "bedroom", "slot": "floor0", "x": 408, "layer": "floor" },
+          { "id": "f15L-3-floor1", "objectId": "wardrobe", "room": "bedroom", "slot": "floor1", "x": 312, "layer": "floor" },
+          { "id": "f15L-3-wall0", "objectId": "curtains", "room": "bedroom", "slot": "wall0", "x": 408, "layer": "wall" },
+          { "id": "f15L-4-floor0", "objectId": "toilet_tank", "room": "bathroom", "slot": "floor0", "x": 168, "layer": "floor", "note": "Floor 15 drainable water." },
+          { "id": "f15L-4-floor1", "objectId": "sink_pipes", "room": "bathroom", "slot": "floor1", "x": 72, "layer": "floor" },
+          { "id": "f15L-4-wall0", "objectId": "bathroom_cabinet", "room": "bathroom", "slot": "wall0", "x": 168, "layer": "wall", "fixedLoot": [ { "id": "bandage", "qty": 1 } ] }
+        ],
+        "zombies": [],
+        "survivors": [],
+        "questItems": []
+      },
+      "right": {
+        "id": "f15R",
+        "template": "family_flat",
+        "condition": "normal",
+        "name": "Hollis flat",
+        "flavour": "Toys lined up by the door, as if someone was coming back.",
+        "frontDoor": "jammed",
+        "rooms": [
+          { "ref": "hallway", "type": "hallway", "modules": 1, "startModule": 0, "doorAfter": "open" },
+          { "ref": "living", "type": "living", "modules": 1, "startModule": 1, "doorAfter": "none" },
+          { "ref": "kitchen", "type": "kitchen", "modules": 1, "startModule": 2, "doorAfter": "open" },
+          { "ref": "bedroom", "type": "bedroom", "modules": 1, "startModule": 3, "doorAfter": "none" },
+          { "ref": "kids", "type": "kids_room", "modules": 1, "startModule": 4, "doorAfter": "open" },
+          { "ref": "bathroom", "type": "bathroom", "modules": 1, "startModule": 5, "doorAfter": "none" }
+        ],
+        "objects": [
+          { "id": "f15R-0-floor0", "objectId": "chair", "room": "hallway", "slot": "floor0", "x": 1752, "layer": "floor" },
+          { "id": "f15R-0-floor1", "objectId": "toolbox", "room": "hallway", "slot": "floor1", "x": 1848, "layer": "floor" },
+          { "id": "f15R-0-wall0", "objectId": "oil_lamp", "room": "hallway", "slot": "wall0", "x": 1752, "layer": "wall" },
+          { "id": "f15R-1-floor0", "objectId": "sofa", "room": "living", "slot": "floor0", "x": 1992, "layer": "floor" },
+          { "id": "f15R-1-floor1", "objectId": "tv", "room": "living", "slot": "floor1", "x": 2088, "layer": "floor" },
+          { "id": "f15R-1-wall0", "objectId": "window_pane", "room": "living", "slot": "wall0", "x": 1992, "layer": "wall" },
+          { "id": "f15R-1-wall1", "objectId": "curtains", "room": "living", "slot": "wall1", "x": 2088, "layer": "wall" },
+          { "id": "f15R-2-floor0", "objectId": "fridge", "room": "kitchen", "slot": "floor0", "x": 2232, "layer": "floor" },
+          { "id": "f15R-2-floor1", "objectId": "table", "room": "kitchen", "slot": "floor1", "x": 2328, "layer": "floor" },
+          { "id": "f15R-2-wall0", "objectId": "kitchen_cupboard", "room": "kitchen", "slot": "wall0", "x": 2232, "layer": "wall", "fixedLoot": [ { "id": "dry_snack", "qty": 1 } ], "note": "Floor 15 food guarantee (start flat does not count)." },
+          { "id": "f15R-2-wall1", "objectId": "kitchen_drawer", "room": "kitchen", "slot": "wall1", "x": 2328, "layer": "wall", "foundNote": { "id": "note_stadium" } },
+          { "id": "f15R-3-floor0", "objectId": "bed_frame", "room": "bedroom", "slot": "floor0", "x": 2472, "layer": "floor" },
+          { "id": "f15R-3-floor1", "objectId": "wardrobe", "room": "bedroom", "slot": "floor1", "x": 2568, "layer": "floor", "foundNote": { "id": "note_dad" } },
+          { "id": "f15R-3-wall0", "objectId": "curtains", "room": "bedroom", "slot": "wall0", "x": 2472, "layer": "wall" },
+          { "id": "f15R-3-wall1", "objectId": "window_pane", "room": "bedroom", "slot": "wall1", "x": 2568, "layer": "wall" },
+          { "id": "f15R-4-floor0", "objectId": "bed_frame", "room": "kids", "slot": "floor0", "x": 2712, "layer": "floor" },
+          { "id": "f15R-4-floor1", "objectId": "toy_box", "room": "kids", "slot": "floor1", "x": 2808, "layer": "floor" },
+          { "id": "f15R-4-wall0", "objectId": "curtains", "room": "kids", "slot": "wall0", "x": 2712, "layer": "wall" },
+          { "id": "f15R-5-floor0", "objectId": "toilet_tank", "room": "bathroom", "slot": "floor0", "x": 2952, "layer": "floor" },
+          { "id": "f15R-5-floor1", "objectId": "laundry_basket", "room": "bathroom", "slot": "floor1", "x": 3048, "layer": "floor" },
+          { "id": "f15R-5-wall0", "objectId": "medicine_cabinet", "room": "bathroom", "slot": "wall0", "x": 2952, "layer": "wall" }
+        ],
+        "zombies": [
+          { "id": "f15R-z1", "type": "crawler", "x": 2280, "facing": "right", "room": "kitchen" }
+        ],
+        "survivors": [],
+        "questItems": []
+      }
+    },
+    {
+      "number": 16,
+      "purpose": "Easy breather with the second clean water. Teaches reading condition: an old couple's flat full of tins and medicine next to a burned flat that is mostly charred debris and empty containers (scouting says skip it). Three zombies in total.",
+      "difficulty": 3,
+      "expectedMinutes": 3,
+      "stairwell": { "xMin": 1440, "xMax": 1680, "landing": { "xMin": 1440, "xMax": 1680, "stairsX": 1560 } },
+      "left": {
+        "id": "f16L",
+        "template": "elderly_flat",
+        "condition": "normal",
+        "name": "Berg flat",
+        "flavour": "A pill organiser with the days of the week. Thursday is still full.",
+        "frontDoor": "open",
+        "rooms": [
+          { "ref": "hallway", "type": "hallway", "modules": 1, "startModule": 0, "doorAfter": "open" },
+          { "ref": "living", "type": "living", "modules": 2, "startModule": 1, "doorAfter": "none" },
+          { "ref": "kitchen", "type": "kitchen", "modules": 1, "startModule": 3, "doorAfter": "open" },
+          { "ref": "bedroom", "type": "bedroom", "modules": 1, "startModule": 4, "doorAfter": "open" },
+          { "ref": "bathroom", "type": "bathroom", "modules": 1, "startModule": 5, "doorAfter": "none" }
+        ],
+        "objects": [
+          { "id": "f16L-0-floor0", "objectId": "chair", "room": "hallway", "slot": "floor0", "x": 1368, "layer": "floor" },
+          { "id": "f16L-0-floor1", "objectId": "potted_plant", "room": "hallway", "slot": "floor1", "x": 1272, "layer": "floor" },
+          { "id": "f16L-1-floor0", "objectId": "sofa", "room": "living", "slot": "floor0", "x": 1128, "layer": "floor" },
+          { "id": "f16L-1-floor1", "objectId": "table", "room": "living", "slot": "floor1", "x": 1032, "layer": "floor" },
+          { "id": "f16L-1-floor2", "objectId": "chair", "room": "living", "slot": "floor2", "x": 888, "layer": "floor" },
+          { "id": "f16L-1-floor3", "objectId": "tv", "room": "living", "slot": "floor3", "x": 792, "layer": "floor" },
+          { "id": "f16L-1-wall0", "objectId": "window_pane", "room": "living", "slot": "wall0", "x": 1128, "layer": "wall" },
+          { "id": "f16L-1-wall1", "objectId": "curtains", "room": "living", "slot": "wall1", "x": 1032, "layer": "wall" },
+          { "id": "f16L-1-wall2", "objectId": "oil_lamp", "room": "living", "slot": "wall2", "x": 888, "layer": "wall" },
+          { "id": "f16L-1-wall3", "objectId": "curtains", "room": "living", "slot": "wall3", "x": 792, "layer": "wall" },
+          { "id": "f16L-2-floor0", "objectId": "fridge", "room": "kitchen", "slot": "floor0", "x": 648, "layer": "floor", "fixedLoot": [ { "id": "water_bottle", "qty": 1 } ], "note": "Floor 16 clean water guarantee." },
+          { "id": "f16L-2-floor1", "objectId": "table", "room": "kitchen", "slot": "floor1", "x": 552, "layer": "floor" },
+          { "id": "f16L-2-wall0", "objectId": "kitchen_cupboard", "room": "kitchen", "slot": "wall0", "x": 648, "layer": "wall", "fixedLoot": [ { "id": "canned_food", "qty": 1 } ], "note": "Floor 16 food guarantee." },
+          { "id": "f16L-2-wall1", "objectId": "kitchen_drawer", "room": "kitchen", "slot": "wall1", "x": 552, "layer": "wall", "foundNote": { "id": "note_tins" } },
+          { "id": "f16L-3-floor0", "objectId": "bed_frame", "room": "bedroom", "slot": "floor0", "x": 408, "layer": "floor" },
+          { "id": "f16L-3-floor1", "objectId": "wardrobe", "room": "bedroom", "slot": "floor1", "x": 312, "layer": "floor", "foundNote": { "id": "note_chalk" } },
+          { "id": "f16L-3-wall0", "objectId": "curtains", "room": "bedroom", "slot": "wall0", "x": 408, "layer": "wall" },
+          { "id": "f16L-3-wall1", "objectId": "oil_lamp", "room": "bedroom", "slot": "wall1", "x": 312, "layer": "wall" },
+          { "id": "f16L-4-floor0", "objectId": "toilet_tank", "room": "bathroom", "slot": "floor0", "x": 168, "layer": "floor", "note": "Floor 16 drainable water (uncharred)." },
+          { "id": "f16L-4-floor1", "objectId": "laundry_basket", "room": "bathroom", "slot": "floor1", "x": 72, "layer": "floor" },
+          { "id": "f16L-4-wall0", "objectId": "medicine_cabinet", "room": "bathroom", "slot": "wall0", "x": 168, "layer": "wall" }
+        ],
+        "zombies": [
+          { "id": "f16L-z1", "type": "walker", "x": 850, "facing": "left", "room": "living" },
+          { "id": "f16L-z2", "type": "crawler", "x": 360, "facing": "left", "room": "bedroom" }
+        ],
+        "survivors": [],
+        "questItems": []
+      },
+      "right": {
+        "id": "f16R",
+        "template": "couple_flat",
+        "condition": "burned",
+        "name": "Costa flat",
+        "flavour": "The TV is still on standby. Nobody's watched it in a week.",
+        "frontDoor": "jammed",
+        "rooms": [
+          { "ref": "hallway", "type": "hallway", "modules": 1, "startModule": 0, "doorAfter": "open" },
+          { "ref": "living", "type": "living", "modules": 2, "startModule": 1, "doorAfter": "none" },
+          { "ref": "kitchen", "type": "kitchen", "modules": 1, "startModule": 3, "doorAfter": "none" },
+          { "ref": "bedroom", "type": "bedroom", "modules": 1, "startModule": 4, "doorAfter": "open" },
+          { "ref": "bathroom", "type": "bathroom", "modules": 1, "startModule": 5, "doorAfter": "none" }
+        ],
+        "objects": [
+          { "id": "f16R-0-floor0", "objectId": "charred_debris", "was": "chair", "room": "hallway", "slot": "floor0", "x": 1752, "layer": "floor" },
+          { "id": "f16R-0-floor1", "objectId": "potted_plant", "room": "hallway", "slot": "floor1", "x": 1848, "layer": "floor" },
+          { "id": "f16R-1-floor0", "objectId": "charred_debris", "was": "sofa", "room": "living", "slot": "floor0", "x": 1992, "layer": "floor" },
+          { "id": "f16R-1-floor1", "objectId": "charred_debris", "was": "table", "room": "living", "slot": "floor1", "x": 2088, "layer": "floor" },
+          { "id": "f16R-1-floor2", "objectId": "tv", "room": "living", "slot": "floor2", "x": 2232, "layer": "floor" },
+          { "id": "f16R-1-floor3", "objectId": "charred_debris", "was": "potted_plant", "room": "living", "slot": "floor3", "x": 2328, "layer": "floor" },
+          { "id": "f16R-1-wall0", "objectId": "window_pane", "room": "living", "slot": "wall0", "x": 1992, "layer": "wall" },
+          { "id": "f16R-1-wall1", "objectId": "charred_debris", "was": "curtains", "room": "living", "slot": "wall1", "x": 2088, "layer": "wall" },
+          { "id": "f16R-1-wall2", "objectId": "oil_lamp", "room": "living", "slot": "wall2", "x": 2232, "layer": "wall" },
+          { "id": "f16R-1-wall3", "objectId": "charred_debris", "was": "curtains", "room": "living", "slot": "wall3", "x": 2328, "layer": "wall" },
+          { "id": "f16R-2-floor0", "objectId": "charred_debris", "was": "fridge", "room": "kitchen", "slot": "floor0", "x": 2472, "layer": "floor" },
+          { "id": "f16R-2-floor1", "objectId": "charred_debris", "was": "table", "room": "kitchen", "slot": "floor1", "x": 2568, "layer": "floor" },
+          { "id": "f16R-2-wall0", "objectId": "kitchen_cupboard", "room": "kitchen", "slot": "wall0", "x": 2472, "layer": "wall", "empty": true },
+          { "id": "f16R-2-wall1", "objectId": "charred_debris", "was": "kitchen_drawer", "room": "kitchen", "slot": "wall1", "x": 2568, "layer": "wall" },
+          { "id": "f16R-3-floor0", "objectId": "charred_debris", "was": "bed_frame", "room": "bedroom", "slot": "floor0", "x": 2712, "layer": "floor" },
+          { "id": "f16R-3-floor1", "objectId": "wardrobe", "room": "bedroom", "slot": "floor1", "x": 2808, "layer": "floor", "note": "The one thing the fire spared; normal wardrobe loot rolls." },
+          { "id": "f16R-3-wall0", "objectId": "charred_debris", "was": "curtains", "room": "bedroom", "slot": "wall0", "x": 2712, "layer": "wall" },
+          { "id": "f16R-4-floor0", "objectId": "toilet_tank", "room": "bathroom", "slot": "floor0", "x": 2952, "layer": "floor" },
+          { "id": "f16R-4-floor1", "objectId": "charred_debris", "was": "laundry_basket", "room": "bathroom", "slot": "floor1", "x": 3048, "layer": "floor" },
+          { "id": "f16R-4-wall0", "objectId": "charred_debris", "was": "bathroom_cabinet", "room": "bathroom", "slot": "wall0", "x": 2952, "layer": "wall" }
+        ],
+        "zombies": [
+          { "id": "f16R-z1", "type": "walker", "x": 2520, "facing": "right", "room": "kitchen" }
+        ],
+        "survivors": [],
+        "questItems": []
+      }
+    },
+    {
+      "number": 17,
+      "purpose": "Top of stage 2 and the hardest floor with 13. Combines everything: a shared flat with a walker pair behind a bedroom door and crawlers either side, and a storage level whose padlocked cages teach the crowbar goal. Four zombies left, two right.",
+      "difficulty": 6,
+      "expectedMinutes": 4,
+      "stairwell": { "xMin": 1440, "xMax": 1680, "landing": { "xMin": 1440, "xMax": 1680, "stairsX": 1560 } },
+      "left": {
+        "id": "f17L",
+        "template": "shared_flat",
+        "condition": "normal",
+        "name": "Okafor flat",
+        "flavour": "Three names on the fridge rota. The last chore was never ticked.",
+        "frontDoor": "open",
+        "rooms": [
+          { "ref": "hallway", "type": "hallway", "modules": 1, "startModule": 0, "doorAfter": "open" },
+          { "ref": "kitchen", "type": "kitchen", "modules": 1, "startModule": 1, "doorAfter": "none" },
+          { "ref": "bed1", "type": "bedroom", "modules": 1, "startModule": 2, "doorAfter": "open" },
+          { "ref": "bed2", "type": "bedroom", "modules": 1, "startModule": 3, "doorAfter": "open" },
+          { "ref": "bed3", "type": "bedroom", "modules": 1, "startModule": 4, "doorAfter": "open" },
+          { "ref": "bathroom", "type": "bathroom", "modules": 1, "startModule": 5, "doorAfter": "none" }
+        ],
+        "objects": [
+          { "id": "f17L-0-floor0", "objectId": "chair", "room": "hallway", "slot": "floor0", "x": 1368, "layer": "floor" },
+          { "id": "f17L-0-floor1", "objectId": "toolbox", "room": "hallway", "slot": "floor1", "x": 1272, "layer": "floor" },
+          { "id": "f17L-0-wall1", "objectId": "oil_lamp", "room": "hallway", "slot": "wall1", "x": 1272, "layer": "wall" },
+          { "id": "f17L-1-floor0", "objectId": "fridge", "room": "kitchen", "slot": "floor0", "x": 1128, "layer": "floor" },
+          { "id": "f17L-1-floor1", "objectId": "table", "room": "kitchen", "slot": "floor1", "x": 1032, "layer": "floor" },
+          { "id": "f17L-1-wall0", "objectId": "kitchen_cupboard", "room": "kitchen", "slot": "wall0", "x": 1128, "layer": "wall", "fixedLoot": [ { "id": "dry_snack", "qty": 1 } ], "note": "Floor 17 food guarantee." },
+          { "id": "f17L-1-wall1", "objectId": "kitchen_drawer", "room": "kitchen", "slot": "wall1", "x": 1032, "layer": "wall", "foundNote": { "id": "note_radio" } },
+          { "id": "f17L-2-floor0", "objectId": "bed_frame", "room": "bed1", "slot": "floor0", "x": 888, "layer": "floor" },
+          { "id": "f17L-2-floor1", "objectId": "wardrobe", "room": "bed1", "slot": "floor1", "x": 792, "layer": "floor", "foundNote": { "id": "note_floor17" } },
+          { "id": "f17L-2-wall0", "objectId": "curtains", "room": "bed1", "slot": "wall0", "x": 888, "layer": "wall" },
+          { "id": "f17L-2-wall1", "objectId": "window_pane", "room": "bed1", "slot": "wall1", "x": 792, "layer": "wall" },
+          { "id": "f17L-3-floor0", "objectId": "bed_frame", "room": "bed2", "slot": "floor0", "x": 648, "layer": "floor" },
+          { "id": "f17L-3-floor1", "objectId": "chair", "room": "bed2", "slot": "floor1", "x": 552, "layer": "floor" },
+          { "id": "f17L-3-wall0", "objectId": "window_pane", "room": "bed2", "slot": "wall0", "x": 648, "layer": "wall" },
+          { "id": "f17L-3-wall1", "objectId": "curtains", "room": "bed2", "slot": "wall1", "x": 552, "layer": "wall" },
+          { "id": "f17L-4-floor0", "objectId": "bed_frame", "room": "bed3", "slot": "floor0", "x": 408, "layer": "floor" },
+          { "id": "f17L-4-wall0", "objectId": "curtains", "room": "bed3", "slot": "wall0", "x": 408, "layer": "wall" },
+          { "id": "f17L-4-wall1", "objectId": "oil_lamp", "room": "bed3", "slot": "wall1", "x": 312, "layer": "wall" },
+          { "id": "f17L-5-floor0", "objectId": "toilet_tank", "room": "bathroom", "slot": "floor0", "x": 168, "layer": "floor", "note": "Floor 17 drainable water." },
+          { "id": "f17L-5-floor1", "objectId": "sink_pipes", "room": "bathroom", "slot": "floor1", "x": 72, "layer": "floor" },
+          { "id": "f17L-5-wall0", "objectId": "bathroom_cabinet", "room": "bathroom", "slot": "wall0", "x": 168, "layer": "wall" }
+        ],
+        "zombies": [
+          { "id": "f17L-z1", "type": "crawler", "x": 1080, "facing": "left", "room": "kitchen" },
+          { "id": "f17L-z2", "type": "walker", "x": 620, "facing": "left", "room": "bed2" },
+          { "id": "f17L-z3", "type": "walker", "x": 540, "facing": "left", "room": "bed2" }        ],
+        "survivors": [],
+        "questItems": []
+      },
+      "right": {
+        "id": "f17R",
+        "template": "storage_utility",
+        "condition": "normal",
+        "name": "Basement storage",
+        "flavour": "Padlocks, numbered tags, a smell of damp cardboard.",
+        "frontDoor": "open",
+        "rooms": [
+          { "ref": "storage", "type": "storage", "modules": 3, "startModule": 0, "doorAfter": "open" },
+          { "ref": "janitor", "type": "janitor", "modules": 1, "startModule": 3, "doorAfter": "open" },
+          { "ref": "utility", "type": "utility", "modules": 2, "startModule": 4, "doorAfter": "none" }
+        ],
+        "objects": [
+          { "id": "f17R-0-floor0", "objectId": "storage_cage", "room": "storage", "slot": "floor0", "x": 1752, "layer": "floor" },
+          { "id": "f17R-0-floor1", "objectId": "storage_cage", "room": "storage", "slot": "floor1", "x": 1848, "layer": "floor" },
+          { "id": "f17R-0-floor2", "objectId": "storage_cage", "room": "storage", "slot": "floor2", "x": 1992, "layer": "floor" },
+          { "id": "f17R-0-floor3", "objectId": "storage_cage", "room": "storage", "slot": "floor3", "x": 2088, "layer": "floor" },
+          { "id": "f17R-0-floor4", "objectId": "storage_cage", "room": "storage", "slot": "floor4", "x": 2232, "layer": "floor" },
+          { "id": "f17R-0-floor5", "objectId": "storage_cage", "room": "storage", "slot": "floor5", "x": 2328, "layer": "floor" },
+          { "id": "f17R-0-wall1", "objectId": "utility_shelf", "room": "storage", "slot": "wall1", "x": 1848, "layer": "wall" },
+          { "id": "f17R-0-wall3", "objectId": "utility_shelf", "room": "storage", "slot": "wall3", "x": 2088, "layer": "wall" },
+          { "id": "f17R-0-wall5", "objectId": "utility_shelf", "room": "storage", "slot": "wall5", "x": 2328, "layer": "wall" },
+          { "id": "f17R-1-floor0", "objectId": "toolbox", "room": "janitor", "slot": "floor0", "x": 2472, "layer": "floor" },
+          { "id": "f17R-1-floor1", "objectId": "laundry_basket", "room": "janitor", "slot": "floor1", "x": 2568, "layer": "floor" },
+          { "id": "f17R-1-wall0", "objectId": "utility_shelf", "room": "janitor", "slot": "wall0", "x": 2472, "layer": "wall" },
+          { "id": "f17R-1-wall1", "objectId": "utility_shelf", "room": "janitor", "slot": "wall1", "x": 2568, "layer": "wall" },
+          { "id": "f17R-2-floor0", "objectId": "water_heater", "room": "utility", "slot": "floor0", "x": 2712, "layer": "floor" },
+          { "id": "f17R-2-floor1", "objectId": "storage_cage", "room": "utility", "slot": "floor1", "x": 2808, "layer": "floor" },
+          { "id": "f17R-2-floor2", "objectId": "storage_cage", "room": "utility", "slot": "floor2", "x": 2952, "layer": "floor" },
+          { "id": "f17R-2-wall0", "objectId": "utility_shelf", "room": "utility", "slot": "wall0", "x": 2712, "layer": "wall" },
+          { "id": "f17R-2-wall2", "objectId": "utility_shelf", "room": "utility", "slot": "wall2", "x": 2952, "layer": "wall" }
+        ],
+        "zombies": [
+          { "id": "f17R-z1", "type": "walker", "x": 2150, "facing": "right", "room": "storage" },
+          { "id": "f17R-z2", "type": "crawler", "x": 2860, "facing": "left", "room": "utility" }
+        ],
+        "survivors": [],
+        "questItems": []
+      }
+    }
+  ]
+}
