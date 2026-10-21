@@ -268,7 +268,7 @@
             { "id": "f16L-05", "objectId": "oil_lamp", "x": 270, "layer": "wall", "room": "living" },
             {
               "id": "f16L-06", "objectId": "bathroom_cabinet", "x": 372, "layer": "wall", "room": "bathroom",
-              "fixedLoot": [ { "id": "chemicals", "qty": 1 } ],
+              "fixedLoot": [ { "id": "chemicals", "qty": 1 }, { "id": "bandage", "qty": 1 } ],
               "rolls": [0, 1]
             }
           ],
