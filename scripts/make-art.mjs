@@ -47,9 +47,9 @@ const hex = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), pa
 // M2 palette (GDD section 9): dark, damp, desaturated. Keys kept from M1 so frames keep their meaning.
 const P = {
   O: '#0b0c0e', S: '#23272c', W: '#3a3e42', L: '#5d6166', R: '#5a3a2a', B: '#4e1c1a',
-  RED: '#8f2e26', A: '#c08a3e', Z: '#5f6650', SK: '#a99886', T: '#34494b', X: '#bdb8ab',
+  RED: '#68403a', A: '#c08a3e', Z: '#5f6650', SK: '#a99886', T: '#34494b', X: '#bdb8ab',
   // extras
-  TD: '#28393b', WOOD: '#6e4a30', WOODD: '#33211a', BLUE: '#3f5a64', DIRT: '#5a4e2e', GREEN: '#465a3c',
+  TD: '#28393b', WOOD: '#66503c', WOODD: '#33211a', BLUE: '#3f5a64', DIRT: '#5a4e2e', GREEN: '#465a3c',
   CLOTH: '#6e6a5e', METAL: '#82888c', ZD: '#454c3a', SKY: '#4d585d', SKYD: '#363f43', PANT: '#1c2025',
   // M2 additions
   DEEP: '#16191d', PLASTER: '#6e6a5e', WALLP: '#5b5547', LAMP: '#c08a3e', FIRE: '#d07a2c', WINDOW: '#8a9399',
@@ -923,12 +923,12 @@ const WALLS = {
   ],
   kids_room: [
     (c) => { c.rect(0, 4, 80, 58, 'PLASTER'); c.rect(0, 36, 80, 26, 'TD'); c.rect(0, 36, 80, 1, 'T');
-      c.rect(18, 14, 5, 5, 'MD2'); for (const [dx, dy] of [[-2, 0], [6, 0], [2, -2], [2, 6], [-1, -1], [5, -1], [-1, 5], [5, 5]]) wpx(c, 20 + dx, 16 + dy, 'MD2');
-      c.rect(50, 20, 10, 8, 'BLUE'); c.rect(51, 21, 8, 7, 'PLASTER'); c.rect(52, 24, 2, 4, 'R'); c.rect(54, 23, 3, 2, 'MD1'); c.line(49, 20, 55, 15, 'BLUE'); c.line(55, 15, 61, 20, 'BLUE');
+      c.rect(18, 14, 5, 5, 'WOOD'); for (const [dx, dy] of [[-2, 0], [6, 0], [2, -2], [2, 6], [-1, -1], [5, -1], [-1, 5], [5, 5]]) wpx(c, 20 + dx, 16 + dy, 'WOOD');
+      c.rect(50, 20, 10, 8, 'BLUE'); c.rect(51, 21, 8, 7, 'PLASTER'); c.rect(52, 24, 2, 4, 'R'); c.rect(54, 23, 3, 2, 'DIRT'); c.line(49, 20, 55, 15, 'BLUE'); c.line(55, 15, 61, 20, 'BLUE');
       skirt(c, 'S', 'L'); },
     (c) => { c.rect(0, 4, 80, 58, 'PLASTER'); c.rect(0, 36, 80, 26, 'TD'); c.rect(0, 36, 80, 1, 'T');
-      c.rect(60, 12, 3, 48, 'WOODD'); for (let y = 14; y < 58; y += 4) c.rect(60, y, y % 8 === 6 ? 3 : 2, 1, 'X'); c.rect(63, 30, 4, 1, 'MD3'); c.rect(63, 42, 4, 1, 'MD3');
-      for (const x of [12, 30]) { wpx(c, x, 20, 'MD1'); wpx(c, x - 1, 21, 'MD1'); wpx(c, x + 1, 21, 'MD1'); wpx(c, x, 22, 'MD1'); }
+      c.rect(60, 12, 3, 48, 'WOODD'); for (let y = 14; y < 58; y += 4) c.rect(60, y, y % 8 === 6 ? 3 : 2, 1, 'X'); c.rect(63, 30, 4, 1, 'R'); c.rect(63, 42, 4, 1, 'R');
+      for (const x of [12, 30]) { wpx(c, x, 20, 'DIRT'); wpx(c, x - 1, 21, 'DIRT'); wpx(c, x + 1, 21, 'DIRT'); wpx(c, x, 22, 'DIRT'); }
       skirt(c, 'S', 'L'); },
   ],
   office: [
@@ -952,10 +952,10 @@ const WALLS = {
   ],
   storage: [
     (c) => { c.rect(0, 4, 80, 58, 'S'); s2seed = 51; for (let r = 0; r < 7; r++) { const o = r % 2 ? 8 : 0; c.rect(0, 4 + r * 8 + 7, 80, 1, 'DEEP');
-        for (let x = 0; x < 80; x += 16) { c.rect(((x + o) % 80), 4 + r * 8, 1, 7, 'DEEP'); if (s2r() < 0.35) c.rect(((x + o + 1) % 80), 4 + r * 8, 15 - (o && x + o + 15 >= 80 ? 8 : 0), 7, 'H2f343b'); } }
+        for (let x = 0; x < 80; x += 16) { wr(c, x + o, 4 + r * 8, 1, 7, 'DEEP'); if (s2r() < 0.35) wr(c, x + o + 1, 4 + r * 8, 15, 7, 'H2f343b'); } }
       skirt(c, 'DEEP', 'S'); },
-    (c) => { c.rect(0, 4, 80, 58, 'S'); for (let r = 0; r < 7; r++) { const o = r % 2 ? 8 : 0; c.rect(0, 4 + r * 8 + 7, 80, 1, 'DEEP'); for (let x = 0; x < 80; x += 16) c.rect(((x + o) % 80), 4 + r * 8, 1, 7, 'DEEP'); }
-      for (let x = 0; x < 80; x += 16) c.rect(x, 56, 8, 4, 'MD1'); c.rect(0, 52, 80, 1, 'MD1'); skirt(c, 'DEEP', 'S'); },
+    (c) => { c.rect(0, 4, 80, 58, 'S'); for (let r = 0; r < 7; r++) { const o = r % 2 ? 8 : 0; c.rect(0, 4 + r * 8 + 7, 80, 1, 'DEEP'); for (let x = 0; x < 80; x += 16) wr(c, x + o, 4 + r * 8, 1, 7, 'DEEP'); }
+      for (let x = 0; x < 80; x += 16) c.rect(x, 56, 8, 4, 'DIRT'); c.rect(0, 52, 80, 1, 'DIRT'); skirt(c, 'DEEP', 'S'); },
   ],
   utility: [
     (c) => { c.rect(0, 4, 80, 58, 'S'); for (let x = 0; x < 80; x += 8) c.rect(x, 4, 1, 58, 'W'); c.rect(0, 14, 80, 3, 'METAL'); c.rect(0, 14, 80, 1, 'X'); c.rect(0, 21, 80, 2, 'R');
@@ -1032,10 +1032,11 @@ const shaftBase = (c) => {
   // floor-number plate and drip
   c.rect(36, 20, 8, 12, 'DEEP'); c.rect(37, 21, 6, 10, 'S'); c.rect(60, 8, 1, 20, 'W'); c.rect(61, 20, 1, 8, 'W'); c.rect(58, 26, 6, 2, 'ZD');
   c.rect(0, 70, 26, 1, 'DEEP'); c.rect(54, 70, 26, 1, 'DEEP');
+  c.rect(0, 79, 80, 1, 'O'); // same bottom row as slabs() so stacked shafts join
 };
 const lightFix = (c, lit) => {
   c.rect(35, 4, 10, 2, 'METAL'); c.rect(36, 6, 8, 5, 'L'); c.rect(37, 7, 6, 3, lit ? 'LAMP' : 'DEEP'); c.rect(36, 11, 8, 1, 'O');
-  if (lit) { c.rect(38, 8, 4, 1, 'PALE'); c.rect(34, 12, 12, 1, 'MD1'); c.rect(31, 13, 18, 1, 'MD1'); }
+  if (lit) { c.rect(38, 8, 4, 1, 'PALE'); c.rect(34, 12, 12, 1, 'DIRT'); c.rect(31, 13, 18, 1, 'DIRT'); }
 };
 sheet('stairwell_shaft', 80, 80, [
   ['shaft', shaftBase],
@@ -1046,8 +1047,8 @@ sheet('stairwell_shaft', 80, 80, [
 // ---------- Stage 2 props: small 16x16 ----------
 sheet('props_s2', 16, 16, [
   ['laundry_basket', (c) => { c.rect(4, 3, 8, 3, 'CLOTH'); c.rect(6, 2, 4, 2, 'TD'); c.rect(3, 6, 10, 8, 'DIRT'); c.rect(3, 6, 10, 1, 'WOOD'); for (let y = 8; y < 14; y += 2) c.rect(3, y, 10, 1, 'WOODD'); for (let x = 5; x < 13; x += 3) c.rect(x, 7, 1, 7, 'WOODD'); }],
-  ['toy_box', (c) => { c.rect(2, 6, 12, 8, 'BLUE'); c.rect(2, 6, 12, 2, 'TD'); c.rect(2, 13, 12, 1, 'S'); c.rect(6, 9, 4, 3, 'MD1'); c.px(7, 10, 'S'); c.rect(10, 3, 3, 3, 'MD3'); c.rect(4, 4, 2, 2, 'MD2'); }],
-  ['toy_box_open', (c) => { c.rect(2, 6, 12, 8, 'BLUE'); c.rect(2, 6, 12, 1, 'S'); c.rect(3, 7, 10, 2, 'DEEP'); c.rect(1, 2, 3, 5, 'TD'); c.rect(8, 4, 3, 2, 'MD2'); c.rect(11, 5, 2, 2, 'MD3'); c.rect(2, 13, 12, 1, 'S'); c.px(5, 11, 'MD1'); }],
+  ['toy_box', (c) => { c.rect(2, 6, 12, 8, 'BLUE'); c.rect(2, 6, 12, 2, 'TD'); c.rect(2, 13, 12, 1, 'S'); c.rect(6, 9, 4, 3, 'DIRT'); c.px(7, 10, 'S'); c.rect(10, 3, 3, 3, 'R'); c.rect(4, 4, 2, 2, 'WOOD'); }],
+  ['toy_box_open', (c) => { c.rect(2, 6, 12, 8, 'BLUE'); c.rect(2, 6, 12, 1, 'S'); c.rect(3, 7, 10, 2, 'DEEP'); c.rect(1, 2, 3, 5, 'TD'); c.rect(8, 4, 3, 2, 'WOOD'); c.rect(11, 5, 2, 2, 'R'); c.rect(2, 13, 12, 1, 'S'); c.px(5, 11, 'DIRT'); }],
   ['medicine_cabinet', (c) => { c.rect(3, 1, 10, 13, 'X'); c.rect(11, 1, 2, 13, 'H9a978c'); c.rect(4, 2, 6, 11, 'METAL'); c.rect(6, 5, 2, 6, 'RED'); c.rect(5, 7, 4, 2, 'RED'); c.rect(9, 7, 1, 2, 'L'); }],
   ['medicine_cabinet_open', (c) => { c.rect(5, 1, 8, 13, 'X'); c.rect(6, 2, 6, 11, 'DEEP'); c.rect(6, 6, 6, 1, 'L'); c.rect(7, 4, 2, 2, 'RED'); c.rect(9, 8, 2, 3, 'PALE'); c.rect(0, 2, 5, 11, 'METAL'); c.rect(1, 6, 1, 3, 'RED'); }],
   ['charred_small', (c) => { c.rect(2, 10, 10, 4, 'DEEP'); c.rect(4, 7, 4, 4, 'S'); c.rect(9, 8, 4, 6, 'O'); c.rect(3, 13, 11, 1, 'S'); c.px(6, 9, 'B'); c.px(10, 10, 'B'); c.px(5, 12, 'R'); c.rect(1, 12, 2, 2, 'DEEP'); }],
@@ -1081,15 +1082,15 @@ sheet('props_l2', 32, 32, [
 ], { outline: true, note: 'Stage 2 medium/large props 32x32, anchored at the bottom: mattress, desk, filing_cabinet (+_open), washing_machine (+_open), storage_cage (+_open), utility_shelf, charred_debris (Burned furniture), debris_papers/debris_clothes (ransacked clutter). *_open = searched/ajar.' });
 
 // ---------- window for the 80 px module: 40x40 with the glass exactly 32x32 at (4,4) so rain_window.png overlays at +4,+4 ----------
-const winFrame = (c) => { c.rect(0, 0, 40, 40, 'O'); c.rect(1, 1, 38, 38, 'L'); c.rect(3, 3, 34, 34, 'O'); c.rect(1, 36, 38, 3, 'W'); c.rect(0, 39, 40, 1, 'O'); };
+const winFrame = (c) => { c.rect(0, 0, 40, 40, 'O'); c.rect(1, 1, 38, 38, 'L'); c.rect(3, 3, 34, 34, 'O'); c.rect(1, 37, 38, 2, 'W'); c.rect(0, 39, 40, 1, 'O'); };
 const winGlass = (c) => { c.rect(4, 4, 32, 32, 'SKY'); c.rect(4, 20, 32, 16, 'SKYD'); c.line(7, 15, 14, 7, 'H7d8a82'); c.line(8, 16, 15, 8, 'H7d8a82');
   for (const [x, w, h] of [[6, 5, 8], [13, 6, 12], [22, 5, 7], [29, 5, 10]]) c.rect(x, 36 - h, w, h - 0, 'SKYD'); c.rect(4, 33, 32, 3, '#363f43'); };
 sheet('window_m', 40, 40, [
-  ['a', (c) => { winFrame(c); winGlass(c); c.rect(19, 4, 2, 32, 'L'); c.rect(4, 19, 32, 2, 'L'); c.rect(4, 35, 32, 1, 'W'); }],
-  ['b', (c) => { winFrame(c); winGlass(c); c.rect(14, 4, 2, 32, 'L'); c.rect(25, 4, 2, 32, 'L'); c.rect(4, 11, 32, 2, 'L'); c.rect(4, 35, 32, 1, 'W'); c.rect(4, 4, 32, 2, 'S'); }],
+  ['a', (c) => { winFrame(c); winGlass(c); c.rect(19, 4, 2, 32, 'L'); c.rect(4, 19, 32, 2, 'L'); }],
+  ['b', (c) => { winFrame(c); winGlass(c); c.rect(14, 4, 2, 32, 'L'); c.rect(25, 4, 2, 32, 'L'); c.rect(4, 11, 32, 2, 'L'); c.rect(4, 4, 32, 2, 'S'); }],
   ['broken', (c) => { winFrame(c); c.rect(4, 4, 32, 32, 'H07080a'); c.rect(19, 4, 2, 10, 'L'); c.rect(4, 19, 8, 2, 'L');
     for (const [x, y, w, h] of [[4, 4, 9, 2], [4, 6, 5, 3], [4, 9, 2, 3], [29, 4, 7, 3], [33, 7, 3, 4], [4, 31, 6, 5], [26, 32, 10, 4], [31, 29, 5, 3]]) c.rect(x, y, w, h, 'SKY');
-    c.line(13, 5, 10, 9, 'X'); c.line(29, 5, 32, 9, 'X'); c.rect(10, 34, 2, 1, 'Hc5ccd1'); c.rect(26, 33, 2, 1, 'Hc5ccd1'); c.rect(4, 35, 32, 1, 'W'); }],
+    c.line(13, 5, 10, 9, 'X'); c.line(29, 5, 32, 9, 'X'); c.rect(10, 34, 2, 1, 'Hc5ccd1'); c.rect(26, 33, 2, 1, 'Hc5ccd1'); }],
 ], { note: 'Stage 2 window 40x40 for an 80 px module; glass is exactly 32x32 at (4,4): place rain_window.png frames at +4,+4 (same x/y offset) to overlay. a = cross mullion, b = three panes with a transom, broken = burned rooms (no rain overlay needed, rain noise louder). Draw at the wall layer; centre it in the module, about y 14-54.' });
 
 // ---------- manifest ----------
