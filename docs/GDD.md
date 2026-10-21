@@ -148,8 +148,8 @@ from what the building already holds.
   front-most tile.
 
 **Camera** (`controls.*`)
-- Zoom fixed at **1.0** (`controls.zoom`; pinch zoom is an open question,
-  12). At zoom 1 the screen shows about 7 tiles across and 13 tiles down
+- Zoom fixed at **1.0** (`controls.zoom`; no pinch zoom, no zoom toggle:
+  CD decision, 12). At zoom 1 the screen shows about 7 tiles across and 13 tiles down
   the screen's axes, roughly 400 tiles of floor.
 - **Follow**: the camera eases toward a target point = the hero's screen
   position + a **look-ahead** of **120 game px** in the screen direction
@@ -187,8 +187,8 @@ from what the building already holds.
    your door. Or don't notice, and find out how well it was built.
 
 ## 4. Touch controls
-One thumb, taps, holds and drags only. No multi-touch (pinch zoom is an
-open question, 12). No keyboard or hover.
+One thumb, taps, holds and drags only. No multi-touch (no pinch zoom: CD
+decision, 12). No keyboard or hover.
 
 | Gesture | Where | Result |
 |---|---|---|
@@ -1701,7 +1701,8 @@ characters never block; tall objects only fade, section 2).
   next recompute. A zombie stepping from an Unknown tile onto a Visible one
   pops in with a 0.15 s fade, never instantly.
 
-**Hearing what you can't see** (no visual markers; audio in section 10):
+**Hearing what you can't see** (audio in section 10; the only visual hint
+is the sound ripple below, no icons or markers):
 - Every zombie within **12 tiles** (`audio.zombieHearRadiusTiles`) on the
   hero's floor makes occasional shuffles and low breaths every **4-9 s**
   (`audio.zombieSoundGapSeconds`), panned by its screen position and
@@ -1713,6 +1714,41 @@ characters never block; tall objects only fade, section 2).
   Visible or Remembered (it is the door that moves, not a marker).
 - Unseen zombies never raise Panic and never interrupt actions until they
   see the hero.
+
+**Sound ripple** (for players with the sound off; always on, not a
+setting; CD decision, 12) (`vision.soundRipple.*`):
+- **Triggers**: a sound event whose noise level is **Noisy or Loud**
+  (`minNoise: "noisy"`), whose source is on the hero's floor, inside that
+  sound's own hearing range (door bangs 15 tiles, `audio.doorBangHearTiles`;
+  everything else 12 tiles, `audio.zombieHearRadiusTiles`), and whose
+  source tile is **not Visible** (Remembered and Unknown both count). The
+  hero's own sounds (running, salvage, door breaking, throws) never ripple.
+- **Sounds that count** in M2: a zombie banging or pushing a door (Loud);
+  a zombie's aggro groan (Noisy); attack-cue bangs on the home front door
+  and the attack groans (Loud), only while the hero is on the home floor;
+  a molotov burst or a door breaking caused by something other than the
+  hero (Loud). Zombie shuffles and breaths are Quiet and **never** ripple.
+- **Look**: a soft dark arc (overlay colour, no icon, no text) drawn just
+  outside the edge of the vision area in the direction of the source from
+  the hero. Arc width **40 degrees** (`arcDegrees`), thickness **0.4
+  tiles** (`thicknessTiles`). If the direction is inside the cone, the arc
+  sits at the cone's range edge for the current light; if it is outside
+  the cone (behind or to the side), it sits on the close circle's edge
+  (1.5 tiles). The arc drifts **0.5 tiles** outward (`driftTiles`) while it
+  plays.
+- **Timing**: fade in **0.15 s**, hold, fade out; total **0.9 s**
+  (`fadeInSeconds`, `durationSeconds`). Peak alpha **0.25** for Noisy and
+  **0.4** for Loud (`alpha.noisy`, `alpha.loud`), times x0.6 when the
+  source is more than 8 tiles away (`farTiles`, `farAlphaMult`).
+- **Limits**: at most **2** ripples on screen (`maxActive`, newest replaces
+  oldest); the same source can ripple at most once every **1.5 s**
+  (`sameSourceCooldownSeconds`), so a door being banged pulses with the
+  bangs, not continuously. A ripple stops early if its source becomes
+  Visible.
+- **Edge cases**: ripples show during actions, Look and panels with the
+  world dimmed, but not during a full-screen menu or while the game is
+  paused. They never raise Panic, never interrupt actions, and never show
+  sounds from other floors.
 
 **Interplay**
 - **Stealth**: you see zombies' facing only when they are Visible; a
@@ -2053,7 +2089,6 @@ CD playtest on the phone.
     3. A 4th music piece and more ambience one-shots.
     4. More templates and blueprints (e.g. `dentist`, `hoarder_flat`) and
        notes (to 20).
-    5. Pinch zoom, if the CD wants it (12).
   - **Delivery**: in 4 playable stages A-D (11.3), each ending with a CD
     playtest.
 - **M3 "Night and fever"**: floors 8-22; day/night on the device clock;
@@ -2276,26 +2311,23 @@ screen, seeing more than one floor at a time.
 - Camera-facing walls are cut for the hero's room and any room he can see
   into; other walls stay full height.
 - Attackers: max 3 at the door at once (the corridor is narrow).
-- Unseen zombies are **audio only**, plus doors that visibly rattle (open
-  question 2 below asks about muted phones).
+- Unseen zombies are **audio only**, plus doors that visibly rattle and the
+  sound ripple (5.17).
 - New stages A-D (11.3).
 
+### Decided by the Creative Director for the iso rebuild
+- **Zoom**: no zoom. Camera fixed at 1.0, no pinch zoom, no zoom toggle;
+  one thumb only (`controls.zoom`).
+- **Playing with the sound off**: a faint dark **sound ripple** at the edge
+  of the vision area toward Noisy/Loud unseen sounds within hearing range,
+  always on (not a setting), no icons (5.17, `vision.soundRipple.*`).
+
 ### Open questions
-1. **Pinch zoom** (iso rebuild): (a) **no zoom**, fixed 1.0, one-thumb only
-   (current default); (b) pinch zoom between **0.75x and 1.5x**, two
-   fingers, as an optional extra; (c) a **zoom toggle** in the Menu (normal
-   / close-up 1.5x), still one thumb.
-2. **Playing with the sound off** (iso rebuild): unseen zombies are only
-   heard, and many phones are played muted. (a) keep it **audio only**
-   (purest dread; muted players miss warnings); (b) a **faint dark ripple
-   at the edge of the vision cone** in the direction of a loud unseen
-   sound (bangs, groans within 6 tiles), no icons; (c) (b) only as a Menu
-   option, "Show sounds", off by default.
-3. **Backstory names** ("grey fever", "river docks" group): keep, rename,
+1. **Backstory names** ("grey fever", "river docks" group): keep, rename,
    or also name the city/tower? (older, still open)
-4. **Survivor healing feel** (5.7): (a) keep +4/h; (b) back to +2/h and
+2. **Survivor healing feel** (5.7): (a) keep +4/h; (b) back to +2/h and
    rely on Treat; (c) +6/h so a breach costs about half a day. (older)
-5. **Padlocked storage cages** (5.15, low priority, check at playtest):
+3. **Padlocked storage cages** (5.15, low priority, check at playtest):
    (a) keep crowbar-only (current); (b) also open by hand in 8 s, Loud;
    (c) cap a storage room at 3 cages so it feels less like a wall of locks.
    (older)

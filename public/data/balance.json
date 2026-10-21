@@ -137,7 +137,20 @@
     "overlayAlpha": { "lit": 0.1, "grey": 0.3, "dim": 0.5, "dark": 0.7, "edge": 0.8, "memory": 0.82, "unknown": 1 },
     "closeCircleAlphaMult": 0.5,
     "memoryDesaturate": 0.8,
-    "vignette": { "innerRadiusRatio": 0.55, "outerAlpha": 0.65 }
+    "vignette": { "innerRadiusRatio": 0.55, "outerAlpha": 0.65 },
+    "soundRipple": {
+      "minNoise": "noisy",
+      "arcDegrees": 40,
+      "thicknessTiles": 0.4,
+      "driftTiles": 0.5,
+      "fadeInSeconds": 0.15,
+      "durationSeconds": 0.9,
+      "alpha": { "noisy": 0.25, "loud": 0.4 },
+      "farTiles": 8,
+      "farAlphaMult": 0.6,
+      "maxActive": 2,
+      "sameSourceCooldownSeconds": 1.5
+    }
   },
   "doors": {
     "openSeconds": 0.4,
