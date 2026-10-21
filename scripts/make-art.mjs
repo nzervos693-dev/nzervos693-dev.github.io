@@ -866,6 +866,232 @@ function decal(seedV, n, wide) {
 sheet('blood_decal', 16, 8, [0, 1, 2, 3].map((i) => [`decal_${i}`, decal(900 + i * 37, 3 + i, 1.5 + i * 0.35)]),
   { note: 'floor/wall blood stains, 4 variants (decal_0..3), dark dried tones, no outline; place occasionally and fade very slowly' });
 
+// ---------- Milestone 2 stage 2: wide floors (80x80 modules, GDD 11.3 / 5.15) ----------
+// Own rng so every earlier asset stays byte-identical. Patterns repeat with periods that divide 80 so modules tile.
+let s2seed = 2001;
+const s2r = () => ((s2seed = (s2seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+const s2i = (n) => (s2r() * n) | 0;
+const wr = (c, x, y, w, h, col) => { for (let i = 0; i < w; i++) c.rect((((x + i) % 80) + 80) % 80, y, 1, h, col); };
+const wpx = (c, x, y, col) => c.px((((x | 0) % 80) + 80) % 80, y, col);
+function mdamp(c, sd, { streaks = 7, mould = 4, y1 = 60, top = true } = {}) { // water streaks and mould; wraps horizontally
+  s2seed = sd;
+  for (let i = 0; i < streaks; i++) {
+    const x = s2i(80), y = 4 + s2i(14), len = 6 + s2i(24);
+    for (let j = 0; j < len && y + j < y1; j++) if (s2r() < 0.8) wpx(c, x, y + j, 'S');
+  }
+  for (let i = 0; i < mould; i++) { const x = s2i(78), y = 55 + s2i(6); wr(c, x, y, 3 + s2i(5), 2, 'ZD'); wpx(c, x + 1, y - 1, 'ZD'); }
+  if (top) for (let i = 0; i < 2; i++) { const x = s2i(78); wr(c, x, 4, 4 + s2i(5), 2, 'ZD'); wpx(c, x + 1, 6, 'ZD'); }
+}
+const speck = (c, sd, n, y0, y1, col) => { s2seed = sd; for (let i = 0; i < n; i++) wr(c, s2i(80), y0 + s2i(y1 - y0), 1 + s2i(3), 1 + s2i(2), col); };
+const skirt = (c, col = 'S', top = 'L') => { c.rect(0, 62, 80, 8, col); c.rect(0, 62, 80, 1, top); };
+const fin = (c) => slabs(c, 80, 80);
+
+const WALLS = {
+  hallway: [
+    (c) => { c.rect(0, 4, 80, 48, 'H4a3a36'); for (let x = 0; x < 80; x += 10) c.rect(x, 4, 4, 48, 'H3f322f');
+      c.rect(0, 52, 80, 18, 'H2e2523'); c.rect(0, 52, 80, 1, 'R'); c.rect(0, 53, 80, 1, 'S'); for (let x = 0; x < 80; x += 16) c.rect(x, 56, 1, 6, 'S'); c.rect(0, 62, 80, 1, 'R'); },
+    (c) => { c.rect(0, 4, 80, 48, 'H3f322f'); for (let x = 0; x < 80; x += 20) c.rect(x, 4, 1, 48, 'H4a3a36');
+      c.rect(26, 14, 16, 14, 'WOODD'); c.rect(27, 15, 14, 12, 'S'); c.rect(29, 18, 10, 6, 'H34393f'); c.rect(30, 19, 4, 2, 'L');
+      c.rect(52, 22, 22, 2, 'L'); for (const x of [54, 62, 70]) { c.rect(x, 24, 1, 3, 'L'); } c.rect(61, 27, 3, 6, 'CLOTH'); c.rect(60, 33, 5, 2, 'CLOTH');
+      c.rect(0, 52, 80, 18, 'H2e2523'); c.rect(0, 52, 80, 1, 'R'); c.rect(0, 53, 80, 1, 'S'); c.rect(0, 62, 80, 1, 'R'); },
+  ],
+  living: [
+    (c) => { c.rect(0, 4, 80, 58, 'WALLP'); for (let gy = 10; gy < 54; gy += 12) for (let gx = 0; gx < 80; gx += 20) { const o = (gy / 12 | 0) % 2 ? 10 : 0;
+        wpx(c, gx + o, gy, '#665f50'); wpx(c, gx + o - 1, gy + 1, '#665f50'); wpx(c, gx + o + 1, gy + 1, '#665f50'); wpx(c, gx + o, gy + 2, '#665f50'); }
+      skirt(c, 'H2e2523', 'R'); },
+    (c) => { c.rect(0, 4, 80, 58, 'WALLP'); for (let x = 0; x < 80; x += 16) { c.rect(x, 4, 4, 58, 'H4a3a36'); c.rect(x + 4, 4, 1, 58, '#665f50'); }
+      c.rect(0, 40, 80, 1, 'R'); c.rect(0, 41, 80, 1, 'S'); skirt(c, 'H2e2523', 'R'); },
+  ],
+  kitchen: [
+    (c) => { c.rect(0, 4, 80, 20, 'W'); c.rect(0, 24, 80, 38, 'L'); for (let y = 24; y < 62; y += 8) c.rect(0, y, 80, 1, 'S'); for (let x = 0; x < 80; x += 8) c.rect(x, 24, 1, 38, 'S');
+      s2seed = 31; for (let i = 0; i < 14; i++) c.rect(s2i(10) * 8 + 1, 25 + s2i(4) * 8, 7, 7, 'H62686e'); c.rect(0, 24, 80, 1, 'O'); skirt(c); },
+    (c) => { c.rect(0, 4, 80, 30, '#4c4639'); c.rect(0, 34, 80, 28, 'L'); for (let y = 34; y < 62; y += 7) c.rect(0, y, 80, 1, 'S'); for (let x = 0; x < 80; x += 8) c.rect(x, 34, 1, 28, 'S');
+      for (let x = 0; x < 80; x += 16) for (let y = 35; y < 62; y += 14) c.rect(x + 1, y, 7, 6, 'H555b61'); c.rect(0, 32, 80, 3, 'TD'); c.rect(0, 34, 80, 1, 'O'); skirt(c); },
+  ],
+  bedroom: [
+    (c) => { c.rect(0, 4, 80, 58, 'WALLP'); for (let gy = 8; gy < 56; gy += 10) for (let gx = 0; gx < 80; gx += 10) { const o = (gy / 10 | 0) % 2 ? 5 : 0;
+        wpx(c, gx + o, gy, 'H5f5344'); wpx(c, gx + o, gy + 1, 'H3f322f'); }
+      skirt(c, 'S', 'R'); },
+    (c) => { c.rect(0, 4, 80, 58, '#4c4639'); for (let x = 0; x < 80; x += 8) c.rect(x, 4, 1, 58, 'WALLP'); c.rect(0, 18, 80, 2, 'R'); c.rect(0, 20, 80, 1, 'S'); skirt(c, 'S', 'R'); },
+  ],
+  bathroom: [
+    (c) => { c.rect(0, 4, 80, 8, 'W'); c.rect(0, 12, 80, 58, 'L'); for (let y = 12; y < 70; y += 8) c.rect(0, y, 80, 1, 'S'); for (let x = 0; x < 80; x += 8) c.rect(x, 12, 1, 58, 'S');
+      s2seed = 41; for (let i = 0; i < 24; i++) c.rect(s2i(10) * 8 + 1, 13 + s2i(7) * 8, 7, 7, 'H62686e'); c.rect(0, 12, 80, 1, 'O'); c.rect(48, 40, 2, 6, 'R'); c.rect(49, 46, 1, 8, 'R'); },
+    (c) => { c.rect(0, 4, 80, 8, 'W'); c.rect(0, 12, 80, 58, 'H555b61'); for (let y = 12; y < 70; y += 8) c.rect(0, y, 80, 1, 'S'); for (let x = 0; x < 80; x += 8) c.rect(x, 12, 1, 58, 'S');
+      c.rect(0, 36, 80, 8, 'TD'); c.rect(0, 36, 80, 1, 'S'); s2seed = 43; for (let i = 0; i < 12; i++) c.rect(s2i(10) * 8 + 1, 13 + s2i(7) * 8, 7, 7, 'H62686e'); c.rect(0, 12, 80, 1, 'O');
+      for (let i = 0; i < 10; i++) { const x = s2i(76), y = 14 + s2i(46); wr(c, x, y, 2 + s2i(3), 2, 'ZD'); } },
+  ],
+  kids_room: [
+    (c) => { c.rect(0, 4, 80, 58, 'PLASTER'); c.rect(0, 36, 80, 26, 'TD'); c.rect(0, 36, 80, 1, 'T');
+      c.rect(18, 14, 5, 5, 'MD2'); for (const [dx, dy] of [[-2, 0], [6, 0], [2, -2], [2, 6], [-1, -1], [5, -1], [-1, 5], [5, 5]]) wpx(c, 20 + dx, 16 + dy, 'MD2');
+      c.rect(50, 20, 10, 8, 'BLUE'); c.rect(51, 21, 8, 7, 'PLASTER'); c.rect(52, 24, 2, 4, 'R'); c.rect(54, 23, 3, 2, 'MD1'); c.line(49, 20, 55, 15, 'BLUE'); c.line(55, 15, 61, 20, 'BLUE');
+      skirt(c, 'S', 'L'); },
+    (c) => { c.rect(0, 4, 80, 58, 'PLASTER'); c.rect(0, 36, 80, 26, 'TD'); c.rect(0, 36, 80, 1, 'T');
+      c.rect(60, 12, 3, 48, 'WOODD'); for (let y = 14; y < 58; y += 4) c.rect(60, y, y % 8 === 6 ? 3 : 2, 1, 'X'); c.rect(63, 30, 4, 1, 'MD3'); c.rect(63, 42, 4, 1, 'MD3');
+      for (const x of [12, 30]) { wpx(c, x, 20, 'MD1'); wpx(c, x - 1, 21, 'MD1'); wpx(c, x + 1, 21, 'MD1'); wpx(c, x, 22, 'MD1'); }
+      skirt(c, 'S', 'L'); },
+  ],
+  office: [
+    (c) => { c.rect(0, 4, 80, 58, 'W'); for (let x = 0; x < 80; x += 20) c.rect(x, 4, 1, 58, 'S'); c.rect(0, 50, 80, 12, 'S'); c.rect(0, 50, 80, 1, 'L');
+      c.rect(8, 14, 24, 18, 'WOOD'); c.rect(9, 15, 22, 16, 'DIRT'); for (const [x, y] of [[11, 17], [18, 20], [25, 17], [14, 25], [22, 26]]) { c.rect(x, y, 4, 3, 'X'); wpx(c, x + 1, y, 'RED'); }
+      skirt(c, 'S', 'L'); },
+    (c) => { c.rect(0, 4, 80, 58, 'W'); for (let x = 0; x < 80; x += 20) c.rect(x, 4, 1, 58, 'S'); c.rect(0, 50, 80, 12, 'S'); c.rect(0, 50, 80, 1, 'L');
+      c.rect(34, 8, 12, 12, 'L'); c.rect(35, 9, 10, 10, 'X'); c.rect(40, 10, 1, 5, 'O'); c.rect(40, 14, 4, 1, 'O'); wpx(c, 40, 14, 'O');
+      c.rect(8, 24, 20, 14, 'L'); c.rect(9, 25, 18, 12, 'PALE'); c.rect(11, 28, 10, 1, 'WINDOW'); c.rect(11, 31, 6, 1, 'WINDOW'); skirt(c, 'S', 'L'); },
+  ],
+  break_room: [
+    (c) => { c.rect(0, 4, 80, 26, '#4c4639'); c.rect(0, 30, 80, 32, 'ZD'); c.rect(0, 30, 80, 1, 'O'); c.rect(0, 31, 80, 1, 'Z'); c.rect(48, 8, 14, 10, 'PALE'); c.rect(50, 10, 10, 1, 'S'); c.rect(50, 13, 7, 1, 'S'); skirt(c, 'S', 'L'); },
+    (c) => { c.rect(0, 4, 80, 26, '#4c4639'); c.rect(0, 30, 80, 32, 'ZD'); c.rect(0, 30, 80, 1, 'O'); c.rect(20, 22, 40, 22, 'L');
+      for (let x = 20; x < 60; x += 5) c.rect(x, 22, 1, 22, 'S'); for (let y = 22; y < 44; y += 5) c.rect(20, y, 40, 1, 'S'); c.rect(20, 22, 40, 1, 'O'); skirt(c, 'S', 'L'); },
+  ],
+  laundry: [
+    (c) => { c.rect(0, 4, 80, 58, 'W'); c.rect(0, 38, 80, 24, 'S'); c.rect(0, 38, 80, 1, 'L'); c.rect(0, 10, 80, 3, 'METAL'); c.rect(0, 10, 80, 1, 'X');
+      for (let x = 10; x < 80; x += 20) c.rect(x, 13, 2, 3, 'L'); c.rect(34, 13, 2, 8, 'METAL'); c.rect(32, 20, 6, 3, 'B'); skirt(c, 'S', 'L'); },
+    (c) => { c.rect(0, 4, 80, 58, 'W'); c.rect(0, 38, 80, 24, 'S'); c.rect(0, 38, 80, 1, 'L'); c.rect(12, 4, 3, 58, 'METAL'); c.rect(12, 4, 1, 58, 'X');
+      c.rect(10, 28, 7, 3, 'L'); c.rect(12, 26, 3, 7, 'L'); wpx(c, 13, 29, 'B'); c.rect(56, 10, 3, 52, 'L'); for (const y of [20, 40]) c.rect(54, y, 7, 2, 'S'); skirt(c, 'S', 'L'); },
+  ],
+  storage: [
+    (c) => { c.rect(0, 4, 80, 58, 'S'); s2seed = 51; for (let r = 0; r < 7; r++) { const o = r % 2 ? 8 : 0; c.rect(0, 4 + r * 8 + 7, 80, 1, 'DEEP');
+        for (let x = 0; x < 80; x += 16) { c.rect(((x + o) % 80), 4 + r * 8, 1, 7, 'DEEP'); if (s2r() < 0.35) c.rect(((x + o + 1) % 80), 4 + r * 8, 15 - (o && x + o + 15 >= 80 ? 8 : 0), 7, 'H2f343b'); } }
+      skirt(c, 'DEEP', 'S'); },
+    (c) => { c.rect(0, 4, 80, 58, 'S'); for (let r = 0; r < 7; r++) { const o = r % 2 ? 8 : 0; c.rect(0, 4 + r * 8 + 7, 80, 1, 'DEEP'); for (let x = 0; x < 80; x += 16) c.rect(((x + o) % 80), 4 + r * 8, 1, 7, 'DEEP'); }
+      for (let x = 0; x < 80; x += 16) c.rect(x, 56, 8, 4, 'MD1'); c.rect(0, 52, 80, 1, 'MD1'); skirt(c, 'DEEP', 'S'); },
+  ],
+  utility: [
+    (c) => { c.rect(0, 4, 80, 58, 'S'); for (let x = 0; x < 80; x += 8) c.rect(x, 4, 1, 58, 'W'); c.rect(0, 14, 80, 3, 'METAL'); c.rect(0, 14, 80, 1, 'X'); c.rect(0, 21, 80, 2, 'R');
+      for (let x = 6; x < 80; x += 20) { c.rect(x, 12, 2, 12, 'O'); } c.rect(46, 11, 6, 3, 'B'); skirt(c, 'DEEP', 'S'); },
+    (c) => { c.rect(0, 4, 80, 58, 'S'); for (let x = 0; x < 80; x += 8) c.rect(x, 4, 1, 58, 'W'); c.rect(20, 14, 20, 28, 'L'); c.rect(22, 16, 16, 24, 'DEEP'); c.rect(24, 18, 2, 2, 'RED'); c.rect(28, 18, 2, 2, 'A'); c.rect(24, 24, 12, 1, 'W');
+      c.rect(0, 8, 80, 2, 'METAL'); c.line(30, 42, 30, 58, 'R'); c.line(31, 42, 31, 58, 'R'); skirt(c, 'DEEP', 'S'); },
+  ],
+  janitor: [
+    (c) => { c.rect(0, 4, 80, 58, 'W'); c.rect(0, 36, 80, 26, 'L'); for (let y = 36; y < 62; y += 8) c.rect(0, y, 80, 1, 'S'); for (let x = 0; x < 80; x += 8) c.rect(x, 36, 1, 26, 'S'); c.rect(0, 36, 80, 1, 'O');
+      c.rect(10, 20, 40, 2, 'WOODD'); for (const x of [14, 28, 42]) { c.rect(x, 22, 1, 20, 'WOOD'); c.rect(x - 1, 40, 3, 3, 'CLOTH'); } skirt(c); },
+    (c) => { c.rect(0, 4, 80, 58, 'W'); c.rect(0, 36, 80, 26, 'L'); for (let y = 36; y < 62; y += 8) c.rect(0, y, 80, 1, 'S'); for (let x = 0; x < 80; x += 8) c.rect(x, 36, 1, 26, 'S'); c.rect(0, 36, 80, 1, 'O');
+      c.rect(30, 44, 22, 16, 'DEEP'); c.rect(32, 46, 18, 12, 'S'); c.rect(40, 30, 3, 14, 'METAL'); c.rect(40, 29, 6, 2, 'METAL'); c.px(45, 31, 'BLUE'); skirt(c); },
+  ],
+};
+const wallFrames = [];
+let wseed = 7000;
+for (const [type, fns] of Object.entries(WALLS)) {
+  fns.forEach((fn, v) => wallFrames.push([`${type}_${'ab'[v]}`, (c) => {
+    fn(c); wseed += 13;
+    mdamp(c, wseed, { streaks: type === 'bathroom' ? 3 : type === 'laundry' || type === 'utility' ? 10 : 7, mould: type === 'bathroom' || type === 'laundry' || v ? 5 : 3 });
+    speck(c, wseed + 5, 18, 4, 60, 'S'); fin(c);
+  }]));
+}
+// burned units: soot-black walls, charred studs, embers
+[0, 1].forEach((v) => wallFrames.push([`burned_${'ab'[v]}`, (c) => {
+  c.rect(0, 4, 80, 66, 'DEEP'); s2seed = 800 + v * 17;
+  for (let i = 0; i < 26; i++) { const x = s2i(80), len = 8 + s2i(36); for (let j = 0; j < len; j++) if (s2r() < 0.85) wpx(c, x, 62 - j, 'O'); }
+  speck(c, 810 + v, 40, 4, 62, 'S');
+  for (let x = 10 + v * 8; x < 80; x += 20) { c.rect(x, 4, 3, 58, 'WOODD'); c.rect(x, 4, 1, 58, 'O'); for (let y = 8; y < 60; y += 9 + s2i(5)) wpx(c, x + 1, y, 'B'); }
+  if (v) { c.rect(24, 14, 14, 22, 'S'); for (let y = 14; y < 36; y += 4) c.rect(24 + (y % 8 ? 0 : 4), y, 10, 1, 'DEEP'); c.rect(30, 30, 3, 3, 'B'); }
+  else { c.rect(50, 12, 12, 10, 'O'); c.rect(52, 24, 8, 6, 'S'); c.px(55, 16, 'B'); }
+  c.rect(0, 62, 80, 8, 'O'); c.rect(0, 62, 80, 1, 'S'); fin(c);
+}]));
+// ransacked overlays (transparent): clothes, papers and glass on the floor
+[0, 1].forEach((v) => wallFrames.push([`ransacked_${'ab'[v]}`, (c) => {
+  s2seed = 900 + v * 29;
+  for (let i = 0; i < 9; i++) { const x = 3 + s2i(70), y = 65 + s2i(4); c.rect(x, y, 3 + s2i(3), 1 + s2i(2), s2r() < 0.5 ? 'X' : 'PALE'); if (s2r() < 0.3) wpx(c, x + 1, y, 'S'); }
+  for (let i = 0; i < 3; i++) { const x = 6 + s2i(64), y = 66 + s2i(3); c.rect(x, y, 5, 2, v ? 'CLOTH' : 'TD'); c.rect(x + 1, y - 1, 3, 1, v ? 'CLOTH' : 'T'); }
+  if (v) for (let i = 0; i < 8; i++) wpx(c, 4 + s2i(70), 66 + s2i(4), 'Hc5ccd1');
+  c.rect(38 + v * 6, 14, 1, 40, 'S'); wpx(c, 39 + v * 6, 20, 'S'); // torn wallpaper seam
+}]));
+sheet('wall_modules', 80, 80, wallFrames,
+  { note: 'Stage 2 wall/floor-slab backgrounds, one 80x80 module (240x240 game px); tiles horizontally; slab top 4 rows and bottom 10 rows, walking line y=70. Names type_a / type_b per room type (studio -> living or bedroom, reception -> office); burned_a/b = soot-black full backgrounds; ransacked_a/b = transparent floor-clutter overlays (draw over any base). Mould and damp are baked in.' });
+
+// ---------- room dividers 8x80 ----------
+const divBase = (c) => { c.rect(0, 4, 8, 66, 'W'); c.rect(0, 4, 1, 66, 'L'); c.rect(7, 4, 1, 66, 'S'); s2seed = 1200; for (let i = 0; i < 8; i++) c.px(1 + s2i(6), 5 + s2i(56), 'S'); };
+sheet('room_dividers', 8, 80, [
+  ['wall_segment', (c) => { divBase(c); c.rect(0, 62, 8, 8, 'S'); c.rect(0, 62, 8, 1, 'L'); c.rect(2, 20, 1, 12, 'S'); c.px(3, 32, 'S'); fin(c); }],
+  ['doorway_open', (c) => { divBase(c); c.clear(0, 38, 8, 32); c.rect(0, 36, 8, 2, 'WOODD'); c.rect(0, 38, 8, 1, 'O'); c.rect(0, 62, 8, 8, 'S'); c.clear(0, 38, 8, 32); c.rect(0, 70, 8, 1, 'L'); fin(c); c.rect(0, 70, 8, 1, 'L'); }],
+  ['front_door_frame', (c) => { c.rect(0, 4, 8, 66, 'S'); c.rect(0, 4, 1, 66, 'L'); c.rect(7, 4, 1, 66, 'O'); c.clear(0, 34, 8, 36); c.rect(0, 32, 8, 3, 'R'); c.rect(0, 32, 8, 1, 'WOOD'); c.rect(0, 35, 8, 1, 'O');
+    c.rect(2, 14, 4, 6, 'L'); c.rect(3, 15, 2, 4, 'A'); c.px(4, 24, 'METAL'); fin(c); c.rect(0, 70, 8, 1, 'L'); }],
+  ['doorway_burned', (c) => { c.rect(0, 4, 8, 66, 'DEEP'); c.rect(0, 4, 1, 66, 'S'); c.clear(0, 38, 8, 32); c.rect(0, 36, 8, 2, 'O'); c.px(2, 37, 'B'); c.rect(0, 62, 8, 8, 'O'); c.clear(0, 38, 8, 32); fin(c); c.rect(0, 70, 8, 1, 'S'); }],
+], { note: 'Stage 2 interior dividers between rooms, 8x80 (24x240 game px); doorway_open has a transparent opening (y 38-69) under a lintel so the rooms show through; front_door_frame has a taller opening (y 35-69) for door.png (16x32) sitting on the floor line; wall_segment = solid wall; doorway_burned = charred doorway. Slab rows match wall_modules.' });
+
+// ---------- central stairwell shaft 80x80 ----------
+const shaftBase = (c) => {
+  c.rect(0, 0, 80, 80, 'S'); s2seed = 1300;
+  for (let i = 0; i < 40; i++) c.px(s2i(80), 4 + s2i(58), 'DEEP');
+  c.rect(0, 4, 80, 66, 'S'); for (let i = 0; i < 18; i++) wr(c, s2i(78), 4 + s2i(56), 2, 1, 'DEEP');
+  c.rect(0, 4, 2, 66, 'W'); c.rect(78, 4, 2, 66, 'W'); // shaft walls
+  // flight up on the left: rises from the landing (x 26) to the top-left (x 0, y 8) through the ceiling opening
+  for (let i = 0; i < 7; i++) { const x = 26 - (i + 1) * 4, y = 66 - i * 8; c.rect(x, y, 4, 4, 'L'); c.rect(x, y, 4, 1, 'X'); c.rect(x + 1, y + 4, 3, 62 - y > 0 ? Math.min(60, 70 - y - 4) : 0, 'DEEP'); }
+  // flight down on the right: descends from the landing (x 54) into the slab opening
+  for (let i = 0; i < 6; i++) { const x = 54 + i * 4, y = 70 + i; c.rect(x, y, 4, 80 - y, 'W'); c.rect(x, y, 4, 1, 'L'); }
+  // landing platform
+  c.rect(26, 70, 28, 4, 'W'); c.rect(26, 70, 28, 1, 'L'); c.rect(26, 74, 28, 6, 'S'); c.rect(26, 79, 28, 1, 'O');
+  // handrails
+  c.line(2, 44, 25, 62, 'METAL'); for (const x of [6, 14, 22]) c.line(x, 47 + ((x - 2) * 18 / 23 | 0) - 3, x, 66 - 0, 'L');
+  c.rect(26, 56, 1, 14, 'METAL'); c.rect(26, 56, 3, 1, 'METAL'); c.rect(53, 56, 1, 14, 'METAL'); c.rect(51, 56, 3, 1, 'METAL');
+  c.line(54, 62, 78, 72, 'METAL');
+  // top slab with opening above the up-flight, bottom slab handled above
+  c.rect(0, 0, 80, 2, 'S'); c.rect(0, 2, 80, 1, 'W'); c.rect(0, 3, 80, 1, 'O'); c.clear(0, 0, 26, 4);
+  c.rect(26, 0, 54, 2, 'S'); c.rect(26, 2, 54, 1, 'W'); c.rect(26, 3, 54, 1, 'O');
+  // floor-number plate and drip
+  c.rect(36, 20, 8, 12, 'DEEP'); c.rect(37, 21, 6, 10, 'S'); c.rect(60, 8, 1, 20, 'W'); c.rect(61, 20, 1, 8, 'W'); c.rect(58, 26, 6, 2, 'ZD');
+  c.rect(0, 70, 26, 1, 'DEEP'); c.rect(54, 70, 26, 1, 'DEEP');
+};
+const lightFix = (c, lit) => {
+  c.rect(35, 4, 10, 2, 'METAL'); c.rect(36, 6, 8, 5, 'L'); c.rect(37, 7, 6, 3, lit ? 'LAMP' : 'DEEP'); c.rect(36, 11, 8, 1, 'O');
+  if (lit) { c.rect(38, 8, 4, 1, 'PALE'); c.rect(34, 12, 12, 1, 'MD1'); c.rect(31, 13, 18, 1, 'MD1'); }
+};
+sheet('stairwell_shaft', 80, 80, [
+  ['shaft', shaftBase],
+  ['light_unlit', (c) => lightFix(c, false)],
+  ['light_lit', (c) => lightFix(c, true)],
+], { note: 'Stage 2 central stairwell shaft, one module 80x80 (240x240 game px): landing platform in the middle at the walking line, stairs up on the left (open ceiling), stairs down on the right (open slab). light_unlit / light_lit are transparent overlays for the emergency fixture (top centre); swap them for the flicker, draw above shaft.' });
+
+// ---------- Stage 2 props: small 16x16 ----------
+sheet('props_s2', 16, 16, [
+  ['laundry_basket', (c) => { c.rect(4, 3, 8, 3, 'CLOTH'); c.rect(6, 2, 4, 2, 'TD'); c.rect(3, 6, 10, 8, 'DIRT'); c.rect(3, 6, 10, 1, 'WOOD'); for (let y = 8; y < 14; y += 2) c.rect(3, y, 10, 1, 'WOODD'); for (let x = 5; x < 13; x += 3) c.rect(x, 7, 1, 7, 'WOODD'); }],
+  ['toy_box', (c) => { c.rect(2, 6, 12, 8, 'BLUE'); c.rect(2, 6, 12, 2, 'TD'); c.rect(2, 13, 12, 1, 'S'); c.rect(6, 9, 4, 3, 'MD1'); c.px(7, 10, 'S'); c.rect(10, 3, 3, 3, 'MD3'); c.rect(4, 4, 2, 2, 'MD2'); }],
+  ['toy_box_open', (c) => { c.rect(2, 6, 12, 8, 'BLUE'); c.rect(2, 6, 12, 1, 'S'); c.rect(3, 7, 10, 2, 'DEEP'); c.rect(1, 2, 3, 5, 'TD'); c.rect(8, 4, 3, 2, 'MD2'); c.rect(11, 5, 2, 2, 'MD3'); c.rect(2, 13, 12, 1, 'S'); c.px(5, 11, 'MD1'); }],
+  ['medicine_cabinet', (c) => { c.rect(3, 1, 10, 13, 'X'); c.rect(11, 1, 2, 13, 'H9a978c'); c.rect(4, 2, 6, 11, 'METAL'); c.rect(6, 5, 2, 6, 'RED'); c.rect(5, 7, 4, 2, 'RED'); c.rect(9, 7, 1, 2, 'L'); }],
+  ['medicine_cabinet_open', (c) => { c.rect(5, 1, 8, 13, 'X'); c.rect(6, 2, 6, 11, 'DEEP'); c.rect(6, 6, 6, 1, 'L'); c.rect(7, 4, 2, 2, 'RED'); c.rect(9, 8, 2, 3, 'PALE'); c.rect(0, 2, 5, 11, 'METAL'); c.rect(1, 6, 1, 3, 'RED'); }],
+  ['charred_small', (c) => { c.rect(2, 10, 10, 4, 'DEEP'); c.rect(4, 7, 4, 4, 'S'); c.rect(9, 8, 4, 6, 'O'); c.rect(3, 13, 11, 1, 'S'); c.px(6, 9, 'B'); c.px(10, 10, 'B'); c.px(5, 12, 'R'); c.rect(1, 12, 2, 2, 'DEEP'); }],
+  ['debris_papers', (c) => { c.rect(1, 12, 5, 2, 'X'); c.rect(5, 10, 4, 3, 'PALE'); c.rect(9, 12, 5, 2, 'X'); c.rect(11, 9, 3, 3, 'PALE'); c.px(2, 12, 'S'); c.px(6, 11, 'RED'); c.px(10, 13, 'S'); c.rect(7, 13, 2, 1, 'L'); }],
+  ['debris_clothes', (c) => { c.rect(1, 10, 7, 4, 'TD'); c.rect(2, 8, 3, 3, 'TD'); c.rect(8, 11, 6, 3, 'CLOTH'); c.rect(10, 9, 3, 3, 'CLOTH'); c.rect(4, 13, 5, 1, 'T'); c.px(12, 10, 'H5f5344'); }],
+], { outline: true, note: 'Stage 2 small props 16x16, anchored at the bottom: laundry_basket, toy_box (+_open), medicine_cabinet (+_open), charred_small (Burned furniture, small), debris_papers/debris_clothes (ransacked clutter)' });
+
+// ---------- Stage 2 props: medium/large 32x32 ----------
+const lean = (y) => 6 + Math.round((30 - y) * 0.25);
+sheet('props_l2', 32, 32, [
+  ['mattress', (c) => { for (let y = 3; y <= 30; y++) { const x = lean(y); c.rect(x, y, 17, 1, 'CLOTH'); c.px(x, y, 'H8f806c'); c.px(x + 16, y, 'H5f5344'); if (y % 6 === 0) c.rect(x + 1, y, 15, 1, 'H5f5344'); }
+      c.rect(lean(10) + 3, 9, 6, 4, 'R'); c.rect(lean(22) + 8, 21, 5, 3, 'DIRT'); c.rect(lean(3), 3, 17, 1, 'X'); c.rect(lean(30) + 1, 29, 3, 2, 'WOODD'); c.rect(lean(30) + 13, 29, 3, 2, 'WOODD'); }],
+  ['desk', (c) => { wood(c, 1, 14, 30, 3); c.rect(1, 17, 30, 1, 'WOODD'); c.rect(3, 18, 11, 12, 'R'); for (let y = 19; y < 30; y += 4) { c.rect(4, y, 9, 3, 'WOODD'); c.rect(7, y + 1, 3, 1, 'L'); }
+      c.rect(26, 18, 3, 12, 'WOODD'); c.rect(16, 18, 9, 1, 'WOODD'); c.rect(17, 5, 9, 7, 'S'); c.rect(18, 6, 7, 5, 'H2a3a3a'); c.rect(20, 12, 3, 2, 'L'); c.rect(4, 10, 8, 4, 'X'); c.rect(5, 9, 7, 1, 'PALE'); c.rect(28, 9, 2, 5, 'METAL'); }],
+  ['filing_cabinet', (c) => { c.rect(9, 4, 14, 26, 'METAL'); c.rect(9, 4, 14, 1, 'X'); c.rect(20, 4, 3, 26, 'L'); for (const y of [4, 13, 22]) { c.rect(9, y + 8, 14, 1, 'S'); c.rect(13, y + 3, 6, 1, 'X'); c.rect(14, y + 5, 4, 2, 'PALE'); } c.rect(9, 29, 14, 1, 'S'); }],
+  ['filing_cabinet_open', (c) => { c.rect(9, 4, 14, 26, 'METAL'); c.rect(9, 4, 14, 1, 'X'); c.rect(20, 4, 3, 26, 'L'); c.rect(9, 12, 14, 1, 'S'); c.rect(7, 13, 18, 7, 'L'); c.rect(8, 14, 16, 3, 'DEEP'); c.rect(10, 12, 3, 3, 'PALE'); c.rect(15, 11, 3, 4, 'X'); c.rect(13, 18, 6, 1, 'X'); c.rect(9, 22, 14, 1, 'S'); c.rect(9, 29, 14, 1, 'S'); }],
+  ['washing_machine', (c) => { c.rect(5, 3, 22, 27, 'Hb8b4a8'); c.rect(24, 3, 3, 27, 'H9a978c'); c.rect(5, 3, 22, 1, 'X'); c.rect(5, 9, 22, 1, 'L'); c.rect(7, 5, 5, 3, 'S'); c.rect(14, 5, 2, 3, 'W'); c.rect(18, 6, 2, 2, 'RED');
+      c.rect(10, 12, 12, 12, 'L'); c.rect(11, 13, 10, 10, 'S'); c.rect(12, 14, 8, 8, 'SKYD'); c.rect(13, 15, 3, 3, 'SKY'); c.rect(6, 29, 3, 1, 'S'); c.rect(23, 29, 3, 1, 'S'); }],
+  ['washing_machine_open', (c) => { c.rect(5, 3, 22, 27, 'Hb8b4a8'); c.rect(24, 3, 3, 27, 'H9a978c'); c.rect(5, 3, 22, 1, 'X'); c.rect(5, 9, 22, 1, 'L'); c.rect(7, 5, 5, 3, 'S'); c.rect(18, 6, 2, 2, 'S');
+      c.rect(10, 12, 12, 12, 'L'); c.rect(11, 13, 10, 10, 'DEEP'); c.rect(1, 12, 9, 12, 'L'); c.rect(2, 14, 6, 8, 'SKYD'); c.rect(13, 19, 5, 3, 'CLOTH'); c.rect(6, 29, 3, 1, 'S'); c.rect(23, 29, 3, 1, 'S'); }],
+  ['storage_cage', (c) => { c.rect(3, 2, 26, 28, 'DEEP'); c.rect(6, 20, 9, 10, 'R'); c.rect(7, 21, 7, 2, 'WOODD'); c.rect(17, 14, 9, 16, '#4c4639'); c.rect(18, 16, 7, 1, 'CLOTH'); c.rect(7, 12, 6, 8, 'L');
+      for (let x = 3; x <= 29; x += 3) c.rect(x, 2, 1, 28, 'METAL'); for (let y = 2; y <= 30; y += 3) c.rect(3, y, 27, 1, 'METAL'); c.rect(3, 2, 27, 2, 'L'); c.rect(3, 29, 27, 1, 'L'); c.rect(14, 15, 4, 4, 'A'); c.rect(15, 13, 2, 3, 'L'); }],
+  ['storage_cage_open', (c) => { c.rect(3, 2, 26, 28, 'DEEP'); c.rect(6, 20, 9, 10, 'R'); c.rect(7, 21, 7, 2, 'WOODD'); c.rect(17, 14, 9, 16, '#4c4639'); c.rect(7, 12, 6, 8, 'L');
+      for (let x = 3; x <= 29; x += 3) c.rect(x, 2, 1, 28, 'METAL'); for (let y = 2; y <= 30; y += 3) c.rect(3, y, 22, 1, 'METAL'); c.rect(3, 2, 27, 2, 'L'); c.rect(3, 29, 27, 1, 'L');
+      c.rect(26, 2, 3, 28, 'DEEP'); c.rect(29, 2, 2, 28, 'S'); for (let y = 2; y <= 30; y += 3) c.rect(29, y, 2, 1, 'METAL'); c.rect(24, 18, 2, 4, 'A'); }],
+  ['utility_shelf', (c) => { c.rect(2, 2, 2, 28, 'METAL'); c.rect(28, 2, 2, 28, 'METAL'); for (const y of [10, 19, 28]) { c.rect(2, y, 28, 2, 'L'); c.rect(2, y, 28, 1, 'METAL'); }
+      c.rect(5, 5, 4, 5, 'RED'); c.rect(10, 6, 3, 4, 'RED'); c.rect(16, 3, 8, 7, 'R'); c.rect(17, 4, 6, 1, 'WOODD'); c.rect(5, 13, 6, 6, 'L'); c.rect(6, 12, 4, 1, 'S'); c.rect(14, 14, 3, 5, 'BLUE'); c.rect(19, 12, 8, 7, '#4c4639'); c.rect(5, 22, 9, 6, 'CLOTH'); c.rect(16, 23, 10, 5, 'R'); c.rect(18, 22, 3, 1, 'A'); }],
+  ['charred_debris', (c) => { c.rect(2, 24, 26, 6, 'DEEP'); c.rect(6, 17, 5, 9, 'O'); c.rect(7, 10, 3, 8, 'S'); c.rect(14, 19, 10, 6, 'S'); c.rect(15, 14, 2, 6, 'O'); c.rect(21, 12, 2, 8, 'DEEP'); c.line(8, 17, 22, 12, 'O'); c.rect(3, 27, 24, 3, 'O'); c.rect(20, 22, 8, 3, 'DEEP'); c.px(9, 20, 'B'); c.px(18, 23, 'B'); c.px(24, 27, 'R'); c.px(5, 26, 'R'); c.px(12, 28, 'B'); c.px(16, 17, 'B'); c.px(26, 24, 'S'); }],
+  ['debris_papers', (c) => { s2seed = 1700; for (let i = 0; i < 8; i++) { const x = 2 + s2i(24), y = 25 + s2i(4); c.rect(x, y, 4 + s2i(3), 2, s2r() < 0.5 ? 'X' : 'PALE'); if (s2r() < 0.4) c.px(x + 1, y, 'S'); } c.rect(10, 22, 5, 3, 'PALE'); c.rect(19, 21, 4, 3, 'X'); c.px(11, 23, 'RED'); }],
+  ['debris_clothes', (c) => { c.rect(2, 25, 11, 5, 'TD'); c.rect(4, 22, 5, 4, 'TD'); c.rect(14, 26, 10, 4, 'CLOTH'); c.rect(17, 23, 6, 4, 'CLOTH'); c.rect(8, 29, 12, 1, 'T'); c.rect(24, 27, 5, 3, 'H5f5344'); c.rect(1, 27, 2, 2, 'TD'); c.px(19, 25, 'H8f806c'); }],
+], { outline: true, note: 'Stage 2 medium/large props 32x32, anchored at the bottom: mattress, desk, filing_cabinet (+_open), washing_machine (+_open), storage_cage (+_open), utility_shelf, charred_debris (Burned furniture), debris_papers/debris_clothes (ransacked clutter). *_open = searched/ajar.' });
+
+// ---------- window for the 80 px module: 40x40 with the glass exactly 32x32 at (4,4) so rain_window.png overlays at +4,+4 ----------
+const winFrame = (c) => { c.rect(0, 0, 40, 40, 'O'); c.rect(1, 1, 38, 38, 'L'); c.rect(3, 3, 34, 34, 'O'); c.rect(1, 36, 38, 3, 'W'); c.rect(0, 39, 40, 1, 'O'); };
+const winGlass = (c) => { c.rect(4, 4, 32, 32, 'SKY'); c.rect(4, 20, 32, 16, 'SKYD'); c.line(7, 15, 14, 7, 'H7d8a82'); c.line(8, 16, 15, 8, 'H7d8a82');
+  for (const [x, w, h] of [[6, 5, 8], [13, 6, 12], [22, 5, 7], [29, 5, 10]]) c.rect(x, 36 - h, w, h - 0, 'SKYD'); c.rect(4, 33, 32, 3, '#363f43'); };
+sheet('window_m', 40, 40, [
+  ['a', (c) => { winFrame(c); winGlass(c); c.rect(19, 4, 2, 32, 'L'); c.rect(4, 19, 32, 2, 'L'); c.rect(4, 35, 32, 1, 'W'); }],
+  ['b', (c) => { winFrame(c); winGlass(c); c.rect(14, 4, 2, 32, 'L'); c.rect(25, 4, 2, 32, 'L'); c.rect(4, 11, 32, 2, 'L'); c.rect(4, 35, 32, 1, 'W'); c.rect(4, 4, 32, 2, 'S'); }],
+  ['broken', (c) => { winFrame(c); c.rect(4, 4, 32, 32, 'H07080a'); c.rect(19, 4, 2, 10, 'L'); c.rect(4, 19, 8, 2, 'L');
+    for (const [x, y, w, h] of [[4, 4, 9, 2], [4, 6, 5, 3], [4, 9, 2, 3], [29, 4, 7, 3], [33, 7, 3, 4], [4, 31, 6, 5], [26, 32, 10, 4], [31, 29, 5, 3]]) c.rect(x, y, w, h, 'SKY');
+    c.line(13, 5, 10, 9, 'X'); c.line(29, 5, 32, 9, 'X'); c.rect(10, 34, 2, 1, 'Hc5ccd1'); c.rect(26, 33, 2, 1, 'Hc5ccd1'); c.rect(4, 35, 32, 1, 'W'); }],
+], { note: 'Stage 2 window 40x40 for an 80 px module; glass is exactly 32x32 at (4,4): place rain_window.png frames at +4,+4 (same x/y offset) to overlay. a = cross mullion, b = three panes with a transom, broken = burned rooms (no rain overlay needed, rain noise louder). Draw at the wall layer; centre it in the module, about y 14-54.' });
+
 // ---------- manifest ----------
 const list = Object.values(files);
 const total = list.reduce((s, f) => s + f.bytes, 0);

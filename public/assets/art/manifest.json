@@ -899,6 +899,130 @@
    ],
    "animations": [],
    "note": "floor/wall blood stains, 4 variants (decal_0..3), dark dried tones, no outline; place occasionally and fade very slowly"
+  },
+  {
+   "key": "wall_modules",
+   "path": "assets/art/wall_modules.png",
+   "frameWidth": 80,
+   "frameHeight": 80,
+   "frames": 28,
+   "names": [
+    "hallway_a",
+    "hallway_b",
+    "living_a",
+    "living_b",
+    "kitchen_a",
+    "kitchen_b",
+    "bedroom_a",
+    "bedroom_b",
+    "bathroom_a",
+    "bathroom_b",
+    "kids_room_a",
+    "kids_room_b",
+    "office_a",
+    "office_b",
+    "break_room_a",
+    "break_room_b",
+    "laundry_a",
+    "laundry_b",
+    "storage_a",
+    "storage_b",
+    "utility_a",
+    "utility_b",
+    "janitor_a",
+    "janitor_b",
+    "burned_a",
+    "burned_b",
+    "ransacked_a",
+    "ransacked_b"
+   ],
+   "animations": [],
+   "note": "Stage 2 wall/floor-slab backgrounds, one 80x80 module (240x240 game px); tiles horizontally; slab top 4 rows and bottom 10 rows, walking line y=70. Names type_a / type_b per room type (studio -> living or bedroom, reception -> office); burned_a/b = soot-black full backgrounds; ransacked_a/b = transparent floor-clutter overlays (draw over any base). Mould and damp are baked in."
+  },
+  {
+   "key": "room_dividers",
+   "path": "assets/art/room_dividers.png",
+   "frameWidth": 8,
+   "frameHeight": 80,
+   "frames": 4,
+   "names": [
+    "wall_segment",
+    "doorway_open",
+    "front_door_frame",
+    "doorway_burned"
+   ],
+   "animations": [],
+   "note": "Stage 2 interior dividers between rooms, 8x80 (24x240 game px); doorway_open has a transparent opening (y 38-69) under a lintel so the rooms show through; front_door_frame has a taller opening (y 35-69) for door.png (16x32) sitting on the floor line; wall_segment = solid wall; doorway_burned = charred doorway. Slab rows match wall_modules."
+  },
+  {
+   "key": "stairwell_shaft",
+   "path": "assets/art/stairwell_shaft.png",
+   "frameWidth": 80,
+   "frameHeight": 80,
+   "frames": 3,
+   "names": [
+    "shaft",
+    "light_unlit",
+    "light_lit"
+   ],
+   "animations": [],
+   "note": "Stage 2 central stairwell shaft, one module 80x80 (240x240 game px): landing platform in the middle at the walking line, stairs up on the left (open ceiling), stairs down on the right (open slab). light_unlit / light_lit are transparent overlays for the emergency fixture (top centre); swap them for the flicker, draw above shaft."
+  },
+  {
+   "key": "props_s2",
+   "path": "assets/art/props_s2.png",
+   "frameWidth": 16,
+   "frameHeight": 16,
+   "frames": 8,
+   "names": [
+    "laundry_basket",
+    "toy_box",
+    "toy_box_open",
+    "medicine_cabinet",
+    "medicine_cabinet_open",
+    "charred_small",
+    "debris_papers",
+    "debris_clothes"
+   ],
+   "animations": [],
+   "note": "Stage 2 small props 16x16, anchored at the bottom: laundry_basket, toy_box (+_open), medicine_cabinet (+_open), charred_small (Burned furniture, small), debris_papers/debris_clothes (ransacked clutter)"
+  },
+  {
+   "key": "props_l2",
+   "path": "assets/art/props_l2.png",
+   "frameWidth": 32,
+   "frameHeight": 32,
+   "frames": 12,
+   "names": [
+    "mattress",
+    "desk",
+    "filing_cabinet",
+    "filing_cabinet_open",
+    "washing_machine",
+    "washing_machine_open",
+    "storage_cage",
+    "storage_cage_open",
+    "utility_shelf",
+    "charred_debris",
+    "debris_papers",
+    "debris_clothes"
+   ],
+   "animations": [],
+   "note": "Stage 2 medium/large props 32x32, anchored at the bottom: mattress, desk, filing_cabinet (+_open), washing_machine (+_open), storage_cage (+_open), utility_shelf, charred_debris (Burned furniture), debris_papers/debris_clothes (ransacked clutter). *_open = searched/ajar."
+  },
+  {
+   "key": "window_m",
+   "path": "assets/art/window_m.png",
+   "frameWidth": 40,
+   "frameHeight": 40,
+   "frames": 3,
+   "names": [
+    "a",
+    "b",
+    "broken"
+   ],
+   "animations": [],
+   "note": "Stage 2 window 40x40 for an 80 px module; glass is exactly 32x32 at (4,4): place rain_window.png frames at +4,+4 (same x/y offset) to overlay. a = cross mullion, b = three panes with a transom, broken = burned rooms (no rain overlay needed, rain noise louder). Draw at the wall layer; centre it in the module, about y 14-54."
   }
  ]
 }
