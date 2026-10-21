@@ -590,6 +590,12 @@ def('moodle_pain', 'Injured moodle appears: pained breath through teeth', 0.25, 
 def('moodle_sigh', 'Low-spirits moodle appears: sigh', 0.25, () => lp(voice(1.2, (t) => 130 - 30 * t, (t) => att(t, 0.25) * exp(Math.max(0, t - 0.3), 0.4), 500, 900, 655, 1.0, 0.1), 1500), { norm: 0.55 });
 // fast-heartbeat cue: reuse heartbeat_soft with playbackRate ~1.5 for a few seconds.
 
+def('moodle_panic', 'Panic moodle appears: quiet fast heartbeat, ~2 s one-shot', 0.25, () => {
+  const o = buf(2.2);
+  for (let k = 0; k < 5; k++) { const at = 0.05 + k * 0.4; mix(o, thud(0.25, 58, 40, 0.06, 1), at); mix(o, thud(0.25, 50, 36, 0.07, 0.6), at + 0.17); }
+  return lp(o, 150);
+}, { norm: 0.6 });
+
 // ---------- encode ----------
 function wavBytes(x) {
   const b = Buffer.alloc(44 + x.length * 2);
@@ -608,6 +614,7 @@ const tmp = mkdtempSync(join(tmpdir(), 'f15audio-'));
 const manifest = { _doc: 'key -> files (ogg only, Android target), volume (0..1 for scene.sound.play), loop, event', sounds: {} };
 
 for (const [key, d] of Object.entries(S)) {
+  if (d.deprecated) { rmSync(join(OUT, key + '.ogg'), { force: true }); continue; } // deprecated sounds are not shipped
   const x = d.fn();
   if (!d.noFade) { // click-free edges (before normalising so peaks are real)
     const f = Math.round(0.004 * SR), e = Math.round(0.01 * SR);
@@ -621,9 +628,7 @@ for (const [key, d] of Object.entries(S)) {
     '-ac', '1', '-ar', String(SR), '-c:a', 'libvorbis', '-q:a', '2', join(OUT, key + '.ogg')]);
   manifest.sounds[key] = { files: [key + '.ogg'], volume: d.volume, loop: d.loop, duration: +(x.length / SR).toFixed(2), event: d.event, ...(d.deprecated ? { deprecated: true, deprecatedReason: d.deprecated } : {}) };
 }
-// Compatibility alias: music_sad -> music_sad_1 (same file). Remove once code uses music_sad_1..3.
-manifest.sounds.music_sad = { ...manifest.sounds.music_sad_1, alias: 'music_sad_1', deprecated: true, deprecatedReason: 'alias of music_sad_1; use music_sad_1..3' };
 rmSync(join(OUT, 'music_sad.ogg'), { force: true });
 rmSync(tmp, { recursive: true, force: true });
 writeFileSync(join(OUT, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
-console.log(`audio: ${Object.keys(S).length} sounds -> ${OUT} (ogg)`);
+console.log(`audio: ${Object.keys(manifest.sounds).length} sounds -> ${OUT} (ogg)`);

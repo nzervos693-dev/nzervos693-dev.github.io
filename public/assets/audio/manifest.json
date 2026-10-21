@@ -181,28 +181,6 @@
       "duration": 0.35,
       "event": "Hero takes damage"
     },
-    "heartbeat": {
-      "files": [
-        "heartbeat.ogg"
-      ],
-      "volume": 0.6,
-      "loop": true,
-      "duration": 1,
-      "event": "Low health loop: play looped while health is low, stop on recovery",
-      "deprecated": true,
-      "deprecatedReason": "replaced by heartbeat_soft"
-    },
-    "siren": {
-      "files": [
-        "siren.ogg"
-      ],
-      "volume": 0.22,
-      "loop": false,
-      "duration": 2.4,
-      "event": "Attack warning (scheduled/scripted attack incoming); play once per warning",
-      "deprecated": true,
-      "deprecatedReason": "siren removed (GDD 10); attack cue is diegetic: distant_groan + stair_bang + flicker"
-    },
     "barricade_hit": {
       "files": [
         "barricade_hit.ogg"
@@ -220,39 +198,6 @@
       "loop": false,
       "duration": 0.9,
       "event": "Craft / build completes (cloth rustle then two wood knocks)"
-    },
-    "survivor_blip": {
-      "files": [
-        "survivor_blip.ogg"
-      ],
-      "volume": 0.4,
-      "loop": false,
-      "duration": 0.3,
-      "event": "Survivor dialogue line text tick (play per word/line, vary playbackRate)",
-      "deprecated": true,
-      "deprecatedReason": "UI/text blips removed (GDD 10)"
-    },
-    "error": {
-      "files": [
-        "error.ogg"
-      ],
-      "volume": 0.35,
-      "loop": false,
-      "duration": 0.3,
-      "event": "Denied: action impossible, inventory full, locked",
-      "deprecated": true,
-      "deprecatedReason": "gamey square blip (GDD 10); use creak/muffled_thud or silence"
-    },
-    "amb_tower": {
-      "files": [
-        "amb_tower.ogg"
-      ],
-      "volume": 0.3,
-      "loop": true,
-      "duration": 16,
-      "event": "Tower ambience bed: loop quietly from first tap on the game scene",
-      "deprecated": true,
-      "deprecatedReason": "replaced by amb_wind + amb_room_tone"
     },
     "weapon_break": {
       "files": [
@@ -280,17 +225,6 @@
       "loop": false,
       "duration": 1.2,
       "event": "Molotov ignites / fire bursts"
-    },
-    "alert_sting": {
-      "files": [
-        "alert_sting.ogg"
-      ],
-      "volume": 0.5,
-      "loop": false,
-      "duration": 0.7,
-      "event": "Zombie notices the hero (aggro sting)",
-      "deprecated": true,
-      "deprecatedReason": "noise alert sting removed (GDD 10)"
     },
     "barricade_break": {
       "files": [
@@ -589,17 +523,14 @@
       "duration": 1.2,
       "event": "Low-spirits moodle appears: sigh"
     },
-    "music_sad": {
+    "moodle_panic": {
       "files": [
-        "music_sad_1.ogg"
+        "moodle_panic.ogg"
       ],
-      "volume": 0.22,
+      "volume": 0.25,
       "loop": false,
-      "duration": 63.38,
-      "event": "Sparse sad piece, one-shot; at most once per 8-12 min on moments (first claim, after attack ends, survivor joins). Never in danger. Piano, A minor, ~55 s",
-      "alias": "music_sad_1",
-      "deprecated": true,
-      "deprecatedReason": "alias of music_sad_1; use music_sad_1..3"
+      "duration": 2.2,
+      "event": "Panic moodle appears: quiet fast heartbeat, ~2 s one-shot"
     }
   }
 }
