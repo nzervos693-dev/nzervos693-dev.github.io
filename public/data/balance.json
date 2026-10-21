@@ -47,6 +47,7 @@
     "cameraDeadzonePx": [160, 240],
     "cameraLookAheadPx": 120,
     "cameraIsoEdgePadPx": 96,
+    "cameraDragFrictionPerSecond": 5,
     "floorFadeSeconds": 0.3,
     "zoom": { "default": 1, "min": 1, "max": 1 }
   },
@@ -121,6 +122,9 @@
       "corridorDoorwayX": [14, 15]
     }
   },
+  "path": {
+    "maxExpansions": 4000
+  },
   "vision": {
     "coneDegrees": { "lit": 120, "grey": 110, "dim": 90, "dark": 70 },
     "minConeDegrees": 40,
@@ -159,6 +163,8 @@
     "frontHp": 120,
     "zombieDamageMult": 0.4,
     "zombiePathDoorCost": 10,
+    "heroPathDoorCost": 1,
+    "barricadeSqueezeSeconds": 0.5,
     "noiseBangSeconds": 10,
     "runOpenNoiseTiles": 4,
     "brokenYield": { "wood": 2 },

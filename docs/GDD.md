@@ -107,10 +107,15 @@ from what the building already holds.
   **1 art px = 3 game px** (`iso.artScale`, same scale as the rest of the
   game's art).
 - Grid axes: **+x** runs toward the screen's lower right, **+y** toward the
-  screen's lower left. Screen position of a tile centre (before the camera
-  offset): `sx = (x - y) * 48`, `sy = (x + y) * 24` (half tile sizes).
-  Inverse (for taps): `x = (sx / 48 + sy / 24) / 2`,
-  `y = (sy / 24 - sx / 48) / 2`, floored to the tile.
+  screen's lower left. Tile (x, y) covers the grid area
+  **[x, x+1) x [y, y+1)**; grid point (gx, gy) maps to screen
+  `sx = (gx - gy) * 48`, `sy = (gx + gy) * 24` (before the camera offset),
+  so grid point (0, 0) is the top corner of tile (0, 0). A tile **centre**
+  (gx = x + 0.5, gy = y + 0.5) is therefore at
+  **`sx = (x - y) * 48`, `sy = (x + y + 1) * 24`** (not `(x + y) * 24`).
+  Inverse (for taps): `gx = (sx / 48 + sy / 24) / 2`,
+  `gy = (sy / 24 - sx / 48) / 2`, then tile = (floor(gx), floor(gy)).
+  Art, level tools and code all use these formulas.
 - **"North/west"** edges of a room are its far edges (top of the screen,
   always visible); **"south/east"** edges (+y and +x sides) face the camera.
 - **Walls** stand on tile **edges** (they take no tile). Full wall height
@@ -151,14 +156,20 @@ from what the building already holds.
 - Zoom fixed at **1.0** (`controls.zoom`; no pinch zoom, no zoom toggle:
   CD decision, 12). At zoom 1 the screen shows about 7 tiles across and 13 tiles down
   the screen's axes, roughly 400 tiles of floor.
-- **Follow**: the camera eases toward a target point = the hero's screen
-  position + a **look-ahead** of **120 game px** in the screen direction
-  the hero faces (`controls.cameraLookAheadPx`), so more of the cone is on
-  screen. It keeps the hero inside a dead zone of **160 x 240 game px**
-  around that point (`controls.cameraDeadzonePx`) and eases with lerp
-  **0.12** per frame (`controls.cameraLerp`).
+- **Follow**: every frame the camera centre eases toward a target point =
+  the hero's screen position + a **look-ahead** of **120 game px** in the
+  screen direction the hero faces (`controls.cameraLookAheadPx`), with lerp
+  **0.12** per frame (`controls.cameraLerp`), so more of the cone is on
+  screen. The ease is not limited by a dead zone; the
+  **160 x 240 game px** rect (`controls.cameraDeadzonePx`, centred on the
+  camera centre) is only a **hard clamp**: after easing, if the hero's
+  screen position is outside that rect, the camera is moved the minimum
+  amount to put him back on its edge. So at rest the hero sits up to
+  120 px off-centre, away from the way he faces.
 - **Drag** (more than **16 game px** before the hold delay,
-  `controls.dragThresholdPx`) pans freely in both axes, with momentum.
+  `controls.dragThresholdPx`) pans freely in both axes, with momentum that
+  decays by friction **5 per second** (velocity x e^(-5 x dt),
+  `controls.cameraDragFrictionPerSecond`; stops below 1 px/s).
   Follow pauses for **2 s** after a drag ends
   (`controls.cameraFollowPauseSeconds`); a new walk/run tap resumes follow
   at once.
@@ -211,6 +222,14 @@ cone (5.17) and an 8-direction sprite. While walking or running he faces
 his current step direction, turning at **540 deg/s**
 (`controls.walkTurnDegreesPerSecond`). Idle, he keeps his last facing.
 Acting on an object, door or zombie, he faces it.
+- The facing angle is stored in **grid space** (angle of the direction
+  vector in grid x/y). The **vision cone** (5.17) and zombie cones (5.4)
+  use grid angles.
+- The **sprite** (one of 8) is chosen by **screen direction**: convert the
+  grid facing vector to screen space (`dsx = (dx - dy) * 48`,
+  `dsy = (dx + dy) * 24`), take its screen angle and pick the nearest of 8
+  **45-degree sectors** (screen right, down-right, down, ... each sector
+  centred on its direction, +-22.5 degrees). Zombies use the same rule.
 
 **Tap resolution (iso hit-testing)**, in this order; the first match wins:
 1. UI (bottom bar, moodles, open menus and panels).
@@ -282,8 +301,9 @@ in 11.2.
 look hold 0.4 s (`controls.lookHoldSeconds`), Home double tap 1 s
 (`controls.homeDoubleTapSeconds`), run double tap 0.3 s / 48 px
 (`controls.runDoubleTapSeconds`, `controls.runDoubleTapMaxDistancePx`),
-camera follow pause 2 s, lerp 0.12, dead zone 160x240 px, look-ahead
-120 px, edge pad 96 px, buttons and hit areas 96 px
+camera follow pause 2 s, lerp 0.12, hero clamp rect 160x240 px, look-ahead
+120 px, drag friction 5/s (`controls.cameraDragFrictionPerSecond`), edge
+pad 96 px, buttons and hit areas 96 px
 (`controls.buttonSizePx`, `controls.minHitAreaPx`), tap snap 96 px /
 1.5 tiles, 1 buffered attack tap (`controls.attackBuffer`), tutorial
 front-door trigger 1.5 tiles (`tutorial.doorTriggerTiles`). M2 floors
@@ -478,6 +498,12 @@ floor. Coordinates are (x, y), x = 0-29 along the corridor, y = 0-21 across.
   both orthogonal neighbours it passes are walkable and no wall edge
   touches the corner being cut (no corner-cutting through walls, doors or
   objects).
+- **Hero path cost of closed doors**: a closed, unjammed door on the way
+  adds **+1 tile** of path cost (`doors.heroPathDoorCost`), so an equally
+  short open route is preferred. Jammed doors are not passable.
+- **Search cap**: A* stops after **4000 node expansions**
+  (`path.maxExpansions`) and treats the target as unreachable (the tap
+  does nothing; same as a tap on an unreachable tile).
 - Movement is continuous between tile centres; a character "is on" the tile
   containing its centre.
 - **Occupancy**: objects block their footprint tiles (5.15); **one zombie
@@ -959,7 +985,8 @@ Recipe rules (numbers in `recipes.<id>` and `barricade.*`):
 - **Barricade**: one per claimed front door, built on the door's inside.
   Lv2 needs Lv1 on that door and replaces it at full Lv2 HP. At 0 HP it
   gives no defense and zombies pass. The hero and survivors pass their own
-  barricades freely (a 0.5 s squeeze-through animation); zombies never. A
+  barricades freely (a **0.5 s** squeeze-through animation,
+  `doors.barricadeSqueezeSeconds`); zombies never. A
   barricaded front door stands open behind the planks: the barricade
   blocks movement but **not sight** (you see through the gaps, and so do
   they).
@@ -1681,10 +1708,12 @@ the hero's tile to T and either:
 **Line of sight (shadow casting)**. Only **walls, closed doors and jammed
 doors** block sight (chosen for performance: furniture, barricades and
 characters never block; tall objects only fade, section 2).
-- Test: the straight segment from the centre of the hero's tile to the
-  centre of T. LOS is blocked if the segment crosses a blocking edge. If it
-  passes exactly through a grid corner, it is blocked when either pair of
-  edges meeting at that corner blocks (no peeking through diagonal gaps).
+- Test: the exact straight segment (in grid space) from the centre of the
+  viewer's tile (x + 0.5, y + 0.5) to the centre of T. LOS is blocked if
+  the segment crosses a blocking edge. If it passes exactly through a grid
+  corner, it is blocked when **ANY** of the 4 edges meeting at that corner
+  blocks: walls have thickness, so there is no peeking diagonally past a
+  wall end or a door jamb, and no seeing through diagonal gaps.
   The blocking edges of T itself (its own far walls) don't hide T: walls
   are seen from inside.
 - Windows are wall edges and block sight (the outside is not part of the
@@ -2130,7 +2159,7 @@ pass positions change):
 | Positions in px on a 3120 x 240 strip | Tiles on a 30 x 22 grid, iso projection | `iso.*`, `grid.*` |
 | Walk 100 / run 170 px/s, run noise 250 px | 2.0 / 3.4 tiles/s, noise 5 tiles | `hero.walkTilesPerSecond`, `runTilesPerSecond`, `runNoiseRadiusTiles` |
 | Walking along x | A* 8-direction pathfinding, occupancy, doors on the way | 5.3 |
-| Camera: axis-locked drag, x dead zone, vertical floor scroll | Free 2D pan, follow with look-ahead, 2D dead zone, one floor | `controls.cameraDeadzonePx`, `cameraLookAheadPx`, `cameraIsoEdgePadPx`, `floorFadeSeconds`, `zoom` |
+| Camera: axis-locked drag, x dead zone, vertical floor scroll | Free 2D pan, follow with look-ahead, 2D hero clamp rect, one floor | `controls.cameraDeadzonePx`, `cameraLookAheadPx`, `cameraIsoEdgePadPx`, `floorFadeSeconds`, `zoom` |
 | Tap tests on side sprites | Iso hit-testing order, snap 96 px | `controls.tapSnapRadiusPx`, `tapSnapWalkTiles`, `iso.bodyRaisePx` |
 | Hold: none | Hold to look; tap hero to turn | `controls.lookHoldSeconds`, `lookTurnDegreesPerSecond`, `walkTurnDegreesPerSecond`, `heroTapTurnSeconds` |
 | Room light Dark/Dim/Grey/Lit, Dark until entered | Tile light Lit/Grey/Dim/Dark by room type and lamp LOS; vision states Visible/Remembered/Unknown | `light.lampRadiusTiles`, `light.darkTimeMult`, `vision.*` |
