@@ -26,7 +26,8 @@ Delivered in playable stages; work lives on the dev branch until each stage is p
 - [x] Quiet creepy soundscape: wind/creaks, distant groans, stairwell banging, sparse music; remove UI blips (audio-designer)
 - [x] Moodles replace bars/numbers; no floating text or HP labels; diegetic 15 s attack cue; zombie rebalance + stealth hits; scarcer loot; double-tap run; balance v2 keys (gameplay-programmer)
 - [x] Review + QA, merge to main
-- [ ] CD playtest of stage 1
+- [x] CD playtest of stage 1 (creepier, cue fine, 13/17 fair, icons never show text)
+- [x] Blood splash + weapon hit sounds (CD request)
 ### Stage 2 – Wide floors + horizontal camera
 - [ ] Engine/camera for 3120 px floors, axis-locked drag (engine-programmer + gameplay-programmer)
 ### Stage 3 – Random apartments + claiming homes
