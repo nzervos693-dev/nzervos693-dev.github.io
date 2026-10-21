@@ -78,7 +78,7 @@ export function deliver(state, balance, items, loc) {
     }
     if (left > 0) res.piled.push({ id: e.id, qty: left });
   }
-  if (res.piled.length) addPile(state, loc.floor, loc.x, res.piled);
+  if (res.piled.length) addPile(state, loc.floor, loc.x, res.piled, loc.y);
   return res;
 }
 

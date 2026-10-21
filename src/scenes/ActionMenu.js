@@ -14,7 +14,7 @@ export default class ActionMenu {
   get isOpen() { return !!this.c; }
 
   /**
-   * @param {{x:number, topY:number, bottomY:number, screenTop:number, screenBottom:number}} anchor world coords of the object
+   * @param {{x:number, topY:number, bottomY:number, screenTop:number, screenBottom:number, fixed?:boolean}} anchor world coords of the object (screen coords with fixed: true)
    * @param {{kind:string,label:string,enabled:boolean,reason?:string}[]} actions
    * @param {(kind:string)=>void} onPick
    */
@@ -29,18 +29,20 @@ export default class ActionMenu {
     let cy = above ? anchor.topY - 56 : anchor.bottomY + 56;
     // keep the whole menu (with its reason text) above the bottom bar
     cy = Math.min(cy, (anchor.screenBottom ?? Infinity) - 56 - 30);
+    const fixed = !!anchor.fixed; // screen-space anchor (iso world: the camera scrolls)
     const c = scene.add.container(0, 0).setDepth(DEPTH.menu);
+    if (fixed) c.setScrollFactor(0);
     actions.forEach((a, i) => {
       const x = cx - total / 2 + 48 + i * (96 + gap);
       const b = button(scene, {
-        x, y: cy, text: a.label, fixed: false, size: 16,
+        x, y: cy, text: a.label, fixed, size: 16,
         frame: hasFrame('buttons', a.kind === 'take' ? 'search' : a.kind) ? { key: 'buttons', name: a.kind === 'take' ? 'search' : a.kind } : undefined,
         onTap: () => { this.close(); onPick(a.kind); },
       });
       b.setEnabled(a.enabled);
       c.add(b);
       if (!a.enabled && a.reason) {
-        const reason = label(scene, x, cy + 66, a.reason, 16, CSS.red, false).setStroke('#0d0f12', 4);
+        const reason = label(scene, x, cy + 66, a.reason, 16, CSS.red, fixed).setStroke('#0d0f12', 4);
         reason.x = Math.max(reason.width / 2 + 8, Math.min(w - reason.width / 2 - 8, x)); // keep the text on screen
         c.add(reason);
       }

@@ -190,12 +190,14 @@ export function heroCtx(state, balance) {
  * Drop items on the floor as a pile (merges with a nearby pile on the same floor).
  * @returns {object} the pile
  */
-export function addPile(state, floor, x, items) {
+export function addPile(state, floor, x, items, y) {
   const list = mergeItems(items);
-  let pile = state.piles.find((p) => p.floor === floor && Math.abs(p.x - x) <= PILE_MERGE_PX);
+  // iso piles (y given) merge only on the same tile; side-view piles merge within PILE_MERGE_PX
+  let pile = state.piles.find((p) => p.floor === floor && (y === undefined ? Math.abs(p.x - x) <= PILE_MERGE_PX : p.x === x && p.y === y));
   if (!pile) {
     state.counters = state.counters || { pile: 0 };
     pile = { id: `pile_${++state.counters.pile}`, floor, x, items: [] };
+    if (y !== undefined) pile.y = y;
     state.piles.push(pile);
   }
   pile.items = mergeItems([...pile.items, ...list]);

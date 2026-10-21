@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
-import { getSave, deleteSave } from '../core/save.js';
+import { getSave, writeSave } from '../core/save.js';
+import { isStaleSave, ISO_WORLD, STALE_SAVE_LINE } from '../gameplay/isoState.js';
+import Popup from './Popup.js';
 import { isMuted, toggleMute, onMuteChange } from '../core/audio.js';
 import { getSafeArea } from '../core/safeArea.js';
 import { button, label, COLORS, CSS } from './ui.js';
@@ -16,8 +18,12 @@ export default class TitleScene extends Phaser.Scene {
     const w = this.scale.width;
     const h = this.scale.height;
     const sa = getSafeArea();
-    const game = getSave().game;
-    const canContinue = !!game?.started && !game.flags?.heroDead; // a dead save cannot be continued, so no delete warning either
+    const save = getSave();
+    // a side-view (or older iso) save cannot be continued: drop the game, keep the settings, say so once
+    const stale = isStaleSave(save.game);
+    if (stale) { save.game = {}; writeSave(); }
+    const game = save.game;
+    const canContinue = !!game?.started && game.world === ISO_WORLD && !game.flags?.heroDead; // a dead save cannot be continued, so no delete warning either
     const hasSave = canContinue;
     this.cameras.main.setBackgroundColor('#0d0f12');
     this.add.rectangle(w / 2, h / 2, w, h, COLORS.ink);
@@ -27,7 +33,7 @@ export default class TitleScene extends Phaser.Scene {
     this.buttons = {};
     let y = 640;
     if (canContinue) {
-      this.buttons.continue = button(this, { x: w / 2, y, w: 440, h: 96, text: 'Continue', size: 32, fill: COLORS.teal, onTap: () => this.scene.start('Game') });
+      this.buttons.continue = button(this, { x: w / 2, y, w: 440, h: 96, text: 'Continue', size: 32, fill: COLORS.teal, onTap: () => this.scene.start('IsoGame') });
       y += 128;
     }
     this.buttons.newGame = button(this, {
@@ -39,6 +45,7 @@ export default class TitleScene extends Phaser.Scene {
     upSound();
     const off = onMuteChange(upSound);
     this.events.once('shutdown', off);
+    if (stale) this.time.delayedCall(60, () => new Popup(this).show(STALE_SAVE_LINE, []));
     exposeScene(this);
   }
 
@@ -59,7 +66,8 @@ export default class TitleScene extends Phaser.Scene {
   startNew() {
     if (this.starting) return;
     this.starting = true;
-    deleteSave();
+    getSave().game = {}; // settings stay
+    writeSave();
     this.scene.start('Intro');
   }
 }

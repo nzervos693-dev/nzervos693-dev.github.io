@@ -1,7 +1,8 @@
 /** Runs every e2e script (each has its own port), even if one fails, and exits non-zero if any did. */
 import { spawnSync } from 'node:child_process';
 
-const scripts = ['smoke', 'combat', 'craft', 'story'];
+// combat.mjs, craft.mjs and story.mjs drove the retired side-view GameScene (scene key "Game") and are no longer run
+const scripts = ['smoke', 'iso'];
 const results = scripts.map((n) => {
   console.log(`\n=== e2e: ${n} ===`);
   const r = spawnSync('node', [`tests/e2e/${n}.mjs`], { stdio: 'inherit' });

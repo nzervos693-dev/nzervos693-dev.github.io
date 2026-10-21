@@ -47,6 +47,6 @@ export default class IntroScene extends Phaser.Scene {
   finish() {
     if (this.leaving) return;
     this.leaving = true;
-    this.scene.start('Game');
+    this.scene.start('IsoGame');
   }
 }

@@ -122,7 +122,7 @@ export function completeAction(state, spec, placement, def, ctx) {
     state.stats.objectsSalvaged += 1;
     result.piled = give(state, items, loc, balance, result);
   }
-  if (result.piled.length) addPile(state, loc.floor, loc.x, result.piled);
+  if (result.piled.length) addPile(state, loc.floor, loc.x, result.piled, loc.y);
 
   if (spec.tool) {
     const r = spendToolUse(state.inventory, spec.tool);

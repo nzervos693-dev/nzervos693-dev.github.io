@@ -4,7 +4,7 @@ import { queueArt, registerAnimations } from './art.js';
 import { queueAudio } from './sfx.js';
 import { skipFrontEnd } from './debug.js';
 
-// Loads art by manifest and balance (save is loaded in main.js), then starts GameScene.
+// Loads art by manifest and balance (save is loaded in main.js), then starts the iso game (IsoGameScene).
 export default class BootScene extends Phaser.Scene {
   constructor() { super('Boot'); }
 
@@ -20,6 +20,6 @@ export default class BootScene extends Phaser.Scene {
 
   create() {
     registerAnimations(this);
-    loadBalance().finally(() => this.scene.start(skipFrontEnd() ? 'Game' : 'Title'));
+    loadBalance().finally(() => this.scene.start(skipFrontEnd() ? 'IsoGame' : 'Title'));
   }
 }

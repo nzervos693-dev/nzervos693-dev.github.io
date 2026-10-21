@@ -1,7 +1,7 @@
 // Entry point. Core systems live in src/core/ (see the header comment of each).
 import Phaser from 'phaser';
 import BootScene from './scenes/BootScene.js';
-import GameScene from './scenes/GameScene.js';
+import IsoGameScene from './scenes/IsoGameScene.js';
 import TitleScene from './scenes/TitleScene.js';
 import IntroScene from './scenes/IntroScene.js';
 import { initSafeArea } from './core/safeArea.js';
@@ -31,7 +31,7 @@ const game = new Phaser.Game({
   input: { activePointers: 3 },
   fps: { smoothStep: false }, // game time = real time, no delta smoothing
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-  scene: [BootScene, TitleScene, IntroScene, GameScene],
+  scene: [BootScene, TitleScene, IntroScene, IsoGameScene],
 });
 
 initSafeArea(game);
