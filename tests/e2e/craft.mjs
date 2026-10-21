@@ -137,7 +137,7 @@ try {
   check(napE >= 69 && napE <= 71, `nap gave about +30 energy (${napE})`);
   await tapWorld(page, bed.x, bed.y);
   check(await until(page, () => window.__floor15.menu.isOpen, null, 10000), 'bed menu opens again');
-  check(await g(page, () => window.__floor15.menu.c.list.some((o) => o.list?.some((k) => k.type === 'Text' && /^Nap \((4h|3h \d+m)\)$/.test(k.text)))), 'Nap button shows the cooldown');
+  check(await g(page, () => window.__floor15.menu.c.list.some((o) => o.list?.some((k) => k.type === 'Text' && /^Nap (4h|3h\d+m)$/.test(k.text)))), 'Nap button shows the cooldown');
   await g(page, () => window.__floor15.menu.close());
 
   // ---- craft Barricade Lv1 at the workbench

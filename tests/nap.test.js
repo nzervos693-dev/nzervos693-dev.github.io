@@ -17,11 +17,11 @@ describe('nap', () => {
     expect(napRemainingMs(mk({ lastNapAt: NaN }), 5, balance)).toBe(0);
   });
   it('labels round up to the minute', () => {
-    expect(napCooldownLabel(2 * H + 10 * 60000)).toBe('Nap (2h 10m)');
-    expect(napCooldownLabel(45 * 60000)).toBe('Nap (45m)');
-    expect(napCooldownLabel(44 * 60000 + 1)).toBe('Nap (45m)');
-    expect(napCooldownLabel(2 * H)).toBe('Nap (2h)');
-    expect(napCooldownLabel(1)).toBe('Nap (1m)');
+    expect(napCooldownLabel(2 * H + 10 * 60000)).toBe('Nap 2h10m');
+    expect(napCooldownLabel(45 * 60000)).toBe('Nap 45m');
+    expect(napCooldownLabel(44 * 60000 + 1)).toBe('Nap 45m');
+    expect(napCooldownLabel(2 * H)).toBe('Nap 2h');
+    expect(napCooldownLabel(1)).toBe('Nap 1m');
   });
   it('button states', () => {
     expect(napAction(mk(), 0, balance)).toMatchObject({ label: 'Nap', enabled: true });
@@ -29,7 +29,7 @@ describe('nap', () => {
     expect(napAction(mk({ needs: { ...mk().needs, energy: 100 } }), 0, balance)).toMatchObject({ enabled: false, reason: 'Rested' });
     const cd = napAction(mk({ lastNapAt: 0 }), 1 * H, balance);
     expect(cd.enabled).toBe(false);
-    expect(cd.label).toBe('Nap (3h)');
+    expect(cd.label).toBe('Nap 3h');
   });
   it('completes with caps and floors', () => {
     const s = mk({ needs: { energy: 90, food: 3, water: 80, morale: 99, health: 100 } });

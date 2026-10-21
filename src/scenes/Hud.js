@@ -45,16 +45,16 @@ export default class Hud {
     }
     this.floorText = this.add(label(scene, 0, 0, '', 28, CSS.amber).setOrigin(0, 0.5));
     this.hintText = this.add(label(scene, 0, 0, '', 20, CSS.dim).setOrigin(1, 0.5));
-    this.homeBtn = this.add(button(scene, { text: 'Home', onTap: () => this.cb.onHome(), size: 22 }));
-    this.bagBtn = this.add(button(scene, { text: 'Bag', onTap: () => this.cb.onBag(), size: 22 }));
-    this.throwBtn = this.add(button(scene, { text: 'Throw', onTap: () => this.cb.onThrow(), size: 20, icon: { key: 'icons', name: 'molotov', scale: 5 } }));
+    this.homeBtn = this.add(button(scene, { text: 'Home', onTap: () => { this.cb.onAnyTap?.(); (() => this.cb.onHome())(); }, size: 22 }));
+    this.bagBtn = this.add(button(scene, { text: 'Bag', onTap: () => { this.cb.onAnyTap?.(); (() => this.cb.onBag())(); }, size: 22 }));
+    this.throwBtn = this.add(button(scene, { text: 'Throw', onTap: () => { this.cb.onAnyTap?.(); (() => this.cb.onThrow())(); }, size: 20, icon: { key: 'icons', name: 'molotov', scale: 5 } }));
     this.throwBtn.setVisible(false);
     // equipped weapon: tap opens the bag (96x96)
-    this.weaponBtn = this.add(button(scene, { text: '', onTap: () => this.cb.onBag(), size: 20, icon: { key: 'icons', name: 'kitchen_knife', scale: 5 } }));
-    this.crewBtn = this.add(button(scene, { text: 'Crew', onTap: () => this.cb.onCrew?.(), size: 22 }));
+    this.weaponBtn = this.add(button(scene, { text: '', onTap: () => { this.cb.onAnyTap?.(); (() => this.cb.onBag())(); }, size: 20, icon: { key: 'icons', name: 'kitchen_knife', scale: 5 } }));
+    this.crewBtn = this.add(button(scene, { text: 'Crew', onTap: () => { this.cb.onAnyTap?.(); (() => this.cb.onCrew?.())(); }, size: 22 }));
     this.crewBtn.setVisible(false);
-    this.soundBtn = this.add(button(scene, { text: '', onTap: () => toggleMute(), size: 20 }));
-    this.storeBtn = this.add(button(scene, { w: 240, text: 'Store all', onTap: () => this.cb.onStoreAll(), size: 26, fill: COLORS.teal }));
+    this.soundBtn = this.add(button(scene, { text: '', onTap: () => { this.cb.onAnyTap?.(); (() => toggleMute())(); }, size: 20 }));
+    this.storeBtn = this.add(button(scene, { w: 240, text: 'Store all', onTap: () => { this.cb.onAnyTap?.(); (() => this.cb.onStoreAll())(); }, size: 26, fill: COLORS.teal }));
     this.storeBtn.setVisible(false);
     // buttons were added at the HUD depth; keep their children in order
     this.layout();

@@ -152,6 +152,7 @@ export default class GameScene extends Phaser.Scene {
     this.createActionBar();
 
     this.hud = new Hud(this, balance, {
+      onAnyTap: () => { if (this.action?.spec.kind === 'nap') this.cancelAction(); },
       onHome: () => this.onHomeButton(),
       onBag: () => this.toggleBag(),
       onStoreAll: () => this.storeAll(),

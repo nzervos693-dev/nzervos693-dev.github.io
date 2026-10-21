@@ -18,13 +18,13 @@ export function napRemainingMs(state, nowMs, balance) {
   return Math.min(cd, Math.max(0, cd - (nowMs - last)));
 }
 
-/** "Nap (2h 10m)" / "Nap (45m)": remaining time rounded up to the minute. */
+/** "Nap 2h10m" / "Nap 45m" (short: fits one line in a 96 px button): remaining time rounded up to the minute. */
 export function napCooldownLabel(remainingMs) {
   const mins = Math.max(1, Math.ceil(remainingMs / 60000));
   const h = Math.floor(mins / 60);
   const m = mins % 60;
-  if (h < 1) return `Nap (${m}m)`;
-  return m ? `Nap (${h}h ${m}m)` : `Nap (${h}h)`;
+  if (h < 1) return `Nap ${m}m`;
+  return m ? `Nap ${h}h${m}m` : `Nap ${h}h`;
 }
 
 /**
