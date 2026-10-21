@@ -596,6 +596,65 @@ def('moodle_panic', 'Panic moodle appears: quiet fast heartbeat, ~2 s one-shot',
   return lp(o, 150);
 }, { norm: 0.6 });
 
+// ================= Weapon-specific hit sounds (realistic, wet, physical) =================
+/** Wet squelch: band-passed noise with a moving centre and bubbly amplitude flutter. */
+function squelch(seed, dur, f0, f1, flutter, g = 1) {
+  const r = rng(seed), n = noise(Math.round(dur * SR), seed + 7), o = buf(dur);
+  let y1 = 0, y2 = 0, ph = 0;
+  for (let i = 0; i < o.length; i++) {
+    const t = i / SR, k = t / dur;
+    ph += (flutter * (1 + 0.4 * (r() - 0.5))) / SR;
+    const fc = lerp(f0, f1, k), w = TAU * fc / SR, c = Math.cos(w), al = Math.sin(w) / (2 * 3);
+    const y = (al * n[i] - (-2 * c) * y1 - (1 - al) * y2) / (1 + al); // bandpass, q=3
+    y2 = y1; y1 = y;
+    o[i] = y * (0.35 + 0.65 * Math.max(0, Math.sin(TAU * ph)) ** 2) * exp(t, dur * 0.4) * att(t, 0.004) * g;
+  }
+  return o;
+}
+const stab = (seed, sq0, sq1, flut, thudF) => {
+  const o = buf(0.32);
+  mix(o, hp(nburst(0.02, seed, 0.003, 1.3), 1800), 0);            // sharp puncture tick
+  mix(o, bp(nburst(0.05, seed + 1, 0.01, 1.0), 1100, 1.2), 0, 0.8); // skin/cloth tear
+  mix(o, thud(0.15, thudF, thudF * 0.6, 0.035, 0.6), 0.004);      // body mass
+  mix(o, squelch(seed + 2, 0.24, sq0, sq1, flut, 3.2), 0.025);    // wet squelch
+  return lp(o, 4500);
+};
+def('hit_stab_1', 'Stab weapon (kitchen knife, pipe spear) hits a zombie: puncture + wet squelch. Pick randomly of 1..3', 0.55, () => stab(701, 380, 900, 38, 150), { norm: 0.7 });
+def('hit_stab_2', 'Stab weapon hit (variation, deeper squelch)', 0.55, () => stab(711, 300, 750, 30, 125), { norm: 0.7 });
+def('hit_stab_3', 'Stab weapon hit (variation, shorter and brighter)', 0.55, () => stab(721, 500, 1200, 46, 170), { norm: 0.7 });
+
+const blunt = (seed, f0, crackF, wetF) => {
+  const o = buf(0.4);
+  mix(o, thud(0.4, f0, f0 * 0.42, 0.09, 1.2), 0);                      // heavy thud
+  mix(o, lp(nburst(0.2, seed, 0.04, 1.2), 700), 0);                    // flesh slap
+  mix(o, bp(nburst(0.07, seed + 1, 0.012, 1.1), crackF, 2.2), 0.004, 0.7); // dull crack (bone/wood)
+  mix(o, squelch(seed + 2, 0.18, wetF, wetF * 1.8, 28, 1.6), 0.03);   // wet aftermath
+  return lp(o, 3500);
+};
+def('hit_blunt_1', 'Blunt weapon (spiked bat, lead pipe, crowbar) hits a zombie: heavy wet thud + dull crack. Pick randomly of 1..3', 0.6, () => blunt(731, 105, 1500, 350), { norm: 0.75 });
+def('hit_blunt_2', 'Blunt weapon hit (variation, deeper)', 0.6, () => blunt(741, 85, 1100, 300), { norm: 0.75 });
+def('hit_blunt_3', 'Blunt weapon hit (variation, sharper crack)', 0.6, () => blunt(751, 120, 1900, 420), { norm: 0.75 });
+
+const punch = (seed, f0) => {
+  const o = buf(0.2);
+  mix(o, thud(0.2, f0, f0 * 0.5, 0.04, 1), 0);
+  mix(o, lp(nburst(0.12, seed, 0.025, 1.2), 900), 0);
+  mix(o, squelch(seed + 2, 0.08, 400, 700, 40, 0.6), 0.01);
+  return lp(o, 2200);
+};
+def('hit_punch_1', 'Fists hit a zombie: dull fleshy punch. Pick randomly of 1..2', 0.55, () => punch(761, 130), { norm: 0.7 });
+def('hit_punch_2', 'Fists hit (variation)', 0.55, () => punch(771, 110), { norm: 0.7 });
+
+def('blood_drip', 'Quiet one-shot: a few blood drips on the floor after a hit/kill; very subtle', 0.3, () => {
+  const o = buf(1.3), r = rng(781);
+  [[0, 1], [0.38, 0.6], [0.95, 0.35]].forEach(([at, g], k) => {
+    const f = 700 + r() * 250;
+    mix(o, osc(0.12, (t) => f * (1 + 1.8 * Math.min(1, t / 0.03)), sine, (t) => exp(t, 0.025) * att(t, 0.002)), at, g);
+    mix(o, lp(nburst(0.03, 790 + k, 0.006, 0.4), 2500), at, g);
+  });
+  return reverb(lp(o, 3500), 0.6, 0.8, 0.8, 0.8);
+}, { norm: 0.5 });
+
 // ---------- encode ----------
 function wavBytes(x) {
   const b = Buffer.alloc(44 + x.length * 2);
