@@ -1,4 +1,4 @@
-// Generates Milestone 1 placeholder pixel art into public/assets/art/ plus manifest.json.
+// Generates Milestone 1/2 placeholder pixel art into public/assets/art/ plus manifest.json.
 // Run: npm run art. Native pixel size (game scales 3x with pixelArt). Palette: GDD section 9.
 // Optional: ART_PREVIEW=<dir> also writes 4x upscaled previews there (not part of the game).
 import { deflateSync } from 'node:zlib';
@@ -44,14 +44,27 @@ function encodePng(w, h, rgba, scale = 1) {
 
 // ---------- palette ----------
 const hex = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16), 255];
+// M2 palette (GDD section 9): dark, damp, desaturated. Keys kept from M1 so frames keep their meaning.
 const P = {
-  O: '#0d0f12', S: '#1f242b', W: '#3a4048', L: '#6b7178', R: '#6e3b23', B: '#7a1f1f',
-  RED: '#c0392b', A: '#e0a24a', Z: '#6f7f4f', SK: '#c9a98a', T: '#2f5d62', X: '#d8d4c8',
-  // extras (muted, derived from the core palette)
-  TD: '#234a4e', WOOD: '#8a5a36', WOODD: '#4a2616', BLUE: '#3f6f80', DIRT: '#6b5a2e', GREEN: '#4f7a3a',
-  CLOTH: '#7d6f5c', METAL: '#a0a6ac', ZD: '#55633b', SKY: '#5c6b63', SKYD: '#46544e', PANT: '#2c3139',
-  H4a2a2a: '#4a2a2a', H34393f: '#34393f', H2f343b: '#2f343b', H4a3a36: '#4a3a36', H3f322f: '#3f322f', H5a4640: '#5a4640', H2e2523: '#2e2523', H62686e: '#62686e', H555b61: '#555b61', H07080a: '#07080a', H14171b: '#14171b', H1a1e24: '#1a1e24', H7d8a82: '#7d8a82', H586860: '#586860', H5f5344: '#5f5344', H3d3a2a: '#3d3a2a', H2a3a3a: '#2a3a3a', Ha8a79d: '#a8a79d', Hc5ccd1: '#c5ccd1', H8a8f80: '#8a8f80', Hd8c27a: '#d8c27a', H5b3a3a: '#5b3a3a', H704747: '#704747', H6a4242: '#6a4242', H4d3030: '#4d3030', Hb8b4a8: '#b8b4a8', H9a978c: '#9a978c', H5f8f9a: '#5f8f9a', H3a2a1c: '#3a2a1c', H8f806c: '#8f806c', H2b3138: '#2b3138',
+  O: '#0b0c0e', S: '#23272c', W: '#3a3e42', L: '#5d6166', R: '#5a3a2a', B: '#4e1c1a',
+  RED: '#8f2e26', A: '#c08a3e', Z: '#5f6650', SK: '#a99886', T: '#34494b', X: '#bdb8ab',
+  // extras
+  TD: '#28393b', WOOD: '#6e4a30', WOODD: '#33211a', BLUE: '#3f5a64', DIRT: '#5a4e2e', GREEN: '#465a3c',
+  CLOTH: '#6e6a5e', METAL: '#82888c', ZD: '#454c3a', SKY: '#4d585d', SKYD: '#363f43', PANT: '#1c2025',
+  // M2 additions
+  DEEP: '#16191d', PLASTER: '#6e6a5e', WALLP: '#5b5547', LAMP: '#c08a3e', FIRE: '#d07a2c', WINDOW: '#8a9399',
+  MD1: '#7d7350', MD2: '#8a6a3a', MD3: '#7a4630', MD4: '#5e2422', PALE: '#d8d2c0',
 };
+// M1 extra colours: desaturate (cap ~30%) and darken
+const adj = (h) => {
+  let r = parseInt(h.slice(1, 3), 16) / 255, g = parseInt(h.slice(3, 5), 16) / 255, b = parseInt(h.slice(5, 7), 16) / 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
+  const gray = (r + g + b) / 3, k = d > 0.3 ? 0.3 / d : 1; // shrink chroma toward grey
+  const f = (v) => Math.round(Math.max(0, Math.min(1, (gray + (v - gray) * Math.min(1, k * 1.1)) * 0.86)) * 255).toString(16).padStart(2, '0');
+  return '#' + f(r) + f(g) + f(b);
+};
+const M1X = { H4a2a2a: '#4a2a2a', H34393f: '#34393f', H2f343b: '#2f343b', H4a3a36: '#5b5547', H3f322f: '#4c4639', H5a4640: '#665f50', H2e2523: '#2b2622', H62686e: '#62686e', H555b61: '#555b61', H07080a: '#07080a', H14171b: '#14171b', H1a1e24: '#1a1e24', H7d8a82: '#7d8a82', H586860: '#586860', H5f5344: '#5f5344', H3d3a2a: '#3d3a2a', H2a3a3a: '#2a3a3a', Ha8a79d: '#a8a79d', Hc5ccd1: '#c5ccd1', H8a8f80: '#8a8f80', Hd8c27a: '#d8c27a', H5b3a3a: '#5b3a3a', H704747: '#704747', H6a4242: '#6a4242', H4d3030: '#4d3030', Hb8b4a8: '#b8b4a8', H9a978c: '#9a978c', H5f8f9a: '#5f8f9a', H3a2a1c: '#3a2a1c', H8f806c: '#8f806c', H2b3138: '#2b3138' };
+for (const [k, v] of Object.entries(M1X)) P[k] = ['H4a3a36', 'H3f322f', 'H5a4640', 'H2e2523'].includes(k) ? v : adj(v);
 const C_ = Object.fromEntries(Object.entries(P).map(([k, v]) => [k, hex(v)]));
 // icon grid chars
 const IC = { o: 'O', s: 'S', w: 'W', l: 'L', r: 'R', b: 'B', R: 'RED', a: 'A', z: 'Z', p: 'SK', t: 'T', x: 'X',
@@ -147,7 +160,7 @@ function arm(c, sx, sy, ax, ay, sleeve, hand) {
 function human(c, o) {
   const { bob = 0, skin = 'SK', shirt = 'T', sleeve = 'TD', pants = 'PANT', hair = 'S', headDx = 0,
     legB = [0, 0], legF = [0, 0], armF = [0, 4], armB = [0, 4], weapon = null, eye = 'O', mouth = null,
-    hairStyle = 'short', patch = 'A' } = o;
+    hairStyle = 'short', patch = 'A', decay = false } = o;
   const len = 7 - bob;
   // back leg (darker), back arm
   const leg = (x, [dx, lift], col) => {
@@ -159,6 +172,7 @@ function human(c, o) {
   arm(c, 7, 9 + bob, armB[0], armB[1], shirt, skin);
   c.rect(5, 8 + bob, 6, 8, shirt);
   c.rect(5, 15 + bob, 6, 1, pants);
+  if (decay) { c.rect(4, 9 + bob, 1, 6, shirt); c.rect(11, 9 + bob, 1, 5, shirt); c.rect(4, 8 + bob, 8, 1, shirt); } // heavier, hunched bulk
   if (patch) c.px(7, 11 + bob, patch);
   leg(8, legF, pants);
   // head
@@ -168,6 +182,11 @@ function human(c, o) {
   if (hairStyle === 'bald') { c.rect(5 + headDx, 2 + bob, 2, 2, 'ZD'); }
   c.px(9 + headDx, 5 + bob, eye);
   if (mouth === 'open') c.rect(9 + headDx, 7 + bob, 2, 1, 'B');
+  if (decay) { // rot: sores, exposed ribs, torn hem, dark sockets
+    c.px(7 + headDx, 3 + bob, 'ZD'); c.px(10 + headDx, 3 + bob, 'ZD'); c.rect(6 + headDx, 7 + bob, 2, 1, 'B');
+    c.px(8 + headDx, 5 + bob, 'O'); c.px(6, 10 + bob, 'B'); c.px(7, 12 + bob, 'ZD'); c.rect(8, 13 + bob, 2, 1, 'B');
+    c.px(5, 14 + bob, 'O'); c.px(9, 15 + bob, 'O'); c.px(10, 11 + bob, 'ZD');
+  }
   // front arm + weapon
   arm(c, 8, 9 + bob, armF[0], armF[1], sleeve, skin);
   if (weapon) {
@@ -216,9 +235,9 @@ sheet('mara_play', 16, 24, [
   note: 'Mara playable (pass the torch); same layout as hero; faces right' });
 
 // zombies
-const zWalk = { skin: 'Z', shirt: 'H4a2a2a', sleeve: 'Z', pants: 'WOODD', hair: 'ZD', hairStyle: 'bald', eye: 'RED', headDx: 1, patch: 'B', mouth: null };
+const zWalk = { skin: 'Z', shirt: 'H4a2a2a', sleeve: 'Z', pants: 'WOODD', hair: 'ZD', hairStyle: 'bald', decay: true, eye: 'RED', headDx: 1, patch: 'B', mouth: null };
 function lying(c) { // fallen backwards, head left
-  c.rect(1, 18, 5, 5, 'Z'); c.px(3, 20, 'RED'); c.rect(6, 19, 5, 4, 'R'); c.rect(11, 20, 4, 3, 'WOODD'); c.px(8, 20, 'B');
+  c.rect(1, 18, 5, 5, 'Z'); c.px(3, 20, 'RED'); c.rect(6, 19, 5, 4, 'R'); c.rect(11, 20, 4, 3, 'WOODD'); c.px(8, 20, 'B'); c.px(2, 19, 'ZD'); c.px(9, 22, 'B'); c.px(5, 22, 'ZD');
 }
 sheet('zombie_walker', 16, 24, [
   ...[0, 1, 2, 3].map((i) => {
@@ -237,12 +256,12 @@ function crawler(c, { hb = 0, a1 = [4, 3], a2 = [1, 4], mouth = false, drag = 0,
   const y0 = 15 + flat;
   c.rect(1 + drag, y0 + 2, 3, 2, 'B'); // bloody stump, legs missing
   c.rect(3, y0, 7, 4, 'R');
-  c.px(5, y0 + 1, 'B'); c.px(7, y0, 'WOODD');
+  c.px(5, y0 + 1, 'B'); c.px(7, y0, 'WOODD'); c.px(6, y0 + 3, 'B'); c.px(4, y0, 'ZD'); c.px(9, y0 + 1, 'ZD');
   arm(c, 8, y0 + 3, a2[0], a2[1] - flat, 'ZD', 'Z');
   c.rect(9, 12 + hb + flat - headUp, 5, 5, 'Z');
   c.px(12, 14 + hb + flat - headUp, 'RED');
   if (mouth) c.rect(12, 16 + hb + flat - headUp, 2, 1, 'B');
-  c.rect(9, 12 + hb + flat - headUp, 3, 1, 'ZD');
+  c.rect(9, 12 + hb + flat - headUp, 3, 1, 'ZD'); c.px(13, 13 + hb + flat - headUp, 'ZD'); c.px(10, 15 + hb + flat - headUp, 'B');
   arm(c, 10, y0 + 3, a1[0], a1[1] - flat, 'Z', 'Z');
 }
 sheet('zombie_crawler', 16, 24, [
@@ -269,7 +288,15 @@ function stains(c, w, y0, y1, n, col) {
     c.rect(x, y, 1 + ((rnd() * 3) | 0), 1 + ((rnd() * 2) | 0), col);
   }
 }
-const mixed = [hex('H34393f'), hex('H2f343b')];
+const mixed = [C_.H34393f, C_.H2f343b];
+function damp(c, sd, y1 = 62) { // water streaks and mould, drawn after the base so the base rng sequence is unchanged
+  reseed(sd);
+  for (let i = 0; i < 14; i++) {
+    const x = (rnd() * 240) | 0, y = 4 + ((rnd() * 20) | 0), len = 8 + ((rnd() * 28) | 0);
+    for (let j = 0; j < len && y + j < y1; j++) if (rnd() < 0.8) c.px(x, y + j, 'S');
+  }
+  for (let i = 0; i < 6; i++) { const x = (rnd() * 230) | 0, y = 44 + ((rnd() * 10) | 0); c.rect(x, y, 3 + ((rnd() * 5) | 0), 2, 'ZD'); c.px(x + 1, y - 1, 'ZD'); }
+}
 function wallConcrete(c) {
   reseed(101);
   c.rect(0, 4, 240, 66, 'W');
@@ -278,6 +305,7 @@ function wallConcrete(c) {
   c.rect(0, 62, 240, 8, 'S'); c.rect(0, 62, 240, 1, 'L'); // baseboard
   let x = 150, y = 6; for (; y < 40; y++) { c.px(x, y, 'S'); x += ((rnd() * 3) | 0) - 1; }
   c.rect(60, 30, 3, 2, 'B'); c.rect(61, 32, 1, 5, 'B'); c.rect(64, 31, 1, 1, 'B'); // dried blood
+  damp(c, 111, 60);
   slabs(c, 240, 80);
 }
 function wallPaper(c) {
@@ -289,6 +317,7 @@ function wallPaper(c) {
   c.rect(0, 52, 240, 18, 'H2e2523'); c.rect(0, 52, 240, 1, 'R'); c.rect(0, 53, 240, 1, 'S');
   for (let x = 0; x < 240; x += 16) c.rect(x, 56, 1, 14, 'S');
   c.rect(0, 62, 240, 1, 'R');
+  damp(c, 222, 60);
   slabs(c, 240, 80);
 }
 function wallTile(c) {
@@ -300,6 +329,7 @@ function wallTile(c) {
   for (let i = 0; i < 60; i++) c.rect(((rnd() * 30) | 0) * 8 + 1, 21 + ((rnd() * 6) | 0) * 8, 7, 7, 'H62686e');
   stains(c, 240, 21, 68, 25, 'H555b61');
   c.rect(0, 20, 240, 1, 'O'); c.rect(180, 46, 2, 6, 'B'); c.rect(181, 52, 1, 8, 'B');
+  damp(c, 333, 69);
   slabs(c, 240, 80);
 }
 sheet('floor_bg', 240, 80, [
@@ -560,11 +590,107 @@ sheet('build_damaged', 32, 32, [
   }],
 ], { outline: true, note: 'damaged barricade lv1 (0) and lv2 (1), same footprint as build.png barricade frames' });
 
+// ---------- Milestone 2 stage 1 additions ----------
+// Moodles 16x16: frames 0-3 = empty frame backgrounds (severity 1-4), then <name>_1.._4 per moodle (background + pictogram baked in).
+const PIC = {
+  hungry: ['............', '............', '..#.......#.', '..#..###..#.', '..#.#...#.#.', '..#.#...#.#.', '..#.#...#.#.', '..#..###..#.', '..#.......#.', '..#.......#.', '............', '............'],
+  thirsty: ['.....##.....', '.....##.....', '....####....', '....####....', '...######...', '..########..', '..########..', '..###d####..', '..###d####..', '...######...', '....####....', '............'],
+  tired: ['............', '............', '............', '#..........#', '.#........#.', '..##....##..', '....####....', '..#..#..#...', '.#...#...#..', '............', '............', '............'],
+  injured: ['............', '.........##.', '........###.', '.......####.', '......##d##.', '.....##d##..', '....##d##...', '...####.....', '..###.......', '..##........', '............', '............'],
+  depressed: ['............', '....###.....', '...#####.##.', '..#########.', '.###########', '.###########', '..#########.', '............', '...#..#..#..', '..#..#..#...', '............', '............'],
+  panic: ['............', '....####....', '..##....##..', '.#..####..#.', '#..######..#', '#..##dd##..#', '#..##dd##..#', '.#..####..#.', '..##....##..', '....####....', '............', '............'],
+};
+const MDBG = ['MD1', 'MD2', 'MD3', 'MD4'];
+function moodleFrame(c, sev, pic) {
+  c.rect(1, 0, 14, 16, 'O'); c.rect(0, 1, 16, 14, 'O'); // rounded corners
+  c.rect(1, 1, 14, 14, MDBG[sev]);
+  if (sev >= 1) { c.rect(1, 1, 14, 1, 'O'); c.rect(1, 1, 1, 14, 'O'); c.rect(14, 1, 1, 14, 'O'); c.rect(1, 14, 14, 1, 'O'); }
+  if (sev >= 2) { c.rect(2, 2, 12, 1, 'WOODD'); c.rect(2, 13, 12, 1, 'WOODD'); c.rect(2, 2, 1, 12, 'WOODD'); c.rect(13, 2, 1, 12, 'WOODD'); }
+  if (sev >= 3) { c.px(2, 3, 'O'); c.px(13, 12, 'O'); c.px(12, 2, 'B'); }
+  if (!pic) return;
+  const col = ['PALE', 'PALE', 'X', 'X'][sev];
+  PIC[pic].forEach((r, y) => [...r].forEach((ch, x) => {
+    if (ch === '.') return;
+    c.px(2 + x, 2 + y, ch === 'd' ? MDBG[sev] : col);
+  }));
+}
+sheet('moodles', 16, 16, [
+  ...[0, 1, 2, 3].map((sv) => [`frame_${sv + 1}`, (c) => moodleFrame(c, sv, null)]),
+  ...Object.keys(PIC).flatMap((n) => [0, 1, 2, 3].map((sv) => [`${n}_${sv + 1}`, (c) => moodleFrame(c, sv, n)])),
+], { note: 'moodles 16x16 (48 game px): frames 0-3 empty backgrounds L1-L4, then hungry/thirsty/tired/injured/depressed/panic x L1-L4 (index = 4 + moodleIndex*4 + level-1); background darkens with severity; no outline; wobble in game' });
+
+// Barricade damage: 5 stages per level (0 intact .. 4 nearly broken)
+const STAGE_CLEARS = {
+  lv1: [
+    [],
+    [[3, 2, 3, 2], [24, 24, 4, 3]],
+    [[3, 2, 4, 3], [10, 12, 7, 6], [24, 24, 4, 3]],
+    [[3, 2, 4, 3], [10, 12, 7, 6], [20, 22, 6, 5], [16, 2, 12, 5], [2, 24, 8, 4]],
+    [[0, 0, 32, 10], [10, 12, 12, 6], [20, 20, 12, 12], [0, 24, 14, 8], [0, 12, 6, 6]],
+  ],
+  lv2: [
+    [],
+    [[24, 3, 3, 2], [4, 19, 3, 2]],
+    [[12, 9, 8, 5], [24, 3, 5, 4], [4, 19, 3, 2]],
+    [[12, 9, 8, 5], [4, 19, 6, 5], [24, 3, 5, 4], [22, 19, 8, 5], [2, 3, 8, 5]],
+    [[0, 0, 32, 8], [12, 9, 10, 6], [4, 19, 10, 6], [22, 18, 10, 14], [0, 26, 10, 6]],
+  ],
+};
+const STAGE_SPLINTERS = [
+  [], [[12, 14], [26, 25]], [[9, 14], [17, 16], [26, 25]], [[9, 14], [17, 16], [19, 24], [26, 25], [7, 4], [14, 6]],
+  [[9, 14], [17, 16], [19, 24], [26, 25], [7, 12], [14, 8], [22, 14], [5, 20]],
+];
+const stageFrame = (lv, st) => (c) => {
+  (lv === 'lv1' ? barLv1 : barLv2)(c);
+  STAGE_CLEARS[lv][st].forEach(([x, y, w, h]) => c.clear(x, y, w, h));
+  if (st >= 1) { c.line(15, 3, 17, 7, 'O'); if (st >= 2) c.line(5, 14, 9, 17, 'O'); if (st >= 3) c.line(20, 13, 25, 17, 'O'); }
+  splinter(c, STAGE_SPLINTERS[st]);
+};
+sheet('barricade_stages', 32, 32, ['lv1', 'lv2'].flatMap((lv) => [0, 1, 2, 3, 4].map((st) => [`${lv}_stage_${st}`, stageFrame(lv, st)])),
+  { outline: true, note: 'barricade damage stages 32x32: frames 0-4 = Lv1 stage 0 (intact) to 4 (nearly broken), frames 5-9 = Lv2 stage 0-4; same footprint as build.png' });
+
+// Lighting: white radial alpha sprites; tint or erase in game (nearest-filtered is fine, gradient is 8-bit alpha)
+function radial(c, w, h, power, tint) {
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const d = Math.hypot((x + 0.5 - w / 2) / (w / 2), (y + 0.5 - h / 2) / (h / 2));
+    const a = Math.max(0, 1 - d); const al = Math.round(255 * Math.pow(a, power));
+    if (al > 0) c.px(x, y, [tint[0], tint[1], tint[2], al]);
+  }
+}
+sheet('light_pool', 64, 32, [['pool', (c) => radial(c, 64, 32, 1.4, [255, 244, 220])]],
+  { note: 'soft elliptical light pool 64x32, white-warm with alpha falloff; tint amber/cool, scale in game, or erase from darkness overlay' });
+sheet('light_pool_l', 128, 64, [['pool', (c) => radial(c, 128, 64, 1.4, [255, 244, 220])]],
+  { note: 'soft elliptical light pool 128x64 (large lamps, window shafts); same as light_pool' });
+sheet('vignette', 64, 64, [['vignette', (c) => {
+  for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) {
+    const d = Math.hypot((x + 0.5 - 32) / 32, (y + 0.5 - 32) / 32);
+    const t = Math.min(1, Math.max(0, (d - 0.35) / 0.65));
+    c.px(x, y, [11, 12, 14, Math.round(255 * t * t * (3 - 2 * t))]);
+  }
+}]], { note: 'radial vignette overlay 64x64: transparent centre, near-black edges and corners; scale to cover the screen, use as a stretched image with setAlpha' });
+
+sheet('rain_window', 32, 32, [0, 1, 2].map((i) => [`rain_${i}`, (c) => {
+  const shift = [0, 10, 21][i];
+  reseed(900);
+  for (let k = 0; k < 9; k++) {
+    const x = 2 + ((rnd() * 28) | 0), y0 = (rnd() * 32) | 0, len = 4 + ((rnd() * 6) | 0), sp = 1 + ((rnd() * 0.01) | 0);
+    for (let j = 0; j < len; j++) c.px(x, (y0 + shift * sp + j) % 32, [180, 192, 198, j === len - 1 ? 150 : 70 + j * 8]);
+    if (k % 3 === 0) c.px(x + 1, (y0 + shift + len + 2) % 32, [200, 208, 212, 90]);
+  }
+}]), { animations: [anim('rain', [0, 1, 2], 8)], note: 'rain streaks on a window pane, transparent, loops (each frame shifts streaks down; wraps at 32); overlay on window prop' });
+
+sheet('dust', 8, 8, [0, 1, 2, 3].map((i) => [`mote_${i}`, (c) => {
+  const pos = [[[2, 5], [5, 2]], [[2, 4], [5, 3]], [[3, 4], [4, 3], [6, 5]], [[3, 3], [5, 4]]][i];
+  c.px(pos[0][0], pos[0][1], [189, 184, 171, 200]);
+  c.px(pos[1][0], pos[1][1], [189, 184, 171, 120]);
+  if (pos[2]) c.px(pos[2][0], pos[2][1], [189, 184, 171, 70]);
+}]), { animations: [anim('mote', [0, 1, 2, 3], 3)], note: 'slow dust mote loop 8x8, 1-3 faint specks; tint/scale/alpha in game' });
+
 // ---------- manifest ----------
 const list = Object.values(files);
 const total = list.reduce((s, f) => s + f.bytes, 0);
 const manifest = {
-  version: 1, milestone: 'M1', note: 'Placeholder art. Native pixels; scale 3x with pixelArt. Frames are horizontal strips. Paths are relative to the site root.',
+  version: 1, milestone: 'M2', note: 'Placeholder art (M2 dark palette, GDD 9). Native pixels; scale 3x with pixelArt. Frames are horizontal strips. Paths are relative to the site root.',
   files: list.map(({ bytes, ...f }) => f),
 };
 writeFileSync(`${OUT}/manifest.json`, JSON.stringify(manifest, null, 1) + '\n');

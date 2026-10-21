@@ -1,7 +1,7 @@
 {
  "version": 1,
- "milestone": "M1",
- "note": "Placeholder art. Native pixels; scale 3x with pixelArt. Frames are horizontal strips. Paths are relative to the site root.",
+ "milestone": "M2",
+ "note": "Placeholder art (M2 dark palette, GDD 9). Native pixels; scale 3x with pixelArt. Frames are horizontal strips. Paths are relative to the site root.",
  "files": [
   {
    "key": "hero",
@@ -583,6 +583,154 @@
    ],
    "animations": [],
    "note": "damaged barricade lv1 (0) and lv2 (1), same footprint as build.png barricade frames"
+  },
+  {
+   "key": "moodles",
+   "path": "assets/art/moodles.png",
+   "frameWidth": 16,
+   "frameHeight": 16,
+   "frames": 28,
+   "names": [
+    "frame_1",
+    "frame_2",
+    "frame_3",
+    "frame_4",
+    "hungry_1",
+    "hungry_2",
+    "hungry_3",
+    "hungry_4",
+    "thirsty_1",
+    "thirsty_2",
+    "thirsty_3",
+    "thirsty_4",
+    "tired_1",
+    "tired_2",
+    "tired_3",
+    "tired_4",
+    "injured_1",
+    "injured_2",
+    "injured_3",
+    "injured_4",
+    "depressed_1",
+    "depressed_2",
+    "depressed_3",
+    "depressed_4",
+    "panic_1",
+    "panic_2",
+    "panic_3",
+    "panic_4"
+   ],
+   "animations": [],
+   "note": "moodles 16x16 (48 game px): frames 0-3 empty backgrounds L1-L4, then hungry/thirsty/tired/injured/depressed/panic x L1-L4 (index = 4 + moodleIndex*4 + level-1); background darkens with severity; no outline; wobble in game"
+  },
+  {
+   "key": "barricade_stages",
+   "path": "assets/art/barricade_stages.png",
+   "frameWidth": 32,
+   "frameHeight": 32,
+   "frames": 10,
+   "names": [
+    "lv1_stage_0",
+    "lv1_stage_1",
+    "lv1_stage_2",
+    "lv1_stage_3",
+    "lv1_stage_4",
+    "lv2_stage_0",
+    "lv2_stage_1",
+    "lv2_stage_2",
+    "lv2_stage_3",
+    "lv2_stage_4"
+   ],
+   "animations": [],
+   "note": "barricade damage stages 32x32: frames 0-4 = Lv1 stage 0 (intact) to 4 (nearly broken), frames 5-9 = Lv2 stage 0-4; same footprint as build.png"
+  },
+  {
+   "key": "light_pool",
+   "path": "assets/art/light_pool.png",
+   "frameWidth": 64,
+   "frameHeight": 32,
+   "frames": 1,
+   "names": [
+    "pool"
+   ],
+   "animations": [],
+   "note": "soft elliptical light pool 64x32, white-warm with alpha falloff; tint amber/cool, scale in game, or erase from darkness overlay"
+  },
+  {
+   "key": "light_pool_l",
+   "path": "assets/art/light_pool_l.png",
+   "frameWidth": 128,
+   "frameHeight": 64,
+   "frames": 1,
+   "names": [
+    "pool"
+   ],
+   "animations": [],
+   "note": "soft elliptical light pool 128x64 (large lamps, window shafts); same as light_pool"
+  },
+  {
+   "key": "vignette",
+   "path": "assets/art/vignette.png",
+   "frameWidth": 64,
+   "frameHeight": 64,
+   "frames": 1,
+   "names": [
+    "vignette"
+   ],
+   "animations": [],
+   "note": "radial vignette overlay 64x64: transparent centre, near-black edges and corners; scale to cover the screen, use as a stretched image with setAlpha"
+  },
+  {
+   "key": "rain_window",
+   "path": "assets/art/rain_window.png",
+   "frameWidth": 32,
+   "frameHeight": 32,
+   "frames": 3,
+   "names": [
+    "rain_0",
+    "rain_1",
+    "rain_2"
+   ],
+   "animations": [
+    {
+     "name": "rain",
+     "frames": [
+      0,
+      1,
+      2
+     ],
+     "fps": 8,
+     "repeat": -1
+    }
+   ],
+   "note": "rain streaks on a window pane, transparent, loops (each frame shifts streaks down; wraps at 32); overlay on window prop"
+  },
+  {
+   "key": "dust",
+   "path": "assets/art/dust.png",
+   "frameWidth": 8,
+   "frameHeight": 8,
+   "frames": 4,
+   "names": [
+    "mote_0",
+    "mote_1",
+    "mote_2",
+    "mote_3"
+   ],
+   "animations": [
+    {
+     "name": "mote",
+     "frames": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "fps": 3,
+     "repeat": -1
+    }
+   ],
+   "note": "slow dust mote loop 8x8, 1-3 faint specks; tint/scale/alpha in game"
   }
  ]
 }
