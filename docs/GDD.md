@@ -1181,8 +1181,9 @@ different to scout. The data lives in `public/data/levels/templates.json`
    13/17 **2-4**; never in the start flat; never in the first module
    behind a front door (`generator.zombieNoSpawnModulesFromFrontDoor`);
    max **3** per room; with chance **0.5** (`generator.groupChance`) a
-   zombie joins the previous zombie's room as a group. Crawlers 30%,
-   walkers 70% (level-designer may tune).
+   zombie joins the previous zombie's room as a group. Type by weight:
+   crawler **30**, walker **70** (`generator.zombieTypeWeights`; it is a
+   tunable number, so it lives in balance, not templates.json).
 8. **Guarantees** per floor, fixed by swapping or editing after filling:
    at least **1 food item** in a container (a kitchen cupboard or fridge
    gets fixedLoot 1 canned food or dry snack; never empty)
@@ -1213,8 +1214,8 @@ wall-layer slots; `hasWindow` rooms are Grey when entered):
 | living | yes | sofa (F) | table 3, chair 3, tv 2 (max 1), potted_plant 2 | window_pane 3, curtains 3, oil_lamp 1 |
 | kitchen | yes | fridge (F), kitchen_cupboard (W) | table 2, chair 2, sink_pipes 2 (max 1) | kitchen_drawer 3, microwave 2 (max 1), kitchen_cupboard 2, window_pane 1 |
 | bedroom | yes | bed_frame (F) | wardrobe 3 (max 1), chair 1, mattress 1 | curtains 3, window_pane 2, oil_lamp 1 |
-| kids_room | yes | bed_frame (F), toy_box (F) | wardrobe 2 (max 1), mattress 1 | curtains 3, window_pane 1 |
-| bathroom | no | toilet_tank (F), bathroom_cabinet or medicine_cabinet (W, 50/50) | sink_pipes 2 (max 1), water_heater 1 (max 1), laundry_basket 2 | bathroom_cabinet 1 |
+| kids_room | yes | bed_frame or mattress (F, 60/40), toy_box (F) | - (both F slots of a 1-module room are taken) | curtains 3, window_pane 1 |
+| bathroom | no | toilet_tank (F), bathroom_cabinet or medicine_cabinet (W, 50/50) | sink_pipes 2 (max 1), water_heater 1 (max 1), laundry_basket 2 | bathroom_cabinet 1 (max 1) |
 | studio | yes | bed_frame or mattress (F), sofa (F), kitchen_cupboard (W), fridge (F) | table 2, chair 2, tv 1 (max 1), potted_plant 1 | kitchen_drawer 2, window_pane 2, curtains 2 |
 | laundry | no | washing_machine x2 (F) | washing_machine 2, laundry_basket 3 | utility_shelf 2 |
 | reception | yes | desk (F) | chair 3, sofa 1, potted_plant 2 | window_pane 2 |
@@ -1229,6 +1230,38 @@ washing machine, water heater, bed) use one floor slot but are drawn up to
 96 px wide; a pool weight of 0 means not placed in M2. Interior doors are
 not slot objects (they sit on boundaries). Burned units replace objects
 after the pick, so they keep the logical layout as charred shapes.
+
+**Generator edge rules (M2)**
+- **Max counts include "always" copies.** A pool item's `max` counts every
+  copy already in the unit, including ones placed by "always". So a
+  bathroom never has two bathroom cabinets (one cabinet of each kind is
+  fine: an "always" medicine cabinet plus a pool bathroom cabinet).
+- **Fixtures**: the start flat's **workbench** is a fixture, not a salvage
+  object. It occupies its slot, has only *Use* (open crafting), cannot be
+  searched, dismantled, removed, charred or emptied, and is not listed in
+  `balance.objects`. Workbenches built later from the recipe (5.6) are
+  crafted placeables and follow the placeable rules.
+- **Condition exemptions**: these are never removed, charred or made empty
+  by a condition pass: any object holding `fixedLoot` (the per-floor food
+  guarantee container, Mara's note cabinet, the Novak wardrobe with the
+  medical bag), the guaranteed toilet tank (water), the start flat (always
+  normal) and fixtures.
+- **Mara's unit** (floor 13) rolls only **normal or ransacked**, never
+  burned; her bathroom has no zombies and a jammed interior door.
+- **Start flat food**: exactly **1 canned food** (fridge fixedLoot), as in
+  the tutorial (section 8). The start flat does not count toward the
+  per-floor food guarantee; the right wing of floor 15 gets its own.
+- **Storage cages stay crowbar-only** (no slow or loud hand-opening). A
+  storage unit without a crowbar is a deliberate early goal: the first
+  time the hero taps Search on a padlocked cage without a crowbar, the
+  thought "Padlocked. A crowbar would do it." shows (once per game); later
+  taps show the same thought only, no action. Crowbar costs 3 metal (5.6),
+  so it is reachable within the first few floors' scavenging. A jammed
+  front door can still be bashed open by hand (`world.jammedDoorHits`).
+- **Scarcity**: every consumable rolled is qty 1 (5.5); loot tables stay
+  lean and most emptiness comes from `generator.conditions.*.emptyChance`
+  (normal 30%, ransacked 70%, burned 85%). The guarantees (1 food item and
+  1 water source per floor) are the safety net against starvation.
 
 ### 5.16 Found notes and flavour text (M2)
 - ~12 notes in M2 (level-designer writes them; game-designer reviews
@@ -1557,3 +1590,6 @@ than one pet, zombie smell and disguises, amputation.
    or also name the city/tower?
 2. **Survivor healing feel** (5.7): (a) keep +4/h; (b) back to +2/h and
    rely on Treat; (c) +6/h so a breach costs about half a day.
+3. **Padlocked storage cages** (5.15, low priority, check at playtest):
+   (a) keep crowbar-only (current); (b) also open by hand in 8 s, Loud;
+   (c) cap a storage room at 3 cages so it feels less like a wall of locks.
