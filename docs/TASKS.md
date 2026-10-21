@@ -28,7 +28,17 @@ Delivered in playable stages; work lives on the dev branch until each stage is p
 - [x] Review + QA, merge to main
 - [x] CD playtest of stage 1 (creepier, cue fine, 13/17 fair, icons never show text)
 - [x] Blood splash + weapon hit sounds (CD request)
-### Stage 2 – Wide floors + horizontal camera
+### Isometric rebuild (CD direction change: Zomboid-like iso view, vision cone, claustrophobia)
+Side-view Stage 2 archived on branch archive/m2-side-view-stage2.
+- [x] Iso GDD, balance keys, iso core (projection, grid, A*, vision, camera)
+- [x] Iso art Stage A, blueprints + authored floor 15
+- [x] Stage A: playable isometric floor 15 (review + QA passed, fixes merged)
+- [ ] CD playtest of Stage A
+- [ ] Stage B: floors 13–17, stairs, attacks, Mara, tutorial
+- [ ] Stage C: generator + claiming homes
+- [ ] Stage D: lighting, notes, tutorial polish
+
+### Stage 2 – Wide floors + horizontal camera (superseded by isometric rebuild)
 - [ ] Engine/camera for 3120 px floors, axis-locked drag (engine-programmer + gameplay-programmer)
 ### Stage 3 – Random apartments + claiming homes
 - [x] templates.json, room types, new objects, loot tables (level-designer)
