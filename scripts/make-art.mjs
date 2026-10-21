@@ -1093,6 +1093,827 @@ sheet('window_m', 40, 40, [
     c.line(13, 5, 10, 9, 'X'); c.line(29, 5, 32, 9, 'X'); c.rect(10, 34, 2, 1, 'Hc5ccd1'); c.rect(26, 33, 2, 1, 'Hc5ccd1'); }],
 ], { note: 'Stage 2 window 40x40 for an 80 px module; glass is exactly 32x32 at (4,4): place rain_window.png frames at +4,+4 (same x/y offset) to overlay. a = cross mullion, b = three panes with a transom, broken = burned rooms (no rain overlay needed, rain noise louder). Draw at the wall layer; centre it in the module, about y 14-54.' });
 
+// =====================================================================================
+// ISO REBUILD, STAGE A (GDD 2 and 9): every sheet below has the prefix `iso_`.
+// Appended after all older sheets and uses its own RNG (mkr) so older sheets stay byte-identical.
+// 1 art px = 3 game px. Iso tile diamond = 32x16 art px. Characters 16x32. Walls 40 px tall.
+// Tile-local units used by the prop/stairs painters: one tile is 16x16 units, centre (0,0),
+// +x toward screen lower-right, +y toward screen lower-left; screen = (x - y, (x + y) / 2).
+// =====================================================================================
+const mkr = (s) => { let q = s >>> 0; return () => ((q = (Math.imul(q, 1664525) + 1013904223) >>> 0) / 4294967296); };
+const hsh = (a, b, s = 0) => (((Math.imul(a + 7, 73856093) ^ Math.imul(b + 13, 19349663) ^ Math.imul(s + 3, 83492791)) >>> 0) % 1000) / 1000;
+const rgbOf = (c) => (typeof c === 'string' ? (c[0] === '#' ? hex(c) : C_[c]) : c);
+const toHex = (r, g, b) => '#' + [r, g, b].map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
+const shd = (c, f) => { const [r, g, b] = rgbOf(c); return toHex(r * f, g * f, b * f); };
+const mixc = (a, b, t) => { const x = rgbOf(a), y = rgbOf(b); return toHex(x[0] + (y[0] - x[0]) * t, x[1] + (y[1] - x[1]) * t, x[2] + (y[2] - x[2]) * t); };
+const hxs = (c) => { const [r, g, b] = rgbOf(c); return toHex(r, g, b); };
+
+// ---------- iso_floor: 32x16 diamond tiles ----------
+// Anchor: the diamond centre is (16,8); origin it there (setOrigin 0.5). Tiles are seamless (patterns repeat every 4/8/16 units).
+const inDia = (x, y) => Math.abs(x + 0.5 - 16) + 2 * Math.abs(y + 0.5 - 8) < 16;
+const FLOOR_TYPES = ['corridor', 'hallway', 'living', 'kitchen', 'bedroom', 'bathroom', 'office', 'laundry', 'storage', 'landing'];
+function floorTile(c, type, v) {
+  const r = mkr(900 + FLOOR_TYPES.indexOf(type) * 17 + v * 101);
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 32; x++) {
+    if (!inDia(x, y)) continue;
+    const sx = x + 0.5 - 16, sy = y + 0.5 - 8, px = sy + sx / 2, py = sy - sx / 2; // tile-local units, +-8
+    const n = r(), m = (a, b) => ((Math.floor(a) % b) + b) % b;
+    let col;
+    if (type === 'corridor') {
+      col = n < 0.08 ? '#32363a' : n > 0.95 ? '#464a4e' : '#3b3f43';
+      if (Math.abs(px) > 7.3 || Math.abs(py) > 7.3) col = '#2c3034';
+      if (v && Math.abs(px - py * 0.3 + 1) < 0.5 && py > -4 && py < 5) col = '#25282c';
+    } else if (type === 'hallway') {
+      const st = Math.floor(py / 4);
+      col = (st + v) % 2 ? '#4b463d' : '#464136';
+      if (m(py, 4) < 0.5) col = '#352f27';
+      if (n < 0.1) col = '#3b362e'; else if (n > 0.93) col = '#57524a';
+      if (v && px > -3 && px < 3 && py > 0 && py < 4 && n < 0.5) col = '#5d574c'; // worn path
+    } else if (type === 'living') {
+      const pl = Math.floor(py / 4), pal = ['#5a4733', '#54422f', '#5e4b36', '#4f3f2d'];
+      col = pal[m(pl * 3 + v * 2, 4)];
+      if (m(py, 4) < 0.5) col = '#2e2219';
+      if (m(px + pl * 5, 16) < 0.5) col = '#2e2219';
+      if (n < 0.08) col = shd(col, 0.86); else if (n > 0.95) col = shd(col, 1.15);
+    } else if (type === 'kitchen') {
+      const ch = (Math.floor(px / 4) + Math.floor(py / 4) + v) % 2 === 0;
+      col = ch ? '#6a685e' : '#4d4c45';
+      if (n < 0.1) col = shd(col, 0.88);
+      if (m(px, 4) < 0.4 || m(py, 4) < 0.4) col = shd(col, 0.8);
+    } else if (type === 'bedroom') {
+      col = n < 0.2 ? '#46424b' : n > 0.85 ? '#544f59' : '#4d4952';
+      if (v && Math.abs(px) < 5 && Math.abs(py) < 5 && (Math.abs(px) > 4 || Math.abs(py) > 4)) col = '#5a4a48';
+    } else if (type === 'bathroom') {
+      const g = m(px, 2) < 1 && m(py, 2) < 1;
+      col = g ? (n < 0.15 ? '#6a7473' : n > 0.9 ? '#848e8d' : '#76807f') : '#434b4a';
+      if (v && g && n > 0.7 && m(Math.floor(px / 2) + Math.floor(py / 2), 3) === 0) col = '#5d6665';
+    } else if (type === 'office') {
+      const alt = (Math.floor(px / 8) + Math.floor(py / 8) + v) % 2 === 0;
+      col = (alt ? '#3f4a52' : '#39434a');
+      if (n < 0.15) col = shd(col, 0.9); else if (n > 0.9) col = shd(col, 1.1);
+      if (Math.abs(px) > 7.4 || Math.abs(py) > 7.4) col = '#2c343a';
+    } else if (type === 'laundry') {
+      col = n < 0.1 ? '#474b4f' : n > 0.93 ? '#5d6166' : '#52565a';
+      if (Math.abs(px) > 7.4 || Math.abs(py) > 7.4) col = '#3a3e42';
+      if (v) { const d = Math.hypot(px, py * 1); if (d < 2.6) col = d < 1.2 ? '#16191d' : (m(px + py, 2) < 1 ? '#23272c' : '#16191d'); }
+    } else if (type === 'storage') {
+      col = n < 0.18 ? '#272a2e' : n > 0.9 ? '#383c40' : '#2f3236';
+      if (v && Math.abs(px + py * 0.6 - 1) < 0.6 && px > -5 && px < 6) col = '#1a1d20';
+    } else { // landing
+      col = n < 0.1 ? '#3c4044' : n > 0.93 ? '#50545a' : '#464a4e';
+      if (Math.abs(px) < 1.1 && m(py, 8) < 4) col = '#6d6a52'; // worn hazard dashes
+      if (Math.abs(px) > 7.3 || Math.abs(py) > 7.3) col = '#2c3034';
+      if (v && n > 0.8 && Math.abs(py) < 3) col = '#3a3e42';
+    }
+    c.px(x, y, col);
+  }
+}
+function blobs(c, r, n, rmin, rmax, cols, spread = 1) {
+  for (let i = 0; i < n; i++) {
+    const cx = 16 + (r() - 0.5) * 22 * spread, cy = 8 + (r() - 0.5) * 10 * spread, rad = rmin + r() * (rmax - rmin), col = cols[Math.floor(r() * cols.length)];
+    for (let y = Math.floor(cy - rad); y <= cy + rad; y++) for (let x = Math.floor(cx - rad * 1.6); x <= cx + rad * 1.6; x++) {
+      if (inDia(x, y) && Math.hypot((x - cx) / 1.6, y - cy) <= rad * (0.7 + r() * 0.3)) c.px(x, y, col);
+    }
+  }
+}
+function floorOverlay(c, kind, v) {
+  const r = mkr(5000 + v * 77 + kind.length * 13);
+  if (kind === 'burned') {
+    blobs(c, r, 9, 1.5, 3.2, ['#0b0c0e', '#14110f', '#16191d'], 1);
+    blobs(c, r, 4, 0.8, 1.6, ['#23272c', '#1c2025'], 1);
+    for (let i = 0; i < 6; i++) { const x = 6 + Math.floor(r() * 20), y = 4 + Math.floor(r() * 8); if (inDia(x, y)) c.px(x, y, r() < 0.5 ? 'B' : '#3a1614'); }
+  } else if (kind === 'ransacked') {
+    for (let i = 0; i < 7; i++) {
+      const x = 7 + Math.floor(r() * 18), y = 4 + Math.floor(r() * 9), k = r(), w = 2 + Math.floor(r() * 3);
+      if (!inDia(x, y) || !inDia(x + w, y + 1)) continue;
+      const col = k < 0.35 ? 'X' : k < 0.55 ? 'X' : k < 0.8 ? 'TD' : 'CLOTH';
+      c.rect(x, y, w, k < 0.55 ? 1 : 2, col);
+      if (k < 0.35) c.px(x + 1, y, 'S');
+    }
+    c.px(15 + v, 8, 'RED'); // one scrap of red
+  } else if (kind === 'grime') {
+    for (let i = 0; i < 38; i++) { const x = Math.floor(r() * 32), y = Math.floor(r() * 16); if (inDia(x, y)) c.px(x, y, r() < 0.5 ? '#2a261c' : '#201e19'); }
+    blobs(c, r, 3, 1, 2.2, ['#2a261c', '#322d22'], 0.9);
+  } else { // damp
+    blobs(c, r, 3, 2, 4, ['#27323a', '#2b373d'], 0.8);
+    for (let i = 0; i < 14; i++) { const x = Math.floor(r() * 32), y = Math.floor(r() * 16); if (inDia(x, y) && c.get(x, y)) c.px(x, y, '#3f4f55'); }
+  }
+}
+{
+  const fr = [];
+  for (const t of FLOOR_TYPES) for (const v of [0, 1]) fr.push([`${t}_${v}`, (c) => floorTile(c, t, v)]);
+  for (const k of ['burned', 'ransacked', 'grime', 'damp']) for (const v of [0, 1]) fr.push([`ov_${k}_${v}`, (c) => floorOverlay(c, k, v)]);
+  sheet('iso_floor', 32, 16, fr, { note: 'Iso floor tiles 32x16 art px (96x48 game px). ANCHOR: diamond centre = (16,8) (setOrigin 0.5); tiles tile seamlessly at 16 px / 8 px steps (centre of tile (x,y) = ((x-y)*16, (x+y+1)*8) art px, GDD 2). Frames <type>_<0|1> for types corridor (communal, concrete slabs), hallway (worn lino), living (wood boards), kitchen (lino checker), bedroom (carpet), bathroom (small tiles), office (carpet tiles), laundry (lino, variant 1 has a drain), storage (raw concrete), landing (stairwell landing, hazard dashes). ov_burned_* / ov_ransacked_* / ov_grime_* / ov_damp_* are transparent overlays clipped to the diamond (draw above the floor, below objects; grime and damp are for dirty/wet rooms and may be drawn at reduced alpha). Spare fx: iso_fx.' });
+}
+
+// ---------- iso_fx: vision helpers and floor marks (32x16 diamonds) ----------
+function diaFill(c, col, dither = 0) { for (let y = 0; y < 16; y++) for (let x = 0; x < 32; x++) if (inDia(x, y) && (!dither || (x + y) % dither === 0)) c.px(x, y, col); }
+function ripple(c, i) {
+  const rad = [5, 10, 15][i], cols = ['#bdb8ab', '#8f8c82', '#5d6166'][i];
+  for (let a = 0; a < 720; a++) {
+    const t = a / 720 * Math.PI * 2, x = Math.round(15.5 + Math.cos(t) * rad), y = Math.round(7.5 + Math.sin(t) * rad / 2);
+    if (a % 24 < 17) c.px(x, y, cols); // broken arc
+  }
+}
+sheet('iso_fx', 32, 16, [
+  ['remembered_tile', (c) => { diaFill(c, '#16191d'); for (let y = 0; y < 16; y++) for (let x = 0; x < 32; x++) if (inDia(x, y) && (x * 7 + y * 13) % 11 === 0) c.px(x, y, '#1b1f24'); }],
+  ['spot_dashed', (c) => { for (let t = 0; t < 360; t++) { const k = t / 360; let x, y; const q = Math.floor(k * 4), f = k * 4 - q; const V = [[15.5, 0], [31, 7.5], [15.5, 15], [0, 7.5], [15.5, 0]]; x = V[q][0] + (V[q + 1][0] - V[q][0]) * f; y = V[q][1] + (V[q + 1][1] - V[q][1]) * f; if (Math.floor(f * 8) % 2 === 0) c.px(x, y, 'X'); } }],
+  ['ripple_0', (c) => ripple(c, 0)], ['ripple_1', (c) => ripple(c, 1)], ['ripple_2', (c) => ripple(c, 2)],
+  ['mark_dismantled', (c) => { const r = mkr(77); blobs(c, r, 4, 2, 4, ['#2c3034', '#33373b'], 0.7); for (let i = 0; i < 6; i++) { const x = 9 + Math.floor(r() * 14), y = 5 + Math.floor(r() * 6); if (inDia(x, y)) c.px(x, y, '#23272c'); } }],
+  ...[0, 1, 2].map((v) => [`blood_floor_${v}`, (c) => { const r = mkr(31 + v * 9); blobs(c, r, 4 + v, 1.2, 2.8 + v * 0.4, ['B', '#3a1614', '#4e1c1a'], 0.7); for (let i = 0; i < 5; i++) { const x = 8 + Math.floor(r() * 16), y = 4 + Math.floor(r() * 8); if (inDia(x, y)) c.px(x, y, 'B'); } }]),
+], { animations: [anim('ripple', [2, 3, 4], 6, 0)], note: 'Iso FX, all 32x16 diamonds centred at (16,8). remembered_tile = flat #16191d diamond (tint/alpha in code to dim remembered tiles). spot_dashed = dashed spot-pick diamond outline (GDD 5.6). ripple_0..2 = broken ellipse arcs growing r 5/10/15 px (anim "ripple", 3 frames, once; draw on the source tile for the sound-off ripple, scale up for louder noise). mark_dismantled = faint floor mark left by a dismantled object. blood_floor_0..2 = dried blood stains on the floor (the old fx_blood sheets are still usable for hit splashes). Vignette is code-generated.' });
+
+// ---------- iso_walls: 16x48 frames ----------
+// Wall along x (edge runs toward the lower right): frame origin = the edge's upper-left end S at (0,40); the edge ends at (16,48).
+// Wall along y (edge runs toward the lower left): upper-right end S at (16,40); the edge ends at (0,48).
+// Chain walls: the next edge starts where the previous one ends, so place frames at (V - (0,40)) for x walls and (V - (16,40)) for y walls.
+// Full wall = 40 px above the base line; stub = 12 px (same 16x48 frame, only the bottom 12 px used). Post frames: vertex at (8,44).
+const WALL_FINISH = ['concrete', 'plaster', 'wallp_a', 'wallp_b', 'tile', 'burned'];
+const CAPHI = '#74787c', CAPMID = '#5d6166';
+function wallPaint(c, dir, h, fn, { cap = true, skipCap = null } = {}) {
+  for (let x = 0; x < 16; x++) {
+    const yb = 40 + (dir === 'x' ? x >> 1 : (15 - x) >> 1);
+    for (let z = 0; z < h; z++) {
+      let col = null;
+      if (cap && z >= h - 2 && !(skipCap && skipCap(x, z))) col = z === h - 1 ? CAPHI : CAPMID;
+      else col = fn(x, z);
+      if (col) c.px(x, yb - z, dir === 'y' ? shd(col, 0.8) : col);
+    }
+  }
+}
+function finishFn(f, seed = 0) {
+  const nz = (x, z) => hsh(x, z, seed + f.length);
+  return (x, z) => {
+    const n = nz(x, z);
+    switch (f) {
+      case 'concrete': {
+        if (z === 13 || z === 26) return '#2c3034';
+        if ((x === 4 || x === 12) && (z === 6 || z === 20)) return '#23272c';
+        if (z < 2) return '#2f3236';
+        return n < 0.07 ? '#32363a' : n > 0.95 ? '#454a4e' : '#3a3e42';
+      }
+      case 'plaster': {
+        if (z < 2) return '#33302a';
+        if (x === 7 && z > 14 && z < 30 && n < 0.8) return '#4b4840'; // hairline crack
+        return n < 0.08 ? '#4f4b43' : n > 0.94 ? '#625e54' : '#57534a';
+      }
+      case 'wallp_a': {
+        if (z < 2) return '#2b2722';
+        if (z === 11) return '#3d382f';
+        if (z < 11) return (x % 5 === 0 && z > 3) ? '#3a342b' : '#463f34';
+        if (z === 33 || z === 34) return '#4b453a';
+        return ((x >> 1) % 2 ? '#554f42' : '#5b5547') && (n < 0.07 ? '#4c473b' : ((x >> 1) % 2 ? '#554f42' : '#5b5547'));
+      }
+      case 'wallp_b': {
+        if (z < 2) return '#2a2e29';
+        if (z === 12) return '#383c34';
+        const dot = x % 4 === 1 && z % 4 === 1;
+        return dot ? '#5a6253' : n < 0.07 ? '#444a3f' : '#4d5448';
+      }
+      case 'tile': {
+        if (z === 28) return '#4a5352';
+        if (z > 28) return '#57534a';
+        if (x % 4 === 0 || z % 4 === 0) return '#434b4a';
+        return n < 0.15 ? '#6a7473' : n > 0.9 ? '#848e8d' : '#76807e';
+      }
+      default: { // burned
+        if (z < 3 && n < 0.8) return '#0b0c0e';
+        if (n > 0.985) return '#4e1c1a';
+        const streak = hsh(x, 0, 9) > 0.55;
+        return streak && z > 8 ? '#0f1012' : n < 0.12 ? '#232120' : '#171618';
+      }
+    }
+  };
+}
+const dark = '#0f1114';
+function windowFn(base, broken, seed) {
+  return (x, z) => {
+    const inFrame = x >= 3 && x <= 12 && z >= 13 && z <= 32;
+    if (z === 12 && x >= 2 && x <= 13) return '#6a6e72'; // sill
+    if (z === 11 && x >= 2 && x <= 13) return '#43474b';
+    if (!inFrame) return base(x, z);
+    if (x === 3 || x === 12 || z === 13 || z === 32) return '#5d6166'; // frame
+    if (broken) {
+      const sh = (x <= 5 && z >= 28) || (x >= 10 && z >= 27) || (x <= 5 && z <= 17) || (x >= 9 && z <= 16 && x - 9 > z - 14);
+      if (sh && hsh(x, z, 3) > 0.15) return z > 24 ? '#6e787e' : '#4d585d';
+      if (x === 7 || x === 8) return z < 22 ? '#3a3e42' : dark; // stub of mullion
+      return '#07080a';
+    }
+    if (x === 7 || x === 8) return '#5d6166'; // mullion
+    if (z === 22 || z === 23) return '#5d6166';
+    if (z <= 20 && hsh(x, z, 5) > 0.2 && (x + 3) % 4 < 3 && z < 14 + (x * 7 % 5)) return '#363f43'; // dark city skyline
+    const g = z > 23 ? '#8a9399' : z > 17 ? '#6e787e' : '#4d585d';
+    return ((x + z) % 7 === 0 && z > 24) ? '#a7b0b5' : g;
+  };
+}
+function stubWindow(base, broken) {
+  return (x, z) => {
+    if (z >= 8 && x >= 2 && x <= 13) { if (z === 11 && x >= 4 && x <= 11) return broken ? (x % 3 === 0 ? '#8a9399' : '#07080a') : '#8a9399'; return z >= 10 ? '#6a6e72' : '#4a4e52'; }
+    return base(x, z);
+  };
+}
+const woodLeaf = (x, z, front) => {
+  if (front) {
+    if (z >= 20 && z <= 27 && x >= 5 && x <= 8) return (x === 5 || x === 8 || z === 20 || z === 27) ? '#a99886' : '#bdb8ab'; // number plate
+    if (x === 10 && (z === 14 || z === 15)) return '#c08a3e'; // lock
+    if (z % 6 === 0) return '#3a3e42';
+    return hsh(x, z, 4) < 0.1 ? '#4a4f55' : '#555b61';
+  }
+  const raised = (x >= 5 && x <= 10 && ((z >= 18 && z <= 28) || (z >= 4 && z <= 14)));
+  if (x === 10 && z === 15) return '#a99886'; // knob
+  if (x === 4 || x === 11) return '#4a3a2b';
+  if (raised) return (x === 5 || z === 18 || z === 4) ? '#54412f' : '#6d5842';
+  return '#5a4631';
+};
+function doorFn(state, front, base) {
+  const frameCol = front ? '#6b7176' : '#4a3a2b';
+  return (x, z) => {
+    if (x === 2 || x === 13) return z <= 33 ? frameCol : base(x, z);
+    if (z === 32 || z === 33) return x >= 2 && x <= 13 ? frameCol : base(x, z);
+    if (x < 3 || x > 12 || z > 31) return base(x, z);
+    switch (state) {
+      case 'closed': return woodLeaf(x, z, front);
+      case 'open': {
+        if (x >= 11) return x === 11 ? '#3d2f22' : '#2a2018'; // leaf swung against the wall
+        return z < 2 ? '#1a1d20' : dark;
+      }
+      case 'jammed': {
+        const d = hsh(x, z, 6);
+        const plank = (z >= 6 && z <= 9) || (z >= 20 && z <= 23) || (Math.abs((z - 4) - (x - 3) * 2.6) < 1.5);
+        if (plank) return (z + x) % 5 === 0 ? '#4a3a2b' : d < 0.2 ? '#7a6246' : '#8a6f50';
+        if (z >= 29) return dark; // gap at the top: leaf warped down
+        return woodLeaf(x, z + 1, front);
+      }
+      case 'splintered': {
+        const hole = hsh(x, z, 8) > 0.82 && z > 3 && z < 28 || (x >= 6 && x <= 8 && z >= 12 && z <= 17 && hsh(x, z, 1) > 0.3);
+        if (hole) return dark;
+        if (z >= 29 && hsh(x, 0, 2) > 0.5) return dark;
+        if (x === 6 && z > 17 && z < 26) return '#8a6f50'; // splinter
+        return woodLeaf(x, z, front);
+      }
+      case 'hanging': {
+        const cut = 26 - (x - 3) * 3; // leaf tilts down to the right, hinged at the lower left
+        if (z < Math.max(cut, 3) && !(z < 2)) return woodLeaf(x, z, front);
+        return z < 2 ? '#1a1d20' : dark;
+      }
+      default: { // broken
+        if (x === 3 && z > 18 && z < 29) return '#5a4631';
+        if (z <= 1 && hsh(x, z, 7) > 0.5) return '#7a6246';
+        return z < 2 ? '#1a1d20' : dark;
+      }
+    }
+  };
+}
+function barricade(c, dir, lv, stage) {
+  const planks = lv === 1 ? [8, 21] : [4, 12, 20, 28];
+  planks.forEach((z0, k) => {
+    for (let x = 2; x <= 13; x++) {
+      if (stage === 1 && ((x + k * 3) % 7 < 2)) continue;
+      if (stage === 2 && (k % 2 === 1 || x < 5 || x > 10)) continue;
+      const sk = stage ? Math.round((x - 8) * (k % 2 ? 0.4 : -0.4)) : 0;
+      for (let t = 0; t < 3; t++) {
+        const yb = 40 + (dir === 'x' ? x >> 1 : (15 - x) >> 1), z = z0 + t + sk;
+        c.px(x, yb - z, t === 0 ? '#4a3a2b' : t === 1 ? (lv === 2 ? '#7a6246' : '#8a6f50') : '#9a8060');
+      }
+      if (x === 3 || x === 12) { const yb = 40 + (dir === 'x' ? x >> 1 : (15 - x) >> 1); c.px(x, yb - (z0 + 1 + sk), '#82888c'); }
+    }
+  });
+  if (lv === 2) { // steel brace
+    for (let x = 3; x <= 12; x++) { if (stage === 2 && x > 8) continue; const yb = 40 + (dir === 'x' ? x >> 1 : (15 - x) >> 1); const z = Math.round(3 + (x - 3) * 2.7); c.px(x, yb - z, '#6b7176'); c.px(x, yb - z - 1, '#82888c'); }
+  }
+  if (stage >= 1) for (let i = 0; i < 4 + stage * 2; i++) { const x = 3 + Math.floor(hsh(i, lv, 11) * 10), z = 1 + Math.floor(hsh(i, lv, 12) * 3); const yb = 40 + (dir === 'x' ? x >> 1 : (15 - x) >> 1); c.px(x, yb - z, '#9a8060'); } // splinters on the floor
+}
+{
+  const fr = [];
+  for (const d of ['x', 'y']) {
+    for (const f of WALL_FINISH) {
+      fr.push([`wall_${d}_full_${f}`, (c) => wallPaint(c, d, 40, finishFn(f))]);
+      fr.push([`wall_${d}_stub_${f}`, (c) => wallPaint(c, d, 12, finishFn(f))]);
+    }
+  }
+  const post = (c, w, inner, h) => {
+    for (let z = 0; z < h; z++) for (let x = 8 - w; x < 8 + w; x++) {
+      const yb = 44 - (x === 8 - w || x === 7 + w ? 0 : 1) + (inner ? 0 : (Math.abs(x - 7.5) < 1 ? 1 : 0));
+      const col = z >= h - 1 ? CAPHI : z === h - 2 ? CAPMID : (x < 8 ? '#3a3e42' : '#2d3135');
+      c.px(x, yb - z - (inner ? 0 : 0), (!inner && (x === 7 || x === 8)) ? (z >= h - 2 ? col : '#23272c') : col);
+    }
+  };
+  fr.push(['corner_inner_full', (c) => post(c, 2, true, 40)], ['corner_inner_stub', (c) => post(c, 2, true, 12)]);
+  fr.push(['corner_outer_full', (c) => post(c, 3, false, 40)], ['corner_outer_stub', (c) => post(c, 3, false, 12)]);
+  for (const d of ['x', 'y']) {
+    const plaster = finishFn('plaster');
+    fr.push([`wall_${d}_full_window`, (c) => wallPaint(c, d, 40, windowFn(plaster, false), {})]);
+    fr.push([`wall_${d}_stub_window`, (c) => wallPaint(c, d, 12, stubWindow(plaster, false), { skipCap: (x, z) => x >= 2 && x <= 13 })]);
+    fr.push([`wall_${d}_full_window_broken`, (c) => wallPaint(c, d, 40, windowFn(plaster, true))]);
+    fr.push([`wall_${d}_stub_window_broken`, (c) => wallPaint(c, d, 12, stubWindow(plaster, true), { skipCap: (x, z) => x >= 2 && x <= 13 })]);
+  }
+  const DOORS = ['closed', 'open', 'jammed', 'splintered', 'hanging', 'broken'];
+  for (const d of ['x', 'y']) {
+    const plaster = finishFn('plaster');
+    for (const s of DOORS) {
+      fr.push([`door_${d}_full_${s}`, (c) => wallPaint(c, d, 40, doorFn(s, false, plaster))]);
+      fr.push([`door_${d}_stub_${s}`, (c) => wallPaint(c, d, 12, doorFn(s, false, plaster), { skipCap: (x, z) => x >= 3 && x <= 12 })]);
+    }
+    for (const s of ['closed', 'open', 'jammed']) {
+      fr.push([`frontdoor_${d}_full_${s}`, (c) => wallPaint(c, d, 40, doorFn(s, true, plaster))]);
+      fr.push([`frontdoor_${d}_stub_${s}`, (c) => wallPaint(c, d, 12, doorFn(s, true, plaster), { skipCap: (x, z) => x >= 3 && x <= 12 })]);
+    }
+  }
+  for (const d of ['x', 'y']) for (const lv of [1, 2]) for (const st of [0, 1, 2]) fr.push([`barricade_${d}_lv${lv}_${st}`, (c) => barricade(c, d, lv, st)]);
+  sheet('iso_walls', 16, 48, fr, { note: 'Iso walls, frames 16x48 art px. wall_<x|y>_<full|stub>_<finish>: x = edge runs toward the screen lower-right (ANCHOR: upper-left end of the base line at frame (0,40), the line ends at (16,48)); y = edge runs toward the lower-left (ANCHOR: upper-right end at (16,40), ends at (0,48)). Tile-corner vertex V(gx,gy) = ((gx-gy)*16, (gx+gy)*8) art px. Place x frames at (V.x, V.y-40) and y frames at (V.x-16, V.y-40) for the starting vertex V of the edge. Full = 40 px above the base line (120 game px), stub = 12 px (cutaway, 36 game px); all frames keep 16x48 and stubs use only the bottom 20 rows. Every wall has a 2 px cap (light top line). The y direction is drawn ~20% darker (shadow side). Finishes: concrete (corridor/landing/storage), plaster (hallway/laundry/office, also around windows and doors), wallp_a (living/bedroom, striped faded wallpaper with dado), wallp_b (kitchen, dotted grey-green), tile (bathroom, tiled to 28 px), burned (soot). corner_inner_* (flat post, concave corner) and corner_outer_* (split-shaded post, convex corner) are posts of width 4/6 with the corner vertex at frame (8,44). wall_*_window / window_broken: glass 8x18 px with skyline; stub window = low sill with a glass edge. door_<x|y>_<full|stub>_<closed|open|jammed|splintered|hanging|broken>: doorway frame + leaf in the wall segment (closed = leaf, open = leaf swung against the right jamb, jammed = warped leaf with boards, splintered/hanging = door damage stages 2/3, broken = permanently open with splinters; stub versions show the leaf as a low panel on the floor line). frontdoor_*_(closed|open|jammed): heavier metal door with a number plate (x 5-8, z 20-27 on the leaf). barricade_<x|y>_lv<1|2>_<0|1|2>: transparent overlay for the door gap, lv1 two planks, lv2 four planks plus steel brace; stage 0 intact, 1 damaged, 2 nearly broken (reused for the 5 damage steps: 0,0,1,2,2). Draw barricade above the door frame. Wall opening is at x 3..12, z 0..31 in every door frame.' });
+}
+
+// ---------- iso_stairs: 64x64 frames ----------
+// ANCHOR: centre of the 2x2-tile footprint at (32,44) (footprint diamond spans x 0-64, y 28-60).
+const ISO_STAIRS_ANCHOR = [32, 44];
+function mkIso(c, cx, by) {
+  const P = (x, y, z, col) => c.px(Math.floor(cx + x - y), Math.floor(by + (x + y) / 2 - z), col);
+  return {
+    P,
+    top(x0, x1, y0, y1, z, col) { for (let x = x0; x < x1; x += 0.5) for (let y = y0; y < y1; y += 0.5) P(x, y, z, col); },
+    faceL(x0, x1, y, z0, z1, col) { for (let x = x0; x < x1; x += 0.5) for (let z = z0; z < z1; z += 0.5) P(x, y, z, col); },
+    faceR(x, y0, y1, z0, z1, col) { for (let y = y0; y < y1; y += 0.5) for (let z = z0; z < z1; z += 0.5) P(x, y, z, col); },
+    box(x0, x1, y0, y1, z0, z1, m) {
+      this.faceL(x0, x1, y1, z0, z1, m.l); this.faceR(x1, y0, y1, z0, z1, m.r); this.top(x0, x1, y0, y1, z1, m.t);
+      if (m.edge) { this.faceL(x0, x1, y1, z0, z0 + 1, shd(m.l, 0.7)); this.faceR(x1, y0, y1, z0, z0 + 1, shd(m.r, 0.7)); }
+    },
+  };
+}
+const capTop = (h) => { const [r, g, bl] = rgbOf(h); return toHex(Math.min(r, 189), Math.min(g, 184), Math.min(bl, 171)); };
+const mat = (base, o = {}) => ({ t: capTop(shd(base, o.top ?? 1.2)), l: hxs(base), r: shd(base, 0.74), edge: true });
+function stairsUp(c, rot) { // ascends toward -y (rot 'ne', up-right) or -x (rot 'nw', up-left)
+  const g = mkIso(c, 32, 44), N = 8, step = 28 / N;
+  for (let i = N - 1; i >= 0; i--) { // step i: 0 = lowest and nearest (+y or +x); draw far (high) first
+    const z1 = (i + 1) * 3, d1 = 14 - i * step, d0 = d1 - step, m = mat(i % 2 ? '#5d6166' : '#52565a');
+    if (rot === 'ne') g.box(-14, 14, d0, d1, 0, z1, m); else g.box(d0, d1, -14, 14, 0, z1, m);
+  }
+  // side stringers (dark) and handrail on the near side
+  if (rot === 'ne') { g.box(14, 15, -14, 14, 0, 26, mat('#23272c')); g.box(14, 15, -14, 14, 26, 28, mat('#6b7176')); }
+  else { g.box(-14, 14, 14, 15, 0, 26, mat('#23272c')); g.box(-14, 14, 14, 15, 26, 28, mat('#6b7176')); }
+  c.outline();
+}
+function stairsDown(c, rot) {
+  const g = mkIso(c, 32, 44), N = 8, step = 28 / N;
+  g.top(-14, 14, -14, 14, 0, '#0b0c0e');
+  for (let i = N - 1; i >= 0; i--) { // i = 0 nearest tread (just below the rim), deeper away; draw far first
+    const d1 = 14 - i * step, d0 = d1 - step, z = -2 - i, col = shd('#7a8084', (1 - i * 0.1) * (i % 2 ? 0.8 : 1));
+    if (rot === 'ne') { g.top(-14, 14, d0, d1, z + 1, col); g.faceL(-14, 14, d1, z, z + 1, shd(col, 0.35)); }
+    else { g.top(d0, d1, -14, 14, z + 1, col); g.faceR(d1, -14, 14, z, z + 1, shd(col, 0.35)); }
+  }
+  for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) if (Math.abs(x + 0.5 - 32) + 2 * Math.abs(y + 0.5 - 44) > 28) c.clear(x, y, 1, 1); // only what is seen through the opening
+  // near rim and handrail
+  if (rot === 'ne') { g.box(-15, 15, 14, 15, 0, 2, mat('#6b7176')); g.box(14, 15, -14, 14, 0, 12, mat('#23272c')); g.box(14, 15, -14, 14, 12, 14, mat('#6b7176')); }
+  else { g.box(14, 15, -15, 15, 0, 2, mat('#6b7176')); g.box(-14, 14, 14, 15, 0, 12, mat('#23272c')); g.box(-14, 14, 14, 15, 12, 14, mat('#6b7176')); }
+  c.outline();
+}
+function lightFixture(c, lit) { // wall/ceiling emergency light, drawn around (32,20)
+  c.rect(26, 14, 12, 3, '#23272c'); c.rect(28, 17, 8, 7, lit ? '#c08a3e' : '#3a3e42'); c.rect(28, 17, 8, 1, '#6b7176'); c.rect(28, 23, 8, 1, '#23272c');
+  c.rect(29, 18, 2, 5, lit ? '#e2c27a' : '#2c3034'); c.rect(33, 19, 2, 4, lit ? '#d07a2c' : '#23272c');
+  for (let x = 28; x < 36; x += 2) c.px(x, 20, '#16191d');
+  c.outline();
+  if (lit) for (let y = 4; y < 44; y++) for (let x = 12; x < 52; x++) { // dithered warm glow, drawn behind (only on empty pixels)
+    const d = Math.hypot((x - 32) / 1.2, (y - 20)); if (d > 8 && d < 18 && c.get(x, y) === 0 && (x + y) % 2 === (d < 13 ? 0 : 0) && (d < 13 || (x + y * 2) % 4 === 0)) c.px(x, y, d < 13 ? '#6a4a22' : '#4a3620');
+  }
+}
+sheet('iso_stairs', 64, 64, [
+  ['stairs_up_ne', (c) => stairsUp(c, 'ne')], ['stairs_up_nw', (c) => stairsUp(c, 'nw')],
+  ['stairs_down_ne', (c) => stairsDown(c, 'ne')], ['stairs_down_nw', (c) => stairsDown(c, 'nw')],
+  ['light_unlit', (c) => lightFixture(c, false)], ['light_lit', (c) => lightFixture(c, true)],
+], { note: 'Iso stairwell pieces, frames 64x64 art px. stairs_*: 2x2-tile footprint (28x28 units), ANCHOR = footprint centre at (32,44). stairs_up_ne rises toward the upper-right (-y), stairs_up_nw toward the upper-left (-x); 8 steps, 24 px of rise, near-side handrail. stairs_down_*: the matching stair going down into a dark opening (treads descend away from the near rim). The four are used for the central shaft: draw up flight on the landing side, down flight opposite; the code mirrors for the other orientations. light_unlit / light_lit: the landing emergency fixture, transparent frames, fixture centre at (32,20); lit has a dithered amber glow (swap for the flicker, draw above walls; the soft light pool is code-made).' });
+
+// ---------- iso_props / iso_props_l: furniture and fixtures ----------
+// Front-relative coordinates: u runs along the front face left-to-right on screen, d runs from the back (-) to the front (+).
+// Facing 'a': front faces the lower-left (SW, +y), i.e. the prop is backed to the upper-right (NE) wall. Facing 'b': front faces the lower-right
+// (SE, +x), backed to the upper-left (NW) wall. The code mirrors both for the other two facings. For 1x2 / 2x2 props the long axis runs along the front.
+function propCtx(c, cx, by, facing) {
+  const g = mkIso(c, cx, by), A = facing === 'a';
+  const W = (u, d) => (A ? [u, d] : [d, -u]);
+  const api = {
+    // box(u0,u1,d0,d1,z0,z1, baseColour | {top}, det(F,S,T,w,h))
+    box(u0, u1, d0, d1, z0, z1, col, det, opt = {}) {
+      const m = typeof col === 'string' ? mat(col) : { ...mat(col.base), ...(col.top ? { t: hxs(col.top) } : {}) };
+      const w = u1 - u0, h = z1 - z0, px = (u, d, z, cc) => { const [x, y] = W(u, d); g.P(x, y, z, cc); };
+      const frontCol = A ? m.l : m.r, sideCol = A ? m.r : m.l, su = A ? u1 : u0;
+      for (let d = d0; d < d1; d += 0.5) for (let z = z0; z < z1; z += 0.5) px(su, d, z, sideCol);
+      for (let u = u0; u < u1; u += 0.5) for (let z = z0; z < z1; z += 0.5) px(u, d1, z, frontCol);
+      for (let u = u0; u < u1; u += 0.5) for (let d = d0; d < d1; d += 0.5) px(u, d, z1, m.t);
+      for (let u = u0; u < u1; u += 0.5) px(u, d1, z0, shd(frontCol, 0.7));
+      for (let d = d0; d < d1; d += 0.5) px(su, d, z0, shd(sideCol, 0.7));
+      if (det) {
+        const F = (a0, a1, b0, b1, cc) => { for (let u = u0 + a0; u < u0 + a1; u += 0.5) for (let z = z0 + b0; z < z0 + b1; z += 0.5) px(u, d1, z, cc); };
+        const S = (s0, s1, b0, b1, cc) => { for (let d = d1 - s1; d < d1 - s0; d += 0.5) for (let z = z0 + b0; z < z0 + b1; z += 0.5) px(su, d, z, cc); };
+        const T = (a0, a1, e0, e1, cc) => { for (let u = u0 + a0; u < u0 + a1; u += 0.5) for (let d = d0 + e0; d < d0 + e1; d += 0.5) px(u, d, z1, cc); };
+        det(F, S, T, w, h);
+      }
+    },
+    // open mesh cage: edges only
+    wire(u0, u1, d0, d1, z0, z1, col, gap = 3, doorOpen = false) {
+      const px = (u, d, z, cc) => { const [x, y] = W(u, d); g.P(x, y, z, cc); };
+      for (let z = z0; z <= z1; z += 0.5) { for (const u of [u0, u1]) for (const d of [d0, d1]) px(u, d, z, col); }
+      for (let u = u0; u <= u1; u += 0.5) for (const z of [z0, z1]) { px(u, d1, z, col); px(u, d0, z, col); }
+      for (let d = d0; d <= d1; d += 0.5) for (const z of [z0, z1]) { px(u1, d, z, col); px(u0, d, z, col); }
+      for (let u = u0 + gap; u < u1; u += gap) for (let z = z0; z <= z1; z += 0.5) if (!(doorOpen && u > u1 - 10)) px(u, d1, z, col);
+      for (let z = z0 + 4; z < z1; z += 4) for (let u = u0; u <= u1; u += 0.5) if (!(doorOpen && u > u1 - 10)) px(u, d1, z, col);
+      for (let d = d0 + gap; d < d1; d += gap) for (let z = z0; z <= z1; z += 0.5) px(A ? u1 : u0, d, z, col);
+      for (let z = z0 + 4; z < z1; z += 4) for (let d = d0; d <= d1; d += 0.5) px(A ? u1 : u0, d, z, col);
+    },
+    flat(u, d, w, dd, col, z = 0) { for (let a = u; a < u + w; a += 0.5) for (let b = d; b < d + dd; b += 0.5) { const [x, y] = W(a, b); g.P(x, y, z, col); } },
+    A,
+  };
+  return api;
+}
+const WOOD = '#66503c', WOODD2 = '#4a3a2b', APP = '#9a978c', DARKI = '#0f1114', MET = '#6b7176', CLO = '#6e6a5e';
+const knob = '#a99886';
+// each prop: (k, open) -> draws. k.box(u0,u1,d0,d1,z0,z1,col,det)
+const PROPS = {
+  fridge: (k, o) => k.box(-6, 6, -6, 6, 0, 36, APP, (F, S, T) => {
+    if (!o) { F(0, 12, 24, 25, '#6f6c63'); F(9, 10, 26, 32, '#4a4d50'); F(9, 10, 15, 21, '#4a4d50'); F(1, 11, 0, 2, '#6f6c63'); F(0, 12, 33, 36, '#a8a69b'); }
+    else { F(1, 11, 2, 34, DARKI); for (const z of [10, 20, 28]) F(1, 11, z, z + 1, '#4a4d50'); F(2, 5, 11, 15, '#5a4631'); F(7, 10, 21, 26, '#3a4a3c'); S(0, 12, 2, 34, '#6f6c63'); }
+  }),
+  kitchen_cupboard: (k, o) => k.box(-7, 7, -6, 6, 0, 22, { base: WOOD, top: '#8a867a' }, (F) => {
+    F(1, 6.5, 3, 19, o ? DARKI : '#705a44'); F(7.5, 13, 3, 19, '#705a44'); F(1, 13, 20, 21, '#4a3a2b');
+    if (!o) { F(5, 6, 10, 12, knob); } else { F(1, 6.5, 10, 11, '#4a3a2b'); F(2, 5, 3, 7, '#5a6253'); }
+    F(8, 9, 10, 12, knob);
+  }),
+  kitchen_drawer: (k, o) => {
+    k.box(-6, 6, -6, 6, 0, 14, { base: WOOD, top: '#8a867a' }, (F) => {
+      for (const z of [1, 5, 9]) { F(1, 11, z, z + 3, o && z === 9 ? DARKI : '#705a44'); if (!(o && z === 9)) F(4, 8, z + 1, z + 2, knob); }
+    });
+    if (o) k.box(-5, 5, 6, 10, 9, 11, '#705a44', (F, S, T) => { T(1, 9, 0.5, 3.5, '#bdb8ab'); T(2, 5, 1, 2, '#3a3e42'); });
+  },
+  chair: (k) => {
+    k.box(-5, -4, -5, -4, 0, 6, WOODD2); k.box(4, 5, -5, -4, 0, 6, WOODD2);
+    k.box(-5, 5, -5, -3, 6, 21, WOOD, (F) => { F(1, 9, 3, 9, '#54412f'); });
+    k.box(-5, 5, -3, 5, 6, 8, '#5a4631', (F, S, T) => T(1, 9, 1, 7, '#6d5842'));
+    k.box(-5, -4, 4, 5, 0, 6, WOODD2); k.box(4, 5, 4, 5, 0, 6, WOODD2);
+  },
+  wardrobe: (k, o) => k.box(-6, 6, -6, 6, 0, 36, { base: '#5a4631', top: '#6d5842' }, (F, S) => {
+    if (!o) { F(0.5, 5.5, 2, 33, '#6d5842'); F(6.5, 11.5, 2, 33, '#6d5842'); F(5, 7, 17, 20, '#a99886'); F(1, 11, 0, 2, '#33211a'); S(0, 12, 2, 33, '#4a3a2b'); }
+    else { F(1, 11, 2, 34, DARKI); F(2, 5, 8, 33, '#34494b'); F(5, 8, 10, 31, '#6e6a5e'); F(8, 10, 12, 30, '#4c4639'); F(1, 11, 7, 8, '#6b7176'); S(0, 8, 2, 33, '#6d5842'); }
+  }),
+  bathroom_cabinet: (k, o) => k.box(-5, 5, -7, -4, 14, 30, '#9a978c', (F) => {
+    if (!o) { F(1, 9, 1, 15, '#8a9399'); F(1, 9, 14, 15, '#6b7176'); F(2, 4, 9, 14, '#a7b0b5'); }
+    else { F(1, 9, 1, 15, DARKI); F(1, 9, 7, 8, '#6b7176'); F(2, 4, 8, 12, '#a99886'); F(5, 7, 2, 6, '#68403a'); }
+  }),
+  medicine_cabinet: (k, o) => k.box(-4, 4, -7, -4, 14, 28, '#b8b4a8', (F) => {
+    if (!o) { F(1, 7, 1, 13, '#9a978c'); F(3, 5, 4, 10, '#68403a'); F(2, 6, 6, 8, '#68403a'); }
+    else { F(1, 7, 1, 13, DARKI); F(1, 7, 6, 7, '#6b7176'); F(2, 4, 7, 11, '#bdb8ab'); F(4, 6, 2, 5, '#68403a'); }
+  }),
+  toilet_tank: (k) => {
+    k.box(-4, 4, -7, -3, 9, 22, { base: '#a8a69b', top: '#b0ada1' }, (F) => { F(6, 7.5, 11, 12.5, '#6b7176'); });
+    k.box(-3, 3, -3, 6, 0, 9, '#a8a69b', null);
+    k.box(-4, 4, -3, 6, 8, 10, { base: '#b8b4a8', top: '#bdb8ab' }, (F, S, T) => T(1.5, 6.5, 1, 8, '#a8a69b'));
+  },
+  sink_pipes: (k) => {
+    k.box(-2, 2, -6, -3, 0, 14, '#a8a69b', null);
+    k.box(-5, 5, -7, -1, 14, 18, { base: '#b8b4a8', top: '#bdb8ab' }, (F, S, T) => T(1, 9, 1, 5, '#8a9399'));
+    k.box(-0.5, 0.5, -7, -6, 18, 23, '#82888c'); k.box(-1, 1, -6.5, -4.5, 22, 23, '#82888c');
+    k.box(3, 4, -7, -6, 0, 12, MET); k.box(3, 4, -7, -4, 11, 12, MET);
+  },
+  water_heater: (k) => {
+    k.box(-5, 5, -5, 5, 0, 36, { base: '#8f8f86', top: '#a8a69b' }, (F) => { F(0, 10, 28, 29, '#6b7176'); F(0, 10, 2, 3, '#6b7176'); F(6, 8, 18, 22, '#68403a'); F(2, 5, 17, 21, '#3a3e42'); });
+    k.box(-1, 1, -1, 1, 36, 40, MET); k.box(2, 3, 2, 3, 36, 39, '#82888c');
+  },
+  tv: (k) => {
+    k.box(-6, 6, -4, 4, 0, 9, WOODD2, (F) => { F(1, 11, 2, 7, '#33211a'); F(4, 8, 3, 4, knob); });
+    k.box(-5, 5, -2, 2, 9, 21, '#1c2025', (F) => { F(1, 9, 1.5, 10.5, '#2a3a3a'); F(2, 4, 8, 10, '#3a4f50'); });
+  },
+  microwave: (k) => {
+    k.box(-7, 7, -6, 6, 0, 12, { base: WOOD, top: '#8a867a' }, (F) => { F(1, 13, 1, 10, '#705a44'); F(5, 9, 5, 6, knob); });
+    k.box(-5, 5, -4, 4, 12, 21, '#8a8f80', (F) => { F(1, 7, 1.5, 7.5, '#16191d'); F(7.5, 9, 1, 7, '#4a4d50'); F(8, 9, 2, 3, '#68403a'); });
+  },
+  rain_collector: (k) => {
+    k.box(-5, 5, -5, 5, 0, 18, '#3f5a64', (F) => { F(0, 10, 6, 7, '#28393b'); F(0, 10, 12, 13, '#28393b'); F(4, 6, 1, 4, '#82888c'); });
+    k.box(-6, 6, -6, 6, 18, 20, '#5d6166', (F, S, T) => T(2, 10, 2, 10, '#23272c')); k.box(-1, 1, -1, 1, 20, 23, '#6b7176');
+  },
+  water_filter: (k) => {
+    k.box(-5, 5, -5, 5, 0, 7, '#6b7176', (F) => { F(4, 6, 2, 5, '#a7b0b5'); });
+    k.box(-3, 3, -3, 3, 7, 27, '#6e787e', (F) => { F(0, 6, 9, 10, '#4d585d'); F(0, 6, 17, 18, '#4d585d'); });
+    k.box(-4, 4, -4, 4, 27, 30, '#3a3e42'); k.box(0.5, 2.5, -6, -4, 22, 24, '#82888c');
+  },
+  planter: (k) => {
+    k.box(-6, 6, -4, 4, 0, 8, { base: '#4a3a2b', top: '#33281a' }, (F) => { F(0, 12, 6, 7, '#33211a'); });
+    for (const [u, d, z1] of [[-5, -3, 14], [-1, -1, 18], [3, 0, 13], [-3, 1, 11], [1, -3, 16]]) k.box(u, u + 2, d, d + 2, 7, z1, '#3f5a3c');
+  },
+  curtains: (k) => {
+    k.box(-7, 7, -7, -5, 36, 37.5, MET);
+    k.box(-7, 7, -7, -5, 6, 36, '#5f4f4a', (F) => { for (let u = 0; u < 14; u += 3) F(u, u + 1, 0, 30, '#4a3d39'); F(0, 14, 28, 30, '#4a3d39'); });
+    k.box(-7, 7, -7, -5, 0, 6, '#4a3d39', null);
+  },
+  potted_plant: (k) => {
+    k.box(-3, 3, -3, 3, 0, 7, '#5a3a2a', (F) => { F(0, 6, 5, 7, '#6d4a37'); });
+    for (const [u, d, z1] of [[-3, -2, 16], [1, 0, 21], [-2, 1, 14], [1, -3, 18]]) { k.box(u, u + 2.5, d, d + 2.5, 6, z1, '#3f5a3c'); }
+    k.box(-4, -1, -1, 2, 14, 17, '#46614a'); k.box(0, 3, -2, 1, 19, 23, '#46614a');
+  },
+  toolbox: (k, o) => {
+    k.box(-5, 5, -2.5, 2.5, 0, 6, '#5f4238', (F, S, T) => { if (!o) F(0, 10, 4, 5, '#43302a'); else { T(1, 9, 0.5, 4.5, DARKI); T(2, 5, 1, 2, '#82888c'); T(6, 8, 2, 3.5, '#a99886'); } });
+    if (!o) k.box(-2, 2, -0.5, 0.5, 6, 8, MET); else k.box(-5, 5, -3.5, -2.5, 6, 13, '#5f4238');
+  },
+  oil_lamp: (k) => {
+    k.box(-3, 3, -3, 3, 0, 3, '#6b7176'); k.box(-2.5, 2.5, -2.5, 2.5, 3, 9, { base: '#c08a3e', top: '#e2c27a' });
+    k.box(-1.5, 1.5, -1.5, 1.5, 9, 14, { base: '#8a9399', top: '#a7b0b5' }); k.box(-2, 2, -2, 2, 14, 15, '#3a3e42');
+  },
+  filing_cabinet: (k, o) => {
+    k.box(-4, 4, -5, 5, 0, 26, '#82888c', (F) => { for (const z of [1, 9, 17]) { F(0.5, 7.5, z, z + 7, '#7a8084'); F(2.5, 5.5, z + 3, z + 4, '#b0ada1'); } });
+    if (o) k.box(-3.5, 3.5, 5, 10, 17, 24, '#6b7176', (F, S, T) => { T(1, 6, 1, 5, '#bdb8ab'); T(2, 5, 0.5, 1.5, '#a99886'); });
+  },
+  washing_machine: (k, o) => k.box(-6, 6, -6, 6, 0, 30, { base: '#b8b4a8', top: '#bdb8ab' }, (F, S) => {
+    F(0.5, 11.5, 22, 29, '#a8a69b'); F(1.5, 4.5, 24, 27, '#3a3e42'); F(6, 8, 24, 27, '#68403a'); F(9, 10.5, 25, 26.5, '#6b7176');
+    if (!o) { F(3, 9, 4, 18, '#6b7176'); F(4, 8, 5, 17, '#2a3a3a'); F(4.5, 6, 11, 16, '#4d585d'); }
+    else { F(3, 9, 4, 18, DARKI); F(4, 8, 5, 12, '#6e6a5e'); S(0, 4, 4, 18, '#8a8f80'); }
+  }),
+  laundry_basket: (k) => {
+    k.box(-4, 4, -4, 4, 0, 9, { base: '#5a4e2e', top: '#6e6a5e' }, (F) => { for (let z = 2; z < 9; z += 3) F(0, 8, z, z + 1, '#33281a'); for (let u = 1; u < 8; u += 2.5) F(u, u + 0.5, 0, 9, '#33281a'); });
+  },
+  toy_box: (k, o) => {
+    k.box(-5, 5, -4, 4, 0, 9, '#3f5a64', (F, S, T) => { if (!o) { F(0, 10, 6, 7, '#28393b'); T(1, 4, 1, 4, '#5a3a2a'); T(6, 8, 4, 7, '#7a6a4c'); } else { T(0.5, 9.5, 0.5, 7.5, DARKI); T(1, 4, 1, 3, '#5a3a2a'); T(6, 8, 3, 6, '#7a6a4c'); } });
+    if (o) k.box(-5, 5, -5, -4, 9, 15, '#28393b'); else k.box(1, 4, -1, 2, 9, 12, '#6a4a3c');
+  },
+  utility_shelf: (k) => {
+    const L = '#82888c';
+    for (const u of [-6, 5.5]) for (const d of [-5, 4.5]) k.box(u, u + 0.5, d, d + 0.5, 0, 38, L);
+    for (const z of [9, 20, 31]) k.box(-6, 6, -5, 5, z, z + 1, '#5d6166');
+    k.box(-4, 0, -4, 1, 1, 9, '#68403a'); k.box(1, 5, -3, 3, 1, 8, '#4c4639', (F) => F(1, 3, 3, 5, '#6e6a5e'));
+    k.box(-5, -1, -4, 2, 10, 17, '#5a4631'); k.box(1, 4, -2, 1, 10, 14, '#3f5a64'); k.box(-4, 4, -4, 3, 21, 27, '#6e6a5e'); k.box(0, 4, -3, 2, 32, 37, '#7a6a4c');
+  },
+  charred_debris: (k) => {
+    k.box(-6, 6, -5, 5, 0, 3, '#16191d'); k.box(-5, -1, -4, 1, 3, 12, '#0b0c0e'); k.box(1, 5, -2, 4, 3, 8, '#23272c');
+    k.box(-2, 1, 2, 5, 3, 6, '#14110f'); k.box(-6, 6, 2, 3, 3, 4, '#0b0c0e'); k.box(2, 4, -4, -2, 8, 15, '#16191d');
+    k.box(-1, 0, -1, 0, 12, 14, '#4e1c1a'); k.box(3, 4, 1, 2, 3, 4, '#5a3a2a');
+  },
+};
+// 1x2 / 2x2 props: long axis along the front (u in [-14,14])
+const LPROPS = {
+  table: (k) => {
+    for (const u of [-13, 12]) for (const d of [-5, 4]) k.box(u, u + 1.5, d, d + 1.5, 0, 14, WOODD2);
+    k.box(-14, 14, -6, 6, 14, 17, { base: '#5a4631', top: '#6d5842' }, (F) => F(0, 28, 0, 1, '#33211a'));
+    k.box(-6, 0, -3, 2, 17, 18, '#bdb8ab'); k.box(6, 10, -1, 2, 17, 21, '#82888c');
+  },
+  sofa: (k) => {
+    const S = '#46504e';
+    k.box(-14, 14, -6, 6, 0, 9, { base: S, top: '#56615e' }, (F) => { F(13.5, 14.5, 1, 9, '#2f3836'); F(0, 28, 0, 2, '#2f3836'); });
+    k.box(-14, 14, -6, -3, 9, 21, S, (F) => { for (let u = 0; u < 28; u += 9) F(u, u + 1, 1, 12, '#3a4543'); });
+    k.box(-14, -11, -3, 6, 9, 16, '#3a4543'); k.box(11, 14, -3, 6, 9, 16, '#3a4543');
+    k.box(-3, 3, -2, 5, 9, 11, '#56615e');
+  },
+  bed_frame: (k) => {
+    k.box(-14, 14, -14, 14, 3, 7, '#4a3a2b'); for (const u of [-14, 13]) for (const d of [-14, 13]) k.box(u, u + 1, d, d + 1, 0, 3, '#33211a');
+    k.box(-14, 14, -14, -12, 7, 22, WOOD, (F) => F(2, 26, 2, 12, '#54412f'));
+    k.box(-13, 13, -12, 13, 7, 11, { base: '#7a7568', top: '#8a8578' }, (F, S, T) => { T(3, 12, 2, 8, '#68403a'); T(15, 24, 12, 18, '#6a6558'); });
+    k.box(-11, -2, -11, -4, 11, 13, '#8f8f84');
+  },
+  hero_bed: (k) => {
+    k.box(-14, 14, -14, 14, 3, 7, '#4a3a2b'); for (const u of [-14, 13]) for (const d of [-14, 13]) k.box(u, u + 1, d, d + 1, 0, 3, '#33211a');
+    k.box(-14, 14, -14, -12, 7, 22, WOOD, (F) => F(2, 26, 2, 12, '#54412f'));
+    k.box(-13, 13, -12, 13, 7, 11, { base: '#8f8f84', top: '#a39f92' });
+    k.box(-13, 13, -2, 13, 11, 13, { base: '#34494b', top: '#3f595b' }, (F, S, T) => { T(1, 25, 4, 5, '#28393b'); });
+    k.box(-11, -2, -11, -4, 11, 14, '#b8b4a8'); k.box(2, 11, -11, -4, 11, 14, '#b8b4a8');
+  },
+  survivor_bed: (k) => {
+    for (const u of [-14, 12]) for (const d of [-6, 4]) k.box(u, u + 2, d, d + 2, 0, 6, '#6b7176');
+    k.box(-14, 14, -6, 6, 6, 8, '#5d6166');
+    k.box(-13, 13, -5, 5, 8, 11, { base: '#5b5547', top: '#6e6a5e' }, (F, S, T) => { T(1, 25, 1, 3, '#4c4639'); T(1, 8, 3, 9, '#a99886'); });
+  },
+  mattress: (k) => {
+    k.box(-14, 14, -6, 6, 0, 5, { base: '#6e6a5e', top: '#8f8c80' }, (F, S, T) => { for (let u = 3; u < 28; u += 6) F(u, u + 0.5, 0, 5, '#4c4639'); T(8, 16, 3, 8, '#68403a'); T(18, 25, 1, 4, '#5f5344'); });
+  },
+  desk: (k) => {
+    k.box(-14, -6, -6, 6, 0, 14, '#5a4631', (F) => { for (const z of [1, 5, 9]) { F(1, 7, z, z + 3, '#6d5842'); F(3, 5, z + 1, z + 2, knob); } });
+    k.box(-14, 14, -6, 6, 14, 16, { base: '#66503c', top: '#7a6246' });
+    k.box(12, 13.5, -5, -3.5, 0, 14, WOODD2); k.box(12, 13.5, 4, 5.5, 0, 14, WOODD2);
+    k.box(-4, 1, -3, 2, 16, 17, '#bdb8ab'); k.box(2, 8, -5, -2, 16, 24, '#1c2025', (F) => F(0.5, 5.5, 1, 6, '#2a3a3a')); k.box(7, 10, 2, 4, 16, 18, '#3a3e42');
+  },
+  storage_cage: (k, o) => {
+    k.box(-12, -4, -4, 2, 0, 9, '#5a4631'); k.box(-2, 10, -4, 3, 0, 14, '#4c4639', (F) => F(1, 11, 5, 6, '#6e6a5e')); k.box(4, 10, -4, 2, 14, 20, '#68403a'); k.box(-12, -6, 2, 5, 0, 5, '#5d6166');
+    k.box(11, 13, 2, 4, o ? 6 : 8, o ? 10 : 12, '#c08a3e'); // padlock (lamp amber, tiny)
+    k.wire(-14, 14, -6, 6, 0, 34, '#82888c', 4, o);
+  },
+  workbench: (k) => {
+    k.box(-14, 14, -6, 6, 14, 18, { base: '#5a4631', top: '#7a6246' }, (F) => F(0, 28, 0, 1, '#33211a'));
+    for (const u of [-14, 12.5]) for (const d of [-6, 4.5]) k.box(u, u + 1.5, d, d + 1.5, 0, 14, '#33211a');
+    k.box(-13, 13, -5, 4, 6, 7, '#4a3a2b');
+    k.box(-12, -8, -4, 0, 18, 24, '#82888c'); k.box(-1, 7, -3, 1, 18, 21, '#5f4238'); k.box(9, 12, 1, 4, 18, 20, '#a99886');
+  },
+  charred_big: (k) => {
+    k.box(-14, 14, -6, 6, 0, 3, '#16191d'); k.box(-12, -4, -5, 3, 3, 13, '#0b0c0e'); k.box(0, 10, -4, 4, 3, 8, '#23272c'); k.box(4, 12, -5, -1, 8, 15, '#16191d'); k.box(-6, -2, 2, 5, 3, 7, '#14110f');
+    k.box(8, 9, 1, 2, 3, 4, '#4e1c1a'); k.box(-9, -8, 0, 1, 13, 14, '#5a3a2a');
+  },
+};
+const OPENABLE = ['fridge', 'kitchen_cupboard', 'kitchen_drawer', 'wardrobe', 'bathroom_cabinet', 'medicine_cabinet', 'toolbox', 'filing_cabinet', 'washing_machine', 'toy_box'];
+{
+  const fr = [];
+  const add = (store, id, cx, by, fn, open) => { for (const f of ['a', 'b']) fr.push([`${id}${open ? '_open' : ''}_${f}`, (c) => { fn(propCtx(c, cx, by, f), open); }]); };
+  for (const [id, fn] of Object.entries(PROPS)) { add(null, id, 16, 48, fn, false); if (OPENABLE.includes(id)) add(null, id, 16, 48, fn, true); }
+  const flatDebris = (kind) => (k) => { const r = mkr(kind === 'p' ? 11 : 12); for (let i = 0; i < 9; i++) { const u = -6 + r() * 10, d = -5 + r() * 9; k.flat(u, d, 2 + Math.floor(r() * 3), 1 + Math.floor(r() * 2), kind === 'p' ? (r() < 0.5 ? 'X' : 'X') : (r() < 0.5 ? 'TD' : 'CLOTH')); } };
+  fr.push(['debris_papers', (c) => flatDebris('p')(propCtx(c, 16, 48, 'a'))], ['debris_clothes', (c) => flatDebris('c')(propCtx(c, 16, 48, 'a'))]);
+  const names = Object.keys(PROPS).flatMap((id) => OPENABLE.includes(id) ? [id, id + '_open'] : [id]);
+  sheet('iso_props', 32, 56, fr, { outline: false, note: `Iso props, frames 32x56 art px (1x1 footprint). ANCHOR: tile centre at (16,48) (floor diamond spans y 40-56, so setOrigin(0.5, 48/56)); props stand within +-7 units of it, tall ones up to 40 px high. Frames <id>_<a|b> and <id>_open_<a|b> (searched/ajar). Facing a: front toward the lower-left, backed to the upper-right wall; b: front toward the lower-right, backed to the upper-left wall; mirror (flipX) for the other two facings. Mounted objects (bathroom_cabinet, medicine_cabinet) and curtains are drawn at wall height at the back of the tile (draw at the wall edge). ids: ${names.join(', ')}; debris_papers / debris_clothes = flat ransacked clutter (one facing). Lamp: oil_lamp; light pool is code-made. Mirroring note: lighting is baked (left face lighter), so mirrored copies swap light direction, which is acceptable.` });
+  const fl = [];
+  for (const [id, fn] of Object.entries(LPROPS)) { for (const f of ['a', 'b']) fl.push([`${id}_${f}`, (c) => fn(propCtx(c, 32, 52, f), false)]); if (id === 'storage_cage') for (const f of ['a', 'b']) fl.push([`${id}_open_${f}`, (c) => fn(propCtx(c, 32, 52, f), true)]); }
+  sheet('iso_props_l', 64, 72, fl, { outline: false, note: 'Iso large props, frames 64x72 art px: table, sofa, mattress, desk, storage_cage (+_open), workbench, survivor_bed, charred_big (1x2 footprint, 14x14... 28x12 units) and bed_frame, hero_bed (2x2 footprint). ANCHOR: centre of the footprint rectangle at (32,52) (setOrigin(0.5, 52/72)). Long axis runs along the front face: for facing a the footprint is 2 tiles along x (front toward the lower-left), for b it is 2 tiles along y (front toward the lower-right); mirror for the other two facings. Frames <id>_<a|b>. The bed_frame is the stripped salvage frame with a stained mattress, hero_bed is the made-up bed (teal blanket), survivor_bed a cot.' });
+}
+
+// ---------- iso characters: 16x32, 8 facings ----------
+// ANCHOR: feet / tile centre at (8,30) (setOrigin(0.5, 30/32)). Frames <anim>_<dir>_<i>, dir order S, SW, W, NW, N, NE, E, SE.
+// Five views are drawn (S, SE, E, NE, N); SW, W, NW are exact mirrors baked into the sheet so no flipping is needed in code.
+const DIRS = ['S', 'SW', 'W', 'NW', 'N', 'NE', 'E', 'SE'];
+const VIEW = { S: 'S', SW: 'SE', W: 'E', NW: 'NE', N: 'N', NE: 'NE', E: 'E', SE: 'SE' };
+const MIRRORED = new Set(['SW', 'W', 'NW']);
+const flipH = (c) => { for (let y = 0; y < c.h; y++) for (let x = 0; x < c.w >> 1; x++) { const a = (y * c.w + x) * 4, b = (y * c.w + (c.w - 1 - x)) * 4; for (let k = 0; k < 4; k++) { const t = c.d[a + k]; c.d[a + k] = c.d[b + k]; c.d[b + k] = t; } } };
+const line2 = (c, x0, y0, x1, y1, col) => { c.line(x0, y0, x1, y1, col); if (Math.abs(x1 - x0) >= Math.abs(y1 - y0)) c.line(x0, y0 + 1, x1, y1 + 1, col); else c.line(x0 + 1, y0, x1 + 1, y1, col); };
+// attack table: hand + weapon tip, per view, per stage (windup, swing, recover), for TT=10 (torso top)
+const ATK = {
+  S: [{ h: [12, 8], t: [12, 2] }, { h: [12, 18], t: [12, 25] }, { h: [11, 16], t: [8, 22] }],
+  SE: [{ h: [11, 8], t: [9, 2] }, { h: [13, 17], t: [15, 23] }, { h: [12, 15], t: [14, 19] }],
+  E: [{ h: [9, 9], t: [5, 3] }, { h: [13, 13], t: [15, 15] }, { h: [12, 15], t: [14, 19] }],
+  NE: [{ h: [11, 9], t: [8, 3] }, { h: [13, 10], t: [15, 6] }, { h: [12, 12], t: [14, 9] }],
+  N: [{ h: [12, 9], t: [12, 3] }, { h: [12, 6], t: [12, 1] }, { h: [11, 9], t: [9, 4] }],
+};
+// zombie reach (both arms): hands at [A, B] per view
+const ZREACH = { S: [[4, 17], [11, 17]], SE: [[7, 17], [13, 16]], E: [[13, 14], [14, 13]], NE: [[11, 10], [13, 9]], N: [[2, 11], [13, 11]] };
+function person(c, v, pal, p = {}) {
+  const { bob = 0, sw = [0, 0], lift = [0, 0], atk = -1, zomb = false, kneel = 0, headDx = 0, mouth = false, reach = 0, lean = 0, tired = 0 } = p;
+  const { skin, hair, shirt, sleeve, pants, shoe = 'S', accent, pack, hairStyle = 'short', eye = 'O', decay = false } = pal;
+  const TT = 10 + bob, HT = 4 + bob, legTop = 20 + kneel, hipB = 19 + kneel, foot = 29;
+  const back = v === 'N' || v === 'NE', face = !back;
+  const armPose = (side) => { // returns hand pos [x,y] for side 0 (A) or 1 (B) for current pose
+    if (atk >= 0 && side === 1) return ATK[v][atk].h;
+    if (zomb && (reach || atk >= 0)) { const z = ZREACH[v][side]; return [z[0], z[1] + bob - (atk >= 0 ? 2 : 0) + (tired ? side : 0)]; }
+    return null;
+  };
+  const legs = () => {
+    const draw = (i, x0, side) => {
+      const s = sw[i], l = lift[i], col = i ? shd(pants, 0.8) : pants;
+      if (v === 'E') {
+        const hx = 7 + (i ? 0 : 0), fx = hx + s * 2, fy = foot - l;
+        line2(c, hx, legTop, fx, fy, col); c.rect(fx - 1 + (s >= 0 ? 0 : 0), fy, 4, 1, shoe);
+      } else if (v === 'S' || v === 'N') {
+        const f = foot - l - ((v === 'S' ? s < 0 : s > 0) ? 1 : 0), x = i ? 8 : 5;
+        c.rect(x, legTop, 3, f - legTop, col); c.rect(x, f, 3, 1, shoe);
+      } else { // SE / NE: legs spread horizontally and shift with the stride
+        const x = (i ? 8 : 5) + (v === 'SE' ? s : -s), f = foot - l;
+        line2(c, i ? 8 : 5, legTop, x, f, col); c.rect(x - 0, f, 3, 1, shoe);
+      }
+    };
+    draw(1, 8); draw(0, 5);
+    if (v === 'S' || v === 'N') c.rect(7, legTop, 2, 3, shd(pants, 0.6));
+  };
+  const arm = (side, front) => { // side 0 = A (screen-left / near), 1 = B
+    const hp = armPose(side);
+    let sx, sy = TT + 1, ex, ey;
+    if (v === 'S' || v === 'N') { sx = side ? 11 : 3; ex = hp ? hp[0] : sx; ey = hp ? hp[1] : TT + 7 + (side ? sw[0] : sw[1]) * (v === 'S' ? -1 : 1) * 0; }
+    else if (v === 'E') { sx = 7; ex = hp ? hp[0] : sx - sw[side] * -1 * 0 + (side ? sw[1] : sw[0]) * -2; ey = hp ? hp[1] : TT + 7; }
+    else { sx = side ? 10 : 4; ex = hp ? hp[0] : sx + (side ? sw[0] : sw[1]) * (v === 'SE' ? -1 : 1); ey = hp ? hp[1] : TT + 7; }
+    const col = side === 1 && (v === 'E') ? shd(sleeve, 0.7) : sleeve;
+    if (ey < TT - 4) ey = TT - 4;
+    line2(c, sx, sy, ex, ey, col);
+    c.rect(ex, ey, 2, 2, skin);
+    if (side === 1 && atk >= 0 && pal.weapon) { const t = ATK[v][atk].t; c.line(ex, ey, t[0], t[1], 'WOOD'); c.line(ex + 1, ey, t[0] + 1, t[1], 'WOOD'); c.px(t[0], t[1], pal.weapon); c.px(t[0] + 1, t[1], pal.weapon); }
+    return [ex, ey];
+  };
+  const armsBehind = v === 'E' || (zomb && back);
+  // far arm first for side views
+  if (v === 'E') arm(1);
+  if (zomb && back) { arm(0); arm(1); }
+  legs();
+  // pack (hero)
+  if (pack && (back || v === 'E')) { if (v === 'E') c.rect(3, TT + 1, 3, 8, pack); else c.rect(5, TT + 1, 6, 7, pack); if (v !== 'E') c.rect(5, TT + 7, 6, 1, shd(pack, 0.7)); }
+  // torso
+  const tx = v === 'E' ? 5 : 5, tw = v === 'E' ? 5 : 6;
+  c.rect(tx + lean, TT, tw, hipB - TT + 1, shirt);
+  c.rect(tx + lean, hipB, tw, 1, pants);
+  if (v === 'S') { c.rect(7, TT + 1, 2, hipB - TT - 1, shd(shirt, 0.75)); if (accent) c.rect(6, TT, 4, 2, accent); }
+  if (v === 'SE') { c.rect(9, TT + 1, 1, hipB - TT - 1, shd(shirt, 0.75)); if (accent) c.rect(7, TT, 3, 2, accent); }
+  if (v === 'E') { c.rect(5 + lean, TT + 4, 5, 1, shd(shirt, 0.8)); if (accent) c.px(9, TT, accent); }
+  if ((v === 'N' || v === 'NE') && !pack) c.rect(7, TT + 1, 1, hipB - TT - 1, shd(shirt, 0.8));
+  if (decay) { c.px(6, TT + 3, 'B'); c.px(8, TT + 5, 'ZD'); c.rect(8, TT + 7, 2, 1, 'B'); c.px(5, hipB, 'O'); c.px(9, hipB, 'O'); c.px(7 + lean, TT + 2, 'ZD'); }
+  // head
+  const hx = 5 + headDx;
+  c.rect(hx, HT, 6, 6, skin);
+  if (v === 'S') {
+    if (hairStyle === 'bald') { c.rect(hx, HT, 2, 1, 'ZD'); } else { c.rect(hx, HT, 6, 2, hair); if (hairStyle === 'short') { c.px(hx, HT + 2, hair); c.px(hx + 5, HT + 2, hair); } else { c.rect(hx, HT + 2, 1, 4, hair); c.rect(hx + 5, HT + 2, 1, 4, hair); c.rect(hx + 2, HT - 1, 2, 1, hair); } }
+    c.px(hx + 1, HT + 3, eye); c.px(hx + 4, HT + 3, eye);
+    if (mouth) c.rect(hx + 2, HT + 4, 2, 2, 'B'); else c.rect(hx + 2, HT + 5, 2, 1, shd(skin, 0.7));
+  } else if (v === 'N') {
+    c.rect(hx, HT, 6, 5, hair); c.rect(hx + 1, HT + 5, 4, 1, shd(skin, 0.85));
+    if (hairStyle === 'bun') { c.rect(hx + 2, HT - 1, 2, 1, hair); c.rect(hx, HT + 5, 6, 1, hair); }
+    if (hairStyle === 'bald') { c.rect(hx, HT, 6, 5, skin); c.rect(hx + 1, HT + 1, 2, 1, 'ZD'); c.px(hx + 4, HT + 3, 'B'); }
+  } else if (v === 'E') {
+    if (hairStyle === 'bald') { c.rect(hx, HT, 2, 3, 'ZD'); } else { c.rect(hx, HT, 3, 5, hair); c.rect(hx + 3, HT, 3, 2, hair); if (hairStyle === 'bun') { c.rect(hx, HT + 5, 2, 1, hair); c.rect(hx - 1, HT + 1, 2, 3, hair); } }
+    c.px(hx + 4, HT + 3, eye); c.px(hx + 6, HT + 4, skin);
+    if (mouth) c.rect(hx + 4, HT + 4, 2, 2, 'B'); else c.px(hx + 4, HT + 5, shd(skin, 0.7));
+  } else if (v === 'SE') {
+    if (hairStyle === 'bald') { c.rect(hx, HT, 3, 2, 'ZD'); } else { c.rect(hx, HT, 6, 2, hair); c.rect(hx, HT + 2, 2, 3, hair); if (hairStyle === 'bun') { c.rect(hx, HT + 2, 1, 4, hair); c.rect(hx + 1, HT - 1, 3, 1, hair); } }
+    c.px(hx + 3, HT + 3, eye); c.px(hx + 5, HT + 3, eye);
+    if (mouth) c.rect(hx + 3, HT + 4, 2, 2, 'B'); else c.rect(hx + 3, HT + 5, 2, 1, shd(skin, 0.7));
+  } else { // NE
+    if (hairStyle === 'bald') { c.rect(hx, HT, 6, 5, skin); c.rect(hx + 1, HT + 1, 2, 1, 'ZD'); c.px(hx + 5, HT + 3, 'B'); }
+    else { c.rect(hx, HT, 6, 5, hair); c.rect(hx + 5, HT + 3, 1, 2, skin); if (hairStyle === 'bun') { c.rect(hx + 2, HT - 1, 2, 1, hair); c.rect(hx, HT + 5, 5, 1, hair); } }
+    c.rect(hx + 1, HT + 5, 4, 1, shd(skin, 0.85));
+  }
+  if (decay && face) { c.px(hx + 2, HT + 1, 'ZD'); c.px(hx + (v === 'E' ? 3 : 4), HT + 1, 'B'); }
+  // near/front arms
+  if (v === 'E') arm(0); else if (!(zomb && back)) { arm(0); arm(1); }
+}
+// isoLying figure: chain along the facing vector; fell backwards (head at the rear end)
+function isoLying(c, v, pal, blood = true) {
+  const vec = { S: [1, 0], SE: [1, 0.5], E: [1, 0], NE: [1, -0.5], N: [1, 0] }[v]; // S and N lie sideways so they read
+  const cx = 8, cy = 25;
+  const segs = [['head', pal.skin], ['top', pal.shirt], ['mid', pal.shirt], ['hip', pal.pants], ['leg', pal.pants], ['foot', pal.shoe || 'S']];
+  const sp = vec[0] === 0 ? 2.3 : 2.4;
+  if (blood) { const bx = cx - vec[0] * sp * 2.5, by = cy - vec[1] * sp * 2.5 + 1; c.rect(Math.round(bx) - 3, Math.round(by) - 1, 7, 4, 'B'); c.px(Math.round(bx) + 3, Math.round(by) + 3, 'B'); }
+  segs.forEach(([k, col], i) => {
+    const t = i - 2.5, x = Math.round(cx + vec[0] * t * sp * 2.4 / 2.4), y = Math.round(cy + vec[1] * t * (vec[0] === 0 ? 2.3 : 2.4));
+    const horiz = vec[1] === 0, vert = vec[0] === 0;
+    let w = vert ? (k === 'head' ? 6 : k === 'leg' || k === 'foot' ? 5 : 7) : horiz ? 3 : 4, h = vert ? 3 : horiz ? (k === 'head' ? 6 : k === 'leg' || k === 'foot' ? 4 : 5) : 4;
+    if (k === 'foot') { w = vert ? 5 : horiz ? 2 : 3; h = vert ? 2 : horiz ? 4 : 3; }
+    c.rect(x - (w >> 1), y - (h >> 1), w, h, col);
+    if (k === 'head' && pal.hair && pal.hairStyle !== 'bald') { const hs = vert ? [x - 3, y - (vec[1] > 0 ? 1 : 0), 6, 2] : [x - 1, y - 3, 2, 5]; c.rect(hs[0], hs[1], hs[2], hs[3], pal.hair); }
+    if (k === 'head' && !pal.hair) { /* bald: nothing */ }
+  });
+  if (pal.decay) c.px(8, 24, 'B');
+}
+// crawler: low to the ground (about 12 px high), hand-laid per view; ph alternates the arm reach, lunge 1 = rear back, 2 = lunge, oy sags it down
+function isoCrawler(c, v, p, pal = { skin: 'Z', shirt: 'R', arm: 'ZD' }) {
+  const { ph = 0, lunge = 0, oy = 0, bob = 0 } = p;
+  const R = (x, y, w, h, col) => c.rect(x, y + oy + bob, w, h, col);
+  const P = (x, y, col) => c.px(x, y + oy + bob, col);
+  const rs = ph % 2, lu = lunge === 2 ? 2 : 0, lb = lunge === 1 ? 1 : 0;
+  const open = lunge === 2;
+  if (v === 'E') {
+    R(0, 24, 3, 4, 'B'); R(1, 23, 2, 2, 'ZD');                      // bloody stump, legs gone
+    R(2, 20, 9, 7, pal.shirt); R(3, 20, 7, 2, shd('R', 1.15)); P(5, 23, 'B'); P(8, 21, 'ZD'); P(4, 25, 'ZD'); // back
+    R(8 - lb, 25, 6 + rs + lu, 2, pal.arm); R(13 + rs + lu - lb, 25, 2, 2, pal.skin); // far arm
+    R(9 + lu - lb, 17 + lb * 2, 5, 6, pal.skin); R(9 + lu - lb, 17 + lb * 2, 2, 2, 'ZD'); P(12 + lu - lb, 19 + lb * 2, 'RED'); // head
+    if (open) R(12 + lu, 21, 3, 2, 'B'); else P(13 + lu - lb, 22 + lb * 2, 'B');
+    R(5, 26, 6 + (1 - rs) + lu, 2, pal.arm); R(10 + (1 - rs) + lu, 26, 2, 2, pal.skin); // near arm
+  } else if (v === 'S') {
+    R(5, 11, 6, 3, 'B'); R(5, 14, 6, 4, shd('R', 0.9));              // stump and back, farther up
+    R(3, 17, 10, 5, pal.shirt); R(4, 17, 8, 1, shd('R', 1.15)); P(6, 19, 'B'); P(10, 20, 'ZD');
+    R(1, 20 + rs + lu, 3, 6, pal.arm); R(1, 26 + rs + lu, 3, 2, pal.skin); R(12, 20 + (1 - rs) + lu, 3, 6, pal.arm); R(12, 26 + (1 - rs) + lu, 3, 2, pal.skin);
+    R(5, 21 + lu, 6, 6, pal.skin); R(5, 21 + lu, 6, 1, 'ZD'); P(6, 24 + lu, 'RED'); P(9, 24 + lu, 'RED'); if (open) R(7, 26 + lu, 2, 2, 'B'); else R(7, 26 + lu, 2, 1, 'B');
+  } else if (v === 'N') {
+    R(1, 15 - lb + rs, 3, 3, pal.arm); R(1, 14 - lb + rs, 3, 2, pal.skin); R(12, 15 - lb + (1 - rs), 3, 3, pal.arm); R(12, 14 - lb + (1 - rs), 3, 2, pal.skin);
+    R(6, 14 + lb, 4, 5, 'ZD'); R(6, 14 + lb, 4, 2, 'ZD'); P(7, 17 + lb, 'B');   // head peeking (back of skull)
+    R(3, 18, 10, 8, pal.shirt); R(4, 18, 8, 2, shd('R', 1.15)); R(7, 20, 1, 5, 'ZD'); P(10, 22, 'B');
+    R(5, 26, 6, 2, 'B'); R(6, 25, 4, 1, 'ZD');
+  } else if (v === 'SE') {
+    R(1, 18, 3, 3, 'B'); R(3, 19, 8, 6, pal.shirt); R(4, 19, 6, 2, shd('R', 1.15)); P(6, 22, 'B'); P(9, 21, 'ZD');
+    R(7, 22 + lu, 5 + rs, 2, pal.arm); R(11 + rs + lu, 22 + lu, 2, 2, pal.skin);
+    R(9 + lu, 22 + lu, 5, 6, pal.skin); R(9 + lu, 22 + lu, 5, 1, 'ZD'); P(11 + lu, 25 + lu, 'RED'); P(13 + lu, 25 + lu, 'RED'); if (open) R(11 + lu, 27 + lu, 2, 1, 'B');
+    R(6, 26, 5 + (1 - rs), 2, pal.arm); R(10 + (1 - rs) + lu, 26 + lu, 2, 2, pal.skin);
+  } else { // NE
+    R(1, 24, 3, 4, 'B'); R(3, 20, 8, 7, pal.shirt); R(4, 20, 6, 2, shd('R', 1.15)); P(6, 23, 'B'); R(7, 22, 1, 4, 'ZD');
+    R(7, 18 - lb, 5 + rs, 2, pal.arm); R(11 + rs, 17 - lb, 2, 2, pal.skin);
+    R(9, 15 + lb, 5, 5, 'ZD'); R(10, 15 + lb, 3, 1, 'ZD'); P(13, 18 + lb, pal.skin);
+    R(5, 26, 5 + (1 - rs), 2, pal.arm); R(9 + (1 - rs), 26, 2, 2, pal.skin);
+  }
+}
+const HERO_PAL = { skin: 'SK', hair: 'S', shirt: 'T', sleeve: 'TD', pants: 'PANT', shoe: 'S', accent: 'X', pack: 'R', weapon: 'L', hairStyle: 'short' };
+const MARA_PAL = { skin: 'SK', hair: 'WOODD', shirt: 'X', sleeve: 'X', pants: 'T', shoe: 'METAL', accent: 'RED', pack: null, weapon: 'L', hairStyle: 'bun' };
+const WALKER_PAL = { skin: 'Z', hair: null, shirt: 'R', sleeve: 'Z', pants: 'WOODD', shoe: 'O', accent: null, pack: null, hairStyle: 'bald', eye: 'RED', decay: true };
+const WALK = [{ bob: 1, sw: [1, -1], lift: [0, 0] }, { bob: 0, sw: [0, 0], lift: [0, 1] }, { bob: 1, sw: [-1, 1], lift: [0, 0] }, { bob: 0, sw: [0, 0], lift: [1, 0] }];
+function isoChars(key, anims, draw, note) {
+  const frames = [], animDefs = [];
+  for (const d of DIRS) for (const [name, n, fps, rep] of anims) {
+    const idx = [];
+    for (let i = 0; i < n; i++) { idx.push(frames.length); frames.push([`${name}_${d}_${i}`, (c) => { draw(c, VIEW[d], name, i); if (MIRRORED.has(d)) flipH(c); }]); }
+    animDefs.push(anim(`${name}_${d}`, idx, fps, rep));
+  }
+  sheet(key, 16, 32, frames, { outline: true, animations: animDefs, note });
+}
+const NOTE_CH = 'Frames 16x32 art px, ANCHOR: feet / tile centre at (16/2, 30) = (8,30) (setOrigin(0.5, 30/32)). 8 facings in the order S, SW, W, NW, N, NE, E, SE (S = toward the camera, E = screen right, N = away). Frame names <anim>_<DIR>_<i>, animation keys <anim>_<DIR> (e.g. walk_SE). SW, W, NW are baked mirrors of SE, E, NE (no flipX needed). 1 px near-black outline. ';
+function humanDraw(pal) {
+  return (c, v, name, i) => {
+    if (name === 'idle') return person(c, v, pal, { bob: i });
+    if (name === 'walk') return person(c, v, pal, WALK[i]);
+    if (name === 'attack') return person(c, v, pal, { atk: i, bob: i === 1 ? 1 : 0, lean: 0, headDx: i === 1 ? (v === 'E' || v === 'SE' ? 1 : 0) : 0 });
+    if (name === 'hurt') return person(c, v, pal, { bob: 1, headDx: v === 'E' || v === 'SE' ? -1 : 0, lean: v === 'E' ? -1 : 0, mouth: true });
+    if (i === 0) return person(c, v, pal, { bob: 1, headDx: v === 'E' || v === 'SE' ? -1 : 0, lean: v === 'E' ? -1 : 0 });
+    if (i === 1) return person(c, v, pal, { bob: 5, kneel: 3, headDx: 0 });
+    isoLying(c, v, pal, true);
+  };
+}
+isoChars('iso_hero', [['idle', 2, 2, -1], ['walk', 4, 8, -1], ['attack', 3, 12, 0], ['hurt', 1, 8, 0], ['death', 3, 6, 0]], humanDraw(HERO_PAL),
+  NOTE_CH + 'Hero: faded teal jacket, dark hair, rust backpack visible from behind and the side, pale face on the front. idle 2 (2 fps), walk 4 (8 fps; use a higher fps for running), attack 3 (windup, swing, recover; swings a pipe on the right hand), death 3 (stagger, kneel, isoLying).');
+isoChars('iso_mara', [['idle', 2, 2, -1], ['walk', 4, 8, -1], ['attack', 3, 12, 0], ['hurt', 1, 8, 0], ['death', 3, 6, 0]], humanDraw(MARA_PAL),
+  NOTE_CH + 'Mara: nurse in light scrubs, dark hair in a bun, red chest mark, dark teal trousers. Same frame layout as iso_hero.');
+const zBase = (v, extra) => ({ ...extra });
+isoChars('iso_walker', [['shuffle', 4, 5, -1], ['attack', 2, 6, 0], ['death', 3, 6, 0]], (c, v, name, i) => {
+  if (name === 'shuffle') { const sh = [{ bob: 0, sw: [1, -1] }, { bob: 1, sw: [0, 0] }, { bob: 0, sw: [-1, 1] }, { bob: 1, sw: [0, 0] }][i]; return person(c, v, WALKER_PAL, { ...sh, zomb: true, reach: 1, headDx: v === 'E' || v === 'SE' ? 1 : 0, tired: i % 2 }); }
+  if (name === 'attack') return person(c, v, WALKER_PAL, { zomb: true, atk: i === 0 ? 0 : 1, bob: i, headDx: i === 1 ? (v === 'E' || v === 'SE' ? 2 : 0) : (v === 'E' ? 1 : 0), mouth: i === 1, reach: 1, sw: [i, 0] });
+  if (i === 0) return person(c, v, WALKER_PAL, { zomb: true, bob: 3, reach: 1, tired: 1 });
+  if (i === 1) return person(c, v, WALKER_PAL, { bob: 6, kneel: 3, headDx: 0 });
+  isoLying(c, v, WALKER_PAL, true);
+}, NOTE_CH + 'Walker zombie: grey-green skin, bald with sores, torn rust shirt, arms reaching. Anim "shuffle" (4 frames, 5 fps) is the move/idle loop; "attack" 2 frames (lean-in wind-up, lunge with open mouth); "death" 3 (slump, kneel, isoLying). Facing is readable by the pale face and hands (front) vs. dark back.');
+isoChars('iso_crawler', [['shuffle', 4, 5, -1], ['attack', 2, 6, 0], ['death', 3, 6, 0]], (c, v, name, i) => {
+  if (name === 'shuffle') return isoCrawler(c, v, { ph: i, bob: i % 2 });
+  if (name === 'attack') return isoCrawler(c, v, { ph: 1, lunge: i === 0 ? 1 : 2 });
+  if (i === 0) return isoCrawler(c, v, { ph: 0, oy: 1 });
+  if (i === 1) return isoCrawler(c, v, { ph: 1, oy: 3 });
+  isoLying(c, v, { skin: 'Z', shirt: 'R', pants: 'B', shoe: 'ZD', hair: null, hairStyle: 'bald', decay: true }, true);
+}, NOTE_CH + 'Crawler zombie (legless, low to the ground, about 12 px high): dragging itself on its arms, head leading. "shuffle" 4 frames (5 fps) is the crawl loop; "attack" 2 (rear back, lunge); "death" 3 (sag, flatten, isoLying).');
+
 // ---------- manifest ----------
 const list = Object.values(files);
 const total = list.reduce((s, f) => s + f.bytes, 0);

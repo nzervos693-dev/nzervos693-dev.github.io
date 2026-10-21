@@ -1023,6 +1023,1952 @@
    ],
    "animations": [],
    "note": "Stage 2 window 40x40 for an 80 px module; glass is exactly 32x32 at (4,4): place rain_window.png frames at +4,+4 (same x/y offset) to overlay. a = cross mullion, b = three panes with a transom, broken = burned rooms (no rain overlay needed, rain noise louder). Draw at the wall layer; centre it in the module, about y 14-54."
+  },
+  {
+   "key": "iso_floor",
+   "path": "assets/art/iso_floor.png",
+   "frameWidth": 32,
+   "frameHeight": 16,
+   "frames": 28,
+   "names": [
+    "corridor_0",
+    "corridor_1",
+    "hallway_0",
+    "hallway_1",
+    "living_0",
+    "living_1",
+    "kitchen_0",
+    "kitchen_1",
+    "bedroom_0",
+    "bedroom_1",
+    "bathroom_0",
+    "bathroom_1",
+    "office_0",
+    "office_1",
+    "laundry_0",
+    "laundry_1",
+    "storage_0",
+    "storage_1",
+    "landing_0",
+    "landing_1",
+    "ov_burned_0",
+    "ov_burned_1",
+    "ov_ransacked_0",
+    "ov_ransacked_1",
+    "ov_grime_0",
+    "ov_grime_1",
+    "ov_damp_0",
+    "ov_damp_1"
+   ],
+   "animations": [],
+   "note": "Iso floor tiles 32x16 art px (96x48 game px). ANCHOR: diamond centre = (16,8) (setOrigin 0.5); tiles tile seamlessly at 16 px / 8 px steps (centre of tile (x,y) = ((x-y)*16, (x+y+1)*8) art px, GDD 2). Frames <type>_<0|1> for types corridor (communal, concrete slabs), hallway (worn lino), living (wood boards), kitchen (lino checker), bedroom (carpet), bathroom (small tiles), office (carpet tiles), laundry (lino, variant 1 has a drain), storage (raw concrete), landing (stairwell landing, hazard dashes). ov_burned_* / ov_ransacked_* / ov_grime_* / ov_damp_* are transparent overlays clipped to the diamond (draw above the floor, below objects; grime and damp are for dirty/wet rooms and may be drawn at reduced alpha). Spare fx: iso_fx."
+  },
+  {
+   "key": "iso_fx",
+   "path": "assets/art/iso_fx.png",
+   "frameWidth": 32,
+   "frameHeight": 16,
+   "frames": 9,
+   "names": [
+    "remembered_tile",
+    "spot_dashed",
+    "ripple_0",
+    "ripple_1",
+    "ripple_2",
+    "mark_dismantled",
+    "blood_floor_0",
+    "blood_floor_1",
+    "blood_floor_2"
+   ],
+   "animations": [
+    {
+     "name": "ripple",
+     "frames": [
+      2,
+      3,
+      4
+     ],
+     "fps": 6,
+     "repeat": 0
+    }
+   ],
+   "note": "Iso FX, all 32x16 diamonds centred at (16,8). remembered_tile = flat #16191d diamond (tint/alpha in code to dim remembered tiles). spot_dashed = dashed spot-pick diamond outline (GDD 5.6). ripple_0..2 = broken ellipse arcs growing r 5/10/15 px (anim \"ripple\", 3 frames, once; draw on the source tile for the sound-off ripple, scale up for louder noise). mark_dismantled = faint floor mark left by a dismantled object. blood_floor_0..2 = dried blood stains on the floor (the old fx_blood sheets are still usable for hit splashes). Vignette is code-generated."
+  },
+  {
+   "key": "iso_walls",
+   "path": "assets/art/iso_walls.png",
+   "frameWidth": 16,
+   "frameHeight": 48,
+   "frames": 84,
+   "names": [
+    "wall_x_full_concrete",
+    "wall_x_stub_concrete",
+    "wall_x_full_plaster",
+    "wall_x_stub_plaster",
+    "wall_x_full_wallp_a",
+    "wall_x_stub_wallp_a",
+    "wall_x_full_wallp_b",
+    "wall_x_stub_wallp_b",
+    "wall_x_full_tile",
+    "wall_x_stub_tile",
+    "wall_x_full_burned",
+    "wall_x_stub_burned",
+    "wall_y_full_concrete",
+    "wall_y_stub_concrete",
+    "wall_y_full_plaster",
+    "wall_y_stub_plaster",
+    "wall_y_full_wallp_a",
+    "wall_y_stub_wallp_a",
+    "wall_y_full_wallp_b",
+    "wall_y_stub_wallp_b",
+    "wall_y_full_tile",
+    "wall_y_stub_tile",
+    "wall_y_full_burned",
+    "wall_y_stub_burned",
+    "corner_inner_full",
+    "corner_inner_stub",
+    "corner_outer_full",
+    "corner_outer_stub",
+    "wall_x_full_window",
+    "wall_x_stub_window",
+    "wall_x_full_window_broken",
+    "wall_x_stub_window_broken",
+    "wall_y_full_window",
+    "wall_y_stub_window",
+    "wall_y_full_window_broken",
+    "wall_y_stub_window_broken",
+    "door_x_full_closed",
+    "door_x_stub_closed",
+    "door_x_full_open",
+    "door_x_stub_open",
+    "door_x_full_jammed",
+    "door_x_stub_jammed",
+    "door_x_full_splintered",
+    "door_x_stub_splintered",
+    "door_x_full_hanging",
+    "door_x_stub_hanging",
+    "door_x_full_broken",
+    "door_x_stub_broken",
+    "frontdoor_x_full_closed",
+    "frontdoor_x_stub_closed",
+    "frontdoor_x_full_open",
+    "frontdoor_x_stub_open",
+    "frontdoor_x_full_jammed",
+    "frontdoor_x_stub_jammed",
+    "door_y_full_closed",
+    "door_y_stub_closed",
+    "door_y_full_open",
+    "door_y_stub_open",
+    "door_y_full_jammed",
+    "door_y_stub_jammed",
+    "door_y_full_splintered",
+    "door_y_stub_splintered",
+    "door_y_full_hanging",
+    "door_y_stub_hanging",
+    "door_y_full_broken",
+    "door_y_stub_broken",
+    "frontdoor_y_full_closed",
+    "frontdoor_y_stub_closed",
+    "frontdoor_y_full_open",
+    "frontdoor_y_stub_open",
+    "frontdoor_y_full_jammed",
+    "frontdoor_y_stub_jammed",
+    "barricade_x_lv1_0",
+    "barricade_x_lv1_1",
+    "barricade_x_lv1_2",
+    "barricade_x_lv2_0",
+    "barricade_x_lv2_1",
+    "barricade_x_lv2_2",
+    "barricade_y_lv1_0",
+    "barricade_y_lv1_1",
+    "barricade_y_lv1_2",
+    "barricade_y_lv2_0",
+    "barricade_y_lv2_1",
+    "barricade_y_lv2_2"
+   ],
+   "animations": [],
+   "note": "Iso walls, frames 16x48 art px. wall_<x|y>_<full|stub>_<finish>: x = edge runs toward the screen lower-right (ANCHOR: upper-left end of the base line at frame (0,40), the line ends at (16,48)); y = edge runs toward the lower-left (ANCHOR: upper-right end at (16,40), ends at (0,48)). Tile-corner vertex V(gx,gy) = ((gx-gy)*16, (gx+gy)*8) art px. Place x frames at (V.x, V.y-40) and y frames at (V.x-16, V.y-40) for the starting vertex V of the edge. Full = 40 px above the base line (120 game px), stub = 12 px (cutaway, 36 game px); all frames keep 16x48 and stubs use only the bottom 20 rows. Every wall has a 2 px cap (light top line). The y direction is drawn ~20% darker (shadow side). Finishes: concrete (corridor/landing/storage), plaster (hallway/laundry/office, also around windows and doors), wallp_a (living/bedroom, striped faded wallpaper with dado), wallp_b (kitchen, dotted grey-green), tile (bathroom, tiled to 28 px), burned (soot). corner_inner_* (flat post, concave corner) and corner_outer_* (split-shaded post, convex corner) are posts of width 4/6 with the corner vertex at frame (8,44). wall_*_window / window_broken: glass 8x18 px with skyline; stub window = low sill with a glass edge. door_<x|y>_<full|stub>_<closed|open|jammed|splintered|hanging|broken>: doorway frame + leaf in the wall segment (closed = leaf, open = leaf swung against the right jamb, jammed = warped leaf with boards, splintered/hanging = door damage stages 2/3, broken = permanently open with splinters; stub versions show the leaf as a low panel on the floor line). frontdoor_*_(closed|open|jammed): heavier metal door with a number plate (x 5-8, z 20-27 on the leaf). barricade_<x|y>_lv<1|2>_<0|1|2>: transparent overlay for the door gap, lv1 two planks, lv2 four planks plus steel brace; stage 0 intact, 1 damaged, 2 nearly broken (reused for the 5 damage steps: 0,0,1,2,2). Draw barricade above the door frame. Wall opening is at x 3..12, z 0..31 in every door frame."
+  },
+  {
+   "key": "iso_stairs",
+   "path": "assets/art/iso_stairs.png",
+   "frameWidth": 64,
+   "frameHeight": 64,
+   "frames": 6,
+   "names": [
+    "stairs_up_ne",
+    "stairs_up_nw",
+    "stairs_down_ne",
+    "stairs_down_nw",
+    "light_unlit",
+    "light_lit"
+   ],
+   "animations": [],
+   "note": "Iso stairwell pieces, frames 64x64 art px. stairs_*: 2x2-tile footprint (28x28 units), ANCHOR = footprint centre at (32,44). stairs_up_ne rises toward the upper-right (-y), stairs_up_nw toward the upper-left (-x); 8 steps, 24 px of rise, near-side handrail. stairs_down_*: the matching stair going down into a dark opening (treads descend away from the near rim). The four are used for the central shaft: draw up flight on the landing side, down flight opposite; the code mirrors for the other orientations. light_unlit / light_lit: the landing emergency fixture, transparent frames, fixture centre at (32,20); lit has a dithered amber glow (swap for the flicker, draw above walls; the soft light pool is code-made)."
+  },
+  {
+   "key": "iso_props",
+   "path": "assets/art/iso_props.png",
+   "frameWidth": 32,
+   "frameHeight": 56,
+   "frames": 72,
+   "names": [
+    "fridge_a",
+    "fridge_b",
+    "fridge_open_a",
+    "fridge_open_b",
+    "kitchen_cupboard_a",
+    "kitchen_cupboard_b",
+    "kitchen_cupboard_open_a",
+    "kitchen_cupboard_open_b",
+    "kitchen_drawer_a",
+    "kitchen_drawer_b",
+    "kitchen_drawer_open_a",
+    "kitchen_drawer_open_b",
+    "chair_a",
+    "chair_b",
+    "wardrobe_a",
+    "wardrobe_b",
+    "wardrobe_open_a",
+    "wardrobe_open_b",
+    "bathroom_cabinet_a",
+    "bathroom_cabinet_b",
+    "bathroom_cabinet_open_a",
+    "bathroom_cabinet_open_b",
+    "medicine_cabinet_a",
+    "medicine_cabinet_b",
+    "medicine_cabinet_open_a",
+    "medicine_cabinet_open_b",
+    "toilet_tank_a",
+    "toilet_tank_b",
+    "sink_pipes_a",
+    "sink_pipes_b",
+    "water_heater_a",
+    "water_heater_b",
+    "tv_a",
+    "tv_b",
+    "microwave_a",
+    "microwave_b",
+    "rain_collector_a",
+    "rain_collector_b",
+    "water_filter_a",
+    "water_filter_b",
+    "planter_a",
+    "planter_b",
+    "curtains_a",
+    "curtains_b",
+    "potted_plant_a",
+    "potted_plant_b",
+    "toolbox_a",
+    "toolbox_b",
+    "toolbox_open_a",
+    "toolbox_open_b",
+    "oil_lamp_a",
+    "oil_lamp_b",
+    "filing_cabinet_a",
+    "filing_cabinet_b",
+    "filing_cabinet_open_a",
+    "filing_cabinet_open_b",
+    "washing_machine_a",
+    "washing_machine_b",
+    "washing_machine_open_a",
+    "washing_machine_open_b",
+    "laundry_basket_a",
+    "laundry_basket_b",
+    "toy_box_a",
+    "toy_box_b",
+    "toy_box_open_a",
+    "toy_box_open_b",
+    "utility_shelf_a",
+    "utility_shelf_b",
+    "charred_debris_a",
+    "charred_debris_b",
+    "debris_papers",
+    "debris_clothes"
+   ],
+   "animations": [],
+   "note": "Iso props, frames 32x56 art px (1x1 footprint). ANCHOR: tile centre at (16,48) (floor diamond spans y 40-56, so setOrigin(0.5, 48/56)); props stand within +-7 units of it, tall ones up to 40 px high. Frames <id>_<a|b> and <id>_open_<a|b> (searched/ajar). Facing a: front toward the lower-left, backed to the upper-right wall; b: front toward the lower-right, backed to the upper-left wall; mirror (flipX) for the other two facings. Mounted objects (bathroom_cabinet, medicine_cabinet) and curtains are drawn at wall height at the back of the tile (draw at the wall edge). ids: fridge, fridge_open, kitchen_cupboard, kitchen_cupboard_open, kitchen_drawer, kitchen_drawer_open, chair, wardrobe, wardrobe_open, bathroom_cabinet, bathroom_cabinet_open, medicine_cabinet, medicine_cabinet_open, toilet_tank, sink_pipes, water_heater, tv, microwave, rain_collector, water_filter, planter, curtains, potted_plant, toolbox, toolbox_open, oil_lamp, filing_cabinet, filing_cabinet_open, washing_machine, washing_machine_open, laundry_basket, toy_box, toy_box_open, utility_shelf, charred_debris; debris_papers / debris_clothes = flat ransacked clutter (one facing). Lamp: oil_lamp; light pool is code-made. Mirroring note: lighting is baked (left face lighter), so mirrored copies swap light direction, which is acceptable."
+  },
+  {
+   "key": "iso_props_l",
+   "path": "assets/art/iso_props_l.png",
+   "frameWidth": 64,
+   "frameHeight": 72,
+   "frames": 22,
+   "names": [
+    "table_a",
+    "table_b",
+    "sofa_a",
+    "sofa_b",
+    "bed_frame_a",
+    "bed_frame_b",
+    "hero_bed_a",
+    "hero_bed_b",
+    "survivor_bed_a",
+    "survivor_bed_b",
+    "mattress_a",
+    "mattress_b",
+    "desk_a",
+    "desk_b",
+    "storage_cage_a",
+    "storage_cage_b",
+    "storage_cage_open_a",
+    "storage_cage_open_b",
+    "workbench_a",
+    "workbench_b",
+    "charred_big_a",
+    "charred_big_b"
+   ],
+   "animations": [],
+   "note": "Iso large props, frames 64x72 art px: table, sofa, mattress, desk, storage_cage (+_open), workbench, survivor_bed, charred_big (1x2 footprint, 14x14... 28x12 units) and bed_frame, hero_bed (2x2 footprint). ANCHOR: centre of the footprint rectangle at (32,52) (setOrigin(0.5, 52/72)). Long axis runs along the front face: for facing a the footprint is 2 tiles along x (front toward the lower-left), for b it is 2 tiles along y (front toward the lower-right); mirror for the other two facings. Frames <id>_<a|b>. The bed_frame is the stripped salvage frame with a stained mattress, hero_bed is the made-up bed (teal blanket), survivor_bed a cot."
+  },
+  {
+   "key": "iso_hero",
+   "path": "assets/art/iso_hero.png",
+   "frameWidth": 16,
+   "frameHeight": 32,
+   "frames": 104,
+   "names": [
+    "idle_S_0",
+    "idle_S_1",
+    "walk_S_0",
+    "walk_S_1",
+    "walk_S_2",
+    "walk_S_3",
+    "attack_S_0",
+    "attack_S_1",
+    "attack_S_2",
+    "hurt_S_0",
+    "death_S_0",
+    "death_S_1",
+    "death_S_2",
+    "idle_SW_0",
+    "idle_SW_1",
+    "walk_SW_0",
+    "walk_SW_1",
+    "walk_SW_2",
+    "walk_SW_3",
+    "attack_SW_0",
+    "attack_SW_1",
+    "attack_SW_2",
+    "hurt_SW_0",
+    "death_SW_0",
+    "death_SW_1",
+    "death_SW_2",
+    "idle_W_0",
+    "idle_W_1",
+    "walk_W_0",
+    "walk_W_1",
+    "walk_W_2",
+    "walk_W_3",
+    "attack_W_0",
+    "attack_W_1",
+    "attack_W_2",
+    "hurt_W_0",
+    "death_W_0",
+    "death_W_1",
+    "death_W_2",
+    "idle_NW_0",
+    "idle_NW_1",
+    "walk_NW_0",
+    "walk_NW_1",
+    "walk_NW_2",
+    "walk_NW_3",
+    "attack_NW_0",
+    "attack_NW_1",
+    "attack_NW_2",
+    "hurt_NW_0",
+    "death_NW_0",
+    "death_NW_1",
+    "death_NW_2",
+    "idle_N_0",
+    "idle_N_1",
+    "walk_N_0",
+    "walk_N_1",
+    "walk_N_2",
+    "walk_N_3",
+    "attack_N_0",
+    "attack_N_1",
+    "attack_N_2",
+    "hurt_N_0",
+    "death_N_0",
+    "death_N_1",
+    "death_N_2",
+    "idle_NE_0",
+    "idle_NE_1",
+    "walk_NE_0",
+    "walk_NE_1",
+    "walk_NE_2",
+    "walk_NE_3",
+    "attack_NE_0",
+    "attack_NE_1",
+    "attack_NE_2",
+    "hurt_NE_0",
+    "death_NE_0",
+    "death_NE_1",
+    "death_NE_2",
+    "idle_E_0",
+    "idle_E_1",
+    "walk_E_0",
+    "walk_E_1",
+    "walk_E_2",
+    "walk_E_3",
+    "attack_E_0",
+    "attack_E_1",
+    "attack_E_2",
+    "hurt_E_0",
+    "death_E_0",
+    "death_E_1",
+    "death_E_2",
+    "idle_SE_0",
+    "idle_SE_1",
+    "walk_SE_0",
+    "walk_SE_1",
+    "walk_SE_2",
+    "walk_SE_3",
+    "attack_SE_0",
+    "attack_SE_1",
+    "attack_SE_2",
+    "hurt_SE_0",
+    "death_SE_0",
+    "death_SE_1",
+    "death_SE_2"
+   ],
+   "animations": [
+    {
+     "name": "idle_S",
+     "frames": [
+      0,
+      1
+     ],
+     "fps": 2,
+     "repeat": -1
+    },
+    {
+     "name": "walk_S",
+     "frames": [
+      2,
+      3,
+      4,
+      5
+     ],
+     "fps": 8,
+     "repeat": -1
+    },
+    {
+     "name": "attack_S",
+     "frames": [
+      6,
+      7,
+      8
+     ],
+     "fps": 12,
+     "repeat": 0
+    },
+    {
+     "name": "hurt_S",
+     "frames": [
+      9
+     ],
+     "fps": 8,
+     "repeat": 0
+    },
+    {
+     "name": "death_S",
+     "frames": [
+      10,
+      11,
+      12
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "idle_SW",
+     "frames": [
+      13,
+      14
+     ],
+     "fps": 2,
+     "repeat": -1
+    },
+    {
+     "name": "walk_SW",
+     "frames": [
+      15,
+      16,
+      17,
+      18
+     ],
+     "fps": 8,
+     "repeat": -1
+    },
+    {
+     "name": "attack_SW",
+     "frames": [
+      19,
+      20,
+      21
+     ],
+     "fps": 12,
+     "repeat": 0
+    },
+    {
+     "name": "hurt_SW",
+     "frames": [
+      22
+     ],
+     "fps": 8,
+     "repeat": 0
+    },
+    {
+     "name": "death_SW",
+     "frames": [
+      23,
+      24,
+      25
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "idle_W",
+     "frames": [
+      26,
+      27
+     ],
+     "fps": 2,
+     "repeat": -1
+    },
+    {
+     "name": "walk_W",
+     "frames": [
+      28,
+      29,
+      30,
+      31
+     ],
+     "fps": 8,
+     "repeat": -1
+    },
+    {
+     "name": "attack_W",
+     "frames": [
+      32,
+      33,
+      34
+     ],
+     "fps": 12,
+     "repeat": 0
+    },
+    {
+     "name": "hurt_W",
+     "frames": [
+      35
+     ],
+     "fps": 8,
+     "repeat": 0
+    },
+    {
+     "name": "death_W",
+     "frames": [
+      36,
+      37,
+      38
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "idle_NW",
+     "frames": [
+      39,
+      40
+     ],
+     "fps": 2,
+     "repeat": -1
+    },
+    {
+     "name": "walk_NW",
+     "frames": [
+      41,
+      42,
+      43,
+      44
+     ],
+     "fps": 8,
+     "repeat": -1
+    },
+    {
+     "name": "attack_NW",
+     "frames": [
+      45,
+      46,
+      47
+     ],
+     "fps": 12,
+     "repeat": 0
+    },
+    {
+     "name": "hurt_NW",
+     "frames": [
+      48
+     ],
+     "fps": 8,
+     "repeat": 0
+    },
+    {
+     "name": "death_NW",
+     "frames": [
+      49,
+      50,
+      51
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "idle_N",
+     "frames": [
+      52,
+      53
+     ],
+     "fps": 2,
+     "repeat": -1
+    },
+    {
+     "name": "walk_N",
+     "frames": [
+      54,
+      55,
+      56,
+      57
+     ],
+     "fps": 8,
+     "repeat": -1
+    },
+    {
+     "name": "attack_N",
+     "frames": [
+      58,
+      59,
+      60
+     ],
+     "fps": 12,
+     "repeat": 0
+    },
+    {
+     "name": "hurt_N",
+     "frames": [
+      61
+     ],
+     "fps": 8,
+     "repeat": 0
+    },
+    {
+     "name": "death_N",
+     "frames": [
+      62,
+      63,
+      64
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "idle_NE",
+     "frames": [
+      65,
+      66
+     ],
+     "fps": 2,
+     "repeat": -1
+    },
+    {
+     "name": "walk_NE",
+     "frames": [
+      67,
+      68,
+      69,
+      70
+     ],
+     "fps": 8,
+     "repeat": -1
+    },
+    {
+     "name": "attack_NE",
+     "frames": [
+      71,
+      72,
+      73
+     ],
+     "fps": 12,
+     "repeat": 0
+    },
+    {
+     "name": "hurt_NE",
+     "frames": [
+      74
+     ],
+     "fps": 8,
+     "repeat": 0
+    },
+    {
+     "name": "death_NE",
+     "frames": [
+      75,
+      76,
+      77
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "idle_E",
+     "frames": [
+      78,
+      79
+     ],
+     "fps": 2,
+     "repeat": -1
+    },
+    {
+     "name": "walk_E",
+     "frames": [
+      80,
+      81,
+      82,
+      83
+     ],
+     "fps": 8,
+     "repeat": -1
+    },
+    {
+     "name": "attack_E",
+     "frames": [
+      84,
+      85,
+      86
+     ],
+     "fps": 12,
+     "repeat": 0
+    },
+    {
+     "name": "hurt_E",
+     "frames": [
+      87
+     ],
+     "fps": 8,
+     "repeat": 0
+    },
+    {
+     "name": "death_E",
+     "frames": [
+      88,
+      89,
+      90
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "idle_SE",
+     "frames": [
+      91,
+      92
+     ],
+     "fps": 2,
+     "repeat": -1
+    },
+    {
+     "name": "walk_SE",
+     "frames": [
+      93,
+      94,
+      95,
+      96
+     ],
+     "fps": 8,
+     "repeat": -1
+    },
+    {
+     "name": "attack_SE",
+     "frames": [
+      97,
+      98,
+      99
+     ],
+     "fps": 12,
+     "repeat": 0
+    },
+    {
+     "name": "hurt_SE",
+     "frames": [
+      100
+     ],
+     "fps": 8,
+     "repeat": 0
+    },
+    {
+     "name": "death_SE",
+     "frames": [
+      101,
+      102,
+      103
+     ],
+     "fps": 6,
+     "repeat": 0
+    }
+   ],
+   "note": "Frames 16x32 art px, ANCHOR: feet / tile centre at (16/2, 30) = (8,30) (setOrigin(0.5, 30/32)). 8 facings in the order S, SW, W, NW, N, NE, E, SE (S = toward the camera, E = screen right, N = away). Frame names <anim>_<DIR>_<i>, animation keys <anim>_<DIR> (e.g. walk_SE). SW, W, NW are baked mirrors of SE, E, NE (no flipX needed). 1 px near-black outline. Hero: faded teal jacket, dark hair, rust backpack visible from behind and the side, pale face on the front. idle 2 (2 fps), walk 4 (8 fps; use a higher fps for running), attack 3 (windup, swing, recover; swings a pipe on the right hand), death 3 (stagger, kneel, isoLying)."
+  },
+  {
+   "key": "iso_mara",
+   "path": "assets/art/iso_mara.png",
+   "frameWidth": 16,
+   "frameHeight": 32,
+   "frames": 104,
+   "names": [
+    "idle_S_0",
+    "idle_S_1",
+    "walk_S_0",
+    "walk_S_1",
+    "walk_S_2",
+    "walk_S_3",
+    "attack_S_0",
+    "attack_S_1",
+    "attack_S_2",
+    "hurt_S_0",
+    "death_S_0",
+    "death_S_1",
+    "death_S_2",
+    "idle_SW_0",
+    "idle_SW_1",
+    "walk_SW_0",
+    "walk_SW_1",
+    "walk_SW_2",
+    "walk_SW_3",
+    "attack_SW_0",
+    "attack_SW_1",
+    "attack_SW_2",
+    "hurt_SW_0",
+    "death_SW_0",
+    "death_SW_1",
+    "death_SW_2",
+    "idle_W_0",
+    "idle_W_1",
+    "walk_W_0",
+    "walk_W_1",
+    "walk_W_2",
+    "walk_W_3",
+    "attack_W_0",
+    "attack_W_1",
+    "attack_W_2",
+    "hurt_W_0",
+    "death_W_0",
+    "death_W_1",
+    "death_W_2",
+    "idle_NW_0",
+    "idle_NW_1",
+    "walk_NW_0",
+    "walk_NW_1",
+    "walk_NW_2",
+    "walk_NW_3",
+    "attack_NW_0",
+    "attack_NW_1",
+    "attack_NW_2",
+    "hurt_NW_0",
+    "death_NW_0",
+    "death_NW_1",
+    "death_NW_2",
+    "idle_N_0",
+    "idle_N_1",
+    "walk_N_0",
+    "walk_N_1",
+    "walk_N_2",
+    "walk_N_3",
+    "attack_N_0",
+    "attack_N_1",
+    "attack_N_2",
+    "hurt_N_0",
+    "death_N_0",
+    "death_N_1",
+    "death_N_2",
+    "idle_NE_0",
+    "idle_NE_1",
+    "walk_NE_0",
+    "walk_NE_1",
+    "walk_NE_2",
+    "walk_NE_3",
+    "attack_NE_0",
+    "attack_NE_1",
+    "attack_NE_2",
+    "hurt_NE_0",
+    "death_NE_0",
+    "death_NE_1",
+    "death_NE_2",
+    "idle_E_0",
+    "idle_E_1",
+    "walk_E_0",
+    "walk_E_1",
+    "walk_E_2",
+    "walk_E_3",
+    "attack_E_0",
+    "attack_E_1",
+    "attack_E_2",
+    "hurt_E_0",
+    "death_E_0",
+    "death_E_1",
+    "death_E_2",
+    "idle_SE_0",
+    "idle_SE_1",
+    "walk_SE_0",
+    "walk_SE_1",
+    "walk_SE_2",
+    "walk_SE_3",
+    "attack_SE_0",
+    "attack_SE_1",
+    "attack_SE_2",
+    "hurt_SE_0",
+    "death_SE_0",
+    "death_SE_1",
+    "death_SE_2"
+   ],
+   "animations": [
+    {
+     "name": "idle_S",
+     "frames": [
+      0,
+      1
+     ],
+     "fps": 2,
+     "repeat": -1
+    },
+    {
+     "name": "walk_S",
+     "frames": [
+      2,
+      3,
+      4,
+      5
+     ],
+     "fps": 8,
+     "repeat": -1
+    },
+    {
+     "name": "attack_S",
+     "frames": [
+      6,
+      7,
+      8
+     ],
+     "fps": 12,
+     "repeat": 0
+    },
+    {
+     "name": "hurt_S",
+     "frames": [
+      9
+     ],
+     "fps": 8,
+     "repeat": 0
+    },
+    {
+     "name": "death_S",
+     "frames": [
+      10,
+      11,
+      12
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "idle_SW",
+     "frames": [
+      13,
+      14
+     ],
+     "fps": 2,
+     "repeat": -1
+    },
+    {
+     "name": "walk_SW",
+     "frames": [
+      15,
+      16,
+      17,
+      18
+     ],
+     "fps": 8,
+     "repeat": -1
+    },
+    {
+     "name": "attack_SW",
+     "frames": [
+      19,
+      20,
+      21
+     ],
+     "fps": 12,
+     "repeat": 0
+    },
+    {
+     "name": "hurt_SW",
+     "frames": [
+      22
+     ],
+     "fps": 8,
+     "repeat": 0
+    },
+    {
+     "name": "death_SW",
+     "frames": [
+      23,
+      24,
+      25
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "idle_W",
+     "frames": [
+      26,
+      27
+     ],
+     "fps": 2,
+     "repeat": -1
+    },
+    {
+     "name": "walk_W",
+     "frames": [
+      28,
+      29,
+      30,
+      31
+     ],
+     "fps": 8,
+     "repeat": -1
+    },
+    {
+     "name": "attack_W",
+     "frames": [
+      32,
+      33,
+      34
+     ],
+     "fps": 12,
+     "repeat": 0
+    },
+    {
+     "name": "hurt_W",
+     "frames": [
+      35
+     ],
+     "fps": 8,
+     "repeat": 0
+    },
+    {
+     "name": "death_W",
+     "frames": [
+      36,
+      37,
+      38
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "idle_NW",
+     "frames": [
+      39,
+      40
+     ],
+     "fps": 2,
+     "repeat": -1
+    },
+    {
+     "name": "walk_NW",
+     "frames": [
+      41,
+      42,
+      43,
+      44
+     ],
+     "fps": 8,
+     "repeat": -1
+    },
+    {
+     "name": "attack_NW",
+     "frames": [
+      45,
+      46,
+      47
+     ],
+     "fps": 12,
+     "repeat": 0
+    },
+    {
+     "name": "hurt_NW",
+     "frames": [
+      48
+     ],
+     "fps": 8,
+     "repeat": 0
+    },
+    {
+     "name": "death_NW",
+     "frames": [
+      49,
+      50,
+      51
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "idle_N",
+     "frames": [
+      52,
+      53
+     ],
+     "fps": 2,
+     "repeat": -1
+    },
+    {
+     "name": "walk_N",
+     "frames": [
+      54,
+      55,
+      56,
+      57
+     ],
+     "fps": 8,
+     "repeat": -1
+    },
+    {
+     "name": "attack_N",
+     "frames": [
+      58,
+      59,
+      60
+     ],
+     "fps": 12,
+     "repeat": 0
+    },
+    {
+     "name": "hurt_N",
+     "frames": [
+      61
+     ],
+     "fps": 8,
+     "repeat": 0
+    },
+    {
+     "name": "death_N",
+     "frames": [
+      62,
+      63,
+      64
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "idle_NE",
+     "frames": [
+      65,
+      66
+     ],
+     "fps": 2,
+     "repeat": -1
+    },
+    {
+     "name": "walk_NE",
+     "frames": [
+      67,
+      68,
+      69,
+      70
+     ],
+     "fps": 8,
+     "repeat": -1
+    },
+    {
+     "name": "attack_NE",
+     "frames": [
+      71,
+      72,
+      73
+     ],
+     "fps": 12,
+     "repeat": 0
+    },
+    {
+     "name": "hurt_NE",
+     "frames": [
+      74
+     ],
+     "fps": 8,
+     "repeat": 0
+    },
+    {
+     "name": "death_NE",
+     "frames": [
+      75,
+      76,
+      77
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "idle_E",
+     "frames": [
+      78,
+      79
+     ],
+     "fps": 2,
+     "repeat": -1
+    },
+    {
+     "name": "walk_E",
+     "frames": [
+      80,
+      81,
+      82,
+      83
+     ],
+     "fps": 8,
+     "repeat": -1
+    },
+    {
+     "name": "attack_E",
+     "frames": [
+      84,
+      85,
+      86
+     ],
+     "fps": 12,
+     "repeat": 0
+    },
+    {
+     "name": "hurt_E",
+     "frames": [
+      87
+     ],
+     "fps": 8,
+     "repeat": 0
+    },
+    {
+     "name": "death_E",
+     "frames": [
+      88,
+      89,
+      90
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "idle_SE",
+     "frames": [
+      91,
+      92
+     ],
+     "fps": 2,
+     "repeat": -1
+    },
+    {
+     "name": "walk_SE",
+     "frames": [
+      93,
+      94,
+      95,
+      96
+     ],
+     "fps": 8,
+     "repeat": -1
+    },
+    {
+     "name": "attack_SE",
+     "frames": [
+      97,
+      98,
+      99
+     ],
+     "fps": 12,
+     "repeat": 0
+    },
+    {
+     "name": "hurt_SE",
+     "frames": [
+      100
+     ],
+     "fps": 8,
+     "repeat": 0
+    },
+    {
+     "name": "death_SE",
+     "frames": [
+      101,
+      102,
+      103
+     ],
+     "fps": 6,
+     "repeat": 0
+    }
+   ],
+   "note": "Frames 16x32 art px, ANCHOR: feet / tile centre at (16/2, 30) = (8,30) (setOrigin(0.5, 30/32)). 8 facings in the order S, SW, W, NW, N, NE, E, SE (S = toward the camera, E = screen right, N = away). Frame names <anim>_<DIR>_<i>, animation keys <anim>_<DIR> (e.g. walk_SE). SW, W, NW are baked mirrors of SE, E, NE (no flipX needed). 1 px near-black outline. Mara: nurse in light scrubs, dark hair in a bun, red chest mark, dark teal trousers. Same frame layout as iso_hero."
+  },
+  {
+   "key": "iso_walker",
+   "path": "assets/art/iso_walker.png",
+   "frameWidth": 16,
+   "frameHeight": 32,
+   "frames": 72,
+   "names": [
+    "shuffle_S_0",
+    "shuffle_S_1",
+    "shuffle_S_2",
+    "shuffle_S_3",
+    "attack_S_0",
+    "attack_S_1",
+    "death_S_0",
+    "death_S_1",
+    "death_S_2",
+    "shuffle_SW_0",
+    "shuffle_SW_1",
+    "shuffle_SW_2",
+    "shuffle_SW_3",
+    "attack_SW_0",
+    "attack_SW_1",
+    "death_SW_0",
+    "death_SW_1",
+    "death_SW_2",
+    "shuffle_W_0",
+    "shuffle_W_1",
+    "shuffle_W_2",
+    "shuffle_W_3",
+    "attack_W_0",
+    "attack_W_1",
+    "death_W_0",
+    "death_W_1",
+    "death_W_2",
+    "shuffle_NW_0",
+    "shuffle_NW_1",
+    "shuffle_NW_2",
+    "shuffle_NW_3",
+    "attack_NW_0",
+    "attack_NW_1",
+    "death_NW_0",
+    "death_NW_1",
+    "death_NW_2",
+    "shuffle_N_0",
+    "shuffle_N_1",
+    "shuffle_N_2",
+    "shuffle_N_3",
+    "attack_N_0",
+    "attack_N_1",
+    "death_N_0",
+    "death_N_1",
+    "death_N_2",
+    "shuffle_NE_0",
+    "shuffle_NE_1",
+    "shuffle_NE_2",
+    "shuffle_NE_3",
+    "attack_NE_0",
+    "attack_NE_1",
+    "death_NE_0",
+    "death_NE_1",
+    "death_NE_2",
+    "shuffle_E_0",
+    "shuffle_E_1",
+    "shuffle_E_2",
+    "shuffle_E_3",
+    "attack_E_0",
+    "attack_E_1",
+    "death_E_0",
+    "death_E_1",
+    "death_E_2",
+    "shuffle_SE_0",
+    "shuffle_SE_1",
+    "shuffle_SE_2",
+    "shuffle_SE_3",
+    "attack_SE_0",
+    "attack_SE_1",
+    "death_SE_0",
+    "death_SE_1",
+    "death_SE_2"
+   ],
+   "animations": [
+    {
+     "name": "shuffle_S",
+     "frames": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_S",
+     "frames": [
+      4,
+      5
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_S",
+     "frames": [
+      6,
+      7,
+      8
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_SW",
+     "frames": [
+      9,
+      10,
+      11,
+      12
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_SW",
+     "frames": [
+      13,
+      14
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_SW",
+     "frames": [
+      15,
+      16,
+      17
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_W",
+     "frames": [
+      18,
+      19,
+      20,
+      21
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_W",
+     "frames": [
+      22,
+      23
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_W",
+     "frames": [
+      24,
+      25,
+      26
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_NW",
+     "frames": [
+      27,
+      28,
+      29,
+      30
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_NW",
+     "frames": [
+      31,
+      32
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_NW",
+     "frames": [
+      33,
+      34,
+      35
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_N",
+     "frames": [
+      36,
+      37,
+      38,
+      39
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_N",
+     "frames": [
+      40,
+      41
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_N",
+     "frames": [
+      42,
+      43,
+      44
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_NE",
+     "frames": [
+      45,
+      46,
+      47,
+      48
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_NE",
+     "frames": [
+      49,
+      50
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_NE",
+     "frames": [
+      51,
+      52,
+      53
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_E",
+     "frames": [
+      54,
+      55,
+      56,
+      57
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_E",
+     "frames": [
+      58,
+      59
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_E",
+     "frames": [
+      60,
+      61,
+      62
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_SE",
+     "frames": [
+      63,
+      64,
+      65,
+      66
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_SE",
+     "frames": [
+      67,
+      68
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_SE",
+     "frames": [
+      69,
+      70,
+      71
+     ],
+     "fps": 6,
+     "repeat": 0
+    }
+   ],
+   "note": "Frames 16x32 art px, ANCHOR: feet / tile centre at (16/2, 30) = (8,30) (setOrigin(0.5, 30/32)). 8 facings in the order S, SW, W, NW, N, NE, E, SE (S = toward the camera, E = screen right, N = away). Frame names <anim>_<DIR>_<i>, animation keys <anim>_<DIR> (e.g. walk_SE). SW, W, NW are baked mirrors of SE, E, NE (no flipX needed). 1 px near-black outline. Walker zombie: grey-green skin, bald with sores, torn rust shirt, arms reaching. Anim \"shuffle\" (4 frames, 5 fps) is the move/idle loop; \"attack\" 2 frames (lean-in wind-up, lunge with open mouth); \"death\" 3 (slump, kneel, isoLying). Facing is readable by the pale face and hands (front) vs. dark back."
+  },
+  {
+   "key": "iso_crawler",
+   "path": "assets/art/iso_crawler.png",
+   "frameWidth": 16,
+   "frameHeight": 32,
+   "frames": 72,
+   "names": [
+    "shuffle_S_0",
+    "shuffle_S_1",
+    "shuffle_S_2",
+    "shuffle_S_3",
+    "attack_S_0",
+    "attack_S_1",
+    "death_S_0",
+    "death_S_1",
+    "death_S_2",
+    "shuffle_SW_0",
+    "shuffle_SW_1",
+    "shuffle_SW_2",
+    "shuffle_SW_3",
+    "attack_SW_0",
+    "attack_SW_1",
+    "death_SW_0",
+    "death_SW_1",
+    "death_SW_2",
+    "shuffle_W_0",
+    "shuffle_W_1",
+    "shuffle_W_2",
+    "shuffle_W_3",
+    "attack_W_0",
+    "attack_W_1",
+    "death_W_0",
+    "death_W_1",
+    "death_W_2",
+    "shuffle_NW_0",
+    "shuffle_NW_1",
+    "shuffle_NW_2",
+    "shuffle_NW_3",
+    "attack_NW_0",
+    "attack_NW_1",
+    "death_NW_0",
+    "death_NW_1",
+    "death_NW_2",
+    "shuffle_N_0",
+    "shuffle_N_1",
+    "shuffle_N_2",
+    "shuffle_N_3",
+    "attack_N_0",
+    "attack_N_1",
+    "death_N_0",
+    "death_N_1",
+    "death_N_2",
+    "shuffle_NE_0",
+    "shuffle_NE_1",
+    "shuffle_NE_2",
+    "shuffle_NE_3",
+    "attack_NE_0",
+    "attack_NE_1",
+    "death_NE_0",
+    "death_NE_1",
+    "death_NE_2",
+    "shuffle_E_0",
+    "shuffle_E_1",
+    "shuffle_E_2",
+    "shuffle_E_3",
+    "attack_E_0",
+    "attack_E_1",
+    "death_E_0",
+    "death_E_1",
+    "death_E_2",
+    "shuffle_SE_0",
+    "shuffle_SE_1",
+    "shuffle_SE_2",
+    "shuffle_SE_3",
+    "attack_SE_0",
+    "attack_SE_1",
+    "death_SE_0",
+    "death_SE_1",
+    "death_SE_2"
+   ],
+   "animations": [
+    {
+     "name": "shuffle_S",
+     "frames": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_S",
+     "frames": [
+      4,
+      5
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_S",
+     "frames": [
+      6,
+      7,
+      8
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_SW",
+     "frames": [
+      9,
+      10,
+      11,
+      12
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_SW",
+     "frames": [
+      13,
+      14
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_SW",
+     "frames": [
+      15,
+      16,
+      17
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_W",
+     "frames": [
+      18,
+      19,
+      20,
+      21
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_W",
+     "frames": [
+      22,
+      23
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_W",
+     "frames": [
+      24,
+      25,
+      26
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_NW",
+     "frames": [
+      27,
+      28,
+      29,
+      30
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_NW",
+     "frames": [
+      31,
+      32
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_NW",
+     "frames": [
+      33,
+      34,
+      35
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_N",
+     "frames": [
+      36,
+      37,
+      38,
+      39
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_N",
+     "frames": [
+      40,
+      41
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_N",
+     "frames": [
+      42,
+      43,
+      44
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_NE",
+     "frames": [
+      45,
+      46,
+      47,
+      48
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_NE",
+     "frames": [
+      49,
+      50
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_NE",
+     "frames": [
+      51,
+      52,
+      53
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_E",
+     "frames": [
+      54,
+      55,
+      56,
+      57
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_E",
+     "frames": [
+      58,
+      59
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_E",
+     "frames": [
+      60,
+      61,
+      62
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_SE",
+     "frames": [
+      63,
+      64,
+      65,
+      66
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_SE",
+     "frames": [
+      67,
+      68
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_SE",
+     "frames": [
+      69,
+      70,
+      71
+     ],
+     "fps": 6,
+     "repeat": 0
+    }
+   ],
+   "note": "Frames 16x32 art px, ANCHOR: feet / tile centre at (16/2, 30) = (8,30) (setOrigin(0.5, 30/32)). 8 facings in the order S, SW, W, NW, N, NE, E, SE (S = toward the camera, E = screen right, N = away). Frame names <anim>_<DIR>_<i>, animation keys <anim>_<DIR> (e.g. walk_SE). SW, W, NW are baked mirrors of SE, E, NE (no flipX needed). 1 px near-black outline. Crawler zombie (legless, low to the ground, about 12 px high): dragging itself on its arms, head leading. \"shuffle\" 4 frames (5 fps) is the crawl loop; \"attack\" 2 (rear back, lunge); \"death\" 3 (sag, flatten, isoLying)."
   }
  ]
 }
