@@ -437,6 +437,26 @@ usually wiser.
   cooldown). Hits knock back **8 px** and flash pale for **60 ms**
   (`combat.knockbackPx`, `combat.hitFlashMs`). No damage numbers. Weapon
   rows live in `combat.weapons.<id>`, zombie rows in `zombies.types.<id>`.
+- **Hit feedback** (CD request, after Stage 1 playtest; keys
+  `combat.hitFx.*` and `combat.weapons.<id>.hitSound`). Cosmetic only: no
+  effect on damage, noise, sight or saves.
+  - **Splash**: every hit on a zombie sprays a dark blood splash (dried
+    blood `#4e1c1a`, section 9) from the hit point **away from the hero**
+    (direction = sign of zombie x - hero x). Fists make a smaller spatter
+    than weapons.
+  - **Hit sound**: one per hit, by the weapon's `hitSound`: `stab` (blades:
+    kitchen knife, pipe spear, fire axe), `blunt` (spiked bat, lead pipe,
+    crowbar), `punch` (fists). A weapon without `hitSound` uses `blunt`.
+  - **Floor stains**: a hit leaves a blood decal on the floor under the
+    zombie with chance **0.35** (`decalChance`); every kill always leaves
+    one. Decals fade out linearly over **600 s** (`decalFadeSeconds`) of
+    online play and are not saved (they are gone after a reload or
+    background). At most **30** per floor (`decalCapPerFloor`); a new decal
+    over the cap removes the oldest on that floor. Decals never block
+    taps or hide objects' hit areas.
+  - **Drip**: after a kill, with chance **0.5** (`dripChance`), one extra
+    drop falls from the corpse **450 ms** later (`dripDelayMs`). No sound.
+  - Hits on barricades and jammed doors make no blood (splinters only).
 - **Sight with facing** (BUG-031 fix; keys `zombies.sight.*`, replacing
   the old `zombies.sightRadiusPx` / `dimSightRadiusPx` /
   `darkSightRadiusPx`, kept briefly as aliases, see 11.2): every zombie faces left or right. It notices the
@@ -514,14 +534,14 @@ usually wiser.
   (`zombies.tuning.maxWanderersPerFloor`); they spawn at least **200 px**
   from the hero, never inside a claimed apartment.
 
-| Weapon | Damage | Range px | Cooldown s | Durability (hits) | Source |
-|---|---|---|---|---|---|
-| Fists | 5 | 40 | 0.4 | infinite | - |
-| Kitchen knife | 10 | 45 | 0.35 | 40 | loot |
-| Spiked bat | 14 | 55 | 0.5 | 50 | crafted (M1) |
-| Lead pipe | 16 | 60 | 0.6 | 60 | loot, crafted (M3) |
-| Pipe spear | 20 | 75 | 0.7 | 50 | crafted (M3) |
-| Fire axe | 30 | 65 | 0.9 | 80 | loot (M3) |
+| Weapon | Damage | Range px | Cooldown s | Durability (hits) | Hit sound | Source |
+|---|---|---|---|---|---|---|
+| Fists | 5 | 40 | 0.4 | infinite | punch | - |
+| Kitchen knife | 10 | 45 | 0.35 | 40 | stab | loot |
+| Spiked bat | 14 | 55 | 0.5 | 50 | blunt | crafted (M1) |
+| Lead pipe | 16 | 60 | 0.6 | 60 | blunt | loot, crafted (M3) |
+| Pipe spear | 20 | 75 | 0.7 | 50 | stab | crafted (M3) |
+| Fire axe | 30 | 65 | 0.9 | 80 | stab | loot (M3) |
 
 | Zombie | HP | Speed px/s | Damage | Attack interval s | Milestone |
 |---|---|---|---|---|---|
@@ -1379,7 +1399,7 @@ after the pick, so they keep the logical layout as charred shapes.
    (top right). No need bars, day counter, attack timer or power readout.
    Bottom bar: Home, Inventory, Workbench, Survivors, Menu, Throw when
    carried. Bottom bar follows the **muted UI style** below: icons only,
-   no text labels.
+   no text labels, ever (CD decision, 12).
 
 **Muted UI style (M2, BUG QA "non-gamey HUD"; keys `ui.*`)**. The UI must
 read as worn objects in a dark room, not as game buttons.
@@ -1458,7 +1478,9 @@ text at the bottom for 2 s, no icon, no sound.
 - **Burned units**: soot-black walls, charred shapes, broken windows.
   **Ransacked**: open drawers, papers and clothes on the floor.
 - Barricade: 5 damage stages (5.8), splinters on hits.
-- Fire: 3-frame flame loop (molotov). No gore; corpses slump and fade.
+- Fire: 3-frame flame loop (molotov). Blood is limited to dark hit
+  splashes, floor stains and drips (5.4, dried blood `#4e1c1a`); no
+  dismemberment or body parts; corpses slump and fade.
 - **UI art**: follows the muted UI style in section 8. Moodle pictograms
   24x24 art px (72 game px); bottom-bar pictograms 16x16 art px centred on
   the 72 px plate; floor numerals are stencil sprites 0-9, 10x16 art px.
@@ -1485,7 +1507,8 @@ text at the bottom for 2 s, no icon, no sound.
   No tense attack loop. Total audio under 3 MB.
 - **SFX (M2 list)**: footsteps (walk soft, run heavy), stairs, door
   open/creak, jammed door hit, cupboard open, drawer slide, rustle, pick up
-  (soft cloth/handling, no chime), punch, blunt hit, blade hit, weapon
+  (soft cloth/handling, no chime), punch, blunt hit, blade hit (stab)
+  (picked per weapon by `combat.weapons.<id>.hitSound`, 5.4), weapon
   break, zombie breath/shuffle/groan/lean-in/death slump, hero hurt breath,
   barricade hit/creak/break, hammer, wood crack, metal clang,
   cloth rip, water pour, glass shatter, fire whoosh, lamp wick hiss, rain,
@@ -1599,6 +1622,12 @@ Stage rules:
   save is deleted on launch with the one line "The building has changed."
 - Nice-to-haves are considered only after Stage 4 has been playtested.
 
+**Stage 1 playtest result (CD)**: the tower feels creepier, "better"; the
+attack cue works as is (no change); floors 13 and 17 are fair (encounter
+placement stays); nothing was confusing without text labels; bottom-bar
+icons never show text (12). Follow-up request, implemented: zombie-hit
+feedback (blood splash, per-weapon hit sounds, floor stains, drips, 5.4).
+
 **Out of version 1**: ads, in-app purchases, accounts, cloud saves,
 multiplayer or any online feature, push notifications, leaderboards,
 multiple save slots, free placement of builds, outside-the-tower areas,
@@ -1647,6 +1676,13 @@ than one pet, zombie smell and disguises, amputation.
   cue/zombie rebalance/scarcer loot/run on the existing layout; 2 wide
   floors and horizontal camera; 3 generator and claiming homes; 4
   lighting, silhouettes, notes, arrow-free tutorial.
+- **Bottom-bar labels** (Stage 1 playtest): the bottom bar is icons only;
+  no text label ever shows (not on first sessions, not on long-press).
+- **Stage 1 feel** (playtest): the creepier mood, the 15 s attack cue and
+  the floor 13 / 17 encounters are kept as they are.
+- **Zombie-hit feedback**: dark blood splash away from the hero (smaller
+  for fists), stab/blunt/punch hit sounds by weapon, fading floor stains,
+  occasional drip after kills (5.4).
 
 ### Decided (Producer approved; CD may revisit at playtest)
 - Scavenger job works only during offline catch-up (5.7).
@@ -1671,6 +1707,3 @@ than one pet, zombie smell and disguises, amputation.
 3. **Padlocked storage cages** (5.15, low priority, check at playtest):
    (a) keep crowbar-only (current); (b) also open by hand in 8 s, Loud;
    (c) cap a storage room at 3 cages so it feels less like a wall of locks.
-4. **Muted HUD check** (section 8, check at playtest): is an icon-only
-   bottom bar readable enough, or should a 1-word label show (a) never
-   (current), (b) for the first 3 sessions, (c) on long-press only?

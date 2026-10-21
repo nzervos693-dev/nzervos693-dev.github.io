@@ -214,10 +214,17 @@
     "knockbackPx": 8,
     "hitFlashMs": 60,
     "unawareHitMult": 3,
+    "hitFx": {
+      "decalChance": 0.35,
+      "decalFadeSeconds": 600,
+      "decalCapPerFloor": 30,
+      "dripChance": 0.5,
+      "dripDelayMs": 450
+    },
     "weapons": {
-      "fists": { "name": "Fists", "damage": 5, "rangePx": 40, "cooldownSeconds": 0.4, "durability": null, "source": "default" },
-      "kitchen_knife": { "name": "Kitchen knife", "damage": 10, "rangePx": 45, "cooldownSeconds": 0.35, "durability": 40, "source": "loot" },
-      "spiked_bat": { "name": "Spiked bat", "damage": 14, "rangePx": 55, "cooldownSeconds": 0.5, "durability": 50, "source": "crafted" }
+      "fists": { "name": "Fists", "damage": 5, "rangePx": 40, "cooldownSeconds": 0.4, "durability": null, "source": "default", "hitSound": "punch" },
+      "kitchen_knife": { "name": "Kitchen knife", "damage": 10, "rangePx": 45, "cooldownSeconds": 0.35, "durability": 40, "source": "loot", "hitSound": "stab" },
+      "spiked_bat": { "name": "Spiked bat", "damage": 14, "rangePx": 55, "cooldownSeconds": 0.5, "durability": 50, "source": "crafted", "hitSound": "blunt" }
     }
   },
   "zombies": {
