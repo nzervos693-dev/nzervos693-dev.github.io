@@ -1,0 +1,634 @@
+{
+  "format": {
+    "version": 1,
+    "stage": "A",
+    "owner": "level-designer",
+    "summary": "Hand-drawn unit floor plans (GDD 5.15). Each blueprint is drawn for ONE reference slot (apartments: NW, 12x10, front door on the SOUTH edge y=10; small units: S, 6x10, front door on the NORTH edge y=-1) in unit-local tile coordinates. The generator (Stage C) and the authored floors (floors_iso.json) place it into any slot by the transform in 'placement'.",
+    "coordinates": "Unit-local tile (x, y). Origin (0,0) is the top-left tile of the drawn unit. +x runs east, +y runs south, exactly the GDD section 2 axes (screen: +x toward lower right, +y toward lower left). Tile (x,y) covers the square [x,x+1) x [y,y+1). Apartments: x 0-11, y 0-9. Small units: x 0-5, y 0-9. Rects are [x, y, w, h].",
+    "orientation": "N = -y side, E = +x side, S = +y side, W = -x side. N and W edges are the 'far' edges, S and E the camera-facing ones. 'facing' is the direction an object's FRONT points (into the room). A wall object backs onto the wall on the OPPOSITE edge (facing S = against the north wall of its tile). Mounted objects (balance.iso.mountedObjects) take the wall edge opposite their facing and leave the tile free. Mounted slots must sit on a N or W wall edge in the FINAL (post-mirror) layout, never S or E (those walls are cut away): the Stage C generator re-picks every mounted slot after mirroring (blueprint mounted slots are drawn for the unmirrored NW layout only; authored floors place them by hand).",
+    "rooms": "rooms[] = {ref, type (templates room type), rect}. Rects never overlap; together with 'voids' they tile the whole unit (every tile belongs to exactly one room or void). 'first' = the room behind the front door. Walls stand on every edge between two different rooms/voids and on the unit boundary.",
+    "voids": "voids[] = rects of structure that is not walkable: the service riser column x=11 in every apartment (it sits against the stairwell core for NE/NW units and against the neighbouring unit for south units), and a few pipe-chase blocks in service units. Void edges are walls.",
+    "doors": "doors[] = {tile:[x,y], side:'E'|'S'|'N'}: a 1-tile doorway on that edge of that tile, joining the tile to its neighbour on that side. Interior doors are listed only with side E or S (neighbour at +x or +y). 'frontDoor' is the doorway to the corridor: side S at y=9 for apartments (neighbour is the corridor, y=10) or side N at y=0 for small units. Door STATE (open/closed/jammed) is NOT in the blueprint; the generator or the floor file sets it. Every room has at least one doorway; a room has at most 3 interior doorways (the front door does not count); every room is reachable from the front door; each unit has at least one 1-wide pinch (every doorway is one).",
+    "windows": "windows[] = {tile:[x,y], side:'N'|'W'|'S'}: a window on an EXTERIOR wall edge (apartments: N edge y=0 or W edge x=0; small units: S edge y=9). Every light:'grey' room touches the exterior and has windows (1 per 3 exterior edge tiles, at least 1, centred; generator.windowEveryTiles). The tile in front of a window stays free.",
+    "slots": "slots[] = object placement candidates: {r: room ref, t:[x,y] first (min x, min y) footprint tile, sp:[w,h] footprint size in tiles AFTER orientation (default [1,1]), f: N|E|S|W|'auto' (floor objects 'auto' = face the room centre), l: 'floor'|'wall'|'corner', o: objectId or null}. o = an 'always' object of the room type (placed for sure) or a named fixture; o = null = a pool slot (generator rolls it with chance generator.slotFillChance from the room type's pool of that layer). l='wall': tile has a wall edge on the room perimeter, object backs onto it. l='corner': tile has two wall edges (tall objects). l='floor': free-standing. Slot rules checked by hand for every blueprint: footprint inside the room, doorway/front-door tiles and window-front tiles stay free, every object has a free access tile, all doorways of a room stay connected.",
+    "mirroring": "Unit slots and transforms ('placement'). For a 1-tile thing at local (x,y) in a unit of size W x H: global x = ox + (mirrorX ? W-1-x : x), global y = oy + (mirrorY ? H-1-y : y). A footprint with origin (x,y) and span [w,h]: global origin x = ox + (mirrorX ? W-w-x : x), y = oy + (mirrorY ? H-h-y : y); the span stays [w,h]. For doors and windows: mirror the TILE as above and flip the side letter (E<->W when mirrorX, N<->S when mirrorY). Facings flip the same way. 'mirrorX: slot' = the x mirror is decided by the slot (NE and SE are mirrored so the riser meets the stairwell and the W windows become E windows on the exterior), NOT by the generator's 0.5 chance, because the W window wall and the riser sit on fixed sides. 'mirrorX: free' (small units, windows only on S) may use generator.mirrorXChance. mirrorY is always on for south slots (SW, SE) so the front door faces the corridor.",
+    "placement": {
+      "NW": { "origin": [0, 0], "mirrorX": false, "mirrorY": false },
+      "NE": { "origin": [18, 0], "mirrorX": true, "mirrorY": false },
+      "SW": { "origin": [0, 12], "mirrorX": false, "mirrorY": true },
+      "SE": { "origin": [18, 12], "mirrorX": true, "mirrorY": true },
+      "S": { "origin": [12, 12], "mirrorX": "optional", "mirrorY": false }
+    },
+    "sizeNote": "Rooms are at most 36 tiles (hard cap, generator.maxRoomTiles). Hand-drawn rooms may exceed the generator's roomSizeTiles maxima by up to one row/column (e.g. a 5x4 bathroom, a 2x10 spine hallway) so each unit fills its slot without dead space; the generator's random sizes are not used with blueprints.",
+    "templateNotes": "your_flat: exactly 1 blueprint, never mirrored beyond its slot, first = hallway. studio: the GDD template says studio is first, but a studio needs the south window wall (y=9) AND a front door on y=0 and may not exceed 36 tiles, so both studio blueprints put a small 'hallway' first (Stage C: set studio template rooms = hallway(first), studio, bathroom). office has no hallway: reception is first. Apartments with 5 rooms use larger rooms; 6-room flats (family, shared) use 4 grey rooms (living, kitchen, bedroom, kids/bedrooms).",
+    "ids": "Blueprint ids bp_<template>_<nn>. Object ids at runtime: f<floor><slot>-<x>.<y> with x,y the unit-local tile after mirroring (GDD 5.15).",
+    "loaderNotes": "Edge/side naming: 'side' N/E/S/W names the GRID edge of the tile: N = the edge at y (toward -y), S = the edge at y+1, W = the edge at x, E = the edge at x+1. These are grid directions, NOT screen compass: in grid angles (0 = +x, 90 = +y) E = 0, S = 90, W = 180, N = 270. Facings use the same letters and the same grid meaning (facing N = front points toward -y). The iso core's screen-compass facings (N=225 up-screen, E=315, S=45, W=135) are different; the loader must map by grid direction: my N -> grid 270, E -> 0, S -> 90, W -> 180. Walls are DERIVED from room rects, not listed: a wall edge exists wherever the two tiles across it belong to different rooms (or one is a void or outside the unit); doors and windows replace the wall on their edge (kind door/window). Furniture per tile = obstacle: every tile of an object's span blocks walking, never sight."
+  },
+  "blueprints": [
+    {
+      "id": "bp_your_flat_01", "template": "your_flat", "size": [12, 10], "slot": "apartment", "mirrorX": "slot", "first": "h",
+      "voids": [],
+      "rooms": [
+        { "ref": "b", "type": "bedroom", "rect": [0, 0, 5, 5] },
+        { "ref": "k", "type": "kitchen", "rect": [0, 5, 5, 5] },
+        { "ref": "h", "type": "hallway", "rect": [5, 0, 2, 10] },
+        { "ref": "l", "type": "living", "rect": [7, 0, 5, 7] },
+        { "ref": "t", "type": "bathroom", "rect": [7, 7, 5, 3] }
+      ],
+      "frontDoor": { "tile": [6, 9], "side": "S" },
+      "doors": [
+        { "tile": [2, 4], "side": "S" },
+        { "tile": [4, 7], "side": "E" },
+        { "tile": [6, 3], "side": "E" },
+        { "tile": [6, 8], "side": "E" }
+      ],
+      "windows": [
+        { "tile": [2, 0], "side": "N" }, { "tile": [0, 2], "side": "W" }, { "tile": [0, 7], "side": "W" }, { "tile": [9, 0], "side": "N" }
+      ],
+      "slots": [
+        { "r": "b", "t": [3, 0], "sp": [2, 2], "f": "S", "l": "wall", "o": "bed_frame" },
+        { "r": "b", "t": [0, 4], "f": "E", "l": "wall", "o": "wardrobe" },
+        { "r": "k", "t": [1, 9], "f": "N", "l": "wall", "o": "kitchen_drawer" },
+        { "r": "k", "t": [2, 9], "f": "N", "l": "wall", "o": "kitchen_cupboard" },
+        { "r": "k", "t": [3, 9], "f": "N", "l": "wall", "o": "fridge" },
+        { "r": "h", "t": [5, 0], "f": "auto", "l": "floor", "o": "potted_plant" },
+        { "r": "h", "t": [5, 1], "f": "E", "l": "wall", "o": "chair" },
+        { "r": "l", "t": [7, 0], "sp": [2, 1], "f": "S", "l": "wall", "o": "sofa" },
+        { "r": "l", "t": [11, 1], "sp": [1, 2], "f": "W", "l": "wall", "o": "workbench" },
+        { "r": "l", "t": [8, 3], "f": "auto", "l": "floor", "o": "chair" },
+        { "r": "l", "t": [9, 3], "sp": [1, 2], "f": "auto", "l": "floor", "o": "table" },
+        { "r": "l", "t": [11, 6], "f": "auto", "l": "floor", "o": "potted_plant" },
+        { "r": "t", "t": [10, 9], "f": "N", "l": "wall", "o": "toilet_tank" },
+        { "r": "t", "t": [11, 9], "f": "N", "l": "wall", "o": "sink_pipes" },
+        { "r": "t", "t": [9, 7], "f": "S", "l": "wall", "o": "bathroom_cabinet" },
+        { "r": "t", "t": [8, 9], "f": "auto", "l": "floor", "o": "laundry_basket" }
+      ]
+    },
+    {
+      "id": "bp_family_01", "template": "family_flat", "size": [12, 10], "slot": "apartment", "mirrorX": "slot", "first": "h",
+      "voids": [[11, 0, 1, 10]],
+      "rooms": [
+        { "ref": "bd", "type": "bedroom", "rect": [0, 0, 4, 5] },
+        { "ref": "kt", "type": "kitchen", "rect": [4, 0, 4, 5] },
+        { "ref": "kd", "type": "kids_room", "rect": [8, 0, 3, 5] },
+        { "ref": "lv", "type": "living", "rect": [0, 5, 6, 5] },
+        { "ref": "h", "type": "hallway", "rect": [6, 5, 2, 5] },
+        { "ref": "t", "type": "bathroom", "rect": [8, 5, 3, 5] }
+      ],
+      "frontDoor": { "tile": [7, 9], "side": "S" },
+      "doors": [
+        { "tile": [2, 4], "side": "S" },
+        { "tile": [4, 4], "side": "S" },
+        { "tile": [6, 4], "side": "S" },
+        { "tile": [7, 2], "side": "E" },
+        { "tile": [5, 7], "side": "E" },
+        { "tile": [7, 7], "side": "E" }
+      ],
+      "windows": [
+        { "tile": [1, 0], "side": "N" }, { "tile": [0, 2], "side": "W" }, { "tile": [5, 0], "side": "N" }, { "tile": [9, 0], "side": "N" }, { "tile": [0, 7], "side": "W" }
+      ],
+      "slots": [
+        { "r": "bd", "t": [2, 0], "sp": [2, 2], "f": "S", "l": "wall", "o": "bed_frame" },
+        { "r": "bd", "t": [0, 4], "f": "E", "l": "wall", "o": "wardrobe" },
+        { "r": "bd", "t": [3, 3], "f": "auto", "l": "floor", "o": null },
+        { "r": "kt", "t": [7, 0], "f": "S", "l": "corner", "o": "fridge" },
+        { "r": "kt", "t": [6, 0], "f": "S", "l": "wall", "o": "kitchen_cupboard" },
+        { "r": "kt", "t": [4, 0], "f": "S", "l": "wall", "o": null },
+        { "r": "kt", "t": [5, 2], "sp": [1, 2], "f": "auto", "l": "floor", "o": null },
+        { "r": "kt", "t": [6, 3], "f": "auto", "l": "floor", "o": null },
+        { "r": "kd", "t": [10, 0], "f": "S", "l": "corner", "o": "toy_box" },
+        { "r": "kd", "t": [10, 2], "sp": [1, 2], "f": "W", "l": "wall", "o": "mattress" },
+        { "r": "kd", "t": [9, 3], "f": "auto", "l": "floor", "o": null },
+        { "r": "lv", "t": [1, 9], "sp": [2, 1], "f": "N", "l": "wall", "o": "sofa" },
+        { "r": "lv", "t": [4, 9], "f": "N", "l": "wall", "o": null },
+        { "r": "lv", "t": [3, 6], "sp": [1, 2], "f": "auto", "l": "floor", "o": null },
+        { "r": "lv", "t": [0, 5], "f": "auto", "l": "floor", "o": null },
+        { "r": "h", "t": [6, 6], "f": "E", "l": "wall", "o": null },
+        { "r": "h", "t": [6, 9], "f": "auto", "l": "floor", "o": null },
+        { "r": "h", "t": [7, 5], "f": "S", "l": "wall", "o": null },
+        { "r": "t", "t": [10, 9], "f": "N", "l": "wall", "o": "toilet_tank" },
+        { "r": "t", "t": [9, 5], "f": "S", "l": "wall", "o": "bathroom_cabinet" },
+        { "r": "t", "t": [10, 6], "f": "W", "l": "wall", "o": null },
+        { "r": "t", "t": [8, 9], "f": "auto", "l": "floor", "o": null }
+      ]
+    },
+    {
+      "id": "bp_family_02", "template": "family_flat", "size": [12, 10], "slot": "apartment", "mirrorX": "slot", "first": "h",
+      "voids": [[11, 0, 1, 10]],
+      "rooms": [
+        { "ref": "bd", "type": "bedroom", "rect": [0, 0, 3, 5] },
+        { "ref": "lv", "type": "living", "rect": [3, 0, 4, 5] },
+        { "ref": "kt", "type": "kitchen", "rect": [7, 0, 4, 5] },
+        { "ref": "kd", "type": "kids_room", "rect": [0, 5, 5, 5] },
+        { "ref": "h", "type": "hallway", "rect": [5, 5, 2, 5] },
+        { "ref": "t", "type": "bathroom", "rect": [7, 5, 4, 5] }
+      ],
+      "frontDoor": { "tile": [6, 9], "side": "S" },
+      "doors": [
+        { "tile": [2, 1], "side": "E" },
+        { "tile": [6, 2], "side": "E" },
+        { "tile": [5, 4], "side": "S" },
+        { "tile": [4, 7], "side": "E" },
+        { "tile": [6, 7], "side": "E" },
+        { "tile": [1, 4], "side": "S" }
+      ],
+      "windows": [
+        { "tile": [1, 0], "side": "N" }, { "tile": [4, 0], "side": "N" }, { "tile": [8, 0], "side": "N" }, { "tile": [0, 7], "side": "W" }
+      ],
+      "slots": [
+        { "r": "bd", "t": [0, 0], "f": "S", "l": "corner", "o": "wardrobe" },
+        { "r": "bd", "t": [1, 2], "sp": [2, 2], "f": "W", "l": "wall", "o": "bed_frame" },
+        { "r": "lv", "t": [3, 4], "sp": [2, 1], "f": "N", "l": "wall", "o": "sofa" },
+        { "r": "lv", "t": [6, 0], "f": "S", "l": "wall", "o": null },
+        { "r": "lv", "t": [4, 2], "sp": [1, 2], "f": "auto", "l": "floor", "o": null },
+        { "r": "kt", "t": [10, 0], "f": "S", "l": "corner", "o": "fridge" },
+        { "r": "kt", "t": [9, 0], "f": "S", "l": "wall", "o": "kitchen_cupboard" },
+        { "r": "kt", "t": [7, 0], "f": "S", "l": "wall", "o": null },
+        { "r": "kt", "t": [8, 3], "sp": [1, 2], "f": "auto", "l": "floor", "o": null },
+        { "r": "kt", "t": [10, 3], "f": "W", "l": "wall", "o": null },
+        { "r": "kd", "t": [0, 9], "f": "N", "l": "corner", "o": "toy_box" },
+        { "r": "kd", "t": [3, 8], "sp": [2, 2], "f": "N", "l": "wall", "o": "bed_frame" },
+        { "r": "kd", "t": [2, 6], "f": "auto", "l": "floor", "o": null },
+        { "r": "h", "t": [5, 9], "f": "auto", "l": "floor", "o": null },
+        { "r": "h", "t": [5, 6], "f": "E", "l": "wall", "o": null },
+        { "r": "t", "t": [10, 9], "f": "N", "l": "wall", "o": "toilet_tank" },
+        { "r": "t", "t": [8, 5], "f": "S", "l": "wall", "o": "bathroom_cabinet" },
+        { "r": "t", "t": [10, 6], "f": "W", "l": "wall", "o": null },
+        { "r": "t", "t": [7, 9], "f": "auto", "l": "floor", "o": null }
+      ]
+    },
+    {
+      "id": "bp_couple_01", "template": "couple_flat", "size": [12, 10], "slot": "apartment", "mirrorX": "slot", "first": "h",
+      "voids": [[11, 0, 1, 10]],
+      "rooms": [
+        { "ref": "bd", "type": "bedroom", "rect": [0, 0, 5, 5] },
+        { "ref": "lv", "type": "living", "rect": [5, 0, 6, 5] },
+        { "ref": "kt", "type": "kitchen", "rect": [0, 5, 5, 5] },
+        { "ref": "h", "type": "hallway", "rect": [5, 5, 2, 5] },
+        { "ref": "t", "type": "bathroom", "rect": [7, 5, 4, 5] }
+      ],
+      "frontDoor": { "tile": [6, 9], "side": "S" },
+      "doors": [
+        { "tile": [2, 4], "side": "S" },
+        { "tile": [4, 2], "side": "E" },
+        { "tile": [4, 7], "side": "E" },
+        { "tile": [5, 4], "side": "S" },
+        { "tile": [6, 7], "side": "E" }
+      ],
+      "windows": [
+        { "tile": [2, 0], "side": "N" }, { "tile": [0, 2], "side": "W" }, { "tile": [6, 0], "side": "N" }, { "tile": [9, 0], "side": "N" }, { "tile": [0, 7], "side": "W" }
+      ],
+      "slots": [
+        { "r": "bd", "t": [3, 0], "sp": [2, 2], "f": "S", "l": "wall", "o": "bed_frame" },
+        { "r": "bd", "t": [0, 4], "f": "E", "l": "wall", "o": null },
+        { "r": "bd", "t": [3, 3], "f": "auto", "l": "floor", "o": null },
+        { "r": "lv", "t": [10, 2], "sp": [1, 2], "f": "W", "l": "wall", "o": "sofa" },
+        { "r": "lv", "t": [8, 0], "f": "S", "l": "wall", "o": null },
+        { "r": "lv", "t": [7, 2], "sp": [1, 2], "f": "auto", "l": "floor", "o": null },
+        { "r": "lv", "t": [8, 4], "f": "auto", "l": "floor", "o": null },
+        { "r": "kt", "t": [0, 9], "f": "N", "l": "corner", "o": "fridge" },
+        { "r": "kt", "t": [1, 9], "f": "N", "l": "wall", "o": "kitchen_cupboard" },
+        { "r": "kt", "t": [2, 9], "f": "N", "l": "wall", "o": null },
+        { "r": "kt", "t": [3, 9], "f": "N", "l": "wall", "o": null },
+        { "r": "kt", "t": [3, 6], "f": "auto", "l": "floor", "o": null },
+        { "r": "h", "t": [5, 9], "f": "auto", "l": "floor", "o": null },
+        { "r": "h", "t": [6, 6], "f": "W", "l": "wall", "o": null },
+        { "r": "t", "t": [10, 9], "f": "N", "l": "wall", "o": "toilet_tank" },
+        { "r": "t", "t": [8, 5], "f": "S", "l": "wall", "o": "bathroom_cabinet" },
+        { "r": "t", "t": [10, 6], "f": "W", "l": "wall", "o": null },
+        { "r": "t", "t": [7, 9], "f": "auto", "l": "floor", "o": null }
+      ]
+    },
+    {
+      "id": "bp_couple_02", "template": "couple_flat", "size": [12, 10], "slot": "apartment", "mirrorX": "slot", "first": "h",
+      "voids": [[11, 0, 1, 10]],
+      "rooms": [
+        { "ref": "lv", "type": "living", "rect": [0, 0, 6, 5] },
+        { "ref": "bd", "type": "bedroom", "rect": [6, 0, 5, 5] },
+        { "ref": "kt", "type": "kitchen", "rect": [0, 5, 6, 5] },
+        { "ref": "h", "type": "hallway", "rect": [6, 5, 2, 5] },
+        { "ref": "t", "type": "bathroom", "rect": [8, 5, 3, 5] }
+      ],
+      "frontDoor": { "tile": [7, 9], "side": "S" },
+      "doors": [
+        { "tile": [2, 4], "side": "S" },
+        { "tile": [5, 2], "side": "E" },
+        { "tile": [5, 7], "side": "E" },
+        { "tile": [6, 4], "side": "S" },
+        { "tile": [7, 7], "side": "E" },
+        { "tile": [9, 4], "side": "S" }
+      ],
+      "windows": [
+        { "tile": [1, 0], "side": "N" }, { "tile": [4, 0], "side": "N" }, { "tile": [0, 2], "side": "W" }, { "tile": [8, 0], "side": "N" }, { "tile": [0, 7], "side": "W" }
+      ],
+      "slots": [
+        { "r": "lv", "t": [0, 0], "sp": [1, 2], "f": "E", "l": "wall", "o": "sofa" },
+        { "r": "lv", "t": [5, 0], "f": "W", "l": "corner", "o": null },
+        { "r": "lv", "t": [2, 2], "sp": [1, 2], "f": "auto", "l": "floor", "o": null },
+        { "r": "lv", "t": [3, 3], "f": "auto", "l": "floor", "o": null },
+        { "r": "bd", "t": [9, 0], "sp": [2, 2], "f": "S", "l": "wall", "o": "bed_frame" },
+        { "r": "bd", "t": [10, 3], "f": "W", "l": "wall", "o": null },
+        { "r": "bd", "t": [7, 3], "f": "auto", "l": "floor", "o": null },
+        { "r": "kt", "t": [0, 9], "f": "N", "l": "corner", "o": "fridge" },
+        { "r": "kt", "t": [1, 9], "f": "N", "l": "wall", "o": "kitchen_cupboard" },
+        { "r": "kt", "t": [2, 9], "f": "N", "l": "wall", "o": null },
+        { "r": "kt", "t": [3, 9], "f": "N", "l": "wall", "o": null },
+        { "r": "kt", "t": [3, 6], "sp": [1, 2], "f": "auto", "l": "floor", "o": null },
+        { "r": "h", "t": [6, 9], "f": "auto", "l": "floor", "o": null },
+        { "r": "h", "t": [6, 6], "f": "E", "l": "wall", "o": null },
+        { "r": "t", "t": [10, 9], "f": "N", "l": "wall", "o": "toilet_tank" },
+        { "r": "t", "t": [8, 5], "f": "S", "l": "wall", "o": "bathroom_cabinet" },
+        { "r": "t", "t": [10, 7], "f": "W", "l": "wall", "o": null },
+        { "r": "t", "t": [8, 9], "f": "auto", "l": "floor", "o": null }
+      ]
+    },
+    {
+      "id": "bp_elderly_01", "template": "elderly_flat", "size": [12, 10], "slot": "apartment", "mirrorX": "slot", "first": "h",
+      "voids": [[11, 0, 1, 10]],
+      "rooms": [
+        { "ref": "kt", "type": "kitchen", "rect": [0, 0, 5, 5] },
+        { "ref": "bd", "type": "bedroom", "rect": [5, 0, 6, 5] },
+        { "ref": "lv", "type": "living", "rect": [0, 5, 6, 5] },
+        { "ref": "h", "type": "hallway", "rect": [6, 5, 2, 5] },
+        { "ref": "t", "type": "bathroom", "rect": [8, 5, 3, 5] }
+      ],
+      "frontDoor": { "tile": [7, 9], "side": "S" },
+      "doors": [
+        { "tile": [4, 2], "side": "E" },
+        { "tile": [2, 4], "side": "S" },
+        { "tile": [5, 7], "side": "E" },
+        { "tile": [6, 4], "side": "S" },
+        { "tile": [7, 7], "side": "E" },
+        { "tile": [9, 4], "side": "S" }
+      ],
+      "windows": [
+        { "tile": [2, 0], "side": "N" }, { "tile": [0, 2], "side": "W" }, { "tile": [6, 0], "side": "N" }, { "tile": [9, 0], "side": "N" }, { "tile": [0, 7], "side": "W" }
+      ],
+      "slots": [
+        { "r": "kt", "t": [0, 0], "f": "S", "l": "corner", "o": "fridge" },
+        { "r": "kt", "t": [1, 0], "f": "S", "l": "wall", "o": "kitchen_cupboard" },
+        { "r": "kt", "t": [3, 0], "f": "S", "l": "wall", "o": null },
+        { "r": "kt", "t": [2, 2], "sp": [1, 2], "f": "auto", "l": "floor", "o": null },
+        { "r": "kt", "t": [3, 3], "f": "auto", "l": "floor", "o": null },
+        { "r": "bd", "t": [7, 0], "sp": [2, 2], "f": "S", "l": "wall", "o": "bed_frame" },
+        { "r": "bd", "t": [10, 3], "f": "W", "l": "wall", "o": null },
+        { "r": "bd", "t": [6, 3], "f": "auto", "l": "floor", "o": null },
+        { "r": "lv", "t": [1, 9], "sp": [2, 1], "f": "N", "l": "wall", "o": "sofa" },
+        { "r": "lv", "t": [4, 9], "f": "N", "l": "wall", "o": null },
+        { "r": "lv", "t": [3, 6], "sp": [1, 2], "f": "auto", "l": "floor", "o": null },
+        { "r": "lv", "t": [0, 5], "f": "auto", "l": "floor", "o": null },
+        { "r": "h", "t": [6, 6], "f": "E", "l": "wall", "o": null },
+        { "r": "h", "t": [6, 9], "f": "auto", "l": "floor", "o": null },
+        { "r": "h", "t": [7, 5], "f": "S", "l": "wall", "o": null },
+        { "r": "t", "t": [10, 9], "f": "N", "l": "wall", "o": "toilet_tank" },
+        { "r": "t", "t": [8, 5], "f": "S", "l": "wall", "o": "medicine_cabinet" },
+        { "r": "t", "t": [10, 7], "f": "W", "l": "wall", "o": null },
+        { "r": "t", "t": [8, 9], "f": "auto", "l": "floor", "o": null }
+      ]
+    },
+    {
+      "id": "bp_elderly_02", "template": "elderly_flat", "size": [12, 10], "slot": "apartment", "mirrorX": "slot", "first": "h",
+      "voids": [[11, 0, 1, 10]],
+      "rooms": [
+        { "ref": "lv", "type": "living", "rect": [0, 0, 5, 5] },
+        { "ref": "bd", "type": "bedroom", "rect": [5, 0, 6, 5] },
+        { "ref": "kt", "type": "kitchen", "rect": [0, 5, 5, 5] },
+        { "ref": "h", "type": "hallway", "rect": [5, 5, 2, 5] },
+        { "ref": "t", "type": "bathroom", "rect": [7, 5, 4, 5] }
+      ],
+      "frontDoor": { "tile": [6, 9], "side": "S" },
+      "doors": [
+        { "tile": [4, 2], "side": "E" },
+        { "tile": [2, 4], "side": "S" },
+        { "tile": [4, 7], "side": "E" },
+        { "tile": [5, 4], "side": "S" },
+        { "tile": [6, 7], "side": "E" },
+        { "tile": [8, 4], "side": "S" }
+      ],
+      "windows": [
+        { "tile": [2, 0], "side": "N" }, { "tile": [0, 2], "side": "W" }, { "tile": [6, 0], "side": "N" }, { "tile": [9, 0], "side": "N" }, { "tile": [0, 7], "side": "W" }
+      ],
+      "slots": [
+        { "r": "lv", "t": [0, 3], "sp": [1, 2], "f": "E", "l": "wall", "o": "sofa" },
+        { "r": "lv", "t": [3, 0], "f": "S", "l": "wall", "o": null },
+        { "r": "lv", "t": [3, 2], "sp": [1, 2], "f": "auto", "l": "floor", "o": null },
+        { "r": "bd", "t": [7, 0], "sp": [2, 2], "f": "S", "l": "wall", "o": "bed_frame" },
+        { "r": "bd", "t": [10, 3], "f": "W", "l": "wall", "o": null },
+        { "r": "bd", "t": [7, 3], "f": "auto", "l": "floor", "o": null },
+        { "r": "kt", "t": [0, 9], "f": "N", "l": "corner", "o": "fridge" },
+        { "r": "kt", "t": [1, 9], "f": "N", "l": "wall", "o": "kitchen_cupboard" },
+        { "r": "kt", "t": [2, 9], "f": "N", "l": "wall", "o": null },
+        { "r": "kt", "t": [3, 9], "f": "N", "l": "wall", "o": null },
+        { "r": "kt", "t": [3, 6], "f": "auto", "l": "floor", "o": null },
+        { "r": "h", "t": [5, 9], "f": "auto", "l": "floor", "o": null },
+        { "r": "h", "t": [6, 6], "f": "W", "l": "wall", "o": null },
+        { "r": "t", "t": [10, 9], "f": "N", "l": "wall", "o": "toilet_tank" },
+        { "r": "t", "t": [7, 5], "f": "S", "l": "wall", "o": "medicine_cabinet" },
+        { "r": "t", "t": [10, 6], "f": "W", "l": "wall", "o": null },
+        { "r": "t", "t": [9, 9], "f": "auto", "l": "floor", "o": null }
+      ]
+    },
+    {
+      "id": "bp_shared_01", "template": "shared_flat", "size": [12, 10], "slot": "apartment", "mirrorX": "slot", "first": "h",
+      "voids": [[11, 0, 1, 10]],
+      "rooms": [
+        { "ref": "b1", "type": "bedroom", "rect": [0, 0, 3, 5] },
+        { "ref": "kt", "type": "kitchen", "rect": [3, 0, 4, 5] },
+        { "ref": "b2", "type": "bedroom", "rect": [7, 0, 4, 5] },
+        { "ref": "b3", "type": "bedroom", "rect": [0, 5, 5, 5] },
+        { "ref": "h", "type": "hallway", "rect": [5, 5, 2, 5] },
+        { "ref": "t", "type": "bathroom", "rect": [7, 5, 4, 5] }
+      ],
+      "frontDoor": { "tile": [6, 9], "side": "S" },
+      "doors": [
+        { "tile": [2, 1], "side": "E" },
+        { "tile": [6, 2], "side": "E" },
+        { "tile": [5, 4], "side": "S" },
+        { "tile": [4, 7], "side": "E" },
+        { "tile": [6, 7], "side": "E" }
+      ],
+      "windows": [
+        { "tile": [1, 0], "side": "N" }, { "tile": [4, 0], "side": "N" }, { "tile": [8, 0], "side": "N" }, { "tile": [0, 7], "side": "W" }
+      ],
+      "slots": [
+        { "r": "b1", "t": [0, 0], "f": "S", "l": "corner", "o": "wardrobe" },
+        { "r": "b1", "t": [1, 2], "sp": [2, 2], "f": "W", "l": "wall", "o": "bed_frame" },
+        { "r": "kt", "t": [6, 0], "f": "S", "l": "corner", "o": "fridge" },
+        { "r": "kt", "t": [5, 0], "f": "S", "l": "wall", "o": "kitchen_cupboard" },
+        { "r": "kt", "t": [3, 0], "f": "S", "l": "wall", "o": null },
+        { "r": "kt", "t": [4, 2], "sp": [1, 2], "f": "auto", "l": "floor", "o": null },
+        { "r": "b2", "t": [9, 0], "sp": [2, 2], "f": "S", "l": "wall", "o": "bed_frame" },
+        { "r": "b2", "t": [7, 4], "f": "E", "l": "wall", "o": null },
+        { "r": "b2", "t": [9, 3], "f": "auto", "l": "floor", "o": null },
+        { "r": "b3", "t": [3, 8], "sp": [2, 2], "f": "N", "l": "wall", "o": "bed_frame" },
+        { "r": "b3", "t": [0, 9], "f": "N", "l": "corner", "o": null },
+        { "r": "b3", "t": [2, 6], "f": "auto", "l": "floor", "o": null },
+        { "r": "h", "t": [5, 9], "f": "auto", "l": "floor", "o": null },
+        { "r": "h", "t": [5, 6], "f": "E", "l": "wall", "o": null },
+        { "r": "t", "t": [10, 9], "f": "N", "l": "wall", "o": "toilet_tank" },
+        { "r": "t", "t": [8, 5], "f": "S", "l": "wall", "o": "bathroom_cabinet" },
+        { "r": "t", "t": [10, 6], "f": "W", "l": "wall", "o": null },
+        { "r": "t", "t": [7, 9], "f": "auto", "l": "floor", "o": null }
+      ]
+    },
+    {
+      "id": "bp_shared_02", "template": "shared_flat", "size": [12, 10], "slot": "apartment", "mirrorX": "slot", "first": "h",
+      "voids": [[11, 0, 1, 10]],
+      "rooms": [
+        { "ref": "b1", "type": "bedroom", "rect": [0, 0, 4, 5] },
+        { "ref": "b2", "type": "bedroom", "rect": [4, 0, 4, 5] },
+        { "ref": "b3", "type": "bedroom", "rect": [8, 0, 3, 5] },
+        { "ref": "kt", "type": "kitchen", "rect": [0, 5, 6, 5] },
+        { "ref": "h", "type": "hallway", "rect": [6, 5, 2, 5] },
+        { "ref": "t", "type": "bathroom", "rect": [8, 5, 3, 5] }
+      ],
+      "frontDoor": { "tile": [7, 9], "side": "S" },
+      "doors": [
+        { "tile": [3, 2], "side": "E" },
+        { "tile": [7, 2], "side": "E" },
+        { "tile": [6, 4], "side": "S" },
+        { "tile": [2, 4], "side": "S" },
+        { "tile": [5, 7], "side": "E" },
+        { "tile": [7, 7], "side": "E" }
+      ],
+      "windows": [
+        { "tile": [1, 0], "side": "N" }, { "tile": [0, 2], "side": "W" }, { "tile": [5, 0], "side": "N" }, { "tile": [9, 0], "side": "N" }, { "tile": [0, 7], "side": "W" }
+      ],
+      "slots": [
+        { "r": "b1", "t": [2, 0], "sp": [2, 2], "f": "S", "l": "wall", "o": "bed_frame" },
+        { "r": "b1", "t": [0, 4], "f": "E", "l": "wall", "o": "wardrobe" },
+        { "r": "b2", "t": [6, 0], "sp": [2, 2], "f": "S", "l": "wall", "o": "bed_frame" },
+        { "r": "b2", "t": [4, 4], "f": "E", "l": "wall", "o": null },
+        { "r": "b2", "t": [5, 3], "f": "auto", "l": "floor", "o": null },
+        { "r": "b3", "t": [9, 2], "sp": [2, 2], "f": "W", "l": "wall", "o": "bed_frame" },
+        { "r": "b3", "t": [8, 4], "f": "auto", "l": "floor", "o": null },
+        { "r": "kt", "t": [0, 9], "f": "N", "l": "corner", "o": "fridge" },
+        { "r": "kt", "t": [1, 9], "f": "N", "l": "wall", "o": "kitchen_cupboard" },
+        { "r": "kt", "t": [2, 9], "f": "N", "l": "wall", "o": null },
+        { "r": "kt", "t": [3, 6], "sp": [1, 2], "f": "auto", "l": "floor", "o": null },
+        { "r": "h", "t": [6, 6], "f": "E", "l": "wall", "o": null },
+        { "r": "h", "t": [6, 9], "f": "auto", "l": "floor", "o": null },
+        { "r": "h", "t": [7, 5], "f": "S", "l": "wall", "o": null },
+        { "r": "t", "t": [10, 9], "f": "N", "l": "wall", "o": "toilet_tank" },
+        { "r": "t", "t": [9, 5], "f": "S", "l": "wall", "o": "bathroom_cabinet" },
+        { "r": "t", "t": [10, 6], "f": "W", "l": "wall", "o": null },
+        { "r": "t", "t": [8, 9], "f": "auto", "l": "floor", "o": null }
+      ]
+    },
+    {
+      "id": "bp_office_01", "template": "office", "size": [12, 10], "slot": "apartment", "mirrorX": "slot", "first": "rc",
+      "voids": [[11, 0, 1, 10]],
+      "rooms": [
+        { "ref": "of1", "type": "office", "rect": [0, 0, 5, 5] },
+        { "ref": "of2", "type": "office", "rect": [5, 0, 6, 5] },
+        { "ref": "rc", "type": "reception", "rect": [0, 5, 4, 5] },
+        { "ref": "bk", "type": "break_room", "rect": [4, 5, 4, 5] },
+        { "ref": "t", "type": "bathroom", "rect": [8, 5, 3, 5] }
+      ],
+      "frontDoor": { "tile": [2, 9], "side": "S" },
+      "doors": [
+        { "tile": [1, 4], "side": "S" },
+        { "tile": [3, 7], "side": "E" },
+        { "tile": [7, 7], "side": "E" },
+        { "tile": [4, 2], "side": "E" },
+        { "tile": [6, 4], "side": "S" }
+      ],
+      "windows": [
+        { "tile": [2, 0], "side": "N" }, { "tile": [0, 2], "side": "W" }, { "tile": [6, 0], "side": "N" }, { "tile": [9, 0], "side": "N" }, { "tile": [0, 7], "side": "W" }
+      ],
+      "slots": [
+        { "r": "of1", "t": [3, 0], "sp": [2, 1], "f": "S", "l": "wall", "o": "desk" },
+        { "r": "of1", "t": [0, 4], "f": "E", "l": "wall", "o": null },
+        { "r": "of1", "t": [2, 3], "f": "auto", "l": "floor", "o": null },
+        { "r": "of2", "t": [7, 0], "sp": [2, 1], "f": "S", "l": "wall", "o": "desk" },
+        { "r": "of2", "t": [10, 1], "f": "W", "l": "wall", "o": null },
+        { "r": "of2", "t": [10, 3], "f": "W", "l": "wall", "o": null },
+        { "r": "of2", "t": [7, 3], "f": "auto", "l": "floor", "o": null },
+        { "r": "rc", "t": [0, 5], "sp": [1, 2], "f": "E", "l": "wall", "o": "desk" },
+        { "r": "rc", "t": [2, 7], "f": "auto", "l": "floor", "o": null },
+        { "r": "rc", "t": [3, 9], "f": "N", "l": "wall", "o": null },
+        { "r": "bk", "t": [4, 9], "f": "N", "l": "wall", "o": "kitchen_cupboard" },
+        { "r": "bk", "t": [5, 6], "sp": [1, 2], "f": "auto", "l": "floor", "o": "table" },
+        { "r": "bk", "t": [6, 9], "f": "N", "l": "wall", "o": null },
+        { "r": "bk", "t": [7, 9], "f": "N", "l": "wall", "o": null },
+        { "r": "t", "t": [10, 9], "f": "N", "l": "wall", "o": "toilet_tank" },
+        { "r": "t", "t": [9, 5], "f": "S", "l": "wall", "o": "bathroom_cabinet" },
+        { "r": "t", "t": [10, 6], "f": "W", "l": "wall", "o": null },
+        { "r": "t", "t": [8, 9], "f": "auto", "l": "floor", "o": null }
+      ]
+    },
+    {
+      "id": "bp_office_02", "template": "office", "size": [12, 10], "slot": "apartment", "mirrorX": "slot", "first": "rc",
+      "voids": [[11, 0, 1, 10]],
+      "rooms": [
+        { "ref": "of1", "type": "office", "rect": [0, 0, 5, 5] },
+        { "ref": "of2", "type": "office", "rect": [5, 0, 6, 5] },
+        { "ref": "rc", "type": "reception", "rect": [0, 5, 4, 5] },
+        { "ref": "t", "type": "bathroom", "rect": [4, 5, 3, 5] },
+        { "ref": "bk", "type": "break_room", "rect": [7, 5, 4, 5] }
+      ],
+      "frontDoor": { "tile": [2, 9], "side": "S" },
+      "doors": [
+        { "tile": [1, 4], "side": "S" },
+        { "tile": [3, 7], "side": "E" },
+        { "tile": [6, 7], "side": "E" },
+        { "tile": [4, 2], "side": "E" },
+        { "tile": [8, 4], "side": "S" }
+      ],
+      "windows": [
+        { "tile": [2, 0], "side": "N" }, { "tile": [0, 2], "side": "W" }, { "tile": [6, 0], "side": "N" }, { "tile": [9, 0], "side": "N" }, { "tile": [0, 7], "side": "W" }
+      ],
+      "slots": [
+        { "r": "of1", "t": [3, 0], "sp": [2, 1], "f": "S", "l": "wall", "o": "desk" },
+        { "r": "of1", "t": [0, 4], "f": "E", "l": "wall", "o": null },
+        { "r": "of2", "t": [7, 0], "sp": [2, 1], "f": "S", "l": "wall", "o": "desk" },
+        { "r": "of2", "t": [10, 1], "f": "W", "l": "wall", "o": null },
+        { "r": "of2", "t": [7, 3], "f": "auto", "l": "floor", "o": null },
+        { "r": "rc", "t": [0, 5], "sp": [1, 2], "f": "E", "l": "wall", "o": "desk" },
+        { "r": "rc", "t": [2, 7], "f": "auto", "l": "floor", "o": null },
+        { "r": "rc", "t": [3, 9], "f": "N", "l": "wall", "o": null },
+        { "r": "t", "t": [5, 9], "f": "N", "l": "wall", "o": "toilet_tank" },
+        { "r": "t", "t": [5, 5], "f": "S", "l": "wall", "o": "bathroom_cabinet" },
+        { "r": "bk", "t": [7, 9], "f": "N", "l": "wall", "o": "kitchen_cupboard" },
+        { "r": "bk", "t": [10, 9], "f": "N", "l": "corner", "o": null },
+        { "r": "bk", "t": [8, 6], "sp": [1, 2], "f": "auto", "l": "floor", "o": "table" },
+        { "r": "bk", "t": [9, 9], "f": "N", "l": "wall", "o": null }
+      ]
+    },
+    {
+      "id": "bp_studio_01", "template": "studio", "size": [6, 10], "slot": "small", "mirrorX": "free", "first": "h",
+      "voids": [],
+      "rooms": [
+        { "ref": "h", "type": "hallway", "rect": [4, 0, 2, 4] },
+        { "ref": "t", "type": "bathroom", "rect": [0, 0, 4, 4] },
+        { "ref": "st", "type": "studio", "rect": [0, 4, 6, 6] }
+      ],
+      "frontDoor": { "tile": [5, 0], "side": "N" },
+      "doors": [ { "tile": [3, 1], "side": "E" }, { "tile": [4, 3], "side": "S" } ],
+      "windows": [ { "tile": [1, 9], "side": "S" }, { "tile": [4, 9], "side": "S" } ],
+      "slots": [
+        { "r": "h", "t": [5, 2], "f": "auto", "l": "floor", "o": null },
+        { "r": "t", "t": [1, 3], "f": "N", "l": "wall", "o": "toilet_tank" },
+        { "r": "t", "t": [1, 0], "f": "S", "l": "wall", "o": "bathroom_cabinet" },
+        { "r": "t", "t": [0, 1], "f": "E", "l": "wall", "o": null },
+        { "r": "t", "t": [3, 3], "f": "auto", "l": "floor", "o": null },
+        { "r": "st", "t": [0, 5], "sp": [1, 2], "f": "E", "l": "wall", "o": "mattress" },
+        { "r": "st", "t": [2, 9], "sp": [2, 1], "f": "N", "l": "wall", "o": "sofa" },
+        { "r": "st", "t": [5, 5], "f": "W", "l": "wall", "o": "kitchen_cupboard" },
+        { "r": "st", "t": [5, 6], "f": "W", "l": "wall", "o": "fridge" },
+        { "r": "st", "t": [5, 8], "f": "W", "l": "wall", "o": null },
+        { "r": "st", "t": [2, 6], "sp": [1, 2], "f": "auto", "l": "floor", "o": null }
+      ]
+    },
+    {
+      "id": "bp_studio_02", "template": "studio", "size": [6, 10], "slot": "small", "mirrorX": "free", "first": "h",
+      "voids": [],
+      "rooms": [
+        { "ref": "h", "type": "hallway", "rect": [5, 0, 1, 10] },
+        { "ref": "t", "type": "bathroom", "rect": [0, 0, 5, 3] },
+        { "ref": "st", "type": "studio", "rect": [0, 3, 5, 7] }
+      ],
+      "frontDoor": { "tile": [5, 0], "side": "N" },
+      "doors": [ { "tile": [4, 1], "side": "E" }, { "tile": [4, 5], "side": "E" } ],
+      "windows": [ { "tile": [2, 9], "side": "S" } ],
+      "slots": [
+        { "r": "t", "t": [1, 2], "f": "N", "l": "wall", "o": "toilet_tank" },
+        { "r": "t", "t": [2, 0], "f": "S", "l": "wall", "o": "bathroom_cabinet" },
+        { "r": "t", "t": [0, 0], "f": "E", "l": "wall", "o": null },
+        { "r": "t", "t": [3, 2], "f": "auto", "l": "floor", "o": null },
+        { "r": "st", "t": [0, 4], "sp": [1, 2], "f": "E", "l": "wall", "o": "mattress" },
+        { "r": "st", "t": [3, 9], "sp": [2, 1], "f": "N", "l": "wall", "o": "sofa" },
+        { "r": "st", "t": [4, 7], "f": "W", "l": "wall", "o": "fridge" },
+        { "r": "st", "t": [4, 8], "f": "W", "l": "wall", "o": "kitchen_cupboard" },
+        { "r": "st", "t": [4, 6], "f": "W", "l": "wall", "o": null },
+        { "r": "st", "t": [2, 5], "sp": [1, 2], "f": "auto", "l": "floor", "o": null }
+      ]
+    },
+    {
+      "id": "bp_laundry_01", "template": "laundry_room", "size": [6, 10], "slot": "small", "mirrorX": "free", "first": "ln",
+      "voids": [[4, 6, 2, 4]],
+      "rooms": [
+        { "ref": "ln", "type": "laundry", "rect": [0, 0, 6, 6] },
+        { "ref": "jn", "type": "janitor", "rect": [0, 6, 4, 4] }
+      ],
+      "frontDoor": { "tile": [2, 0], "side": "N" },
+      "doors": [ { "tile": [1, 5], "side": "S" } ],
+      "windows": [],
+      "slots": [
+        { "r": "ln", "t": [5, 1], "f": "W", "l": "wall", "o": "washing_machine" },
+        { "r": "ln", "t": [5, 3], "f": "W", "l": "wall", "o": "washing_machine" },
+        { "r": "ln", "t": [0, 2], "f": "E", "l": "wall", "o": null },
+        { "r": "ln", "t": [0, 4], "f": "E", "l": "wall", "o": null },
+        { "r": "ln", "t": [2, 3], "f": "auto", "l": "floor", "o": null },
+        { "r": "ln", "t": [3, 4], "f": "auto", "l": "floor", "o": null },
+        { "r": "jn", "t": [0, 9], "f": "N", "l": "corner", "o": "utility_shelf" },
+        { "r": "jn", "t": [3, 9], "f": "N", "l": "wall", "o": null },
+        { "r": "jn", "t": [2, 8], "f": "auto", "l": "floor", "o": null }
+      ]
+    },
+    {
+      "id": "bp_laundry_02", "template": "laundry_room", "size": [6, 10], "slot": "small", "mirrorX": "free", "first": "ln",
+      "voids": [[3, 0, 3, 5]],
+      "rooms": [
+        { "ref": "ln", "type": "laundry", "rect": [0, 0, 3, 10] },
+        { "ref": "jn", "type": "janitor", "rect": [3, 5, 3, 5] }
+      ],
+      "frontDoor": { "tile": [1, 0], "side": "N" },
+      "doors": [ { "tile": [2, 7], "side": "E" } ],
+      "windows": [],
+      "slots": [
+        { "r": "ln", "t": [0, 2], "f": "E", "l": "wall", "o": "washing_machine" },
+        { "r": "ln", "t": [2, 2], "f": "W", "l": "wall", "o": "washing_machine" },
+        { "r": "ln", "t": [0, 5], "f": "E", "l": "wall", "o": null },
+        { "r": "ln", "t": [0, 8], "f": "E", "l": "wall", "o": null },
+        { "r": "jn", "t": [3, 9], "f": "N", "l": "corner", "o": "utility_shelf" },
+        { "r": "jn", "t": [5, 9], "f": "N", "l": "wall", "o": null },
+        { "r": "jn", "t": [4, 6], "f": "auto", "l": "floor", "o": null }
+      ]
+    },
+    {
+      "id": "bp_storage_01", "template": "storage_utility", "size": [6, 10], "slot": "small", "mirrorX": "free", "first": "sr",
+      "voids": [],
+      "rooms": [
+        { "ref": "sr", "type": "storage", "rect": [0, 0, 6, 6] },
+        { "ref": "ut", "type": "utility", "rect": [0, 6, 6, 4] }
+      ],
+      "frontDoor": { "tile": [2, 0], "side": "N" },
+      "doors": [ { "tile": [4, 5], "side": "S" } ],
+      "windows": [],
+      "slots": [
+        { "r": "sr", "t": [0, 1], "sp": [1, 2], "f": "E", "l": "wall", "o": "storage_cage" },
+        { "r": "sr", "t": [0, 3], "sp": [1, 2], "f": "E", "l": "wall", "o": "storage_cage" },
+        { "r": "sr", "t": [5, 1], "sp": [1, 2], "f": "W", "l": "wall", "o": "storage_cage" },
+        { "r": "sr", "t": [5, 3], "sp": [1, 2], "f": "W", "l": "wall", "o": "storage_cage" },
+        { "r": "sr", "t": [3, 0], "f": "S", "l": "wall", "o": null },
+        { "r": "ut", "t": [0, 7], "f": "E", "l": "wall", "o": "water_heater" },
+        { "r": "ut", "t": [3, 9], "f": "N", "l": "wall", "o": null },
+        { "r": "ut", "t": [5, 8], "f": "W", "l": "wall", "o": null }
+      ]
+    },
+    {
+      "id": "bp_storage_02", "template": "storage_utility", "size": [6, 10], "slot": "small", "mirrorX": "free", "first": "sr",
+      "voids": [[0, 9, 4, 1]],
+      "rooms": [
+        { "ref": "sr", "type": "storage", "rect": [0, 0, 4, 9] },
+        { "ref": "ut", "type": "utility", "rect": [4, 0, 2, 10] }
+      ],
+      "frontDoor": { "tile": [1, 0], "side": "N" },
+      "doors": [ { "tile": [3, 4], "side": "E" } ],
+      "windows": [],
+      "slots": [
+        { "r": "sr", "t": [0, 1], "sp": [1, 2], "f": "E", "l": "wall", "o": "storage_cage" },
+        { "r": "sr", "t": [0, 4], "sp": [1, 2], "f": "E", "l": "wall", "o": "storage_cage" },
+        { "r": "sr", "t": [0, 7], "sp": [1, 2], "f": "E", "l": "wall", "o": "storage_cage" },
+        { "r": "sr", "t": [3, 1], "sp": [1, 2], "f": "W", "l": "wall", "o": "storage_cage" },
+        { "r": "sr", "t": [3, 6], "sp": [1, 2], "f": "W", "l": "wall", "o": "storage_cage" },
+        { "r": "sr", "t": [1, 8], "f": "N", "l": "wall", "o": null },
+        { "r": "ut", "t": [5, 0], "f": "S", "l": "corner", "o": "water_heater" },
+        { "r": "ut", "t": [5, 6], "f": "W", "l": "wall", "o": null },
+        { "r": "ut", "t": [5, 8], "f": "W", "l": "wall", "o": null }
+      ]
+    }
+  ],
+  "end": true
+}

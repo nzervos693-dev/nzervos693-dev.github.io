@@ -1,0 +1,367 @@
+{
+  "format": {
+    "version": 1,
+    "stage": "A",
+    "owner": "level-designer",
+    "summary": "Authored isometric floors (saved-layout format, GDD 5.15 / 11.3). Floor 15 is complete in Stage A; floors 13, 14, 16, 17 are TODO stubs with their intended unit lists for Stage B. All coordinates on this file are GLOBAL floor tiles (floor grid 30 x 22, section 5.3), unlike blueprints.json which is unit-local.",
+    "grid": "floor = {w:30, d:22}. Tile (x,y), x 0-29 along the corridor, y 0-21 across; +x = screen lower right, +y = screen lower left (GDD section 2). Tile (x,y) covers [x,x+1) x [y,y+1).",
+    "cells": "floor.rows = 22 strings (index = y) of 30 chars (index = x). Each char is a legend key. floor.legend maps a char to a roomId (or 'void'). Tile kinds: char '#' = VOID (not walkable, nothing drawn but wall faces); every other char = walkable FLOOR except stairs flights, which are STAIRS (listed in floor.stairwell). Several chars may map to the same roomId (the stairwell: 'N' landing, 'D' down flight, 'U' up flight are one room, so there is no wall between landing and flights).",
+    "walls": "Walls are DERIVED, not listed: a WALL exists on every tile edge whose two sides have different roomIds (a void or the outside of the 30x22 grid counts as different). A doorway/door/window listed in floor.edges REPLACES the wall on that edge (kind DOOR or WINDOW). Everything else on a wall edge is plain wall. The elevator door and fire-door doorway are listed edges too (floor.edges.doorways).",
+    "edges": "An edge entry = {id, x, y, side}: the edge of tile (x,y) on side N (toward -y, the edge at y), S (the edge at y+1), W (the edge at x), E (the edge at x+1). These are GRID sides, not screen compass. (x,y,E) and (x+1,y,W) are the same edge; entries use whichever tile is inside the unit. floor.edges.doors = {id, x, y, side, type:'front'|'interior', state:'open'|'closed'|'jammed', unit}. floor.edges.windows = {id, x, y, side, pane:true, curtains:bool} (every window carries a window_pane; pane=salvage 2 glass, becomes a window build spot when removed; curtains = a 'curtains' object on that edge). floor.edges.doorways = permanent openings without a door leaf ('fire_door_propped', 'elevator_door_dead').",
+    "facing": "Facings N/E/S/W are GRID directions: N = toward -y (grid angle 270), E = +x (0), S = +y (90), W = -x (180). They are not the screen compass; the iso renderer maps grid 0/90/180/270 to its own sprite directions. Zombie and hero facings use the same letters, plus NE/SE/SW/NW as grid diagonals (none used in Stage A).",
+    "rooms": "floor.rooms[roomId] = {type (templates room type), light: 'grey'|'dim'|'dark' (section 5.3 base light), unit}. roomId = f<floor><slot>.<ref name>.",
+    "objects": "unit.objects[] = {id, objectId (balance.objects id, or 'workbench' fixture), tile:[x,y] first (min x, min y) footprint tile in GLOBAL coords, span:[w,h] (default [1,1]; footprint after orientation), facing N|E|S|W, layer 'floor'|'wall'|'corner', plus optional: mounted:true (hangs on the wall edge opposite its facing, tile stays free), fixture:true (workbench: Use only), fixedLoot:[{id,qty}] (first search gives exactly these, no table rolls), rolls:[min,max] (table rolls from the object's loot table, GDD 5.5; omitted on a non-container), empty:true (container is searched-out: shows an empty line), foundNote:{id,text} (paper card shown on the first search)}. Containers with neither fixedLoot nor rolls use the 0-2 default rolls. Ids follow the GDD: f<floor><slot>-<x>.<y> with the unit-LOCAL tile after mirroring of the footprint origin (NE: x-18; SW: y-12; SE: x-18 and y-12; S: x-12 and y-12; NW: x,y).",
+    "zombies": "unit.zombies[] = {id, type:'crawler'|'walker', tile:[x,y], facing, room: roomId}. Fair-encounter rules (GDD 5.4) are enforced in the data: the first room behind a front door never holds a walker; no zombie within 2 tiles of a front door; walkers face away from where the hero enters; max 1 zombie per tile.",
+    "survivors": "unit.survivors[] = [] (none on floor 15; Mara is Stage B on floor 13).",
+    "scriptedSpawns": "floor.scriptedSpawns[] = {id, type, tile, facing, trigger}: spawned when the trigger fires. Floor 15: the tutorial crawler in the corridor just outside the start flat's front door, trigger 'tutorial_open_door' (tutorial is OFF in Stage A: do not spawn).",
+    "stairwell": "floor.stairwell = {downFlight:{tiles, landingEnd}, upFlight:{tiles, landingEnd}, elevatorShaft (void), landing, doorway (propped fire door), elevatorDoor, floorNumber (decor edge for the stencil), blocked:{up,down,thought}}. Tapping any flight tile walks to its landingEnd tile then climbs (section 5.3). Stage A: both flights blocked with the thought 'The stairs are blocked.'.",
+    "home": "floor.home = {unit, heroStart:{tile,facing}, bed (object id), workbench (object id), stash:{tile,slots}, frontDoor (door id), barricadeSpot:{x,y,side}}. unit.buildSpots = {floor:[{id,tile,requiresEmpty?}], window:[window edge ids that can take a window build once the pane is removed], barricade:{x,y,side}}. A floor spot with requiresEmpty is only usable after the object on that tile is dismantled.",
+    "units": "floor.units[] = {id (f<floor><slot>), slot, template, blueprint (blueprints.json id), mirror:[x,y], rect:[x,y,w,h] in global tiles, name, flavour, condition 'normal'|'ransacked'|'burned', home?:true, objects, zombies, survivors, buildSpots?}. Unit doors/windows are in floor.edges, tagged with unit.",
+    "stubs": "A floor with status 'TODO_stage_B' has only number, purpose, difficulty, expectedMinutes and planned[] (slot, template, name, condition, front door state, what it holds) taken from docs/LEVELS.md; Stage B turns it into the same structure as floor 15.",
+    "lightNotes": "Windowless dim rooms: hallway, bathroom, corridor middle, landing. The corridor's 3 end tiles on each side are Grey (grid.corridorWindowGreyTiles); the engine derives that from the corridor end windows."
+  },
+  "floors": [
+    {
+      "number": 15,
+      "status": "complete_stage_A",
+      "purpose": "Home floor and the gentlest floor in the tower. Teaches, in order of risk: your own flat (all tutorial salvage in one safe chain: fridge, chair and table, drawer, workbench, bed, front door), then the corridor and a closed door you must open (the Hollis flat, jammed front door: bash it, one slow crawler behind a closed kitchen door), then reading a room before crossing it (one walker in a living room, facing the wall, approachable from behind), then a dark service unit (laundry with one crawler). Food and water are guaranteed outside the start flat.",
+      "difficulty": 1,
+      "expectedMinutes": 3,
+      "grid": { "w": 30, "d": 22 },
+      "legend": {
+        "#": "void", "C": "f15.corridor", "N": "f15.stairwell", "D": "f15.stairwell", "U": "f15.stairwell",
+        "a": "f15NW.bedroom", "b": "f15NW.kitchen", "c": "f15NW.hallway", "d": "f15NW.living", "e": "f15NW.bathroom",
+        "f": "f15NE.bedroom", "g": "f15NE.kitchen", "h": "f15NE.kids_room", "i": "f15NE.living", "j": "f15NE.hallway", "k": "f15NE.bathroom",
+        "l": "f15SW.living", "m": "f15SW.bedroom", "n": "f15SW.kitchen", "o": "f15SW.hallway", "p": "f15SW.bathroom",
+        "q": "f15SE.kitchen", "r": "f15SE.bedroom", "s": "f15SE.living", "t": "f15SE.hallway", "u": "f15SE.bathroom",
+        "v": "f15S.laundry", "w": "f15S.janitor"
+      },
+      "rows": [
+        "aaaaaccddddd#######hhhggggffff",
+        "aaaaaccdddddDD##UU#hhhggggffff",
+        "aaaaaccdddddDD##UU#hhhggggffff",
+        "aaaaaccdddddDD##UU#hhhggggffff",
+        "aaaaaccdddddDD##UU#hhhggggffff",
+        "bbbbbccdddddDD##UU#kkkjjiiiiii",
+        "bbbbbccdddddNNNNNN#kkkjjiiiiii",
+        "bbbbbcceeeeeNNNNNN#kkkjjiiiiii",
+        "bbbbbcceeeeeNNNNNN#kkkjjiiiiii",
+        "bbbbbcceeeeeNNNNNN#kkkjjiiiiii",
+        "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+        "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+        "nnnnnnooppp#vvvvvv#uuuttssssss",
+        "nnnnnnooppp#vvvvvv#uuuttssssss",
+        "nnnnnnooppp#vvvvvv#uuuttssssss",
+        "nnnnnnooppp#vvvvvv#uuuttssssss",
+        "nnnnnnooppp#vvvvvv#uuuttssssss",
+        "llllllmmmmm#vvvvvv#rrrrrrqqqqq",
+        "llllllmmmmm#wwww###rrrrrrqqqqq",
+        "llllllmmmmm#wwww###rrrrrrqqqqq",
+        "llllllmmmmm#wwww###rrrrrrqqqqq",
+        "llllllmmmmm#wwww###rrrrrrqqqqq"
+      ],
+      "rooms": {
+        "f15.corridor": { "type": "corridor", "light": "dim", "unit": null },
+        "f15.stairwell": { "type": "stairwell", "light": "dim", "unit": null },
+        "f15NW.bedroom": { "type": "bedroom", "light": "grey", "unit": "f15NW" },
+        "f15NW.kitchen": { "type": "kitchen", "light": "grey", "unit": "f15NW" },
+        "f15NW.hallway": { "type": "hallway", "light": "dim", "unit": "f15NW" },
+        "f15NW.living": { "type": "living", "light": "grey", "unit": "f15NW" },
+        "f15NW.bathroom": { "type": "bathroom", "light": "dim", "unit": "f15NW" },
+        "f15NE.bedroom": { "type": "bedroom", "light": "grey", "unit": "f15NE" },
+        "f15NE.kitchen": { "type": "kitchen", "light": "grey", "unit": "f15NE" },
+        "f15NE.kids_room": { "type": "kids_room", "light": "grey", "unit": "f15NE" },
+        "f15NE.living": { "type": "living", "light": "grey", "unit": "f15NE" },
+        "f15NE.hallway": { "type": "hallway", "light": "dim", "unit": "f15NE" },
+        "f15NE.bathroom": { "type": "bathroom", "light": "dim", "unit": "f15NE" },
+        "f15SW.living": { "type": "living", "light": "grey", "unit": "f15SW" },
+        "f15SW.bedroom": { "type": "bedroom", "light": "grey", "unit": "f15SW" },
+        "f15SW.kitchen": { "type": "kitchen", "light": "grey", "unit": "f15SW" },
+        "f15SW.hallway": { "type": "hallway", "light": "dim", "unit": "f15SW" },
+        "f15SW.bathroom": { "type": "bathroom", "light": "dim", "unit": "f15SW" },
+        "f15SE.kitchen": { "type": "kitchen", "light": "grey", "unit": "f15SE" },
+        "f15SE.bedroom": { "type": "bedroom", "light": "grey", "unit": "f15SE" },
+        "f15SE.living": { "type": "living", "light": "grey", "unit": "f15SE" },
+        "f15SE.hallway": { "type": "hallway", "light": "dim", "unit": "f15SE" },
+        "f15SE.bathroom": { "type": "bathroom", "light": "dim", "unit": "f15SE" },
+        "f15S.laundry": { "type": "laundry", "light": "dark", "unit": "f15S" },
+        "f15S.janitor": { "type": "janitor", "light": "dark", "unit": "f15S" }
+      },
+      "edges": {
+        "doors": [
+          { "id": "f15NW-6.9.S", "x": 6, "y": 9, "side": "S", "type": "front", "state": "closed", "unit": "f15NW" },
+          { "id": "f15NW-2.4.S", "x": 2, "y": 4, "side": "S", "type": "interior", "state": "closed", "unit": "f15NW" },
+          { "id": "f15NW-4.7.E", "x": 4, "y": 7, "side": "E", "type": "interior", "state": "open", "unit": "f15NW" },
+          { "id": "f15NW-6.3.E", "x": 6, "y": 3, "side": "E", "type": "interior", "state": "open", "unit": "f15NW" },
+          { "id": "f15NW-6.8.E", "x": 6, "y": 8, "side": "E", "type": "interior", "state": "open", "unit": "f15NW" },
+          { "id": "f15NE-4.9.S", "x": 22, "y": 9, "side": "S", "type": "front", "state": "jammed", "unit": "f15NE" },
+          { "id": "f15NE-7.4.S", "x": 25, "y": 4, "side": "S", "type": "interior", "state": "open", "unit": "f15NE" },
+          { "id": "f15NE-5.4.S", "x": 23, "y": 4, "side": "S", "type": "interior", "state": "closed", "unit": "f15NE" },
+          { "id": "f15NE-4.2.W", "x": 22, "y": 2, "side": "W", "type": "interior", "state": "open", "unit": "f15NE" },
+          { "id": "f15NE-9.4.S", "x": 27, "y": 4, "side": "S", "type": "interior", "state": "closed", "unit": "f15NE" },
+          { "id": "f15NE-6.7.W", "x": 24, "y": 7, "side": "W", "type": "interior", "state": "open", "unit": "f15NE" },
+          { "id": "f15NE-4.7.W", "x": 22, "y": 7, "side": "W", "type": "interior", "state": "open", "unit": "f15NE" },
+          { "id": "f15SW-7.0.N", "x": 7, "y": 12, "side": "N", "type": "front", "state": "closed", "unit": "f15SW" },
+          { "id": "f15SW-2.5.N", "x": 2, "y": 17, "side": "N", "type": "interior", "state": "open", "unit": "f15SW" },
+          { "id": "f15SW-5.7.E", "x": 5, "y": 19, "side": "E", "type": "interior", "state": "open", "unit": "f15SW" },
+          { "id": "f15SW-5.2.E", "x": 5, "y": 14, "side": "E", "type": "interior", "state": "closed", "unit": "f15SW" },
+          { "id": "f15SW-6.5.N", "x": 6, "y": 17, "side": "N", "type": "interior", "state": "closed", "unit": "f15SW" },
+          { "id": "f15SW-7.2.E", "x": 7, "y": 14, "side": "E", "type": "interior", "state": "open", "unit": "f15SW" },
+          { "id": "f15SW-9.5.N", "x": 9, "y": 17, "side": "N", "type": "interior", "state": "open", "unit": "f15SW" },
+          { "id": "f15SE-4.0.N", "x": 22, "y": 12, "side": "N", "type": "front", "state": "closed", "unit": "f15SE" },
+          { "id": "f15SE-7.7.W", "x": 25, "y": 19, "side": "W", "type": "interior", "state": "open", "unit": "f15SE" },
+          { "id": "f15SE-9.5.N", "x": 27, "y": 17, "side": "N", "type": "interior", "state": "closed", "unit": "f15SE" },
+          { "id": "f15SE-6.2.W", "x": 24, "y": 14, "side": "W", "type": "interior", "state": "open", "unit": "f15SE" },
+          { "id": "f15SE-5.5.N", "x": 23, "y": 17, "side": "N", "type": "interior", "state": "closed", "unit": "f15SE" },
+          { "id": "f15SE-4.2.W", "x": 22, "y": 14, "side": "W", "type": "interior", "state": "open", "unit": "f15SE" },
+          { "id": "f15SE-2.5.N", "x": 20, "y": 17, "side": "N", "type": "interior", "state": "open", "unit": "f15SE" },
+          { "id": "f15S-2.0.N", "x": 14, "y": 12, "side": "N", "type": "front", "state": "closed", "unit": "f15S" },
+          { "id": "f15S-1.5.S", "x": 13, "y": 17, "side": "S", "type": "interior", "state": "closed", "unit": "f15S" }
+        ],
+        "windows": [
+          { "id": "f15C-0.10.W", "x": 0, "y": 10, "side": "W", "pane": true, "curtains": false },
+          { "id": "f15C-0.11.W", "x": 0, "y": 11, "side": "W", "pane": true, "curtains": false },
+          { "id": "f15C-29.10.E", "x": 29, "y": 10, "side": "E", "pane": true, "curtains": false },
+          { "id": "f15C-29.11.E", "x": 29, "y": 11, "side": "E", "pane": true, "curtains": false },
+          { "id": "f15NW-2.0.N", "x": 2, "y": 0, "side": "N", "pane": true, "curtains": true },
+          { "id": "f15NW-0.2.W", "x": 0, "y": 2, "side": "W", "pane": true, "curtains": false },
+          { "id": "f15NW-0.7.W", "x": 0, "y": 7, "side": "W", "pane": true, "curtains": false },
+          { "id": "f15NW-9.0.N", "x": 9, "y": 0, "side": "N", "pane": true, "curtains": true },
+          { "id": "f15NE-10.0.N", "x": 28, "y": 0, "side": "N", "pane": true, "curtains": true },
+          { "id": "f15NE-11.2.E", "x": 29, "y": 2, "side": "E", "pane": true, "curtains": false },
+          { "id": "f15NE-6.0.N", "x": 24, "y": 0, "side": "N", "pane": true, "curtains": false },
+          { "id": "f15NE-2.0.N", "x": 20, "y": 0, "side": "N", "pane": true, "curtains": true },
+          { "id": "f15NE-11.7.E", "x": 29, "y": 7, "side": "E", "pane": true, "curtains": true },
+          { "id": "f15SW-1.9.S", "x": 1, "y": 21, "side": "S", "pane": true, "curtains": false },
+          { "id": "f15SW-4.9.S", "x": 4, "y": 21, "side": "S", "pane": true, "curtains": true },
+          { "id": "f15SW-0.7.W", "x": 0, "y": 19, "side": "W", "pane": true, "curtains": false },
+          { "id": "f15SW-8.9.S", "x": 8, "y": 21, "side": "S", "pane": true, "curtains": true },
+          { "id": "f15SW-0.2.W", "x": 0, "y": 14, "side": "W", "pane": true, "curtains": false },
+          { "id": "f15SE-9.9.S", "x": 27, "y": 21, "side": "S", "pane": true, "curtains": false },
+          { "id": "f15SE-11.7.E", "x": 29, "y": 19, "side": "E", "pane": true, "curtains": true },
+          { "id": "f15SE-5.9.S", "x": 23, "y": 21, "side": "S", "pane": true, "curtains": true },
+          { "id": "f15SE-2.9.S", "x": 20, "y": 21, "side": "S", "pane": true, "curtains": false },
+          { "id": "f15SE-11.2.E", "x": 29, "y": 14, "side": "E", "pane": true, "curtains": false }
+        ],
+        "doorways": [
+          { "id": "f15-fire-door-a", "x": 14, "y": 9, "side": "S", "kind": "fire_door_propped" },
+          { "id": "f15-fire-door-b", "x": 15, "y": 9, "side": "S", "kind": "fire_door_propped" },
+          { "id": "f15-elevator-a", "x": 14, "y": 6, "side": "N", "kind": "elevator_door_dead" },
+          { "id": "f15-elevator-b", "x": 15, "y": 6, "side": "N", "kind": "elevator_door_dead" }
+        ]
+      },
+      "stairwell": {
+        "downFlight": { "tiles": [[12, 1], [13, 1], [12, 2], [13, 2], [12, 3], [13, 3], [12, 4], [13, 4], [12, 5], [13, 5]], "landingEnd": [[12, 5], [13, 5]] },
+        "upFlight": { "tiles": [[16, 1], [17, 1], [16, 2], [17, 2], [16, 3], [17, 3], [16, 4], [17, 4], [16, 5], [17, 5]], "landingEnd": [[16, 5], [17, 5]] },
+        "elevatorShaft": { "rect": [14, 0, 2, 6], "kind": "void" },
+        "landing": { "rect": [12, 6, 6, 4] },
+        "doorway": { "tiles": [[14, 9], [15, 9]], "side": "S", "kind": "fire_door_propped" },
+        "elevatorDoor": { "tiles": [[14, 6], [15, 6]], "side": "N", "kind": "dead" },
+        "floorNumber": { "text": "15", "x": 14, "y": 6, "side": "N", "note": "Stencil on the wall around the dead elevator door (the landing's north wall); art decides the exact spot, always visible, never cut." },
+        "blocked": { "up": true, "down": true, "thought": "The stairs are blocked.", "note": "Stage A. Stage B opens both flights on floor 15." }
+      },
+      "scriptedSpawns": [
+        { "id": "tutorial_crawler", "type": "crawler", "tile": [9, 10], "facing": "W", "trigger": "tutorial_open_door", "note": "Corridor tile 3 east of the tile in front of the start flat's front door (6,10). Spawns when the hero first opens that door; he is inside, so it drags itself along the corridor (0.3 tiles/s, about 10 s to reach him). Off in Stage A." }
+      ],
+      "home": {
+        "unit": "f15NW",
+        "heroStart": { "tile": [2, 2], "facing": "S" },
+        "bed": "f15NW-3.0",
+        "workbench": "f15NW-11.1",
+        "stash": { "tile": [5, 9], "slots": 40 },
+        "frontDoor": "f15NW-6.9.S",
+        "barricadeSpot": { "x": 6, "y": 9, "side": "S" }
+      },
+      "units": [
+        {
+          "id": "f15NW", "slot": "NW", "template": "your_flat", "blueprint": "bp_your_flat_01", "mirror": [false, false], "rect": [0, 0, 12, 10],
+          "name": "Your apartment", "flavour": "Pills on the nightstand, the radio muttering static. Something scratches at the door.", "condition": "normal", "home": true,
+          "objects": [
+            { "id": "f15NW-3.0", "objectId": "bed_frame", "tile": [3, 0], "span": [2, 2], "facing": "S", "layer": "wall" },
+            { "id": "f15NW-0.4", "objectId": "wardrobe", "tile": [0, 4], "facing": "E", "layer": "wall", "rolls": [0, 1] },
+            { "id": "f15NW-1.9", "objectId": "kitchen_drawer", "tile": [1, 9], "facing": "N", "layer": "wall", "fixedLoot": [ { "id": "metal", "qty": 2 } ], "foundNote": { "id": "hint_nails", "text": "A tin of nails." } },
+            { "id": "f15NW-2.9", "objectId": "kitchen_cupboard", "tile": [2, 9], "facing": "N", "layer": "wall", "fixedLoot": [ { "id": "chemicals", "qty": 1 } ] },
+            { "id": "f15NW-3.9", "objectId": "fridge", "tile": [3, 9], "facing": "N", "layer": "wall", "fixedLoot": [ { "id": "canned_food", "qty": 1 } ] },
+            { "id": "f15NW-5.0", "objectId": "potted_plant", "tile": [5, 0], "facing": "S", "layer": "floor" },
+            { "id": "f15NW-5.1", "objectId": "chair", "tile": [5, 1], "facing": "E", "layer": "wall" },
+            { "id": "f15NW-7.0", "objectId": "sofa", "tile": [7, 0], "span": [2, 1], "facing": "S", "layer": "wall" },
+            { "id": "f15NW-11.1", "objectId": "workbench", "tile": [11, 1], "span": [1, 2], "facing": "W", "layer": "wall", "fixture": true },
+            { "id": "f15NW-8.3", "objectId": "chair", "tile": [8, 3], "facing": "E", "layer": "floor" },
+            { "id": "f15NW-9.3", "objectId": "table", "tile": [9, 3], "span": [1, 2], "facing": "S", "layer": "floor" },
+            { "id": "f15NW-11.6", "objectId": "potted_plant", "tile": [11, 6], "facing": "W", "layer": "floor" },
+            { "id": "f15NW-10.9", "objectId": "toilet_tank", "tile": [10, 9], "facing": "N", "layer": "wall" },
+            { "id": "f15NW-11.9", "objectId": "sink_pipes", "tile": [11, 9], "facing": "N", "layer": "wall" },
+            { "id": "f15NW-9.7", "objectId": "bathroom_cabinet", "tile": [9, 7], "facing": "S", "layer": "wall", "mounted": true, "fixedLoot": [ { "id": "bandage", "qty": 1 } ] },
+            { "id": "f15NW-8.9", "objectId": "laundry_basket", "tile": [8, 9], "facing": "N", "layer": "floor", "rolls": [0, 1] }
+          ],
+          "zombies": [],
+          "survivors": [],
+          "buildSpots": {
+            "barricade": { "x": 6, "y": 9, "side": "S" },
+            "floor": [
+              { "id": "f15NW-spot-1", "tile": [9, 6] },
+              { "id": "f15NW-spot-2", "tile": [10, 4] },
+              { "id": "f15NW-spot-3", "tile": [7, 5] },
+              { "id": "f15NW-spot-4", "tile": [3, 6] },
+              { "id": "f15NW-spot-5", "tile": [2, 7] },
+              { "id": "f15NW-spot-6", "tile": [1, 3] },
+              { "id": "f15NW-spot-7", "tile": [8, 3], "requiresEmpty": true },
+              { "id": "f15NW-spot-8", "tile": [9, 3], "requiresEmpty": true }
+            ],
+            "window": [ "f15NW-2.0.N", "f15NW-0.2.W", "f15NW-0.7.W", "f15NW-9.0.N" ]
+          }
+        },
+        {
+          "id": "f15NE", "slot": "NE", "template": "family_flat", "blueprint": "bp_family_01", "mirror": [true, false], "rect": [18, 0, 12, 10],
+          "name": "Hollis flat", "flavour": "Toys lined up by the door, as if someone was coming back.", "condition": "normal",
+          "objects": [
+            { "id": "f15NE-8.0", "objectId": "bed_frame", "tile": [26, 0], "span": [2, 2], "facing": "S", "layer": "wall" },
+            { "id": "f15NE-11.4", "objectId": "wardrobe", "tile": [29, 4], "facing": "W", "layer": "wall", "foundNote": { "id": "note_dad", "text": "Don't let them in. Even if it's Dad." } },
+            { "id": "f15NE-8.3", "objectId": "chair", "tile": [26, 3], "facing": "W", "layer": "floor" },
+            { "id": "f15NE-4.0", "objectId": "fridge", "tile": [22, 0], "facing": "S", "layer": "corner", "rolls": [0, 1] },
+            { "id": "f15NE-5.0", "objectId": "kitchen_cupboard", "tile": [23, 0], "facing": "S", "layer": "wall", "fixedLoot": [ { "id": "dry_snack", "qty": 1 } ] },
+            { "id": "f15NE-7.0", "objectId": "kitchen_drawer", "tile": [25, 0], "facing": "S", "layer": "wall", "rolls": [0, 1] },
+            { "id": "f15NE-6.2", "objectId": "table", "tile": [24, 2], "span": [1, 2], "facing": "S", "layer": "floor" },
+            { "id": "f15NE-5.3", "objectId": "chair", "tile": [23, 3], "facing": "E", "layer": "floor" },
+            { "id": "f15NE-1.0", "objectId": "toy_box", "tile": [19, 0], "facing": "S", "layer": "corner", "rolls": [0, 1] },
+            { "id": "f15NE-1.2", "objectId": "mattress", "tile": [19, 2], "span": [1, 2], "facing": "E", "layer": "wall" },
+            { "id": "f15NE-9.9", "objectId": "sofa", "tile": [27, 9], "span": [2, 1], "facing": "N", "layer": "wall" },
+            { "id": "f15NE-7.9", "objectId": "tv", "tile": [25, 9], "facing": "N", "layer": "wall" },
+            { "id": "f15NE-8.6", "objectId": "table", "tile": [26, 6], "span": [1, 2], "facing": "S", "layer": "floor" },
+            { "id": "f15NE-11.5", "objectId": "potted_plant", "tile": [29, 5], "facing": "W", "layer": "floor" },
+            { "id": "f15NE-5.6", "objectId": "chair", "tile": [23, 6], "facing": "W", "layer": "wall" },
+            { "id": "f15NE-5.9", "objectId": "potted_plant", "tile": [23, 9], "facing": "N", "layer": "floor" },
+            { "id": "f15NE-4.5", "objectId": "oil_lamp", "tile": [22, 5], "facing": "S", "layer": "wall" },
+            { "id": "f15NE-1.9", "objectId": "toilet_tank", "tile": [19, 9], "facing": "N", "layer": "wall" },
+            { "id": "f15NE-2.5", "objectId": "bathroom_cabinet", "tile": [20, 5], "facing": "S", "layer": "wall", "mounted": true, "rolls": [0, 1] },
+            { "id": "f15NE-1.6", "objectId": "sink_pipes", "tile": [19, 6], "facing": "E", "layer": "wall" },
+            { "id": "f15NE-3.9", "objectId": "laundry_basket", "tile": [21, 9], "facing": "N", "layer": "floor" }
+          ],
+          "zombies": [
+            { "id": "f15NE-z1", "type": "crawler", "tile": [25, 2], "facing": "N", "room": "f15NE.kitchen" }
+          ],
+          "survivors": []
+        },
+        {
+          "id": "f15SW", "slot": "SW", "template": "couple_flat", "blueprint": "bp_couple_02", "mirror": [false, true], "rect": [0, 12, 12, 10],
+          "name": "Marlow flat", "flavour": "The TV is still on standby. Nobody's watched it in a week.", "condition": "normal",
+          "objects": [
+            { "id": "f15SW-0.8", "objectId": "sofa", "tile": [0, 20], "span": [1, 2], "facing": "E", "layer": "wall" },
+            { "id": "f15SW-5.9", "objectId": "tv", "tile": [5, 21], "facing": "W", "layer": "wall" },
+            { "id": "f15SW-2.6", "objectId": "table", "tile": [2, 18], "span": [1, 2], "facing": "S", "layer": "floor" },
+            { "id": "f15SW-3.6", "objectId": "chair", "tile": [3, 18], "facing": "W", "layer": "floor" },
+            { "id": "f15SW-9.8", "objectId": "bed_frame", "tile": [9, 20], "span": [2, 2], "facing": "N", "layer": "wall" },
+            { "id": "f15SW-10.6", "objectId": "wardrobe", "tile": [10, 18], "facing": "W", "layer": "wall", "rolls": [0, 1] },
+            { "id": "f15SW-7.6", "objectId": "chair", "tile": [7, 18], "facing": "S", "layer": "floor" },
+            { "id": "f15SW-0.0", "objectId": "fridge", "tile": [0, 12], "facing": "S", "layer": "corner", "rolls": [0, 1] },
+            { "id": "f15SW-1.0", "objectId": "kitchen_cupboard", "tile": [1, 12], "facing": "S", "layer": "wall", "rolls": [0, 2] },
+            { "id": "f15SW-2.0", "objectId": "kitchen_drawer", "tile": [2, 12], "facing": "S", "layer": "wall", "rolls": [0, 1] },
+            { "id": "f15SW-3.0", "objectId": "microwave", "tile": [3, 12], "facing": "S", "layer": "wall" },
+            { "id": "f15SW-3.2", "objectId": "table", "tile": [3, 14], "span": [1, 2], "facing": "S", "layer": "floor" },
+            { "id": "f15SW-6.0", "objectId": "potted_plant", "tile": [6, 12], "facing": "S", "layer": "floor" },
+            { "id": "f15SW-6.3", "objectId": "chair", "tile": [6, 15], "facing": "E", "layer": "wall" },
+            { "id": "f15SW-10.0", "objectId": "toilet_tank", "tile": [10, 12], "facing": "S", "layer": "wall" },
+            { "id": "f15SW-9.0", "objectId": "bathroom_cabinet", "tile": [9, 12], "facing": "S", "layer": "wall", "mounted": true, "rolls": [0, 1] },
+            { "id": "f15SW-10.2", "objectId": "sink_pipes", "tile": [10, 14], "facing": "W", "layer": "wall" },
+            { "id": "f15SW-8.0", "objectId": "laundry_basket", "tile": [8, 12], "facing": "S", "layer": "floor" }
+          ],
+          "zombies": [
+            { "id": "f15SW-z1", "type": "walker", "tile": [3, 20], "facing": "S", "room": "f15SW.living" }
+          ],
+          "survivors": []
+        },
+        {
+          "id": "f15SE", "slot": "SE", "template": "elderly_flat", "blueprint": "bp_elderly_01", "mirror": [true, true], "rect": [18, 12, 12, 10],
+          "name": "Kowalski flat", "flavour": "A pill organiser with the days of the week. Thursday is still full.", "condition": "normal",
+          "objects": [
+            { "id": "f15SE-11.9", "objectId": "fridge", "tile": [29, 21], "facing": "N", "layer": "corner", "rolls": [0, 1] },
+            { "id": "f15SE-10.9", "objectId": "kitchen_cupboard", "tile": [28, 21], "facing": "N", "layer": "wall", "rolls": [1, 2] },
+            { "id": "f15SE-8.9", "objectId": "kitchen_drawer", "tile": [26, 21], "facing": "N", "layer": "wall", "rolls": [0, 1], "foundNote": { "id": "note_tins", "text": "If you're reading this, take the tins. We won't be needing them." } },
+            { "id": "f15SE-9.6", "objectId": "table", "tile": [27, 18], "span": [1, 2], "facing": "S", "layer": "floor" },
+            { "id": "f15SE-8.6", "objectId": "chair", "tile": [26, 18], "facing": "E", "layer": "floor" },
+            { "id": "f15SE-3.8", "objectId": "bed_frame", "tile": [21, 20], "span": [2, 2], "facing": "N", "layer": "wall" },
+            { "id": "f15SE-1.6", "objectId": "wardrobe", "tile": [19, 18], "facing": "E", "layer": "wall", "rolls": [0, 1] },
+            { "id": "f15SE-5.6", "objectId": "chair", "tile": [23, 18], "facing": "S", "layer": "floor" },
+            { "id": "f15SE-9.0", "objectId": "sofa", "tile": [27, 12], "span": [2, 1], "facing": "S", "layer": "wall" },
+            { "id": "f15SE-7.0", "objectId": "tv", "tile": [25, 12], "facing": "S", "layer": "wall" },
+            { "id": "f15SE-8.2", "objectId": "table", "tile": [26, 14], "span": [1, 2], "facing": "S", "layer": "floor" },
+            { "id": "f15SE-11.4", "objectId": "potted_plant", "tile": [29, 16], "facing": "W", "layer": "floor" },
+            { "id": "f15SE-5.3", "objectId": "chair", "tile": [23, 15], "facing": "W", "layer": "wall" },
+            { "id": "f15SE-5.0", "objectId": "potted_plant", "tile": [23, 12], "facing": "S", "layer": "floor" },
+            { "id": "f15SE-4.4", "objectId": "oil_lamp", "tile": [22, 16], "facing": "N", "layer": "wall" },
+            { "id": "f15SE-1.0", "objectId": "toilet_tank", "tile": [19, 12], "facing": "S", "layer": "wall" },
+            { "id": "f15SE-2.0", "objectId": "medicine_cabinet", "tile": [20, 12], "facing": "S", "layer": "wall", "mounted": true, "rolls": [0, 1] },
+            { "id": "f15SE-1.2", "objectId": "sink_pipes", "tile": [19, 14], "facing": "E", "layer": "wall" },
+            { "id": "f15SE-3.0", "objectId": "laundry_basket", "tile": [21, 12], "facing": "S", "layer": "floor" }
+          ],
+          "zombies": [],
+          "survivors": []
+        },
+        {
+          "id": "f15S", "slot": "S", "template": "laundry_room", "blueprint": "bp_laundry_01", "mirror": [false, false], "rect": [12, 12, 6, 10],
+          "name": "The building's laundry", "flavour": "Warm lint smell. The last cycle never finished.", "condition": "normal",
+          "objects": [
+            { "id": "f15S-5.1", "objectId": "washing_machine", "tile": [17, 13], "facing": "W", "layer": "wall", "rolls": [0, 1] },
+            { "id": "f15S-5.3", "objectId": "washing_machine", "tile": [17, 15], "facing": "W", "layer": "wall", "rolls": [0, 1] },
+            { "id": "f15S-0.2", "objectId": "utility_shelf", "tile": [12, 14], "facing": "E", "layer": "wall", "rolls": [0, 1] },
+            { "id": "f15S-0.4", "objectId": "utility_shelf", "tile": [12, 16], "facing": "E", "layer": "wall", "rolls": [0, 1] },
+            { "id": "f15S-2.3", "objectId": "laundry_basket", "tile": [14, 15], "facing": "N", "layer": "floor", "rolls": [0, 1] },
+            { "id": "f15S-3.4", "objectId": "laundry_basket", "tile": [15, 16], "facing": "N", "layer": "floor" },
+            { "id": "f15S-0.9", "objectId": "utility_shelf", "tile": [12, 21], "facing": "N", "layer": "corner", "rolls": [0, 1] },
+            { "id": "f15S-3.9", "objectId": "toolbox", "tile": [15, 21], "facing": "N", "layer": "wall", "rolls": [0, 1] },
+            { "id": "f15S-2.8", "objectId": "laundry_basket", "tile": [14, 20], "facing": "N", "layer": "floor" }
+          ],
+          "zombies": [
+            { "id": "f15S-z1", "type": "crawler", "tile": [16, 16], "facing": "S", "room": "f15S.laundry" }
+          ],
+          "survivors": []
+        }
+      ]
+    },
+    {
+      "number": 13, "status": "TODO_stage_B", "difficulty": 5, "expectedMinutes": 4,
+      "purpose": "Mara's floor, hardest with 17. Teaches reading a room before crossing it: a walker pair, a crawler beside a jammed bathroom door, and a ransacked office as a risky second wing. Stairs down are rubble (Stage B).",
+      "planned": [
+        { "slot": "NW", "template": "couple_flat", "name": "Mara's flat", "condition": "normal", "frontDoor": "jammed", "holds": "walker pair in the living room (face away from the front door, at least 3 tiles from the entrance doorway), crawler beside Mara's bathroom, jammed bathroom interior door, Mara in the bathroom, food guarantee, toilet tank, medicine_cabinet with note_mara_bag" },
+        { "slot": "NE", "template": "office", "name": "Hartley Insurance", "condition": "ransacked", "frontDoor": "open", "holds": "2 walkers, 1 crawler, empty desks, notes note_back_five" },
+        { "slot": "SW", "template": "TBD flat", "name": "TBD", "condition": "TBD", "frontDoor": "TBD", "holds": "fill with generator-style flat for Stage B (at least 2 flats per floor)" },
+        { "slot": "SE", "template": "TBD", "name": "TBD", "condition": "TBD", "frontDoor": "TBD", "holds": "TBD" },
+        { "slot": "S", "template": "studio", "name": "TBD", "condition": "TBD", "frontDoor": "TBD", "holds": "TBD" }
+      ]
+    },
+    {
+      "number": 14, "status": "TODO_stage_B", "difficulty": 3, "expectedMinutes": 3,
+      "purpose": "Easy floor with the medical bag and the first clean water. Teaches wardrobes (crowbar), kids' rooms and a ransacked flat where only the quest wardrobe is full.",
+      "planned": [
+        { "slot": "NW", "template": "family_flat", "name": "Novak flat", "condition": "ransacked", "frontDoor": "open", "holds": "wardrobe with fixedLoot medical_bag in the bedroom, 1 walker in the living room, 1 crawler in the kids room, note_rice" },
+        { "slot": "S", "template": "studio", "name": "Studio", "condition": "normal", "frontDoor": "open", "holds": "fridge fixedLoot water_bottle (clean water guarantee), kitchen cupboard fixedLoot canned_food (food guarantee), note_water" },
+        { "slot": "SE", "template": "laundry_room", "name": "The laundry", "condition": "normal", "frontDoor": "open", "holds": "1 crawler, washing machines" },
+        { "slot": "NE", "template": "TBD", "name": "TBD", "condition": "TBD", "frontDoor": "TBD", "holds": "TBD" },
+        { "slot": "SW", "template": "TBD", "name": "TBD", "condition": "TBD", "frontDoor": "TBD", "holds": "TBD" }
+      ]
+    },
+    {
+      "number": 16, "status": "TODO_stage_B", "difficulty": 3, "expectedMinutes": 3,
+      "purpose": "Easy breather with the second clean water. Teaches reading condition: the Berg flat is full of tins, the Costa flat is burned and mostly empty.",
+      "planned": [
+        { "slot": "NW", "template": "elderly_flat", "name": "Berg flat", "condition": "normal", "frontDoor": "open", "holds": "fridge fixedLoot water_bottle, cupboard fixedLoot canned_food, 1 walker in the living room, 1 crawler in the bedroom, notes note_tins, note_chalk" },
+        { "slot": "NE", "template": "couple_flat", "name": "Costa flat", "condition": "burned", "frontDoor": "jammed", "holds": "charred_debris, empty containers, 1 walker in the kitchen, one wardrobe spared by the fire" },
+        { "slot": "SW", "template": "TBD", "name": "TBD", "condition": "TBD", "frontDoor": "TBD", "holds": "TBD" },
+        { "slot": "SE", "template": "TBD", "name": "TBD", "condition": "TBD", "frontDoor": "TBD", "holds": "TBD" },
+        { "slot": "S", "template": "TBD", "name": "TBD", "condition": "TBD", "frontDoor": "TBD", "holds": "TBD" }
+      ]
+    },
+    {
+      "number": 17, "status": "TODO_stage_B", "difficulty": 6, "expectedMinutes": 4,
+      "purpose": "Top of the stage and hardest with 13. Combines everything: a shared flat with a walker pair behind a bedroom door and crawlers either side, and a storage level whose padlocked cages teach the crowbar goal. Stairs up are rubble (Stage B).",
+      "planned": [
+        { "slot": "NW", "template": "shared_flat", "name": "Okafor flat", "condition": "normal", "frontDoor": "open", "holds": "crawler in the kitchen, walker pair in the middle bedroom, kitchen cupboard fixedLoot dry_snack, note_radio, note_floor17" },
+        { "slot": "S", "template": "storage_utility", "name": "Basement storage", "condition": "normal", "frontDoor": "open", "holds": "padlocked storage cages (crowbar), 1 walker in storage, 1 crawler in the utility room, water heater" },
+        { "slot": "NE", "template": "TBD", "name": "TBD", "condition": "TBD", "frontDoor": "TBD", "holds": "TBD" },
+        { "slot": "SW", "template": "TBD", "name": "TBD", "condition": "TBD", "frontDoor": "TBD", "holds": "TBD" },
+        { "slot": "SE", "template": "TBD", "name": "TBD", "condition": "TBD", "frontDoor": "TBD", "holds": "TBD" }
+      ]
+    }
+  ],
+  "end": true
+}
