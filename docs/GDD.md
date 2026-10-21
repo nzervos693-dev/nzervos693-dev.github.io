@@ -85,7 +85,7 @@ building already holds.
 3. **Scavenge and salvage**: go to another floor, fight zombies by tapping
    them, search containers, drain water tanks and pipes, and dismantle
    furniture, doors and appliances into materials. Choose what to carry home
-   (8 slots) and how much noise to risk.
+   (10 slots) and how much noise to risk.
 4. **Craft**: at the home workbench turn materials into weapons, tools,
    barricades, food and water production, medicine, light and power, gear
    and comfort. Better tools open up bigger objects to dismantle, feeding
@@ -182,7 +182,7 @@ Each need is 0-100. Drain is per real hour.
   online and offline.
 - Item restore values live in `consumables.<id>` (food/water/health/morale)
   and `water.dirty` / `water.clean`. **Chocolate**: +10 morale, +5 food.
-- **Regen** +2 health/h (`needs.health.regen`) while food, water > 50
+- **Regen** +4 health/h (`needs.health.regen`) while food, water > 50
   (`needs.health.regenMinFoodWater`), energy > 20
   (`needs.health.regenMinEnergy`) and not Sick. Each empty need costs
   **5 health/h** (`needs.emptyNeedDamage`).
@@ -301,7 +301,7 @@ on the item, `consumables.<id>.morale`), Hot stew
 
 | Zombie | HP | Speed px/s | Damage | Attack interval s | Milestone |
 |---|---|---|---|---|---|
-| Crawler | 15 | 25 | 5 | 1.5 | M1 |
+| Crawler | 15 | 25 | 4 | 2.0 | M1 |
 | Walker | 30 | 40 | 8 | 1.5 | M1 |
 | Runner | 20 | 110 | 6 | 1.0 | M2 |
 | Brute | 120 | 25 | 20 | 2.0 | M3 |
@@ -317,7 +317,7 @@ on the item, `consumables.<id>.morale`), Hot stew
   (`scavenge.searchSeconds`) with a progress ring, costs **1 energy**
   (`scavenge.searchEnergy`); a zombie seeing or biting the hero, or fire,
   interrupts it (noise-only alerts do not, 5.4).
-- Hero carries **8 slots** (`inventory.carrySlots`). Items stack to **10**
+- Hero carries **10 slots** (`inventory.carrySlots`). Items stack to **10**
   (`inventory.itemStack`); materials stack to **20**
   (`inventory.materialStack`); weapons and tools never stack (1 per slot,
   `inventory.toolStack`). Tools, throwables and the flashlight use carry
@@ -469,7 +469,7 @@ collected; WB = workbench level needed):
 | Power | Generator | 6 metal + 4 parts + 2 wire | +3 power, 1 fuel per 4 h (5.10); floor spot | 2 | M3 |
 | Power | Solar panel | 4 glass + 3 parts + 2 wire + 1 metal | +1 power; window spot | 2 | M3 |
 | Light | String lights | 2 wire + 1 glass + 1 parts | 1 power; lights the apartment; wall (no spot) | 2 | M3 |
-| Defense | Barricade Lv1 / Lv2 / Lv3 | 5 wood + 2 metal / 10 wood + 5 metal + 2 tape / 15 metal + 4 parts + 4 tape | Home stairwell, HP 100 / 250 / 500, defense +10 / +25 / +50 | 1 / 1 / 2 | M1 / M1 / M3 |
+| Defense | Barricade Lv1 / Lv2 / Lv3 | 5 wood + 2 metal / 10 wood + 5 metal + 2 tape / 15 metal + 4 parts + 4 tape | Home stairwell, HP 120 / 250 / 500, defense +10 / +25 / +50 | 1 / 1 / 2 | M1 / M1 / M3 |
 | Defense | Repair | 1 wood per 20 HP | Restores barricade HP | 1 | M1 |
 | Defense | Secure floor | 8 wood + 4 metal | Cleared floor -> Secured; defense +5 each | 1 | M1 |
 | Defense | Nail board | 3 wood + 2 metal | In front of the home barricade (5.8) | 1 | M3 |
@@ -535,7 +535,7 @@ home stairwell, max 1 each. From M2, each Secured floor adds **2 window + 2
 floor** spots (`home.securedFloorSpots`); placeables there work like home
 ones, but comfort and light count only at home (5.3).
 
-**Storage pressure**: a fully dismantled apartment rarely fits in 8 carry
+**Storage pressure**: a fully dismantled apartment rarely fits in 10 carry
 slots, so the player chooses what to carry, what to leave as a pile, and
 when to return. Offline production with a full stockpile is lost (reported).
 
@@ -549,6 +549,30 @@ when to return. Offline production with a full stockpile is lost (reported).
   morale -5 (`survivors.missedUpkeepHealth`, `survivors.missedUpkeepMorale`).
   Named survivors live in `survivors.roster.<id>`; a survivor's trait lives
   in `survivors.roster.<id>.trait`.
+- **Survivor healing** (M1). Survivors have no food, water or energy bars,
+  so a met upkeep takes the place of the hero's food/water/energy checks:
+  - **Regen**: a recruited survivor who is not the active character and is
+    at home regains **+4 health/h** (`survivors.healthRegenPerHour`, same
+    rate as `needs.health.regen`; 10 -> 100 in ~23 h), online and offline, up to 100
+    (`needs.max`). This only happens while their **last upkeep was met**
+    (1 food + 1 water both taken at the last 12 h upkeep). A missed upkeep
+    stops regen until the next upkeep is met. Brand-new recruits count as
+    met until their first upkeep. From M2 the hero's other limits also
+    apply: no regen while Sick or in Fever/Turning (5.2, 5.14); Medic x2.
+  - **Treat**: on the Survivors (Crew) screen, while the hero is at home,
+    each survivor row below 100 health has a 96 px **Treat** button. It
+    opens a list of the medicine items (`survivors.treatItems`: bandage,
+    medkit) in the carried inventory and stockpile (carried first). Tapping
+    one uses 1 instantly with the same heal as on the hero: bandage +15
+    (**+22** with Steady hands, which also applies when Mara is treated),
+    medkit +40, capped at 100. The button is greyed "Full health" at 100
+    and "No medicine" if none is available. Not available while the hero is
+    away from home.
+  - Offline auto-use never spends medicine on survivors; healing a survivor
+    with items is always the player's choice.
+  - When a survivor becomes the active character (pass the torch), they
+    keep their current health and switch to the hero's need rules (5.2);
+    their food, water and energy start at the `needs.<need>.start` values.
 - **Mara's trait, Steady hands** (M1): while Mara is recruited and alive
   (and, from M2, not Turned), **every bandage used heals x1.5**
   (`survivors.roster.mara.trait.bandageHealMult`): 15 -> **22** health
@@ -569,7 +593,9 @@ when to return. Offline production with a full stockpile is lost (reported).
   - **Guard** (M1): +15 defense (`survivors.guardDefense`).
   - **Scavenger** (M1): offline only, 1 loot roll from a cleared floor every
     2 h (`survivors.scavengeIntervalHours`); from M2, 50% of rolls are a
-    material stack of 2-4 instead.
+    material stack of 2-4 instead. While the app is open the job does
+    nothing (no online scavenging in M1); the timer runs only during
+    offline catch-up steps.
   - **Tender** (M1): rain collector, filter, planter and herb box output
     +50% (`survivors.tenderOutputMult` 1.5: their `intervalHours` are
     divided by 1.5).
@@ -581,15 +607,34 @@ when to return. Offline production with a full stockpile is lost (reported).
     barricade by 20 HP per hour using 1 stockpile wood each.
 - **Pass the torch**: when the active character dies, the player picks a
   living survivor to continue as; the dead character's carried items and
-  equipped gear drop as a bag at the death spot. No survivors left = game
-  over.
+  equipped gear drop as a bag at the death spot. The bag is a tappable pile
+  (same rules as a material pile, 5.5: never despawns, saved, picked up
+  item by item into free carry slots). No survivors left = game over.
+- **Mara's hand-over** (M1): tap Mara while carrying the Medical bag ->
+  *Use* hands it over. She joins only if both hold:
+  - a **free Survivor bed** exists at home; else she says "I need a bed
+    first." and the bag stays with the hero;
+  - the hero's morale is **25 or more** (`survivors.joinMinMorale`, same as
+    `needs.morale.lowThreshold`); below that she refuses ("You look worse
+    than me. Come back when you've rested.") and the bag stays.
+  On success the bag leaves the inventory, she moves into the free bed, and
+  quest done +10 and survivor recruited +15 morale apply.
 
 ### 5.8 Attacks
 - Scheduled every **8 h +/- 2 h** (`attacks.intervalHours`,
   `attacks.jitterHours`). First attack is scripted, **10 min** after the
-  tutorial ends (`attacks.firstAttackDelayMinutes`): fixed strength **20**,
-  1 crawler + 1 walker (`attacks.scripted`), so a Lv1 barricade plus the
-  active character (D = 20) repels it even offline. No scheduled attack
+  tutorial ends (`attacks.firstAttackDelayMinutes`): fixed strength **15**,
+  **2 crawlers** (`attacks.scripted`), so a Lv1 barricade plus the active
+  character (D = 20) repels it offline with a margin of 5 (barricade loses
+  7.5 HP). It is the teaching fight and must be winnable with fists:
+  - Online, each crawler hits the barricade for 4 every 2.0 s (2 HP/s);
+    both together 4 HP/s, so a 120 HP Lv1 barricade lasts **30 s** even if
+    the player never taps. Fists kill a crawler in 3 hits (1.2 s at full
+    cooldown speed, ~3 s with slow tapping), so a normal fight costs the
+    barricade about 10-30 HP and no breach.
+  - Test: fists only, 1 tap per second, hero at the barricade from the
+    first arrival -> barricade ends at or above 80 HP, +5 morale.
+  No scheduled attack
   can happen before the scripted one is resolved; the first scheduled
   attack is set 8 h +/- 2 h after it ends. In M1 scheduled attacks are all walkers
   (`attacks.scheduledZombieType`). Days survived = whole 24 h periods since
@@ -599,7 +644,9 @@ when to return. Offline production with a full stockpile is lost (reported).
   a generator is running (`power.generatorAttackMult`); x**1.2** if it
   starts at night (`night.attackMult`, 5.12). Multipliers stack after the cap.
   First-night fairness: on day 0, Lv1 barricade + active character + one
-  Secured floor (D = 25) holds A = 25. The intended next steps are
+  Secured floor (D = 25) holds A = 25 (rechecked after the M1 balance
+  pass: defense values are unchanged; Lv1 only gained HP, so the repel
+  leaves it at 120 - 12.5 = 107.5 HP). The intended next steps are
   Barricade Lv2 or Mara as Guard, which keep pace for several days.
 - **Online (telegraphed)**: 60 s warning (`attacks.warningSeconds`; 90 s with
   Tripwire chimes, `traps.chimeWarningSeconds`; +30 s if the dog is home,
@@ -608,6 +655,28 @@ when to return. Offline production with a full stockpile is lost (reported).
   (`attacks.strengthPerZombie`) zombies climb to the
   home floor and hit the barricade; the player fights until all are dead. A
   fallen barricade lets them into the apartment.
+- **Scripted first attack timing**: its timer starts when the tutorial ends;
+  **skipping the tutorial counts as ending it**. The 60 s warning starts at
+  9:00 so the first attacker arrives at 10:00
+  (`attacks.firstAttackDelayMinutes`).
+- **Online attack details** (`attacks.tuning`):
+  - Attackers arrive **one at a time**, **3 s** apart
+    (`attacks.tuning.spawnGapSeconds`), appearing on the home stairwell
+    landing at a random x offset of **16-70 px** from the barricade
+    (`attacks.tuning.arrivalXRange`).
+  - During the warning and the attack, corridor lights flicker in dips of
+    **0.09 s** (`attacks.tuning.flickerSeconds`).
+  - Attackers keep hitting the barricade while the hero is on any floor.
+    They only bite the active character when the hero is on floor 15.
+  - **Repelled online** (all attackers dead): +5 morale only if the
+    barricade never reached 0 HP during that attack; otherwise no bonus
+    (the breach -10 latch still applies, 5.2).
+  - **App hidden mid-attack**: the attack is not abandoned (exception to
+    5.1). On return, the attackers still alive are settled as an offline
+    attack (rules below) with A = remaining attackers x 10
+    (`attacks.strengthPerZombie`), current barricade HP, and no new
+    night/generator multipliers. It is resolved first in catch-up and
+    counts toward `attacks.maxOfflineResolves`.
 - **Traps online**: Nail board deals **10** damage to each zombie when it
   first reaches the barricade (`traps.nailDamage`), breaks after **10**
   zombies (`traps.nailUses`). A powered Electric fence deals **5** damage to
@@ -950,6 +1019,35 @@ disguises, amputation.
 - **Mara's trait**: **Steady hands**, bandages heal +50% while she is
   recruited and alive; active in M1 (5.7).
 
+### Decided (Producer approved, M1; Creative Director may revisit at playtest)
+- Scavenger job works only during offline catch-up; no online scavenging
+  in M1 (5.7).
+- Scripted first attack arrives 10 min after the tutorial ends (skipping
+  counts as ending), with the 60 s warning before it (5.8).
+- Attackers arrive one at a time and keep hitting the barricade while the
+  hero is on another floor; they only bite on floor 15 (5.8).
+- Online repel gives +5 morale only if the barricade never broke during
+  that attack (5.8).
+- Hiding the app mid-attack settles the remaining attackers offline on
+  return (5.8).
+- Mara's hand-over: tap her while carrying the bag; joins only with a free
+  Survivor bed; refuses below 25 morale (5.7).
+- Pass the torch drops the dead character's bag as a pile at the death
+  spot (5.7).
+- Survivor healing: +4 health/h at home while upkeep is met (raised from
+  +2 in the M1 early-game balance pass); Treat with bandage/medkit from the
+  Survivors screen (5.7).
+
 ### Open questions
 1. **Backstory names** ("grey fever", "river docks" group): keep, rename,
    or also name the city/tower?
+2. **Survivor healing feel** (5.7): the M1 balance pass raised survivor
+   and hero regen from +2/h to **+4/h** (10 -> 100 in ~23 h instead of
+   ~45 h). Options for the playtest: (a) keep +4/h; (b) back to +2/h and
+   rely on Treat; (c) +6/h so a breach costs about half a day.
+3. **Early-game difficulty feel** (5.8, M1 balance pass): the scripted first
+   attack is now 2 crawlers (strength 15) against a 120 HP Lv1 barricade,
+   crawlers are gentler (4 damage every 2.0 s) and the bag has 10 slots.
+   Is the first attack now too easy? Options: (a) keep; (b) 1 crawler + 1
+   walker again but keep the 120 HP barricade; (c) keep 2 crawlers and make
+   the first scheduled attack the real test.
