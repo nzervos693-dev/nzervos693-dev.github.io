@@ -23,6 +23,8 @@
     "walkSpeed": 100,
     "runSpeed": 170,
     "runNoiseRadiusPx": 250,
+    "runEnergyPerSecond": 0.2,
+    "runMinEnergy": 5,
     "stairSecondsPerFloor": 1.4
   },
   "world": {
@@ -139,6 +141,7 @@
   },
   "light": {
     "dimVisionPx": 150,
+    "darkSilhouetteRangePx": 240,
     "dimTimeMult": 1.5,
     "lampRadiusPx": 220,
     "lampFlickerPct": 0.05,

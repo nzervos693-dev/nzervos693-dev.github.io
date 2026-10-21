@@ -114,7 +114,7 @@ One thumb, taps and drags only. No hold-to-act, no multi-touch.
 | Gesture | Where | Result |
 |---|---|---|
 | Tap | Empty spot in a room | Hero **walks** there (quiet). Pathing goes via the stairwell if on another floor. |
-| Double tap | Empty spot (2nd tap within 0.3 s and 48 px of the 1st) | Hero **runs** there: faster but makes noise (5.4). |
+| Double tap | Empty spot (2nd tap within 0.3 s and 48 px of the 1st) | Hero **runs** there: faster, but makes noise and costs energy (5.4). |
 | Tap | Object | Opens the **action menu** above the object (see below). |
 | Tap | Zombie | If in weapon range: attack now. If out of range: walk toward it, attack once on arrival. |
 | Drag, mostly vertical | Anywhere | Scrolls the camera between floors. Momentum, clamped to floors 13-17 in M2. |
@@ -344,9 +344,21 @@ out of sight of the stairwell.
   Front door to the far end of a wing: ~14 s walking.
 
 **Rooms and light** (M2). Each room has one light state:
-- **Dark**: not yet entered. Drawn as black with faint outlines of the
-  nearest wall; objects and zombies hidden. Zombies inside can still be
-  **heard** (5.4).
+- **Dark**: not yet entered. Drawn near-black with faint outlines of the
+  nearest wall. Zombies inside can always be **heard** (5.4). CD decision:
+  - **Object silhouettes**: while the hero stands within **240 px**
+    (`light.darkSilhouetteRangePx`) of a doorway into a Dark room (from the
+    neighbouring room, or from the landing for the room behind a front
+    door), the room's objects are drawn as flat shapes in deep shadow
+    `#16191d`, no detail, no colour. Once seen, silhouettes stay drawn
+    (the hero remembers the shapes). Silhouettes are not tappable as
+    objects: a tap walks to the doorway (4).
+  - **Zombies** in a Dark room are drawn (same flat silhouette) only while
+    within **150 px** of the hero (`light.dimVisionPx`), or while they are
+    **moving** (idle wander, chase, return) and the hero is within
+    silhouette range of that room's doorway. A zombie standing still out of
+    the 150 px radius is invisible. Zombie silhouettes are never
+    remembered.
 - **Dim**: entered, no window and no burning lamp. Zombies are drawn only
   within **150 px** of the hero (`light.dimVisionPx`), and search and
   dismantle take **x1.5** time (`light.dimTimeMult`).
@@ -426,6 +438,14 @@ usually wiser.
   hits) aggros zombies as in 5.6; **running** is noise with radius
   **250 px**, fired once per second while running (`hero.runNoiseRadiusPx`).
   Walking is silent.
+- **Running** (CD decision): double tap = run (4), single tap = quiet walk.
+  Running costs **0.2 energy per second** (`hero.runEnergyPerSecond`; a
+  full wing at 170 px/s costs about 1.7). The Tired L3+ speed penalty
+  applies to running too. At energy below **5** (Tired L4,
+  `hero.runMinEnergy`) a double tap makes the hero walk and think "I can't
+  run anymore." (once per 20 s, like all thoughts). A run ends on arrival;
+  the next tap starts a new walk or run. Running on stairs keeps the stair
+  time (1.4 s per floor) but still makes noise on the floor being left.
 - **Unaware hit**: the first hit on a zombie that has not noticed the hero
   deals **x3** damage (`combat.unawareHitMult`). A walker (45 HP) dies to
   one unaware spiked bat hit plus one more. This is the main tool for
@@ -854,13 +874,116 @@ you scavenge saves walking.
   0.25, drain clamped at `comfort.minDrain` -0.5); the full comfort table
   arrives in M3.
 
-**M3 and later** (unchanged design from v1, tags moved one milestone):
-Barrel stove and cooking, spoilage, comfort sources (reading nook,
-decorations, music player, dog), hygiene and sickness (M3); power,
-generator, solar, string lights, grow lamp (M4); radio set, elevator (M5).
-Their rules stay as written in the M1 GDD (git history) and are re-specified
-here when their milestone starts. Comfort and Lit count for the **main
-home**; producers and power devices work in any claimed apartment.
+**Where things count**: comfort, Lit-for-comfort, hygiene and the dog's
+home all count for the **main home** only. Producers, stoves and power
+devices work in any claimed apartment. Each draws fuel and supplies from
+the stash of the apartment it is in.
+
+**Barrel stove** (M3, floor spot)
+- *Use* -> panel: Add wood (**4 h** burn each, `stove.woodHours`), Add
+  paper (**1 h**, `stove.paperHours`), stove recipes. It holds up to **24 h**
+  of burn (`stove.maxBurnHours`) and burns online and offline. The panel
+  shows the burn level only as a drawing of the fire (embers / low / high),
+  never hours.
+- While lit, its room is **Lit** (warm pool of 220 px, as a lamp; it counts
+  toward the 4 light pools per floor). Warmth gives comfort +1, and sleep
+  energy regen gets **+30%** (`stove.sleepBonus`) for beds in that
+  apartment. Stove recipes only work while it is lit.
+- Stove recipes: **Boil water** (2 dirty water -> 2 clean water); **Hot
+  stew** (2 planter crops + 1 clean water, +1 herbs optional -> +45 food,
+  +5 morale, or +10 morale with herbs; spoils); **Jarred veg** (3 planter
+  crops + 2 glass -> 3 Jarred veg, +25 food each, never spoil). Numbers in
+  `recipes.<id>` and `consumables.<id>`.
+- Burned out = report line "The stove went cold."
+
+**Spoilage** (M3)
+- Planter crops and Hot stew spoil **48 h** after they are made
+  (`food.spoilHours`) and vanish (report: "2 crops went bad."). Canned
+  food, dry snack, jarred veg, herbs and water never spoil.
+- No timer is shown. In its last **12 h** (`food.spoilWarnHours`) the
+  item's icon turns grey-brown, and its tap card says "Going off."
+
+**Comfort** (M3, full table; replaces the M2 subset)
+- Comfort points in the **main home**, each source counted once however
+  many there are: Lit **+2**, lit stove +1, reading nook +1, decorations
+  +1, running music player +1, fed dog at home +1 (max 7).
+- Morale drain/h = 1 - 0.25 x comfort, clamped to **-0.5..1**
+  (`comfort.perPoint`, `comfort.minDrain`). So 4 comfort stops the drain
+  and 6 slowly raises morale. It applies to the hero and to every survivor
+  living in the main home.
+- Comfort recipes (M3): **Reading nook** 3 wood + 2 cloth + 5 paper (floor
+  spot); **Decorations** 2 cloth + 2 paper + 1 glass (no spot, wall
+  dressing, max 1 counted); **Music player** 2 parts + 1 plastic + 1
+  batteries (no spot). The music player runs on 1 power (M4), or on 1
+  batteries per 24 h from its apartment's stash. It plays a faint, muffled
+  tune only while the camera is on that floor. It never plays during an
+  attack cue or an attack, so it never masks the cue.
+- No comfort number is shown anywhere. Good comfort is felt as the
+  Depressed moodle staying away.
+
+**Hygiene and sickness** (M3)
+- From day **3** (`hygiene.startDay`), every **12 h** (`hygiene.checkHours`),
+  each resident of a claimed apartment who is not already Sick rolls a
+  **20%** chance (`hygiene.sickChance`) to become Sick.
+- In the main home, a **Latrine** (3 plastic + 2 wood, floor spot) cuts the
+  chance by 10 points (`hygiene.latrineReduction`). A **Wash station** (2
+  metal + 2 plastic + 1 cloth, floor spot) cuts it by 10 points
+  (`hygiene.washReduction`), but only if it used 1 dirty or clean water
+  from that stash for that check; with no water in stock it gives no
+  reduction. With both built and supplied the chance is 0%. Residents of
+  other claimed apartments roll at the full chance.
+- **Sick** (status): no health regen, energy drain x1.5. It lasts **24 h**
+  (`status.sickHours`) and does not stack. Antibiotics (loot only) cure it
+  at once. Herbal remedy removes **12 h** (`status.remedyHours`). Shown as
+  the **Sick** moodle with one level ("Sick."); its card offers "Use:
+  Antibiotics" or "Use: Herbal remedy" if carried or in this apartment's
+  stash. The report says "Mara came down with something."
+- **Medic** job (M3): residents of the Medic's apartment get health regen
+  x2, Sick lasts half as long, and Infection timers run at half speed
+  (5.14). **Cook** job (M3): offline, keeps the stove in their apartment
+  fed from that stash (wood first, then paper). Every 12 h it cooks 1 Hot
+  stew if 2 crops + 1 clean water are stocked.
+
+**Power** (M4)
+- Supply = running generators (+3 each, `power.generatorOutput`) + solar
+  panels (+1 each, `power.solarOutput`, constant). Demand = every built
+  powered device: grow lamp 1, string lights 1, music player 1, radio 1,
+  electric fence 2. The elevator needs 2 free power only while moving.
+- Power is **per claimed apartment**: a device draws only from generators
+  and panels in the same apartment.
+- **Generator**: *Use* toggles on/off and adds fuel. It holds **6 fuel**
+  (`power.generatorFuelSlots`) and burns **1 per 4 h**
+  (`power.generatorFuelHours`) while on, online and offline. It hums
+  while running (ambience only, not noise). While any generator is running
+  in a claimed apartment, attacks are x**1.1**
+  (`power.generatorAttackMult`, after the cap, 5.8). Out of fuel = off;
+  the report says "The generator coughed and died."
+- If demand > supply, the most recently built device switches off until
+  supply returns. There is no power readout and no crossed-bolt icon: the
+  device simply goes dark and silent, and its *Use* card says "No power."
+  The music player and radio fall back to batteries from that stash, if
+  any.
+- **String lights** (WB 2, window or floor spot): their room is Lit while
+  powered. **Grow lamp** (WB 2, floor spot): planters and herb boxes in
+  the same apartment get +50% speed while powered.
+
+**Radio set** (M5)
+- *Use* -> Scan, once per **12 h** (`radio.scanCooldownHours`); while
+  cooling down the button is greyed "Only static." Each scan does one of
+  these: reveals the floor of an unrecruited survivor not yet found (a
+  spoken line, e.g. "...anyone on twenty... my leg..."), or marks a
+  **supply cache** (a container with 3 loot rolls, never empty) on a
+  random Infested floor. The mark is a thought: "Someone mentioned a crate
+  on floor 9." The floor is then listed under Menu > Notes. Some scans
+  unlock a short radio note.
+
+**Elevator** (M5)
+- Built with the Elevator repair recipe. Tap the elevator door on any
+  landing -> a list (96 px rows) of floors with a claimed apartment and
+  Secured floors -> travel at **0.3 s per floor**
+  (`elevator.secondsPerFloor`). It needs 2 free power in the main home,
+  else "No power." It is noisy on arrival (noise radius 400 px on the
+  arrival floor). Zombies never use it.
 
 ### 5.11 Gear and throwables
 - **Throw** (M1): while a throwable is carried, a **Throw** button appears
@@ -871,25 +994,146 @@ home**; producers and power devices work in any claimed apartment.
 - **Molotov** (M1): a fire patch **120 px** wide for **4 s**, **15
   damage/s** to zombies inside, **10/s** to the hero. Loud. Fire never
   spreads and never damages objects or barricades.
-- Noise lure, flashlight (M3); equipment slots, armor, quiet shoes, tool
-  wraps (M4): unchanged design, tags moved. The flashlight in M3 gives a
-  cone of light that removes Dim where it points.
+- **Cycling** (M3, once a second throwable type exists): while armed,
+  another tap on Throw switches to the next carried throwable type; going
+  past the last type disarms.
+- **Noise lure** (M3): rings **3 s** after landing for **20 s**
+  (`lure.delaySeconds`, `lure.ringSeconds`). Every non-aggroed zombie on
+  that floor that can reach it shambles to it and waits there until it
+  stops. Its ringing is the sound, with no marker. Single use.
+- **Flashlight** (M3, tool, carried): while it has charge, Dim rooms count
+  as **Grey** for the hero (everything drawn, normal search time). The
+  light also makes him visible, so zombies use the Grey sight radius (180
+  px) instead of the Dim one. Each Dim room entered uses **1 charge**. 1
+  batteries = **10 charges** (`light.flashlightCharges`), auto-loaded from
+  carried batteries at 0. With no charge, Dim applies. It never affects
+  Dark rooms, because entering a room already turns it Dim.
+- **Equipment** (M4): the Inventory screen has a **Body** and a **Feet**
+  slot (not carry slots). Tap an item -> Equip / Unequip. Armor reduces
+  each zombie hit by its percentage (rounded down) and loses 1 durability
+  per hit taken. Broken armor disappears with a thought ("The jacket's
+  done."). Condition is shown as a wear drawing, never a number.
+  - **Padded jacket** (Body, 4 cloth + 2 tape, WB 1): damage taken -20%,
+    40 hits. **Leather armor** (Body, 4 leather + 2 tape + 1 metal, WB 2):
+    -35%, 60 hits.
+  - **Quiet shoes** (Feet, 2 rubber + 1 cloth, WB 1, never wear out): all
+    zombie sight radii x**0.6** (`gear.quietSightMult`: 108 / 66 / 42 px in
+    Grey-Lit / Dim / Dark) and run noise radius 250 -> **150 px**
+    (`gear.quietRunNoiseRadiusPx`).
+- **Tool wraps** (M4): carried; each dismantle uses 1 of **10 uses**
+  (`gear.toolWrapUses`) and is one noise step quieter (Loud -> Noisy ->
+  Quiet).
 
 ### 5.12 Day and night (M3)
-Moved from M2 to M3, design unchanged (device clock, night 20:00-06:00,
-more Dim, aggro and speed up, loot bonus). In M2 the world is a permanent
-overcast late afternoon: windows give cold grey light.
+In M2 the world is a permanent overcast late afternoon and windows give
+cold grey light. From M3:
+- The phase follows the **device's local clock** (`new Date().getHours()`).
+  **Night is 20:00-06:00** (`night.startHour`, `night.endHour`); day is
+  the rest. **Dusk 19:00-20:00 and dawn 06:00-07:00**
+  (`night.transitionMinutes` 60) only fade the visuals; gameplay switches
+  exactly at 20:00 and 06:00.
+- Changing the clock or time zone only changes the phase; elapsed time
+  still follows 5.1. Days survived is unchanged (24 real hours each).
+- **At night**: windows give no light, so on Infested and Cleared floors
+  every entered **Grey room becomes Dim**. This includes claimed
+  apartments, unless the room is Lit by a lamp, stove or string lights.
+  Secured floors stay Grey (the hero has rigged their light). Dark and Lit
+  rooms are unchanged. All zombie sight radii are x**1.25**
+  (`night.sightMult`: 225 / 138 / 88 px; with Quiet shoes the 0.6 applies
+  too). Zombie speed is x**1.15** (`night.zombieSpeedMult`). Attacks that
+  start at night are x**1.2** (`night.attackMult`, after the cap, 5.8).
+- **Night rewards**: each search has a **30%** chance of +1 loot roll
+  (`night.bonusLootChance`). Sleep energy regen is **+20%**
+  (`night.sleepBonus`, added to the stove's +30%).
+- **Fairness**: nothing is locked by time of day. The flashlight and lamps
+  cancel night Dim, so a night-only player pays only the zombie
+  sight/speed and attack risk, and gets the loot bonus.
+- **Offline**: each 10-min catch-up step uses the local hour of its own
+  timestamp (offline night attacks also get x1.2). Fuel, power and
+  production ignore the phase.
+- **Show**: no HUD icon (there is no top HUD). The sky behind the tower
+  fades to near-black navy (`#0e1118`) at night. Window panes lose their
+  grey light, and unlit claimed apartments go dark. Rain sounds heavier.
+  The first night, the hero thinks: "Night. They'll hear me from further
+  away."
 
 ### 5.13 The dog (M3)
-Moved from M2 to M3, design unchanged (Scout, floor 18). Its "+30 s attack
-warning" becomes "the dog growls at the door at T-30 s", a diegetic cue
-like 5.8.
+- A dog, **Scout**, is shut in a bathroom on **floor 18**. Faint whining
+  plays (positional, through walls) while the hero is on floors 17-19.
+  *Use* -> **Offer food** (1 canned food, dry snack or planter crop from
+  carried items) recruits it at once, with no quest and no survivor bed.
+  Zombies ignore the dog: it never takes damage, cannot be bitten and
+  cannot die.
+- **Action menu** on the dog: **Pet** (primary) and **Follow / Stay home**
+  (a toggle that replaces Dismantle). Pet plays a wag animation and gives
+  **+3 morale** (silent), once per **4 h** (`dog.petMorale`,
+  `dog.petCooldownHours`); taps in between only wag. When the app goes to
+  background or on pass the torch, the dog goes to the main home, keeps
+  its mode and stays with the new character. "Home" for the dog is always
+  the **main home**; if the main home changes, a staying dog moves there
+  the next time the app resumes.
+- **Following**: walks 40 px behind the hero and uses stairs with them.
+  When a zombie that is not drawn (Dim out of sight, or a Dark room) and
+  not aggroed comes within **300 px** on the same floor
+  (`dog.growlRadiusPx`), the dog stops, stares and growls. The growl is
+  panned toward the zombie, and the zombie's silhouette is drawn for **2
+  s** (`dog.revealSeconds`). This happens once per zombie per **15 s**
+  (`dog.growlCooldownSeconds`). There is no arrow or marker. The growl is
+  not noise and never aggros.
+- **Staying home** (fed): comfort +1, offline defense +5 (`dog.defense`,
+  5.8). It also adds a diegetic attack cue: at **T-30 s**
+  (`dog.growlCueSeconds`) the dog growls at the main home's front door.
+  This is positional like the stairwell banging (audible within 2 floors
+  of the main home). It interrupts a nap there.
+- **Upkeep**: 1 food item + 1 water item (dirty is fine, no penalty) from
+  the main home stash every **24 h** (`dog.upkeepHours`), online and
+  offline. A missed meal makes it **hungry**: it lies by its bowl, gives
+  no growls, comfort, cue or defense, and its tap card says "He's
+  hungry." It stays hungry until fed (*Use* -> Feed). After **3** missed
+  meals in a row (`dog.leaveAfterMisses`) it runs back to floor 18 (morale
+  -10; report: "Scout is gone. The bowl's still full of nothing."). Offer
+  food recruits it again.
 
 ### 5.14 Infection (M3)
-Moved from M2 to M3, design unchanged, shown as the **Infected** moodle
-(Bitten / Fever / Turning) instead of a bite icon with hours. Tapping it
-shows "Bitten. Antibiotics, soon." with no timer. Mara's quest reward gains
-1 antibiotics in M3.
+- Each zombie bite on the active character has a **2%** chance to infect
+  (`infection.biteChance`), x**0.5** with body armor
+  (`infection.armorMult`). In offline breaches (5.8), each resident of the
+  main home rolls **10%** (`infection.breachBiteChance`). Residents are
+  never bitten in other cases (online attacks they are not in, Scavenger
+  job). Already Infected = no roll.
+- **Stages** (real time, online and offline; `infection.stageHours`
+  [12, 24, 12]): **Bitten** (0-12 h) has no effect. **Fever** (12-36 h):
+  no regen, energy drain x1.5. **Turning** (36-48 h): also -3 health/h
+  (`infection.turningDamage`). At 48 h, or at health 0 while Infected, the
+  character dies and **turns**.
+- **Show**: the **Infected** moodle with 3 levels, Bitten / Fever /
+  Turning (L2-L4 colours). Its card text: "Bitten. Antibiotics, soon." /
+  "Burning up." / "Turning." There is never a timer or hours. The hero's
+  thoughts escalate ("My hands won't stop shaking."). Survivors show the
+  same moodle on the Crew screen.
+- **Treatment**: on yourself from the moodle card or Inventory. On
+  survivors from the Crew screen, while the hero is in the same claimed
+  apartment, using carried items and that apartment's stash.
+  - **Antibiotics** cure Bitten and Fever, or Sick: one status per pill,
+    Infection first.
+  - **Antiviral** (M4; rare loot on floors 1-7 and 23-30, and in M5 supply
+    caches) cures any stage.
+  - **Herbal remedy** sets the infection timer back **6 h**
+    (`infection.remedyHours`, not below 0; it never cures).
+  - Medic: timers of residents of the Medic's apartment run at half speed
+    (5.10). No amputation.
+- **Offline cannot kill**: catch-up stops the timer **6 h** before turning
+  (`infection.offlineMinHoursLeft`). Turning damage respects the health
+  floor 10. The report warns in prose, with no hours: "Mara is burning up.
+  She doesn't have long."
+- **Turning**: pass the torch (5.7) as usual. The body becomes a **Turned**
+  zombie at that spot (in their claimed apartment if they were there):
+  Walker stats with **45 HP** (`infection.turnedHp`), in the hero's or
+  survivor's faded clothes, holding the dropped bag; killing it drops the
+  bag. The survivor-death morale -20 applies. The turn happens off-screen
+  as a fade to black, with no gore.
+- Mara's medical bag quest reward includes **1 antibiotics** from M3, so a
+  cure always exists.
 
 ### 5.15 Procedural apartments (M2)
 Every new game builds the tower from **templates** so each run is
@@ -1081,7 +1325,8 @@ text at the bottom for 2 s, no icon, no sound.
   L3 `#7a4630`, L4 `#5e2422`. The M1 warning red `#c0392b` is removed.
 - **Lighting** (drawn as a darkness overlay per visible floor, with light
   pools erased out of it; alphas in `light.*`):
-  - Dark rooms **0.97** black; only a faint wall edge shows.
+  - Dark rooms **0.97** black; only a faint wall edge shows, plus object
+    and moving-zombie silhouettes in deep shadow `#16191d` (5.3).
   - Dim rooms **0.72**, plus a soft circle of **150 px** around the hero
     (eyes adjusting) at half that darkness.
   - Grey rooms **0.45**, cool tint, soft light shafts from the window;
@@ -1179,12 +1424,14 @@ CD playtest on the phone.
     11. Thoughts, flavour lines, ~12 notes; tutorial without arrows;
         prose "While you were away".
     12. Save version 2 (M1 saves reset).
+    13. Run on double tap (5.4): faster, noisy, costs energy.
   - **Nice-to-haves** (only if the must-haves are done and playtested)
     1. Dust motes and window light shafts.
     2. Ransacked/burned visual dressing beyond tint (papers, soot decals).
     3. A 4th music piece and more ambience one-shots.
     4. More templates (e.g. `dentist`, `hoarder_flat`) and notes (to 20).
-    5. Run (double tap) — ship only if the CD agrees (open question 3).
+  - **Delivery**: in 4 playable stages (11.3), each ending with a CD
+    playtest.
 - **M3 "Night and fever"**: floors 8-22; day/night on the device clock;
   the dog (growl cue); infection and sickness as moodles; paper, meds,
   herbs, batteries; flashlight, saw; stove, cooking, spoilage, full
@@ -1217,6 +1464,29 @@ CD playtest on the phone.
 | Tutorial arrows | Camera pans + thought lines. |
 | Report with numbers | Prose report. |
 | Save version 1 | Save version 2; M1 saves are reset. |
+
+### 11.3 M2 delivery stages (CD decision)
+M2 ships in 4 stages. Each stage keeps `main` playable, ends with a CD
+playtest, and builds only on finished stages. Numbers refer to the M2
+must-haves in 11.1.
+
+| Stage | Content | Must-haves | Done when (playtest checks) |
+|---|---|---|---|
+| **1. Mood on the old tower** | On the existing M1 layout (720 px floors, authored floors 13-17): new palette and art pass, moodles instead of bars, no floating/damage/HP numbers, barricade damage stages, prose "While you were away", audio pass (ambience, positional zombie sounds, moodle cues, sparse music; siren and blips removed), 15 s diegetic attack cue, zombie rebalance (stats, sight, hearing, unaware hit, lose track, groups), scarcer loot (0-2 rolls, empty chances, qty 1, search 3 s), run on double tap. | 3 (scarcity only), 5, 6, 7, 9, 10, 13 | No bar, number or siren appears anywhere; an attack can be missed if the phone is quiet; a walker in the open is dangerous with fists; running is clearly louder than walking. |
+| **2. Wide floors** | Floors 13-17 at 3120 px (two 6-module wings, central stairwell shaft), axis-locked drag, horizontal camera follow with dead zone, the 10 new objects (5.6 #21-30) and their loot tables. Layouts are **authored** by level-designer for this stage (temporary, replaced in Stage 3). Save version 2. | 1, 3 (objects), 12 | Panning and following feel smooth one-thumbed; most rooms are out of sight of the stairwell; an M1 save resets with "The building has changed." |
+| **3. Generator and homes** | Seeded generator (5.15) with `templates.json`, conditions, zombie placement, guarantees, saved layout; claiming (5.3): stashes per apartment, build spots from empty slots, beds, main home by sleeping, Workbench recipe, barricade per claimed door, attacks target the main home, Leave this place. Save version bumped again (older saves reset the same way). | 2, 4 | Two New games give clearly different floors; every floor has food and water; a claimed flat on floor 14 can become the main home and gets attacked. |
+| **4. Darkness and story** | Lighting (Dark/Dim/Grey/Lit, Dark-room silhouettes, hero eye radius, landing flicker), oil lamp recipe and fuel, ~12 notes, unit flavour lines, thoughts, tutorial without arrows (8). | 8, 11 | Entering an unexplored room feels tense but readable from the doorway; the first 60 s teach search, dismantle, craft and fight with no arrow or highlight. |
+
+Stage rules:
+- **Before Stage 4** every room counts as **Grey** for sight (180 px) and
+  no Dim time multiplier applies; the landing counts as Dim (110 px).
+  Rooms are drawn fully (no Dark state) until Stage 4.
+- **Before Stage 3** home is the M1 home (floor 15, left; plus right once
+  Cleared) with its M1 stockpile and stairwell barricade, and attacks
+  target it. The M1 tutorial (with arrows) stays until Stage 4.
+- Any change of save format inside M2 bumps the save version; an older
+  save is deleted on launch with the one line "The building has changed."
+- Nice-to-haves are considered only after Stage 4 has been playtested.
 
 **Out of version 1**: ads, in-app purchases, accounts, cloud saves,
 multiplayer or any online feature, push notifications, leaderboards,
@@ -1258,6 +1528,14 @@ than one pet, zombie smell and disguises, amputation.
 - **Mood**: darker desaturated look with light pools and rain; quiet
   creepy sound; slow, heavy zombies in numbers; fewer, logically placed
   items and found notes; no loot sparkle.
+- **Running**: double tap runs (fast, noisy, costs energy); single tap is a
+  quiet walk (5.4).
+- **Unexplored rooms**: dark, but object silhouettes are visible from the
+  doorway; zombies inside are visible only when close or moving (5.3).
+- **M2 delivery**: 4 playable stages (11.3): 1 mood/UI/sound/attack
+  cue/zombie rebalance/scarcer loot/run on the existing layout; 2 wide
+  floors and horizontal camera; 3 generator and claiming homes; 4
+  lighting, silhouettes, notes, arrow-free tutorial.
 
 ### Decided (Producer approved; CD may revisit at playtest)
 - Scavenger job works only during offline catch-up (5.7).
@@ -1279,13 +1557,3 @@ than one pet, zombie smell and disguises, amputation.
    or also name the city/tower?
 2. **Survivor healing feel** (5.7): (a) keep +4/h; (b) back to +2/h and
    rely on Treat; (c) +6/h so a breach costs about half a day.
-3. **Running** (5.4, nice-to-have): a double tap makes the hero run (170
-   px/s) but every second of running is heard 250 px away. Options:
-   (a) add double-tap run as designed; (b) no running at all, walking only
-   (slower, tenser, simpler); (c) the hero runs automatically only while a
-   zombie is chasing him.
-4. **Darkness in unexplored rooms** (5.3, 9): (a) near-black until
-   entered, as designed (most creepy, you hear before you see); (b) dark
-   but object silhouettes visible from the doorway (easier scouting);
-   (c) fully dark and the hero also sees only 150 px in every room until
-   the M3 flashlight (hardest).
