@@ -490,6 +490,20 @@ const ICONS = {
   bar_water: ['...uu...', '..uuuu..', '..uuuu..', '.uuxuuu.', '.uuxuuu.', '.uuuuuu.', '..uuuu..', '........'],
   bar_energy: ['....aaa.', '...aaa..', '..aaa...', '.aaaaaa.', '...aaa..', '..aa....', '.aa.....', 'a.......'],
   bar_morale: ['..aaaa..', '.aaaaaa.', 'aoaaaoaa', 'aaaaaaaa', 'aoaaaaoa', 'aaooooaa', '.aaaaaa.', '..aaaa..'],
+  // C2/C3 additions (appended)
+  sheet_metal: ['..yyyyyy', '.yxyxyxy', '.yyyyyyy', 'yxyxyxy.', 'yyyyyyy.', 'yxyxyxy.', 'yyyyyyy.', 'oooooo..'],
+  concrete_block: ['........', '.llllll.', 'lwwwwwwo', 'lwoooowo', 'lwoooowo', 'lwwwwwwo', '.oooooo.', '........'],
+  hammer: ['..yyyyy.', '..yllly.', '..yyyyy.', '...nn...', '...nn...', '...nn...', '...nn...', '...kk...'],
+  sledgehammer: ['yyyyyyyy', 'yllllllo', 'yyyyyyyy', '...nn...', '...nn...', '...nn...', '...nn...', '...kk...'],
+  fire_axe: ['..RRRR..', '.RRRRRl.', '.RRRnl..', '...nn...', '..nn....', '..nn....', '.nn.....', '.kk.....'],
+  pistol: ['........', 'yyyyyyy.', 'ylllllly', 'yyyyyyyy', '.oyy....', '.ooy....', '.oo.....', '........'],
+  shotgun: ['........', '.......y', 'yyyyyyyy', 'llllllll', 'nnnnyyyy', 'nnnnoo..', 'nnn.....', '........'],
+  hunting_rifle: ['........', '...uuu..', 'yyyyyyyy', 'nnnlllll', 'nnnnoy..', 'nnn.o...', '........', '........'],
+  pistol_ammo: ['.aa..aa.', '.aa..aa.', '.yy..yy.', '.yy..yy.', '.yy..yy.', '.yy..yy.', '........', '........'],
+  shotgun_shell: ['.RR..RR.', '.RR..RR.', '.RR..RR.', '.aa..aa.', '.aa..aa.', '.aa..aa.', '........', '........'],
+  rifle_round: ['...x.x..', '...a.a..', '...y.y..', '...y.y..', '...y.y..', '...y.y..', '...y.y..', '........'],
+  spike_strip: ['.l..l..l', '.l..l..l', 'yl.yl.yl', 'yyyyyyyy', 'yooooooy', '........', '........', '........'],
+  alarm_lure: ['.y....y.', '.yyyyyy.', 'yxxxxxxy', 'yxxaaxxy', 'yxxaaxxy', 'yxxxxxxy', '.yyyyyy.', '.o....o.'],
 };
 sheet('icons', 8, 8, Object.entries(ICONS).map(([n, g]) => [n, (c) => c.grid(g)]), {
   note: '8x8: 10 M1 materials, items, weapons/tools, HUD need bars' });
@@ -1221,7 +1235,15 @@ sheet('iso_fx', 32, 16, [
   ['ripple_0', (c) => ripple(c, 0)], ['ripple_1', (c) => ripple(c, 1)], ['ripple_2', (c) => ripple(c, 2)],
   ['mark_dismantled', (c) => { const r = mkr(77); blobs(c, r, 4, 2, 4, ['#2c3034', '#33373b'], 0.7); for (let i = 0; i < 6; i++) { const x = 9 + Math.floor(r() * 14), y = 5 + Math.floor(r() * 6); if (inDia(x, y)) c.px(x, y, '#23272c'); } }],
   ...[0, 1, 2].map((v) => [`blood_floor_${v}`, (c) => { const r = mkr(31 + v * 9); blobs(c, r, 4 + v, 1.2, 2.8 + v * 0.4, ['B', '#3a1614', '#4e1c1a'], 0.7); for (let i = 0; i < 5; i++) { const x = 8 + Math.floor(r() * 16), y = 4 + Math.floor(r() * 8); if (inDia(x, y)) c.px(x, y, 'B'); } }]),
-], { animations: [anim('ripple', [2, 3, 4], 6, 0)], note: 'Iso FX, all 32x16 diamonds centred at (16,8). remembered_tile = flat #16191d diamond (tint/alpha in code to dim remembered tiles). spot_dashed = dashed spot-pick diamond outline (GDD 5.6). ripple_0..2 = broken ellipse arcs growing r 5/10/15 px (anim "ripple", 3 frames, once; draw on the source tile for the sound-off ripple, scale up for louder noise). mark_dismantled = faint floor mark left by a dismantled object. blood_floor_0..2 = dried blood stains on the floor (the old fx_blood sheets are still usable for hit splashes). Vignette is code-generated.' });
+  ...[0, 1].map((v) => [`muzzle_flash_${v}`, (c) => { // starburst centred at (16,8); frame 1 is bigger
+    const R = v ? 7 : 5;
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 32; x++) {
+      const dx = x + 0.5 - 16, dy = (y + 0.5 - 8) * 1.6, d = Math.hypot(dx, dy), a = Math.atan2(dy, dx);
+      const spike = R * (0.55 + 0.45 * Math.abs(Math.cos(a * 3)));
+      if (d <= spike) c.px(x, y, d < spike * 0.45 ? '#fff3c0' : d < spike * 0.8 ? '#ffd06a' : '#d07a2c');
+    }
+  }]),
+], { animations: [anim('ripple', [2, 3, 4], 6, 0)], note: 'Iso FX, all 32x16 diamonds centred at (16,8). remembered_tile = flat #16191d diamond (tint/alpha in code to dim remembered tiles). spot_dashed = dashed spot-pick diamond outline (GDD 5.6). ripple_0..2 = broken ellipse arcs growing r 5/10/15 px (anim "ripple", 3 frames, once; draw on the source tile for the sound-off ripple, scale up for louder noise). mark_dismantled = faint floor mark left by a dismantled object. blood_floor_0..2 = dried blood stains on the floor (the old fx_blood sheets are still usable for hit splashes). Vignette is code-generated. C2/C3 appended: muzzle_flash_0|1 = small/large starburst centred at (16,8), additive blend, show for balance firearms.muzzleFlashSeconds at the gun tip.' });
 
 // ---------- iso_walls: 16x48 frames ----------
 // Wall along x (edge runs toward the lower right): frame origin = the edge's upper-left end S at (0,40); the edge ends at (16,48).
@@ -1383,6 +1405,118 @@ function barricade(c, dir, lv, stage) {
   }
   if (stage >= 1) for (let i = 0; i < 4 + stage * 2; i++) { const x = 3 + Math.floor(hsh(i, lv, 11) * 10), z = 1 + Math.floor(hsh(i, lv, 12) * 3); const yb = 40 + (dir === 'x' ? x >> 1 : (15 - x) >> 1); c.px(x, yb - z, '#9a8060'); } // splinters on the floor
 }
+// ---- C2/C3 HQ structure tiers (appended frames; deterministic via hsh only) ----
+const TIER_WALLS = ['wood', 'sheet_metal', 'block'];
+function tierWallFn(t) {
+  return (x, z) => {
+    const n = hsh(x, z, 40 + t.length);
+    if (t === 'wood') {
+      if (z % 7 === 0) return '#33211a';
+      if (x === ((z / 7 | 0) % 2 ? 4 : 10)) return '#4a3a2b';
+      if ((x === 1 || x === 14) && z % 7 === 3) return '#82888c';
+      return n < 0.1 ? '#5a4631' : n > 0.9 ? '#7a6246' : (z / 7 | 0) % 2 ? '#6d5842' : '#66503c';
+    }
+    if (t === 'sheet_metal') {
+      if (z === 20) return '#43474b';
+      if ((x % 8 === 1) && (z === 19 || z === 21 || z === 5 || z === 35)) return '#bdb8ab';
+      if (n > 0.93 && z < 24) return '#7a4630';
+      return [ '#9aa0a4', '#82888c', '#5d6166' ][x % 3];
+    }
+    const row = z / 6 | 0;
+    if (z % 6 === 0 || (x + (row % 2) * 4) % 8 === 0) return '#2c3034';
+    return n < 0.1 ? '#5d6166' : n > 0.92 ? '#7d8286' : '#6a6e72';
+  };
+}
+const MAT_OF = { wood: 'wood', reinforced: 'sheet_metal', metal: 'sheet_metal', sheet_metal: 'sheet_metal', block: 'block' };
+const TIER_COL = {
+  wood: { crack: '#1c130d', edge: '#9a8060', deb: '#8a6f50' },
+  sheet_metal: { crack: '#262a2d', edge: '#bdb8ab', deb: '#82888c', rust: '#7a4630' },
+  block: { crack: '#15171a', edge: '#848e8d', deb: '#6a6e72' },
+};
+function dmgFn(tier, stage, h) { // transparent damage overlay (cracks, chips, hole at stage 3, debris at the foot)
+  const set = new Map(), col = TIER_COL[tier], r = mkr(900 + stage * 17 + tier.length * 5 + h);
+  const top = h - 4;
+  for (let k = 0; k <= stage; k++) {
+    let x = 2 + Math.floor(r() * 12), z = top - Math.floor(r() * (h / 3));
+    for (let i = 0; i < 5 + stage * 5 && z > 2; i++) { set.set(x + ',' + z, col.crack); z -= r() < 0.7 ? 1 : 0; x = Math.max(1, Math.min(14, x + (r() < 0.5 ? -1 : 1))); set.set(x + ',' + z, col.crack); }
+  }
+  if (stage >= 2) for (let i = 0; i < 4; i++) set.set(`${2 + Math.floor(r() * 12)},${3 + Math.floor(r() * (h - 8))}`, col.edge);
+  if (stage === 3) {
+    const cx = 8, cz = Math.round(h / 2) + 2, rx = 3, rz = Math.max(2, Math.round(h / 8));
+    for (let x = cx - rx - 1; x <= cx + rx + 1; x++) for (let z = cz - rz - 1; z <= cz + rz + 1; z++) {
+      const d = Math.hypot((x - cx) / (rx + 0.3), (z - cz) / (rz + 0.3)) + (hsh(x, z, 3) - 0.5) * 0.4;
+      if (d < 1) set.set(x + ',' + z, '#0f1114'); else if (d < 1.45) set.set(x + ',' + z, col.edge);
+    }
+  }
+  if (tier === 'sheet_metal' && stage >= 1) for (let i = 0; i < 3 * stage; i++) set.set(`${2 + Math.floor(r() * 12)},${4 + Math.floor(r() * (h - 8))}`, col.rust);
+  for (let i = 0; i < 3 * stage; i++) set.set(`${1 + Math.floor(r() * 14)},${Math.floor(r() * 2)}`, col.deb);
+  return (x, z) => (z < h - 1 ? set.get(x + ',' + z) || null : null);
+}
+function tierLeaf(tier, x, z) {
+  const n = hsh(x, z, 60);
+  if (tier === 'wood') {
+    if (x === 3 || x === 12) return '#4a3a2b';
+    if (z === 6 || z === 24) return '#4a3a2b'; // cross braces
+    if (x === 10 && z === 15) return '#a99886';
+    return (x + 1) % 3 === 0 ? '#5a4631' : n < 0.1 ? '#6d5842' : '#7a6246';
+  }
+  if (tier === 'reinforced') {
+    if ((z >= 5 && z <= 7) || (z >= 24 && z <= 26)) return (x === 4 || x === 11) ? '#bdb8ab' : '#82888c'; // steel bands + rivets
+    if (x === 10 && z === 15) return '#a99886';
+    return (x + 1) % 3 === 0 ? '#5a4631' : '#6d5842';
+  }
+  if (x === 10 && (z === 14 || z === 15 || z === 16)) return '#c08a3e'; // bar handle
+  if (x === 3 || x === 12 || z === 0 || z === 31) return '#43474b';
+  if ((x === 5 || x === 10) && (z === 4 || z === 27)) return '#bdb8ab';
+  return n > 0.93 ? '#7a4630' : x % 3 === 0 ? '#9aa0a4' : x % 3 === 1 ? '#82888c' : '#6b7176';
+}
+function tierDoorFn(tier, state, base) {
+  const frameCol = tier === 'wood' ? '#4a3a2b' : tier === 'reinforced' ? '#5d6166' : '#43474b';
+  const leafDark = tier === 'metal' ? '#43474b' : '#3d2f22';
+  return (x, z) => {
+    if (x === 2 || x === 13) return z <= 33 ? frameCol : base(x, z);
+    if (z === 32 || z === 33) return x >= 2 && x <= 13 ? frameCol : base(x, z);
+    if (x < 3 || x > 12 || z > 31) return base(x, z);
+    if (state === 'closed') return tierLeaf(tier, x, z);
+    if (state === 'open') return x >= 11 ? (x === 11 ? leafDark : '#2a2018') : (z < 2 ? '#1a1d20' : dark);
+    // broken: permanently open gap, leaf remnants
+    if (x === 3 && z > 16 && z < 28) return tierLeaf(tier, x, z);
+    if (z <= 1 && hsh(x, z, 7) > 0.45) return tier === 'wood' ? '#8a6f50' : '#82888c';
+    if (tier !== 'wood' && x === 12 && z > 20 && z < 27) return '#82888c';
+    return z < 2 ? '#1a1d20' : dark;
+  };
+}
+function coverFn(kind, stub) { // window cover overlay (boards / plating), opening x2..13, z13..32
+  if (stub) return (x, z) => {
+    if (x < 2 || x > 13 || z < 8 || z > 11) return null;
+    if (kind === 'boards') return z === 8 ? '#4a3a2b' : (x === 3 || x === 12) && z === 10 ? '#82888c' : z === 11 ? '#9a8060' : '#7a6246';
+    return z === 8 || z === 11 ? '#43474b' : (x === 3 || x === 12) && z === 9 ? '#bdb8ab' : ['#9aa0a4', '#82888c', '#5d6166'][x % 3];
+  };
+  return (x, z) => {
+    if (x < 2 || x > 13) return null;
+    if (kind === 'boards') {
+      const k = [14, 20, 26].findIndex((z0) => z >= z0 && z <= z0 + 3 + 0);
+      if (k < 0) return null;
+      const z0 = [14, 20, 26][k], t = z - z0;
+      if (t === 0) return '#4a3a2b';
+      if ((x === 3 || x === 12) && t === 2) return '#82888c';
+      return t === 3 ? '#9a8060' : hsh(x, z, 70) < 0.12 ? '#6d5842' : '#7a6246';
+    }
+    if (z < 12 || z > 33) return null;
+    if (z === 12 || z === 33 || x === 2 || x === 13) return '#43474b';
+    if (((x === 3 || x === 12) && (z === 13 || z === 32)) || ((x === 7 || x === 8) && z === 22)) return '#bdb8ab';
+    return ['#9aa0a4', '#82888c', '#5d6166'][x % 3];
+  };
+}
+function platingWallFn(stub) { // reinforcing plating overlay (wall / door)
+  return (x, z) => {
+    const hi = stub ? 11 : 37;
+    if (x < 1 || x > 14 || z < 2 || z > hi) return null;
+    if (z === 2 || z === hi || x === 1 || x === 14 || (!stub && z === 20)) return '#43474b';
+    if (((x === 2 || x === 13) && (z === 3 || z === hi - 1)) || (!stub && (x === 2 || x === 13) && (z === 19 || z === 21))) return '#bdb8ab';
+    return ['#9aa0a4', '#82888c', '#5d6166'][x % 3];
+  };
+}
 {
   const fr = [];
   for (const d of ['x', 'y']) {
@@ -1420,7 +1554,31 @@ function barricade(c, dir, lv, stage) {
     }
   }
   for (const d of ['x', 'y']) for (const lv of [1, 2]) for (const st of [0, 1, 2]) fr.push([`barricade_${d}_lv${lv}_${st}`, (c) => barricade(c, d, lv, st)]);
-  sheet('iso_walls', 16, 48, fr, { note: 'Iso walls, frames 16x48 art px. wall_<x|y>_<full|stub>_<finish>: x = edge runs toward the screen lower-right (ANCHOR: upper-left end of the base line at frame (0,40), the line ends at (16,48)); y = edge runs toward the lower-left (ANCHOR: upper-right end at (16,40), ends at (0,48)). Tile-corner vertex V(gx,gy) = ((gx-gy)*16, (gx+gy)*8) art px. Place x frames at (V.x, V.y-40) and y frames at (V.x-16, V.y-40) for the starting vertex V of the edge. Full = 40 px above the base line (120 game px), stub = 12 px (cutaway, 36 game px); all frames keep 16x48 and stubs use only the bottom 20 rows. Every wall has a 2 px cap (light top line). The y direction is drawn ~20% darker (shadow side). Finishes: concrete (corridor/landing/storage), plaster (hallway/laundry/office, also around windows and doors), wallp_a (living/bedroom, striped faded wallpaper with dado), wallp_b (kitchen, dotted grey-green), tile (bathroom, tiled to 28 px), burned (soot). corner_inner_* (flat post, concave corner) and corner_outer_* (split-shaded post, convex corner) are posts of width 4/6 with the corner vertex at frame (8,44). wall_*_window / window_broken: glass 8x18 px with skyline; stub window = low sill with a glass edge. door_<x|y>_<full|stub>_<closed|open|jammed|splintered|hanging|broken>: doorway frame + leaf in the wall segment (closed = leaf, open = leaf swung against the right jamb, jammed = warped leaf with boards, splintered/hanging = door damage stages 2/3, broken = permanently open with splinters; stub versions show the leaf as a low panel on the floor line). frontdoor_*_(closed|open|jammed): heavier metal door with a number plate (x 5-8, z 20-27 on the leaf). barricade_<x|y>_lv<1|2>_<0|1|2>: transparent overlay for the door gap, lv1 two planks, lv2 four planks plus steel brace; stage 0 intact, 1 damaged, 2 nearly broken (reused for the 5 damage steps: 0,0,1,2,2). Draw barricade above the door frame. Wall opening is at x 3..12, z 0..31 in every door frame.' });
+  // C2/C3 appended frames (indices of everything above are unchanged)
+  for (const d of ['x', 'y']) for (const t of TIER_WALLS) {
+    fr.push([`wall_${d}_full_${t}`, (c) => wallPaint(c, d, 40, tierWallFn(t))]);
+    fr.push([`wall_${d}_stub_${t}`, (c) => wallPaint(c, d, 12, tierWallFn(t))]);
+  }
+  for (const d of ['x', 'y']) {
+    const plaster = finishFn('plaster');
+    for (const t of ['wood', 'reinforced', 'metal']) for (const st of ['closed', 'open', 'broken']) {
+      fr.push([`door_${d}_full_${t}_${st}`, (c) => wallPaint(c, d, 40, tierDoorFn(t, st, plaster))]);
+      fr.push([`door_${d}_stub_${t}_${st}`, (c) => wallPaint(c, d, 12, tierDoorFn(t, st, plaster), { skipCap: (x) => x >= 3 && x <= 12 })]);
+    }
+  }
+  for (const d of ['x', 'y']) for (const k of ['boards', 'plating']) {
+    fr.push([`cover_${k}_${d}_full`, (c) => wallPaint(c, d, 40, coverFn(k, false), { cap: false })]);
+    fr.push([`cover_${k}_${d}_stub`, (c) => wallPaint(c, d, 12, coverFn(k, true), { cap: false })]);
+  }
+  for (const d of ['x', 'y']) {
+    fr.push([`plating_${d}_full`, (c) => wallPaint(c, d, 40, platingWallFn(false), { cap: false })]);
+    fr.push([`plating_${d}_stub`, (c) => wallPaint(c, d, 12, platingWallFn(true), { cap: false })]);
+  }
+  for (const d of ['x', 'y']) for (const t of TIER_WALLS) for (const st of [1, 2, 3]) {
+    fr.push([`dmg_${t}_${d}_full_${st}`, (c) => wallPaint(c, d, 40, dmgFn(t, st, 40), { cap: false })]);
+    fr.push([`dmg_${t}_${d}_stub_${st}`, (c) => wallPaint(c, d, 12, dmgFn(t, st, 12), { cap: false })]);
+  }
+  sheet('iso_walls', 16, 48, fr, { note: 'Iso walls, frames 16x48 art px. wall_<x|y>_<full|stub>_<finish>: x = edge runs toward the screen lower-right (ANCHOR: upper-left end of the base line at frame (0,40), the line ends at (16,48)); y = edge runs toward the lower-left (ANCHOR: upper-right end at (16,40), ends at (0,48)). Tile-corner vertex V(gx,gy) = ((gx-gy)*16, (gx+gy)*8) art px. Place x frames at (V.x, V.y-40) and y frames at (V.x-16, V.y-40) for the starting vertex V of the edge. Full = 40 px above the base line (120 game px), stub = 12 px (cutaway, 36 game px); all frames keep 16x48 and stubs use only the bottom 20 rows. Every wall has a 2 px cap (light top line). The y direction is drawn ~20% darker (shadow side). Finishes: concrete (corridor/landing/storage), plaster (hallway/laundry/office, also around windows and doors), wallp_a (living/bedroom, striped faded wallpaper with dado), wallp_b (kitchen, dotted grey-green), tile (bathroom, tiled to 28 px), burned (soot). corner_inner_* (flat post, concave corner) and corner_outer_* (split-shaded post, convex corner) are posts of width 4/6 with the corner vertex at frame (8,44). wall_*_window / window_broken: glass 8x18 px with skyline; stub window = low sill with a glass edge. door_<x|y>_<full|stub>_<closed|open|jammed|splintered|hanging|broken>: doorway frame + leaf in the wall segment (closed = leaf, open = leaf swung against the right jamb, jammed = warped leaf with boards, splintered/hanging = door damage stages 2/3, broken = permanently open with splinters; stub versions show the leaf as a low panel on the floor line). frontdoor_*_(closed|open|jammed): heavier metal door with a number plate (x 5-8, z 20-27 on the leaf). barricade_<x|y>_lv<1|2>_<0|1|2>: transparent overlay for the door gap, lv1 two planks, lv2 four planks plus steel brace; stage 0 intact, 1 damaged, 2 nearly broken (reused for the 5 damage steps: 0,0,1,2,2). Draw barricade above the door frame. Wall opening is at x 3..12, z 0..31 in every door frame. C2/C3 HQ frames (appended): wall_<x|y>_<full|stub>_<wood|sheet_metal|block> (planks / corrugated steel / cinder blocks, same 2 px cap); door_<x|y>_<full|stub>_<wood|reinforced|metal>_<closed|open|broken> (same door opening, built tiers; reinforced = wood plus steel bands, metal = plate door); cover_<boards|plating>_<x|y>_<full|stub> = transparent window-cover overlays over the window opening (draw above wall_*_window; no cap); plating_<x|y>_<full|stub> = transparent steel plate overlay for walls and doors; dmg_<wood|sheet_metal|block>_<x|y>_<full|stub>_<1|2|3> = transparent damage overlays (cracks, chips, stage 3 = hole, debris at the foot; use the material of the piece: reinforced and metal doors use sheet_metal). Ghost preview: no extra frames, draw any of the above with setTint(0x88ff88) (valid) or 0xff6666 (blocked) at alpha 0.5.' });
 }
 
 // ---------- iso_stairs: 64x64 frames ----------
@@ -1706,8 +1864,15 @@ const OPENABLE = ['fridge', 'kitchen_cupboard', 'kitchen_drawer', 'wardrobe', 'b
   for (const [id, fn] of Object.entries(PROPS)) { add(null, id, 16, 48, fn, false); if (OPENABLE.includes(id)) add(null, id, 16, 48, fn, true); }
   const flatDebris = (kind) => (k) => { const r = mkr(kind === 'p' ? 11 : 12); for (let i = 0; i < 9; i++) { const u = -6 + r() * 10, d = -5 + r() * 9; k.flat(u, d, 2 + Math.floor(r() * 3), 1 + Math.floor(r() * 2), kind === 'p' ? (r() < 0.5 ? 'X' : 'X') : (r() < 0.5 ? 'TD' : 'CLOTH')); } };
   fr.push(['debris_papers', (c) => flatDebris('p')(propCtx(c, 16, 48, 'a'))], ['debris_clothes', (c) => flatDebris('c')(propCtx(c, 16, 48, 'a'))]);
+  // C2/C3 appended: trap props and demolition rubble
+  const TRAP = {
+    spike_strip: (k) => { k.box(-6, 6, -4, 4, 0, 2, '#4a3a2b'); for (const u of [-5, -2, 1, 4]) for (const d of [-3, 1]) k.box(u, u + 1.5, d, d + 1.5, 2, 6, '#bdb8ab'); },
+    alarm_lure: (k) => { k.box(-4, 4, -4, 4, 0, 5, '#6b7176'); k.box(-2.5, 2.5, -2.5, 2.5, 5, 9, '#c08a3e'); k.box(-0.5, 0.5, -0.5, 0.5, 9, 13, '#a8403a'); },
+    rubble: (k) => { const r = mkr(5150); k.flat(-6, -5, 12, 10, '#2c3034'); for (let i = 0; i < 10; i++) { const u = -6 + r() * 9, d = -5 + r() * 8, w = 1.5 + r() * 2.5; k.box(u, u + w, d, d + w, 0, 1 + Math.floor(r() * 3), r() < 0.5 ? '#5d6166' : r() < 0.5 ? '#6a6e72' : '#66503c'); } },
+  };
+  for (const [id, fn] of Object.entries(TRAP)) for (const f of ['a', 'b']) fr.push([`${id}_${f}`, (c) => fn(propCtx(c, 16, 48, f))]);
   const names = Object.keys(PROPS).flatMap((id) => OPENABLE.includes(id) ? [id, id + '_open'] : [id]);
-  sheet('iso_props', 32, 56, fr, { outline: false, note: `Iso props, frames 32x56 art px (1x1 footprint). ANCHOR: tile centre at (16,48) (floor diamond spans y 40-56, so setOrigin(0.5, 48/56)); props stand within +-7 units of it, tall ones up to 40 px high. Frames <id>_<a|b> and <id>_open_<a|b> (searched/ajar). Facing a: front toward the lower-left, backed to the upper-right wall; b: front toward the lower-right, backed to the upper-left wall; mirror (flipX) for the other two facings. Mounted objects (bathroom_cabinet, medicine_cabinet) and curtains are drawn at wall height at the back of the tile (draw at the wall edge). ids: ${names.join(', ')}; debris_papers / debris_clothes = flat ransacked clutter (one facing). Lamp: oil_lamp; light pool is code-made. Mirroring note: lighting is baked (left face lighter), so mirrored copies swap light direction, which is acceptable.` });
+  sheet('iso_props', 32, 56, fr, { outline: false, note: `Iso props, frames 32x56 art px (1x1 footprint). ANCHOR: tile centre at (16,48) (floor diamond spans y 40-56, so setOrigin(0.5, 48/56)); props stand within +-7 units of it, tall ones up to 40 px high. Frames <id>_<a|b> and <id>_open_<a|b> (searched/ajar). Facing a: front toward the lower-left, backed to the upper-right wall; b: front toward the lower-right, backed to the upper-left wall; mirror (flipX) for the other two facings. Mounted objects (bathroom_cabinet, medicine_cabinet) and curtains are drawn at wall height at the back of the tile (draw at the wall edge). ids: ${names.join(', ')}; C2/C3 appended: spike_strip, alarm_lure (1x1 traps, flat strip / alarm unit with amber bell and red light) and rubble (pile left by demolition; floor stain first, then chunks), each _a|_b; debris_papers / debris_clothes = flat ransacked clutter (one facing). Lamp: oil_lamp; light pool is code-made. Mirroring note: lighting is baked (left face lighter), so mirrored copies swap light direction, which is acceptable.` });
   const fl = [];
   for (const [id, fn] of Object.entries(LPROPS)) { for (const f of ['a', 'b']) fl.push([`${id}_${f}`, (c) => fn(propCtx(c, 32, 52, f), false)]); if (id === 'storage_cage') for (const f of ['a', 'b']) fl.push([`${id}_open_${f}`, (c) => fn(propCtx(c, 32, 52, f), true)]); }
   sheet('iso_props_l', 64, 72, fl, { outline: false, note: 'Iso large props, frames 64x72 art px: table, sofa, mattress, desk, storage_cage (+_open), workbench, survivor_bed, charred_big (1x2 footprint, 14x14... 28x12 units) and bed_frame, hero_bed (2x2 footprint). ANCHOR: centre of the footprint rectangle at (32,52) (setOrigin(0.5, 52/72)). Long axis runs along the front face: for facing a the footprint is 2 tiles along x (front toward the lower-left), for b it is 2 tiles along y (front toward the lower-right); mirror for the other two facings. Frames <id>_<a|b>. The bed_frame is the stripped salvage frame with a stained mattress, hero_bed is the made-up bed (teal blanket), survivor_bed a cot.' });
@@ -1838,7 +2003,9 @@ const MARA_PAL = { skin: 'SK', hair: 'WOODD', shirt: 'X', sleeve: 'X', pants: 'T
 const WALK = [{ bob: 1, sw: [1, -1], lift: [0, 0] }, { bob: 0, sw: [0, 0], lift: [0, 1] }, { bob: 1, sw: [-1, 1], lift: [0, 0] }, { bob: 0, sw: [0, 0], lift: [1, 0] }];
 function isoChars(key, anims, draw, note) {
   const frames = [], animDefs = [];
-  for (const d of DIRS) for (const [name, n, fps, rep] of anims) {
+  // anims flagged late (5th entry) are appended after all directions so earlier frame indices never shift
+  for (const late of [false, true]) for (const d of DIRS) for (const [name, n, fps, rep, lt] of anims) {
+    if (!!lt !== late) continue;
     const idx = [];
     for (let i = 0; i < n; i++) { idx.push(frames.length); frames.push([`${name}_${d}_${i}`, (c) => { draw(c, VIEW[d], name, i); if (MIRRORED.has(d)) flipH(c); }]); }
     animDefs.push(anim(`${name}_${d}`, idx, fps, rep));
@@ -1846,19 +2013,30 @@ function isoChars(key, anims, draw, note) {
   sheet(key, 16, 32, frames, { outline: true, animations: animDefs, note });
 }
 const NOTE_CH = 'Frames 16x32 art px, ANCHOR: feet / tile centre at (16/2, 30) = (8,30) (setOrigin(0.5, 30/32)). 8 facings in the order S, SW, W, NW, N, NE, E, SE (S = toward the camera, E = screen right, N = away). Frame names <anim>_<DIR>_<i>, animation keys <anim>_<DIR> (e.g. walk_SE). SW, W, NW are baked mirrors of SE, E, NE (no flipX needed). 1 px near-black outline. ';
+// C2/C3 shoot: arm extended with a pistol/shotgun-sized dark gun; frame 0 = aim, frame 1 = recoil (hand and gun 1 px back)
+const SHOOT_HAND = { S: [11, 13], SE: [11, 12], E: [11, 12], NE: [11, 10], N: [11, 9] };
+const SHOOT_GUN = { S: [[0, 2], [0, 3], [0, 4]], SE: [[2, 0], [3, 0], [4, 1]], E: [[2, 0], [3, 0], [4, 0]], NE: [[2, 0], [3, -1], [4, -1]], N: [[0, -2], [0, -3], [0, -4]] };
+const SHOOT_BACK = { S: [0, -1], SE: [-1, 0], E: [-1, 0], NE: [-1, 0], N: [0, 1] };
+function shootDraw(c, v, pal, i) {
+  const h = SHOOT_HAND[v], b = SHOOT_BACK[v], o = i ? 1 : 0;
+  ATK[v][3] = { h: [h[0] + b[0] * o, h[1] + b[1] * o], t: [0, 0] };
+  person(c, v, { ...pal, weapon: null }, { atk: 3, bob: 0, headDx: 0 });
+  SHOOT_GUN[v].forEach(([dx, dy], k) => c.rect(h[0] + b[0] * o + dx, h[1] + b[1] * o + dy, k === 2 ? 1 : 2, k === 2 ? 1 : 2, k === 0 ? '#23272c' : k === 1 ? 'L' : 'O'));
+}
 function humanDraw(pal) {
   return (c, v, name, i) => {
     if (name === 'idle') return person(c, v, pal, { bob: i });
     if (name === 'walk') return person(c, v, pal, WALK[i]);
     if (name === 'attack') return person(c, v, pal, { atk: i, bob: i === 1 ? 1 : 0, lean: 0, headDx: i === 1 ? (v === 'E' || v === 'SE' ? 1 : 0) : 0 });
+    if (name === 'shoot') return shootDraw(c, v, pal, i);
     if (name === 'hurt') return person(c, v, pal, { bob: 1, headDx: v === 'E' || v === 'SE' ? -1 : 0, lean: v === 'E' ? -1 : 0, mouth: true });
     if (i === 0) return person(c, v, pal, { bob: 1, headDx: v === 'E' || v === 'SE' ? -1 : 0, lean: v === 'E' ? -1 : 0 });
     if (i === 1) return person(c, v, pal, { bob: 5, kneel: 3, headDx: 0 });
     isoLying(c, v, pal, true);
   };
 }
-isoChars('iso_hero', [['idle', 2, 2, -1], ['walk', 4, 8, -1], ['attack', 3, 12, 0], ['hurt', 1, 8, 0], ['death', 3, 6, 0]], humanDraw(HERO_PAL),
-  NOTE_CH + 'Hero: faded teal jacket, dark hair, rust backpack visible from behind and the side, pale face on the front. idle 2 (2 fps), walk 4 (8 fps; use a higher fps for running), attack 3 (windup, swing, recover; swings a pipe on the right hand), death 3 (stagger, kneel, isoLying).');
+isoChars('iso_hero', [['idle', 2, 2, -1], ['walk', 4, 8, -1], ['attack', 3, 12, 0], ['hurt', 1, 8, 0], ['death', 3, 6, 0], ['shoot', 2, 14, 0, true]], humanDraw(HERO_PAL),
+  NOTE_CH + 'Hero: faded teal jacket, dark hair, rust backpack visible from behind and the side, pale face on the front. idle 2 (2 fps), walk 4 (8 fps; use a higher fps for running), attack 3 (windup, swing, recover; swings a pipe on the right hand), death 3 (stagger, kneel, isoLying). C2/C3: shoot 2 (aim, recoil; arm out holding a dark pistol/shotgun-sized gun, 14 fps, once), frames appended after all other frames of the sheet (names shoot_<DIR>_<0|1>, anim shoot_<DIR>); pair with iso_fx muzzle_flash_0|1 at the gun tip.');
 isoChars('iso_mara', [['idle', 2, 2, -1], ['walk', 4, 8, -1], ['attack', 3, 12, 0], ['hurt', 1, 8, 0], ['death', 3, 6, 0]], humanDraw(MARA_PAL),
   NOTE_CH + 'Mara: nurse in light scrubs, dark hair in a bun, red chest mark, dark teal trousers. Same frame layout as iso_hero.');
 // ---------- zombies: ordinary residents who died (GDD 9: dark blood only, no gore body parts) ----------
@@ -2211,7 +2389,26 @@ const ACT = [
   ['search_empty', (c) => { aDrawer(c, true); aR(c, 10, 5, 4, 1); aR(c, 6, 3, 1, 1); aR(c, 17, 3, 1, 1); }],
   ['none', (c) => aDisc(c, 12, 12, 3)],
 ];
-sheet('action_icons', 24, 24, ACT, { note: 'Context-button pictograms 24x24 (display 72-96 game px), flat #bdb8ab, no outline; alpha/tint in game (search_empty/disabled use the plate disabled variant). Frame names = icon ids.' });
+const plusMark = (c) => { aR(c, 20, 4, 2, 6); aR(c, 19, 6, 5, 2); };
+ACT.push(
+  ['build_wall', (c) => { for (let r = 0; r < 4; r++) { const y = 3 + r * 5; aR(c, 2, y, 20, 4); [(r % 2 ? 7 : 12), (r % 2 ? 17 : 5)].forEach((x) => aR(c, x, y, 1, 4, false)); } }],
+  ['upgrade', (c) => { aArrow(c, 12, 14, 12, 0); aR(c, 3, 17, 18, 2); aR(c, 3, 21, 18, 2); aR(c, 5, 15, 14, 1); }],
+  ['demolish', (c) => { aR(c, 2, 2, 20, 16); aBar(c, 12, 1, 8, 8, 2, 2, false); aBar(c, 8, 8, 15, 12, 2, 2, false); aBar(c, 15, 12, 10, 19, 2, 2, false); aR(c, 3, 20, 4, 3); aR(c, 10, 21, 3, 2); aR(c, 17, 20, 4, 3); aR(c, 5, 19, 1, 1, false); }],
+  ['fit_door', (c) => { aDoorFrame(c); aR(c, 6, 4, 9, 16); aR(c, 11, 11, 2, 2, false); plusMark(c); }],
+  ['fit_window', (c) => { aHollow(c, 2, 4, 16, 16, 2); aR(c, 9, 6, 2, 12); aR(c, 4, 11, 12, 2); plusMark(c); }],
+  ['board_window', (c) => { aHollow(c, 3, 2, 18, 20, 2); aBar(c, 0, 8, 24, 6, 3.6); aBar(c, 0, 17, 24, 19, 3.6); [[2, 8], [21, 6], [2, 17], [21, 19]].forEach(([x, y]) => aR(c, x, y, 1, 1, false)); }],
+  ['plate_window', (c) => { aHollow(c, 1, 1, 22, 22, 2); aR(c, 4, 4, 16, 16); [[6, 6], [16, 6], [6, 16], [16, 16]].forEach(([x, y]) => aR(c, x, y, 2, 2, false)); aR(c, 11, 8, 2, 8, false); }],
+  ['claim_floor', (c) => { aR(c, 5, 1, 2, 21); aTri(c, 7, 2, 21, 8, 7, 14); aR(c, 2, 21, 9, 2); aR(c, 10, 6, 5, 2, false); }],
+  ['attack_pistol', (c) => { aR(c, 2, 4, 20, 5); aR(c, 19, 2, 2, 2); aR(c, 2, 9, 14, 3); aBar(c, 7, 11, 5, 22, 5.5); aHollow(c, 10, 11, 5, 5, 1); aR(c, 5, 5, 8, 1, false); }],
+  ['attack_shotgun', (c) => { aR(c, 6, 5, 17, 3); aR(c, 6, 9, 17, 3); aR(c, 6, 8, 17, 1, false); aR(c, 6, 7, 6, 8); aR(c, 11, 13, 7, 3); aBar(c, 1, 20, 8, 12, 7, 3); aR(c, 21, 3, 2, 2); }],
+  ['attack_hammer', (c) => { aBar(c, 4, 21, 16, 9, 3); aBar(c, 12, 5, 20, 13, 5.5); aBar(c, 12, 5, 8, 3, 2, 1); aBar(c, 16, 9, 19, 12, 1, 1, false); }],
+  ['attack_sledgehammer', (c) => { aBar(c, 3, 22, 14, 11, 3.4); aBar(c, 9, 2, 22, 15, 8.5); aBar(c, 12, 5, 19, 12, 1, 1, false); aR(c, 1, 21, 3, 2); }],
+  ['attack_axe', (c) => { aBar(c, 3, 21, 17, 7, 3); aTri(c, 13, 3, 23, 3, 20, 15); aTri(c, 14, 2, 18, 2, 14, 9); aR(c, 17, 6, 3, 2, false); }],
+  ['reload', (c) => { aRing(c, 12, 12, 10, 3); aR(c, 12, 0, 12, 9, false); aTri(c, 14, 0, 14, 11, 23, 5.5); aR(c, 9, 7, 6, 10); aR(c, 10, 5, 4, 2); aR(c, 11, 8, 2, 7, false); }],
+  ['trowel', (c) => { aTri(c, 2, 21, 5, 9, 14, 15); aTri(c, 5, 9, 14, 15, 11, 7); aBar(c, 10, 11, 16, 7, 1.8); aBar(c, 15, 8, 22, 2, 3.6); }],
+  ['place_trap', (c) => { aR(c, 1, 19, 22, 3); for (let i = 0; i < 4; i++) aTri(c, 2 + i * 5.5, 19, 4.8 + i * 5.5, 10, 7.6 + i * 5.5, 19); aArrow(c, 12, 0, 12, 8); }],
+);
+sheet('action_icons', 24, 24, ACT, { note: 'Context-button pictograms 24x24 (display 72-96 game px), flat #bdb8ab, no outline; alpha/tint in game (search_empty/disabled use the plate disabled variant). Frame names = icon ids. C2/C3 additions appended after none: build_wall, upgrade, demolish, fit_door, fit_window, board_window, plate_window, claim_floor, attack_pistol/shotgun/hammer/sledgehammer/axe, reload, trowel (build-mode top bar), place_trap.' });
 
 // button_plates 40x40 frames: round dark translucent plates (art size 40/32/30/28 = 120/96/88/80 game px), centered in the frame.
 // Frames: plate_<s>, plate_<s>_pressed, plate_<s>_disabled for s in 40,32,30,28, then ring_<s> (2px ring, white-ish, tint + mask in game for the cooldown sweep).

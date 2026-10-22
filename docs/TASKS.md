@@ -33,9 +33,17 @@ Side-view Stage 2 archived on branch archive/m2-side-view-stage2.
 - [x] Iso GDD, balance keys, iso core (projection, grid, A*, vision, camera)
 - [x] Iso art Stage A, blueprints + authored floor 15
 - [x] Stage A: playable isometric floor 15 (review + QA passed, fixes merged)
-- [ ] CD playtest of Stage A
+- [x] CD playtest of Stage A (controls hard → joystick)
+- [x] Floating joystick: creep/walk/run, turn in place, wall slide (CD: "much much better")
+- [x] Natural audio: no hum, one-shot ambience, surface footsteps
+- [x] More human-like zombies (art)
+- [ ] Context buttons (Main/Secondary/Attack/Quick-use), no world taps: review + QA passed, minor fixes in progress
+- [x] HQ direction recorded in GDD 5.19–5.21 (sandbox floor 15, structures/traps, firearms) + balance keys
+- [x] HQ art: wall/door/window tiers, damage overlays, traps, rubble, shoot anim, muzzle flash, icons
+- [ ] Stage C2: HQ building on floor 15 (build/demolish/upgrade walls, doors, windows; claim floor; attacks probe weak spots)
 - [ ] Stage B: floors 13–17, stairs, attacks, Mara, tutorial
 - [ ] Stage C: generator + claiming homes
+- [ ] Stage C3: traps + firearms (pistol, shotgun; hunting rifle M3)
 - [ ] Stage D: lighting, notes, tutorial polish
 
 ### Stage 2 – Wide floors + horizontal camera (superseded by isometric rebuild)

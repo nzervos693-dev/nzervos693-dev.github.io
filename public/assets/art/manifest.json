@@ -362,7 +362,7 @@
    "path": "assets/art/icons.png",
    "frameWidth": 8,
    "frameHeight": 8,
-   "frames": 30,
+   "frames": 43,
    "names": [
     "wood",
     "metal",
@@ -393,7 +393,20 @@
     "bar_food",
     "bar_water",
     "bar_energy",
-    "bar_morale"
+    "bar_morale",
+    "sheet_metal",
+    "concrete_block",
+    "hammer",
+    "sledgehammer",
+    "fire_axe",
+    "pistol",
+    "shotgun",
+    "hunting_rifle",
+    "pistol_ammo",
+    "shotgun_shell",
+    "rifle_round",
+    "spike_strip",
+    "alarm_lure"
    ],
    "animations": [],
    "note": "8x8: 10 M1 materials, items, weapons/tools, HUD need bars"
@@ -1068,7 +1081,7 @@
    "path": "assets/art/iso_fx.png",
    "frameWidth": 32,
    "frameHeight": 16,
-   "frames": 9,
+   "frames": 11,
    "names": [
     "remembered_tile",
     "spot_dashed",
@@ -1078,7 +1091,9 @@
     "mark_dismantled",
     "blood_floor_0",
     "blood_floor_1",
-    "blood_floor_2"
+    "blood_floor_2",
+    "muzzle_flash_0",
+    "muzzle_flash_1"
    ],
    "animations": [
     {
@@ -1092,14 +1107,14 @@
      "repeat": 0
     }
    ],
-   "note": "Iso FX, all 32x16 diamonds centred at (16,8). remembered_tile = flat #16191d diamond (tint/alpha in code to dim remembered tiles). spot_dashed = dashed spot-pick diamond outline (GDD 5.6). ripple_0..2 = broken ellipse arcs growing r 5/10/15 px (anim \"ripple\", 3 frames, once; draw on the source tile for the sound-off ripple, scale up for louder noise). mark_dismantled = faint floor mark left by a dismantled object. blood_floor_0..2 = dried blood stains on the floor (the old fx_blood sheets are still usable for hit splashes). Vignette is code-generated."
+   "note": "Iso FX, all 32x16 diamonds centred at (16,8). remembered_tile = flat #16191d diamond (tint/alpha in code to dim remembered tiles). spot_dashed = dashed spot-pick diamond outline (GDD 5.6). ripple_0..2 = broken ellipse arcs growing r 5/10/15 px (anim \"ripple\", 3 frames, once; draw on the source tile for the sound-off ripple, scale up for louder noise). mark_dismantled = faint floor mark left by a dismantled object. blood_floor_0..2 = dried blood stains on the floor (the old fx_blood sheets are still usable for hit splashes). Vignette is code-generated. C2/C3 appended: muzzle_flash_0|1 = small/large starburst centred at (16,8), additive blend, show for balance firearms.muzzleFlashSeconds at the gun tip."
   },
   {
    "key": "iso_walls",
    "path": "assets/art/iso_walls.png",
    "frameWidth": 16,
    "frameHeight": 48,
-   "frames": 84,
+   "frames": 180,
    "names": [
     "wall_x_full_concrete",
     "wall_x_stub_concrete",
@@ -1184,10 +1199,106 @@
     "barricade_y_lv1_2",
     "barricade_y_lv2_0",
     "barricade_y_lv2_1",
-    "barricade_y_lv2_2"
+    "barricade_y_lv2_2",
+    "wall_x_full_wood",
+    "wall_x_stub_wood",
+    "wall_x_full_sheet_metal",
+    "wall_x_stub_sheet_metal",
+    "wall_x_full_block",
+    "wall_x_stub_block",
+    "wall_y_full_wood",
+    "wall_y_stub_wood",
+    "wall_y_full_sheet_metal",
+    "wall_y_stub_sheet_metal",
+    "wall_y_full_block",
+    "wall_y_stub_block",
+    "door_x_full_wood_closed",
+    "door_x_stub_wood_closed",
+    "door_x_full_wood_open",
+    "door_x_stub_wood_open",
+    "door_x_full_wood_broken",
+    "door_x_stub_wood_broken",
+    "door_x_full_reinforced_closed",
+    "door_x_stub_reinforced_closed",
+    "door_x_full_reinforced_open",
+    "door_x_stub_reinforced_open",
+    "door_x_full_reinforced_broken",
+    "door_x_stub_reinforced_broken",
+    "door_x_full_metal_closed",
+    "door_x_stub_metal_closed",
+    "door_x_full_metal_open",
+    "door_x_stub_metal_open",
+    "door_x_full_metal_broken",
+    "door_x_stub_metal_broken",
+    "door_y_full_wood_closed",
+    "door_y_stub_wood_closed",
+    "door_y_full_wood_open",
+    "door_y_stub_wood_open",
+    "door_y_full_wood_broken",
+    "door_y_stub_wood_broken",
+    "door_y_full_reinforced_closed",
+    "door_y_stub_reinforced_closed",
+    "door_y_full_reinforced_open",
+    "door_y_stub_reinforced_open",
+    "door_y_full_reinforced_broken",
+    "door_y_stub_reinforced_broken",
+    "door_y_full_metal_closed",
+    "door_y_stub_metal_closed",
+    "door_y_full_metal_open",
+    "door_y_stub_metal_open",
+    "door_y_full_metal_broken",
+    "door_y_stub_metal_broken",
+    "cover_boards_x_full",
+    "cover_boards_x_stub",
+    "cover_plating_x_full",
+    "cover_plating_x_stub",
+    "cover_boards_y_full",
+    "cover_boards_y_stub",
+    "cover_plating_y_full",
+    "cover_plating_y_stub",
+    "plating_x_full",
+    "plating_x_stub",
+    "plating_y_full",
+    "plating_y_stub",
+    "dmg_wood_x_full_1",
+    "dmg_wood_x_stub_1",
+    "dmg_wood_x_full_2",
+    "dmg_wood_x_stub_2",
+    "dmg_wood_x_full_3",
+    "dmg_wood_x_stub_3",
+    "dmg_sheet_metal_x_full_1",
+    "dmg_sheet_metal_x_stub_1",
+    "dmg_sheet_metal_x_full_2",
+    "dmg_sheet_metal_x_stub_2",
+    "dmg_sheet_metal_x_full_3",
+    "dmg_sheet_metal_x_stub_3",
+    "dmg_block_x_full_1",
+    "dmg_block_x_stub_1",
+    "dmg_block_x_full_2",
+    "dmg_block_x_stub_2",
+    "dmg_block_x_full_3",
+    "dmg_block_x_stub_3",
+    "dmg_wood_y_full_1",
+    "dmg_wood_y_stub_1",
+    "dmg_wood_y_full_2",
+    "dmg_wood_y_stub_2",
+    "dmg_wood_y_full_3",
+    "dmg_wood_y_stub_3",
+    "dmg_sheet_metal_y_full_1",
+    "dmg_sheet_metal_y_stub_1",
+    "dmg_sheet_metal_y_full_2",
+    "dmg_sheet_metal_y_stub_2",
+    "dmg_sheet_metal_y_full_3",
+    "dmg_sheet_metal_y_stub_3",
+    "dmg_block_y_full_1",
+    "dmg_block_y_stub_1",
+    "dmg_block_y_full_2",
+    "dmg_block_y_stub_2",
+    "dmg_block_y_full_3",
+    "dmg_block_y_stub_3"
    ],
    "animations": [],
-   "note": "Iso walls, frames 16x48 art px. wall_<x|y>_<full|stub>_<finish>: x = edge runs toward the screen lower-right (ANCHOR: upper-left end of the base line at frame (0,40), the line ends at (16,48)); y = edge runs toward the lower-left (ANCHOR: upper-right end at (16,40), ends at (0,48)). Tile-corner vertex V(gx,gy) = ((gx-gy)*16, (gx+gy)*8) art px. Place x frames at (V.x, V.y-40) and y frames at (V.x-16, V.y-40) for the starting vertex V of the edge. Full = 40 px above the base line (120 game px), stub = 12 px (cutaway, 36 game px); all frames keep 16x48 and stubs use only the bottom 20 rows. Every wall has a 2 px cap (light top line). The y direction is drawn ~20% darker (shadow side). Finishes: concrete (corridor/landing/storage), plaster (hallway/laundry/office, also around windows and doors), wallp_a (living/bedroom, striped faded wallpaper with dado), wallp_b (kitchen, dotted grey-green), tile (bathroom, tiled to 28 px), burned (soot). corner_inner_* (flat post, concave corner) and corner_outer_* (split-shaded post, convex corner) are posts of width 4/6 with the corner vertex at frame (8,44). wall_*_window / window_broken: glass 8x18 px with skyline; stub window = low sill with a glass edge. door_<x|y>_<full|stub>_<closed|open|jammed|splintered|hanging|broken>: doorway frame + leaf in the wall segment (closed = leaf, open = leaf swung against the right jamb, jammed = warped leaf with boards, splintered/hanging = door damage stages 2/3, broken = permanently open with splinters; stub versions show the leaf as a low panel on the floor line). frontdoor_*_(closed|open|jammed): heavier metal door with a number plate (x 5-8, z 20-27 on the leaf). barricade_<x|y>_lv<1|2>_<0|1|2>: transparent overlay for the door gap, lv1 two planks, lv2 four planks plus steel brace; stage 0 intact, 1 damaged, 2 nearly broken (reused for the 5 damage steps: 0,0,1,2,2). Draw barricade above the door frame. Wall opening is at x 3..12, z 0..31 in every door frame."
+   "note": "Iso walls, frames 16x48 art px. wall_<x|y>_<full|stub>_<finish>: x = edge runs toward the screen lower-right (ANCHOR: upper-left end of the base line at frame (0,40), the line ends at (16,48)); y = edge runs toward the lower-left (ANCHOR: upper-right end at (16,40), ends at (0,48)). Tile-corner vertex V(gx,gy) = ((gx-gy)*16, (gx+gy)*8) art px. Place x frames at (V.x, V.y-40) and y frames at (V.x-16, V.y-40) for the starting vertex V of the edge. Full = 40 px above the base line (120 game px), stub = 12 px (cutaway, 36 game px); all frames keep 16x48 and stubs use only the bottom 20 rows. Every wall has a 2 px cap (light top line). The y direction is drawn ~20% darker (shadow side). Finishes: concrete (corridor/landing/storage), plaster (hallway/laundry/office, also around windows and doors), wallp_a (living/bedroom, striped faded wallpaper with dado), wallp_b (kitchen, dotted grey-green), tile (bathroom, tiled to 28 px), burned (soot). corner_inner_* (flat post, concave corner) and corner_outer_* (split-shaded post, convex corner) are posts of width 4/6 with the corner vertex at frame (8,44). wall_*_window / window_broken: glass 8x18 px with skyline; stub window = low sill with a glass edge. door_<x|y>_<full|stub>_<closed|open|jammed|splintered|hanging|broken>: doorway frame + leaf in the wall segment (closed = leaf, open = leaf swung against the right jamb, jammed = warped leaf with boards, splintered/hanging = door damage stages 2/3, broken = permanently open with splinters; stub versions show the leaf as a low panel on the floor line). frontdoor_*_(closed|open|jammed): heavier metal door with a number plate (x 5-8, z 20-27 on the leaf). barricade_<x|y>_lv<1|2>_<0|1|2>: transparent overlay for the door gap, lv1 two planks, lv2 four planks plus steel brace; stage 0 intact, 1 damaged, 2 nearly broken (reused for the 5 damage steps: 0,0,1,2,2). Draw barricade above the door frame. Wall opening is at x 3..12, z 0..31 in every door frame. C2/C3 HQ frames (appended): wall_<x|y>_<full|stub>_<wood|sheet_metal|block> (planks / corrugated steel / cinder blocks, same 2 px cap); door_<x|y>_<full|stub>_<wood|reinforced|metal>_<closed|open|broken> (same door opening, built tiers; reinforced = wood plus steel bands, metal = plate door); cover_<boards|plating>_<x|y>_<full|stub> = transparent window-cover overlays over the window opening (draw above wall_*_window; no cap); plating_<x|y>_<full|stub> = transparent steel plate overlay for walls and doors; dmg_<wood|sheet_metal|block>_<x|y>_<full|stub>_<1|2|3> = transparent damage overlays (cracks, chips, stage 3 = hole, debris at the foot; use the material of the piece: reinforced and metal doors use sheet_metal). Ghost preview: no extra frames, draw any of the above with setTint(0x88ff88) (valid) or 0xff6666 (blocked) at alpha 0.5."
   },
   {
    "key": "iso_stairs",
@@ -1211,7 +1322,7 @@
    "path": "assets/art/iso_props.png",
    "frameWidth": 32,
    "frameHeight": 56,
-   "frames": 72,
+   "frames": 78,
    "names": [
     "fridge_a",
     "fridge_b",
@@ -1284,10 +1395,16 @@
     "charred_debris_a",
     "charred_debris_b",
     "debris_papers",
-    "debris_clothes"
+    "debris_clothes",
+    "spike_strip_a",
+    "spike_strip_b",
+    "alarm_lure_a",
+    "alarm_lure_b",
+    "rubble_a",
+    "rubble_b"
    ],
    "animations": [],
-   "note": "Iso props, frames 32x56 art px (1x1 footprint). ANCHOR: tile centre at (16,48) (floor diamond spans y 40-56, so setOrigin(0.5, 48/56)); props stand within +-7 units of it, tall ones up to 40 px high. Frames <id>_<a|b> and <id>_open_<a|b> (searched/ajar). Facing a: front toward the lower-left, backed to the upper-right wall; b: front toward the lower-right, backed to the upper-left wall; mirror (flipX) for the other two facings. Mounted objects (bathroom_cabinet, medicine_cabinet) and curtains are drawn at wall height at the back of the tile (draw at the wall edge). ids: fridge, fridge_open, kitchen_cupboard, kitchen_cupboard_open, kitchen_drawer, kitchen_drawer_open, chair, wardrobe, wardrobe_open, bathroom_cabinet, bathroom_cabinet_open, medicine_cabinet, medicine_cabinet_open, toilet_tank, sink_pipes, water_heater, tv, microwave, rain_collector, water_filter, planter, curtains, potted_plant, toolbox, toolbox_open, oil_lamp, filing_cabinet, filing_cabinet_open, washing_machine, washing_machine_open, laundry_basket, toy_box, toy_box_open, utility_shelf, charred_debris; debris_papers / debris_clothes = flat ransacked clutter (one facing). Lamp: oil_lamp; light pool is code-made. Mirroring note: lighting is baked (left face lighter), so mirrored copies swap light direction, which is acceptable."
+   "note": "Iso props, frames 32x56 art px (1x1 footprint). ANCHOR: tile centre at (16,48) (floor diamond spans y 40-56, so setOrigin(0.5, 48/56)); props stand within +-7 units of it, tall ones up to 40 px high. Frames <id>_<a|b> and <id>_open_<a|b> (searched/ajar). Facing a: front toward the lower-left, backed to the upper-right wall; b: front toward the lower-right, backed to the upper-left wall; mirror (flipX) for the other two facings. Mounted objects (bathroom_cabinet, medicine_cabinet) and curtains are drawn at wall height at the back of the tile (draw at the wall edge). ids: fridge, fridge_open, kitchen_cupboard, kitchen_cupboard_open, kitchen_drawer, kitchen_drawer_open, chair, wardrobe, wardrobe_open, bathroom_cabinet, bathroom_cabinet_open, medicine_cabinet, medicine_cabinet_open, toilet_tank, sink_pipes, water_heater, tv, microwave, rain_collector, water_filter, planter, curtains, potted_plant, toolbox, toolbox_open, oil_lamp, filing_cabinet, filing_cabinet_open, washing_machine, washing_machine_open, laundry_basket, toy_box, toy_box_open, utility_shelf, charred_debris; C2/C3 appended: spike_strip, alarm_lure (1x1 traps, flat strip / alarm unit with amber bell and red light) and rubble (pile left by demolition; floor stain first, then chunks), each _a|_b; debris_papers / debris_clothes = flat ransacked clutter (one facing). Lamp: oil_lamp; light pool is code-made. Mirroring note: lighting is baked (left face lighter), so mirrored copies swap light direction, which is acceptable."
   },
   {
    "key": "iso_props_l",
@@ -1327,7 +1444,7 @@
    "path": "assets/art/iso_hero.png",
    "frameWidth": 16,
    "frameHeight": 32,
-   "frames": 104,
+   "frames": 120,
    "names": [
     "idle_S_0",
     "idle_S_1",
@@ -1432,7 +1549,23 @@
     "hurt_SE_0",
     "death_SE_0",
     "death_SE_1",
-    "death_SE_2"
+    "death_SE_2",
+    "shoot_S_0",
+    "shoot_S_1",
+    "shoot_SW_0",
+    "shoot_SW_1",
+    "shoot_W_0",
+    "shoot_W_1",
+    "shoot_NW_0",
+    "shoot_NW_1",
+    "shoot_N_0",
+    "shoot_N_1",
+    "shoot_NE_0",
+    "shoot_NE_1",
+    "shoot_E_0",
+    "shoot_E_1",
+    "shoot_SE_0",
+    "shoot_SE_1"
    ],
    "animations": [
     {
@@ -1818,9 +1951,81 @@
      ],
      "fps": 6,
      "repeat": 0
+    },
+    {
+     "name": "shoot_S",
+     "frames": [
+      104,
+      105
+     ],
+     "fps": 14,
+     "repeat": 0
+    },
+    {
+     "name": "shoot_SW",
+     "frames": [
+      106,
+      107
+     ],
+     "fps": 14,
+     "repeat": 0
+    },
+    {
+     "name": "shoot_W",
+     "frames": [
+      108,
+      109
+     ],
+     "fps": 14,
+     "repeat": 0
+    },
+    {
+     "name": "shoot_NW",
+     "frames": [
+      110,
+      111
+     ],
+     "fps": 14,
+     "repeat": 0
+    },
+    {
+     "name": "shoot_N",
+     "frames": [
+      112,
+      113
+     ],
+     "fps": 14,
+     "repeat": 0
+    },
+    {
+     "name": "shoot_NE",
+     "frames": [
+      114,
+      115
+     ],
+     "fps": 14,
+     "repeat": 0
+    },
+    {
+     "name": "shoot_E",
+     "frames": [
+      116,
+      117
+     ],
+     "fps": 14,
+     "repeat": 0
+    },
+    {
+     "name": "shoot_SE",
+     "frames": [
+      118,
+      119
+     ],
+     "fps": 14,
+     "repeat": 0
     }
    ],
-   "note": "Frames 16x32 art px, ANCHOR: feet / tile centre at (16/2, 30) = (8,30) (setOrigin(0.5, 30/32)). 8 facings in the order S, SW, W, NW, N, NE, E, SE (S = toward the camera, E = screen right, N = away). Frame names <anim>_<DIR>_<i>, animation keys <anim>_<DIR> (e.g. walk_SE). SW, W, NW are baked mirrors of SE, E, NE (no flipX needed). 1 px near-black outline. Hero: faded teal jacket, dark hair, rust backpack visible from behind and the side, pale face on the front. idle 2 (2 fps), walk 4 (8 fps; use a higher fps for running), attack 3 (windup, swing, recover; swings a pipe on the right hand), death 3 (stagger, kneel, isoLying)."
+   "note": "Frames 16x32 art px, ANCHOR: feet / tile centre at (16/2, 30) = (8,30) (setOrigin(0.5, 30/32)). 8 facings in the order S, SW, W, NW, N, NE, E, SE (S = toward the camera, E = screen right, N = away). Frame names <anim>_<DIR>_<i>, animation keys <anim>_<DIR> (e.g. walk_SE). SW, W, NW are baked mirrors of SE, E, NE (no flipX needed). 1 px near-black outline. Hero: faded teal jacket, dark hair, rust backpack visible from behind and the side, pale face on the front. idle 2 (2 fps), walk 4 (8 fps; use a higher fps for running), attack 3 (windup, swing, recover; swings a pipe on the right hand), death 3 (stagger, kneel, isoLying). C2/C3: shoot 2 (aim, recoil; arm out holding a dark pistol/shotgun-sized gun, 14 fps, once), frames appended after all other frames of the sheet (names shoot_<DIR>_<0|1>, anim shoot_<DIR>); pair with iso_fx muzzle_flash_0|1 at the gun tip."
   },
   {
    "key": "iso_mara",
@@ -4604,7 +4809,7 @@
    "path": "assets/art/action_icons.png",
    "frameWidth": 24,
    "frameHeight": 24,
-   "frames": 31,
+   "frames": 47,
    "names": [
     "open_door",
     "close_door",
@@ -4636,10 +4841,26 @@
     "barricade",
     "repair",
     "search_empty",
-    "none"
+    "none",
+    "build_wall",
+    "upgrade",
+    "demolish",
+    "fit_door",
+    "fit_window",
+    "board_window",
+    "plate_window",
+    "claim_floor",
+    "attack_pistol",
+    "attack_shotgun",
+    "attack_hammer",
+    "attack_sledgehammer",
+    "attack_axe",
+    "reload",
+    "trowel",
+    "place_trap"
    ],
    "animations": [],
-   "note": "Context-button pictograms 24x24 (display 72-96 game px), flat #bdb8ab, no outline; alpha/tint in game (search_empty/disabled use the plate disabled variant). Frame names = icon ids."
+   "note": "Context-button pictograms 24x24 (display 72-96 game px), flat #bdb8ab, no outline; alpha/tint in game (search_empty/disabled use the plate disabled variant). Frame names = icon ids. C2/C3 additions appended after none: build_wall, upgrade, demolish, fit_door, fit_window, board_window, plate_window, claim_floor, attack_pistol/shotgun/hammer/sledgehammer/axe, reload, trowel (build-mode top bar), place_trap."
   },
   {
    "key": "button_plates",
