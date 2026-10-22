@@ -61,7 +61,7 @@ export function createIsoState(balance, floor, nowMs) {
     stockpile: createSlots(floor.home.stash?.slots ?? balance.inventory.stockpileSlots),
     needs: initNeeds(balance),
     lastNapAt: null, objects: {}, doors: {}, floorStates: { [floor.number]: 'Infested' }, zombies: {}, wanderAt: {},
-    equipped: null, piles: [], build: { spots: {}, barricade: { level: 0, hp: 0 }, breachLatched: false },
+    equipped: null, quickUse: { id: null, chosen: false }, piles: [], build: { spots: {}, barricade: { level: 0, hp: 0 }, breachLatched: false },
     rooms: {}, notes: [], survivors: {}, activeId: 'hero', bodies: [],
     story: { tutorial: 'skipped', walked: true, doorOpened: true }, // Stage A: no tutorial (GDD 11.3)
     attacks: { scriptedDone: true, nextAt: null, kind: 'scripted', current: null }, // no attacks in Stage A
@@ -108,6 +108,8 @@ export function normalizeIsoState(raw, balance, floor, nowMs) {
   s.lastNapAt = Number.isFinite(s.lastNapAt) ? s.lastNapAt : null;
   s.stats = { objectsSalvaged: 0, zombiesKilled: 0, ...(s.stats || {}) };
   s.equipped = s.equipped && Number.isInteger(s.equipped.slot) && typeof s.equipped.id === 'string' ? s.equipped : null;
+  const qu = s.quickUse && typeof s.quickUse === 'object' ? s.quickUse : {};
+  s.quickUse = { id: typeof qu.id === 'string' && balance.items[qu.id] ? qu.id : null, chosen: !!qu.chosen };
   s.times = { startedAt: nowMs, lastTickAt: nowMs, ...(s.times || {}) };
   s.seen = s.seen && typeof s.seen === 'object' ? s.seen : {};
   s.thoughts = s.thoughts || {};

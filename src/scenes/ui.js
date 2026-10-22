@@ -22,7 +22,7 @@ export const CSS = { text: '#bdb8ab', amber: '#bdb8ab', red: '#9a6259', dim: '#7
 export function uiConfig() {
   const u = getBalance().ui || {};
   return {
-    bar: { iconPlatePx: 72, hitAreaPx: 96, plateColor: '#0b0c0e', plateAlpha: 0.55, iconColor: '#bdb8ab', iconAlpha: 0.7, pressedAlpha: 0.9, ...(u.bottomBar || {}) },
+    bar: { iconPlatePx: 72, hitAreaPx: 96, plateColor: '#0b0c0e', plateAlpha: 0.55, iconColor: '#bdb8ab', iconAlpha: 0.7, pressedAlpha: 0.9, ...(u.bottomBar || {}), ...(u.topBar || {}) },
     panel: { worldDimAlpha: 0.4, bgAlpha: 0.9, ...(u.panel || {}) },
     floorNumber: { color: '#5d6166', alpha: 0.6, heightPx: 48, ...(u.floorNumber || {}) },
   };

@@ -63,6 +63,9 @@ export default class Soundscape {
     });
   }
 
+  /** One ambient one-shot (the iso soundscape overrides this with the weighted GDD 10 pools). */
+  ambient() { this.oneShot(AMBIENT, 'lastAmbient'); }
+
   /** A distant groan (random, and also the first beats of the attack cue). */
   groan() { this.oneShot(GROANS, 'lastGroan'); }
 
@@ -75,7 +78,7 @@ export default class Soundscape {
     this.groanT -= dt;
     if (this.groanT <= 0) { this.groan(); this.groanT = nextGroanGap(this.rng, this.scene.balance); }
     this.ambientT -= dt;
-    if (this.ambientT <= 0) { this.oneShot(AMBIENT, 'lastAmbient'); this.ambientT = nextAmbientGap(this.rng, this.scene.balance); }
+    if (this.ambientT <= 0) { this.ambient(); this.ambientT = nextAmbientGap(this.rng, this.scene.balance); }
     this.updateStair(dt);
     this.updateGust('amb_wind', dt, this.gustCfg.wind, 1);
     this.updateRain(dt);

@@ -6,6 +6,7 @@ import {
   isoZombieConfig, makeIsoEnv, makeIsoAi, fillOccupancy, stepIsoZombie, hearIsoNoise, hitIsoZombie, resetIsoZombie,
   STEP_ATTACK, STEP_AGGRO, STEP_DOORHIT,
 } from '../gameplay/isoZombies.js';
+import { applyShove } from '../gameplay/isoCombat.js';
 import { wantsDecal, HIT_FX } from '../gameplay/hitfx.js';
 import { playSfx } from './sfx.js';
 
@@ -85,6 +86,25 @@ export default class IsoZombies {
       if (Math.random() < HIT_FX.dripChance) scene.time.delayedCall(HIT_FX.dripDelayMs, () => playSfx(scene, 'blood_drip', { volume: HIT_FX.dripVolume }));
     }
     return killed;
+  }
+
+  /** Fire damage: no knockback, no stun (GDD 5.11). */
+  burn(rt, amount) {
+    if (rt.dying) return false;
+    rt.rec.hp = Math.max(0, rt.rec.hp - amount);
+    rt.ai.noticed = true;
+    if (rt.rec.hp <= 0) { rt.rec.dead = true; this.kill(rt); return true; }
+    return false;
+  }
+
+  /** Shove (GDD 5.4): push, stun, cancel the wind-up. Visual: the sprite slides from where it stood. */
+  shove(rt, hero) {
+    const { scene } = this;
+    const ox = rt.rec.x;
+    const oy = rt.rec.y;
+    applyShove(hero, rt.rec, rt.ai, scene.shoveCfg, { grid: scene.grid, occupied: (x, y) => { const o = this.at(x, y); return !!o && o !== rt; } });
+    rt.shoveX = ((ox - oy) - (rt.rec.x - rt.rec.y)) * 48;
+    rt.shoveY = ((ox + oy) - (rt.rec.x + rt.rec.y)) * 24;
   }
 
   kill(rt) {

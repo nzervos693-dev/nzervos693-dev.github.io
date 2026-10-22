@@ -59,3 +59,33 @@ export function setLoopVolume(key, volume) {
   const s = loops.get(key);
   if (s && s.isPlaying) s.setVolume((audioManifest.sounds[key]?.volume ?? 1) * volume);
 }
+
+/**
+ * Play a recorded sound once as a natural swell: it fades in, plays `seconds` (or its whole length, whichever
+ * is shorter) and fades out, then stops. Used for the weather one-shots, which are never looped (GDD 10).
+ * @param {{volume?:number, seconds?:number, fade?:number, pan?:number}} [opts] volume multiplies the manifest volume
+ * @returns {Phaser.Sound.BaseSound|null}
+ */
+export function playSwell(scene, key, opts = {}) {
+  if (!isAudioUnlocked() || !scene.cache.audio.exists(key)) return null;
+  const def = audioManifest.sounds[key];
+  if (def?.deprecated) return null;
+  const peak = (def?.volume ?? 1) * (opts.volume ?? 1);
+  const s = scene.sound.add(key, { volume: 0, loop: false });
+  if (opts.pan != null) s.setPan?.(opts.pan);
+  const total = Math.min(opts.seconds ?? Infinity, def?.duration ?? opts.seconds ?? 8);
+  const fade = Math.min(opts.fade ?? 2, total / 2);
+  let t = 0;
+  const timer = scene.time.addEvent({
+    delay: 50, loop: true,
+    callback: () => {
+      t += 0.05;
+      const env = Math.max(0, Math.min(1, t / fade, (total - t) / fade));
+      if (s.manager && !s.pendingRemove) s.setVolume(peak * env);
+      if (t >= total || !s.isPlaying) { timer.remove(); if (s.manager) s.destroy(); }
+    },
+  });
+  s.once('complete', () => { timer.remove(); s.destroy(); });
+  s.play();
+  return s;
+}

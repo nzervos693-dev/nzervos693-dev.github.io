@@ -7,7 +7,11 @@
  * No stairwell cue (no attacks in Stage A).
  */
 import Soundscape from './Soundscape.js';
-import { playSfx } from './sfx.js';
+import { playSfx, playSwell, hasSfx } from './sfx.js';
+import { pickAmbient, ambientVolume } from '../gameplay/isoAudio.js';
+
+/** How long a weather swell plays at most (seconds): GDD 10 gives each ambient one-shot 2-15 s. */
+const SWELL_SECONDS = [8, 15];
 
 /** Seconds between zombie sound checks. */
 const ZOMBIE_TICK = 0.5;
@@ -31,8 +35,45 @@ export default class IsoSoundscape extends Soundscape {
 
   updateStair() { /* no attacks in Stage A */ }
 
-  updateRain(dt) {
-    this.updateGust('amb_rain', dt, this.gustCfg.rain, this.scene.heroInCorridor() ? 0.3 : 1);
+  /** Weather is one-shots now (GDD 10), never looped gusts. */
+  updateRain() { /* see ambient() */ }
+
+  updateGust() { /* no looped beds */ }
+
+  /** Nearest window edge to the hero: { dist, sx } (sx = screen-x offset in game px) or null. */
+  nearestWindow() {
+    const { scene } = this;
+    const h = scene.state.hero;
+    let best = null;
+    for (const w of scene.world.windows) {
+      const wx = w.edge.side === 'N' ? w.edge.x + 0.5 : w.edge.x;
+      const wy = w.edge.side === 'N' ? w.edge.y : w.edge.y + 0.5;
+      const d = Math.hypot(wx - h.x, wy - h.y);
+      if (!best || d < best.dist) best = { dist: d, sx: ((wx - wy) - (h.x - h.y)) * 48 };
+    }
+    return best;
+  }
+
+  /**
+   * One ambient one-shot (GDD 10): a category by audio.ambientWeights, a random volume in
+   * audio.ambientVolumeRange, a random pan; near a window the rain-on-window sound is likelier and plays
+   * from the window's direction. Wind and rain swell and fade; nothing loops.
+   */
+  ambient() {
+    const { scene } = this;
+    const a = scene.balance.audio;
+    const win = this.nearestWindow();
+    const near = !!win && win.dist <= a.windowRainTiles;
+    const pick = pickAmbient(this.rng, a, { has: (k) => hasSfx(scene, k), last: this.lastAmbientKey, nearWindow: near });
+    if (!pick) return;
+    this.lastAmbientKey = pick.key;
+    const volume = ambientVolume(this.rng, a);
+    const fromWindow = pick.key === 'amb_rain' && near;
+    const pan = fromWindow ? Math.max(-1, Math.min(1, win.sx / a.panWidthPx)) : (this.rng() * 2 - 1) * 0.6;
+    if (pick.category === 'weather') {
+      const [lo, hi] = SWELL_SECONDS;
+      playSwell(scene, pick.key, { volume, pan, seconds: lo + this.rng() * (hi - lo) });
+    } else playSfx(scene, pick.key, { volume, pan, rate: 0.95 + this.rng() * 0.1 });
   }
 
   /** Is there a free zombie voice slot right now? */

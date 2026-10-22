@@ -14,11 +14,14 @@ export const STICK_DEFAULTS = Object.freeze({
   radiusPx: 120,
   knobRadiusPx: 44,
   deadZone: 0.15,
+  turnOnlyThreshold: 0.25,
   creepThreshold: 0.4,
   runThreshold: 0.7,
   zoneWidthFrac: 0.55,
   zoneHeightFrac: 0.55,
   tapMaxSeconds: 0.25,
+  doubleTapSeconds: 0.3,
+  doubleTapMaxDistancePx: 48,
   fadeInSeconds: 0.1,
   fadeSeconds: 0.3,
   doorPushSeconds: 0.2,
@@ -60,10 +63,11 @@ export function inStickZone(cfg, x, y, width, height, bottomLimit = height, side
  * Read the finger offset (dx, dy screen px from the origin).
  * @param {{x:number,y:number,mag:number,ux:number,uy:number,active:boolean,run:boolean}} [out]
  * @returns the knob offset clamped to the radius (x, y), mag 0..1 (of the radius), the unit screen
- *   direction (ux, uy), active (past the dead zone), creep (active, below creepThreshold: slow and quiet)
- *   and run (pushed past runThreshold); between the two is a walk
+ *   direction (ux, uy), active (past the dead zone), turn (active, below turnOnlyThreshold: turn on the
+ *   spot, no step), creep (from turnOnlyThreshold to below creepThreshold: slow and quiet) and run (pushed
+ *   past runThreshold); between creep and run is a walk. `moving` = active and not turn.
  */
-export function readStick(cfg, dx, dy, out = { x: 0, y: 0, mag: 0, ux: 0, uy: 0, active: false, creep: false, run: false }) {
+export function readStick(cfg, dx, dy, out = { x: 0, y: 0, mag: 0, ux: 0, uy: 0, active: false, turn: false, creep: false, run: false, moving: false }) {
   const len = Math.hypot(dx, dy);
   const m = Math.min(1, len / cfg.radiusPx);
   out.mag = m;
@@ -72,7 +76,9 @@ export function readStick(cfg, dx, dy, out = { x: 0, y: 0, mag: 0, ux: 0, uy: 0,
   out.ux = len > 1e-6 ? dx / len : 0;
   out.uy = len > 1e-6 ? dy / len : 0;
   out.active = m >= cfg.deadZone;
-  out.creep = out.active && m < cfg.creepThreshold;
+  out.turn = out.active && m < cfg.turnOnlyThreshold;
+  out.creep = out.active && !out.turn && m < cfg.creepThreshold;
+  out.moving = out.active && !out.turn;
   out.run = out.active && m >= cfg.runThreshold;
   return out;
 }
@@ -188,4 +194,42 @@ function clipsSideways(hero, axis, cx, cy, dx, dy, env) {
   if (env.grid.stepClass(cx, cy, lx, ly) !== MOVE.OPEN) return false;
   if (env.grid.stepClass(cx + lx, cy + ly, dx, dy) !== MOVE.OPEN) return true;
   return env.grid.stepClass(cx + dx, cy + dy, lx, ly) !== MOVE.OPEN;
+}
+
+/**
+ * Double tap in the stick zone (GDD 4): a touch released within tapMaxSeconds that never left the dead
+ * zone is a tap; a second tap whose touch-down is within doubleTapSeconds of the first tap's release and
+ * within doubleTapMaxDistancePx of the first touch-down is a double tap (turn around). Pure; times in seconds.
+ */
+export class DoubleTapDetector {
+  /** @param {{tapMaxSeconds:number, doubleTapSeconds:number, doubleTapMaxDistancePx:number}} cfg */
+  constructor(cfg) {
+    this.cfg = cfg;
+    this.last = null; // { downX, downY, upAt } of the previous tap
+    this.cur = null;
+  }
+
+  /** A stick touch went down. */
+  down(t, x, y) { this.cur = { t, x, y }; }
+
+  /**
+   * The touch was released.
+   * @param {boolean} leftDeadZone the finger ever left the dead zone
+   * @returns {'double'|'tap'|null}
+   */
+  up(t, leftDeadZone) {
+    const c = this.cur;
+    this.cur = null;
+    if (!c || leftDeadZone || t - c.t > this.cfg.tapMaxSeconds) { this.last = null; return null; }
+    const l = this.last;
+    if (l && c.t - l.upAt <= this.cfg.doubleTapSeconds && Math.hypot(c.x - l.x, c.y - l.y) <= this.cfg.doubleTapMaxDistancePx) {
+      this.last = null;
+      return 'double';
+    }
+    this.last = { x: c.x, y: c.y, upAt: t };
+    return 'tap';
+  }
+
+  /** Forget everything (panel opened, app hidden). */
+  reset() { this.last = null; this.cur = null; }
 }

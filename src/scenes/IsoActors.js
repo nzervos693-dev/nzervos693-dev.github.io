@@ -4,7 +4,8 @@
  * `${sheet}_${anim}_${DIR}`, DIR chosen from the SCREEN direction of the grid facing (angleToSpriteFacing).
  */
 import { angleToSpriteFacing, depthKey, LAYER } from '../iso/projection.js';
-import { frameOf } from './art.js';
+import { frameOf, hasSheet, sheetVariants } from './art.js';
+import { zombieSheet } from '../gameplay/isoAudio.js';
 import { isoDepth } from './IsoWorldView.js';
 import { HIT_FX, decalAlpha } from '../gameplay/hitfx.js';
 import { tintOf, shade } from '../gameplay/isoView.js';
@@ -91,7 +92,9 @@ export default class IsoActors {
 
   /** Create the sprite parts of a zombie runtime. */
   createZombie(rt) {
-    const sheet = `iso_${rt.rec.type}`;
+    const base = `iso_${rt.rec.type}`;
+    // a stable per-zombie variant (picked from its id), the base sheet when a variant is missing
+    const sheet = zombieSheet(base, sheetVariants(base), rt.rec.id, (k) => hasSheet(k) && this.scene.anims.exists(`${k}_shuffle_S`));
     const sp = this.scene.add.sprite(0, 0, sheet, 0).setOrigin(0.5, ORIGIN_Y).setScale(S).setAlpha(0).setVisible(false);
     rt.sheet = sheet;
     rt.sp = sp;

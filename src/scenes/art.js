@@ -55,3 +55,6 @@ export const sheetDef = (key) => {
   const f = files.get(key);
   return f ? { frameWidth: f.frameWidth, frameHeight: f.frameHeight } : null;
 };
+
+/** Variant sheet keys listed on a base sheet's manifest entry (`variants`), or []. */
+export const sheetVariants = (key) => files.get(key)?.variants ?? [];

@@ -1,8 +1,8 @@
 /*
  * E2E smoke test for the isometric Stage A scene (not part of `npm test`). Run: npm run test:e2e
  * (builds dist-e2e with debug hooks). Boots at 360x800 with touch and checks: IsoGame is active, the floor
- * rendered, the virtual joystick walks / creeps / runs the hero (CDP multi-touch), a tap on empty floor does nothing, tapping the closed front door walks to it and opens
- * it and the vision changes, a look drag turns the hero, the camera never pans, no console errors.
+ * rendered, the virtual joystick walks / creeps / runs the hero (CDP multi-touch), the world takes no touches, walking up to the front door targets it and the Main button opens it (vision changes),
+ * a double tap in the stick zone turns the hero around, the camera never pans, no console errors.
  * Needs a Chromium: set PLAYWRIGHT_BROWSERS_PATH or run `npx playwright-core install chromium`.
  * Env: E2E_URL (use a running server), E2E_SHOTS (screenshot dir).
  */
@@ -95,11 +95,24 @@ try {
   check(Math.hypot(b2.hx - b.hx, b2.hy - b.hy) < 0.15, 'release stops the hero at once');
   await sleep(500);
   check(await E(() => window.__floor15.stickView.ring.alpha) === 0, 'the stick fades out after release');
-  // light push = creep (half speed), far push = run
+  // very light push = turn in place (no step), light push = creep (half speed), far push = run
+  await E(() => { const g = window.__floor15; g.debugGoto(3, 3); g.hero.facing = 0; });
+  await sleep(300);
+  const p0 = await vis();
+  await down(1, 150, 900);
+  await moveTo(1, 150, 900 + 24); // 0.2 of the radius, screen-down: the turn band
+  await sleep(700);
+  const turned = await E(() => ({ turn: window.__floor15.stick.turn, moving: window.__floor15.moving, creeping: window.__floor15.creeping, f: window.__floor15.hero.facing }));
+  await up(1);
+  const p1 = await vis();
+  check(turned.turn && !turned.moving && !turned.creeping, 'a 0.2 push is the turn band (no step, no creep)');
+  check(Math.hypot(p1.hx - p0.hx, p1.hy - p0.hy) < 0.01, 'turning in place does not move the hero');
+  check(Math.abs(((turned.f - 45 + 540) % 360) - 180) < 15, `he turned toward the stick direction (screen-down = grid ${turned.f.toFixed(0)} deg)`);
+
   await E(() => { const g = window.__floor15; g.debugGoto(3, 3); });
   await sleep(300);
   await down(1, 150, 900);
-  await moveTo(1, 150 + 30, 900); // 0.25: creep
+  await moveTo(1, 150 + 36, 900); // 0.3: creep
   await sleep(300);
   const c0 = await vis(); // speed is measured between two in-page timestamps (CDP calls take a variable time)
   await sleep(1000);
@@ -114,46 +127,66 @@ try {
   await moveTo(1, 150 + 120, 900);
   await sleep(300);
   check(await E(() => !!window.__floor15.run), 'a full push runs');
-  // a second finger tapping empty floor must not stop the stick finger
-  await down(2, 560, 400);
-  await up(2);
+  // a second finger on the Attack button must not stop the stick finger (multi-touch) and swings at the air
+  const atk = await E(() => window.__floor15.debugButton('attack'));
+  const en0 = await E(() => window.__floor15.state.needs.energy);
+  touches.set(2, atk); await send('touchStart'); touches.delete(2);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [{ x: atk.x, y: atk.y, id: 2 }] });
   await sleep(300);
-  check(await E(() => window.__floor15.stick.active), 'a second finger tapping does not drop the stick finger (multi-touch)');
+  check(await E(() => window.__floor15.stick.active), 'a second finger on a button does not drop the stick finger (multi-touch)');
+  check(await E(() => window.__floor15.combat.cd > 0 || window.__floor15.combat.cdMax > 0) && (await E(() => window.__floor15.state.needs.energy)) < en0, 'Attack with nothing in reach swings at the air (costs energy)');
   await up(1);
   await E(() => { const g = window.__floor15; g.debugGoto(2, 3); g.run = null; });
   await sleep(300);
-  // a tap on empty floor does nothing
+
+  // the world is not touchable: a tap on empty floor, and a tap on the closed door, do nothing
   const tp = await E(() => window.__floor15.debugTileToClient(3, 4, 0));
   const t0 = await vis();
   await page.touchscreen.tap(tp.x, tp.y);
   await sleep(600);
   const t1 = await vis();
   check(Math.hypot(t1.hx - t0.hx, t1.hy - t0.hy) < 0.01 && !(await E(() => window.__floor15.walk)), 'a tap on empty floor does nothing');
+  await E(() => { const g = window.__floor15; g.debugGoto(6, 8); });
+  await sleep(500);
+  const dtp = await E(() => window.__floor15.debugTileToClient(6, 10, 40));
+  await page.touchscreen.tap(dtp.x, dtp.y);
+  await sleep(800);
+  check((await vis()).door === 'closed' && !(await E(() => window.__floor15.walk)) && !(await E(() => window.__floor15.action)), 'tapping the door in the world does nothing');
 
-  // open the front door and see the corridor
+  // walk up to the front door: it becomes the target, Main shows Open; pressing Main opens it
   check(b.door === 'closed', 'front door starts closed');
-  const dp = await E((id) => window.__floor15.debugClientOf(id), 'f15NW-6.9.S');
-  await page.touchscreen.tap(dp.x, dp.y);
-  await page.waitForFunction(() => window.__floor15.world.doors.find((x) => x.id === window.__floor15.world.home.frontDoor).state === 'open', null, { timeout: 20000 });
+  await E(() => { const g = window.__floor15; g.debugGoto(6, 9); g.hero.facing = 90; });
+  await page.waitForFunction(() => window.__floor15.targeting.target?.kind === 'door', null, { timeout: 5000 });
+  check(await E(() => window.__floor15.slots.main?.id === 'open' && window.__floor15.slots.main.icon === 'open_door'), 'the door is the target and Main shows Open');
+  await sleep(300);
+  await page.screenshot({ path: `${shots}/e2e-iso-target-360x800.png` });
+  const mb = await E(() => window.__floor15.debugButton('main'));
+  await page.touchscreen.tap(mb.x, mb.y);
+  await page.waitForFunction(() => window.__floor15.world.doors.find((x) => x.id === window.__floor15.world.home.frontDoor).state === 'open', null, { timeout: 8000 });
   await sleep(500);
   const c = await vis();
-  check(c.door === 'open', 'tapping the closed door walks to it and opens it');
+  check(c.door === 'open', 'pressing Main opens the door');
   check(c.s > a.s, `vision memory grew after opening the door (${a.s} -> ${c.s} remembered tiles)`);
   await page.screenshot({ path: `${shots}/e2e-iso-door-360x800.png` });
 
-  // look: a one-finger drag on the right half turns the hero toward the finger
+  // double tap in the stick zone turns the hero around (180 degrees, 0.2 s)
+  await E(() => { window.__floor15.hero.facing = 90; window.__floor15.faceTarget = null; });
+  await sleep(100);
   const f0 = (await vis()).facing;
-  await down(1, 600, 300);
-  for (let k = 1; k <= 6; k++) { await moveTo(1, 600 + k * 12, 300 - k * 14); await sleep(30); }
-  await sleep(300);
-  const looking = await E(() => window.__floor15.looking);
+  // (coordinates are converted once: each CDP touch event can take 100+ ms on a software renderer)
+  const zp = await toClient(100, 1000);
+  const rawTap = async () => { await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: zp.x, y: zp.y, id: 1 }] }); await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); };
+  await rawTap();
+  await rawTap();
+  await sleep(500);
   const f1 = (await vis()).facing;
-  await up(1);
-  await sleep(150);
-  check(looking === true, 'a drag outside the stick zone starts look mode');
-  check(Math.abs(((f1 - f0 + 540) % 360) - 180) > 5, `look turns the hero toward the finger (${f0.toFixed(0)} -> ${f1.toFixed(0)} deg)`);
+  check(Math.abs(((f1 - f0 + 540) % 360) - 180) > 172, `a double tap in the stick zone turns him around (${f0.toFixed(0)} -> ${f1.toFixed(0)} deg)`);
+  // a single tap does nothing
+  await rawTap();
+  await sleep(500);
+  check(Math.abs((await vis()).facing - f1) < 1, 'a single tap in the stick zone does nothing');
 
-  // the camera cannot be panned: the same drag leaves it following the hero
+  // the camera cannot be panned: a drag outside the stick zone leaves it following the hero
   const cam0 = await E(() => ({ x: window.__floor15.camera.x, y: window.__floor15.camera.y }));
   await down(1, 500, 300);
   for (let k = 1; k <= 8; k++) { await moveTo(1, 500 + k * 12, 300 + k * 6); await sleep(16); }
@@ -161,6 +194,30 @@ try {
   await sleep(300);
   const cam1 = await E(() => ({ x: window.__floor15.camera.x, y: window.__floor15.camera.y }));
   check(Math.hypot(cam1.x - cam0.x, cam1.y - cam0.y) < 20, `dragging does not pan the camera (${Math.round(Math.hypot(cam1.x - cam0.x, cam1.y - cam0.y))} px)`);
+  const f2 = (await vis()).facing;
+  check(Math.abs(f2 - f1) < 1, 'dragging on the world does not turn the hero (no look drag)');
+
+  // the hero rests above the control band (camera.heroScreenYFrac 0.4)
+  await E(() => { const g = window.__floor15; g.debugGoto(8, 8); });
+  await sleep(1500);
+  const hy = await E(() => { const g = window.__floor15; return { y: g.heroSp.y - g.cameras.main.scrollY, h: g.scale.height }; });
+  check(hy.y > 0.28 * hy.h && hy.y < 0.55 * hy.h, `the hero stands high on screen, above the control band (y ${Math.round(hy.y)} of ${hy.h})`);
+
+  // Stick: Right mirrors the button arc and the stick zone (GDD 4)
+  await E(() => { const g = window.__floor15; g.menuPanel.ctrl.onToggleStickSide(); });
+  await sleep(200);
+  const mirrored = await E(() => { const g = window.__floor15; return { mainX: g.buttons.centre('main').x, w: g.scale.width }; });
+  check(mirrored.mainX < mirrored.w / 2, `Stick: Right moves the button arc to the lower-left (Main x ${Math.round(mirrored.mainX)} of ${mirrored.w})`);
+  await down(1, 600, 900);
+  await moveTo(1, 600 + 80, 900);
+  await sleep(200);
+  check(await E(() => window.__floor15.stick.active), 'with Stick: Right the stick zone is the lower-right');
+  await up(1);
+  await down(1, 100, 900);
+  await sleep(150);
+  check(await E(() => !window.__floor15.stick.down), 'and the lower-left no longer starts the stick');
+  await up(1);
+  await E(() => { window.__floor15.menuPanel.ctrl.onToggleStickSide(); });
 
   check(errors.length === 0, `no console errors${errors.length ? ': ' + errors.join(' | ') : ''}`);
   await browser.close();

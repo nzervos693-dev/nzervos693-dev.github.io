@@ -6,7 +6,7 @@ import { getSave, writeSave } from '../core/save.js';
 import { now, elapsedInfo } from '../core/clock.js';
 import { lifecycle } from '../core/lifecycle.js';
 import { loadIsoFloor } from '../iso/loader.js';
-import { isoConfig, screenToTile, depthKey, LAYER, angleDiff, screenDeltaToAngle, normalizeAngle } from '../iso/projection.js';
+import { isoConfig, depthKey, LAYER, angleDiff, normalizeAngle } from '../iso/projection.js';
 import { VisionMap, visionConfig, coneAngle, viewRange, soundRipple } from '../iso/vision.js';
 import { IsoCamera, cameraConfig, floorBounds } from '../iso/camera.js';
 import {
@@ -14,12 +14,16 @@ import {
   isStaleSave, ISO_WORLD,
 } from '../gameplay/isoState.js';
 import { planWalk, stepWalk, turnToward, bestStandTile, standCandidates, angleTo, WALK } from '../gameplay/isoHero.js';
-import { resolveTap } from '../gameplay/isoTap.js';
 import { FACING_STEP } from '../iso/loader.js';
 import { tickNeeds, applyItem, itemEffect, speedMult } from '../gameplay/needs.js';
 import { activeMoodles, moodleKey, moodleAction, moodleHint, makePanic, stepPanic } from '../gameplay/moodles.js';
 import { canRun, stepRun, runConfig } from '../gameplay/running.js';
 import { stickConfig, stickSide, stickGridDir, stepStickMove, STICK } from '../gameplay/isoStick.js';
+import { describeTarget, inspectLine, attackIcon } from '../gameplay/isoButtons.js';
+import { doorEdgeRect } from '../gameplay/isoTarget.js';
+import { QuickUseController, quickState, autoFill, chooseQuick, carriedEligible, quickCount, throwAim, quickConfig, spendQuick } from '../gameplay/isoQuickUse.js';
+import { shoveConfig, inShoveRange, ShoveCooldown } from '../gameplay/isoCombat.js';
+import { footstepKey, surfaceForRoom, searchSoundKey } from '../gameplay/isoAudio.js';
 import { wearWord, itemWords } from '../gameplay/words.js';
 import { BARRICADE_WORDS, barricadeStage, barricadeMaxHp, latchBreach } from '../gameplay/barricade.js';
 import { EMPTY_LINES } from '../gameplay/storyText.js';
@@ -35,6 +39,7 @@ import { daysSurvived, gameOverStats } from '../gameplay/death.js';
 import { listActions, buildSpec, completeAction, heroHasTool } from '../gameplay/actions.js';
 import { pastKeepThreshold, spendToolUse, energyTimeMult } from '../gameplay/salvage.js';
 import { napAction, completeNap, napConfig } from '../gameplay/nap.js';
+import { getSafeArea } from '../core/safeArea.js';
 import { reportLines } from '../gameplay/report.js';
 import {
   recipeRows, USE_NAMES, craftCheck, costLines, effectText, performCraft, recipeKind,
@@ -45,11 +50,13 @@ import IsoWorldView, { isoDepth } from './IsoWorldView.js';
 import IsoActors from './IsoActors.js';
 import IsoInput from './IsoInput.js';
 import IsoStickView from './IsoStickView.js';
+import IsoTargeting from './IsoTargeting.js';
+import ActionButtons from './ActionButtons.js';
+import IsoHud from './IsoHud.js';
+import IsoThrow from './IsoThrow.js';
 import IsoZombies from './IsoZombies.js';
 import IsoSoundscape from './IsoSoundscape.js';
 import { makeVignette, SoundRipples } from './IsoFx.js';
-import Hud from './Hud.js';
-import ActionMenu from './ActionMenu.js';
 import InventoryPanel from './InventoryPanel.js';
 import Popup from './Popup.js';
 import Toast from './Toast.js';
@@ -58,7 +65,6 @@ import MenuPanel from './MenuPanel.js';
 import GameOverPanel from './GameOverPanel.js';
 import CraftPanel from './CraftPanel.js';
 import { debugOn, skipFrontEnd, exposeScene } from './debug.js';
-import { frameAlphaAt } from './spriteAlpha.js';
 import { label, COLORS, CSS, DEPTH } from './ui.js';
 import { playSfx } from './sfx.js';
 
@@ -80,14 +86,14 @@ const STEP_RUN_INTERVAL_MULT = 0.6;
 /** A door is pushed only when the stick points at least this much into it (0-1 of the unit grid vector). */
 const DOOR_PUSH_MIN_COMPONENT = 0.35;
 const BAR_W = 120;
-const MENU_BOTTOM_MARGIN = 8;
 const TOAST_PANEL_GAP = 45;
 const OCCLUSION_EVERY = 0.1;
 const BLOCKED_GIVE_UP = 0.6;
-const APPROACH_REPLAN = 0.4;
 const FLOOR = 15;
-/** Half width (px) of the strip over a door's art that always counts as the door when tapped. */
-const DOOR_TAP_HALF_W = 22;
+/** Quick-use plate icon by item type (the item sheet icon is preferred when it exists). */
+const QUICK_ICON = { consumable: 'eat', water: 'drink', throwable: 'throw_molotov' };
+/** Seconds between button/weapon refreshes that do not depend on an event. */
+const PULSE_SECONDS = 0.1;
 
 /**
  * Isometric play scene (Stage A: floor 15 only). Orchestrates the iso core (grid, vision, camera), the
@@ -136,16 +142,24 @@ export default class IsoGameScene extends Phaser.Scene {
     this.action = null;
     this.sleeping = false;
     this.run = null;
-    this.stick = { down: false, active: false, creep: false, run: false, ux: 0, uy: 0, mag: 0 };
+    this.stick = { down: false, active: false, turn: false, creep: false, run: false, ux: 0, uy: 0, mag: 0 };
     this.stickDir = { x: 0, y: 0, angle: 0 };
     this.stickEngaged = false;
     this.doorPush = { door: null, t: 0 };
     this.thoughtAt = {};
     this.squeezeAt = -Infinity;
     this.lastHomeTap = 0;
-    this.queuedTap = null;
     this.faceTarget = null;
-    this.looking = false;
+    this.stepIdx = -1;
+    this.weaponNow = null;
+    this.buttonsDirty = true;
+    this.btnT = 0;
+    this.slots = { main: null, secondary: null };
+    this.confirm = { id: null, t: 0 };
+    this.placing = null;
+    this.nap = { enabled: false };
+    this.camHero = { x: 0, y: 0 };
+    this.btnView = { main: null, secondary: null, attack: { icon: 'attack_fists' }, quick: { itemId: null, icon: null, count: 0, armed: false }, cd: { main: 0, secondary: 0, attack: 0, quick: 0 }, sleeping: false };
     this.panic = makePanic();
     this.tiredLevel = 0;
     this.moodleKey = '';
@@ -158,13 +172,13 @@ export default class IsoGameScene extends Phaser.Scene {
     this.occT = 0;
     this.blockedT = 0;
     this.pauseT = 0;
-    this.combat = { cd: 0, order: null, replanT: 0, lastHit: {} };
+    this.combat = { cd: 0, cdMax: 0.4, buffered: false, held: 0, lastHit: {} };
+    this.shoveCfg = shoveConfig(balance);
+    this.shoveCd = new ShoveCooldown(this.shoveCfg);
+    this.quick = new QuickUseController(balance);
+    this.aim = { x: 0, y: 0 };
     this.lastFrameAt = performance.now();
-    this.hudCombat = { weapon: { id: 'fists', name: 'Fists', uses: null } };
     this.heroSp = { x: 0, y: 0 };
-    this.cands = [];
-    this.zCands = [];
-    this.tapCtx = { zombies: this.zCands, hero: { id: 'hero', kind: 'hero', x: 0, y: 0, w: 96, h: 96, depth: 0 }, interactables: this.cands, stairTiles: [...this.world.stairs.down, ...this.world.stairs.up], grid: this.grid, pixelHit: (c, px, py) => this.pixelHit(c, px, py) };
     this.occActors = Array.from({ length: 10 }, () => ({ x: 0, y: 0, depth: 0 }));
 
     this.cameras.main.setBackgroundColor('#0b0c0e');
@@ -179,17 +193,14 @@ export default class IsoGameScene extends Phaser.Scene {
     this.vignette = makeVignette(this, balance.vision.vignette);
     this.ripples = new SoundRipples(this, this.vcfg.soundRipple);
 
-    this.hud = new Hud(this, balance, {
-      onAnyTap: () => { if (this.action?.spec.kind === 'nap') this.cancelAction(); },
-      onHome: () => this.onHomeButton(),
-      onBag: () => this.toggleBag(),
-      onStoreAll: () => this.storeAll(),
-      onThrow: () => {},
-      onCrew: () => {},
-      onMenu: () => { this.menu.close(); this.moodles.closeCard(); this.menuPanel.isOpen ? this.menuPanel.close() : this.menuPanel.open(); },
+    this.hud = new IsoHud(this, balance, {
+      home: () => this.onHomeButton(),
+      bag: () => { this.cancelPlacement(); this.toggleBag(); },
+      workbench: () => { this.cancelPlacement(); this.moodles.closeCard(); this.craftPanel.isOpen ? this.craftPanel.close() : this.craftPanel.open(); },
+      survivors: () => this.toast.show('Nobody else is here yet.', 1600),
+      menu: () => { this.cancelPlacement(); this.moodles.closeCard(); this.menuPanel.isOpen ? this.menuPanel.close() : this.menuPanel.open(); },
     });
     this.toast = new Toast(this, this.hud.toastY);
-    this.menu = new ActionMenu(this);
     this.popup = new Popup(this);
     this.panel = new InventoryPanel(this, {
       bag: () => this.state.inventory,
@@ -198,7 +209,7 @@ export default class IsoGameScene extends Phaser.Scene {
       onUse: (tab, i) => this.useItem(tab, i),
       onStore: (i) => this.moveOne('bag', i),
       onTake: (i) => this.moveOne('stock', i),
-      onClose: () => {},
+      onClose: () => { this.buttonsDirty = true; },
       badge: (slot, i, tab) => (tab === 'bag' && isEquipped(this.state, i) ? 'E' : slot.uses != null ? ' ' : null),
     });
     this.craftPanel = new CraftPanel(this, { rows: () => this.craftRows(), onCraft: (id) => this.onCraftTap(id), onClose: () => {} });
@@ -210,6 +221,7 @@ export default class IsoGameScene extends Phaser.Scene {
         this.stickSide = this.stickSide === 'right' ? 'left' : 'right';
         getSave().settings.joystickSide = this.stickSide;
         writeSave();
+        this.buttons?.setSide(this.stickSide);
       },
     });
     this.gameOverPanel = new GameOverPanel(this);
@@ -225,24 +237,35 @@ export default class IsoGameScene extends Phaser.Scene {
     this.stickView = new IsoStickView(this, this.stickCfg);
     this.stickEnv = { grid: this.grid, isBlocked: this.zombieAt, radius: this.stickCfg.collisionRadiusTiles, doorMin: DOOR_PUSH_MIN_COMPONENT, maxStep: this.stickCfg.maxSubstepTiles,
       assistTiles: this.stickCfg.doorwayAssistTiles, assistMinCos: Math.cos((this.stickCfg.doorwayAssistMaxAngleDegrees * Math.PI) / 180) };
+    const bcfg = balance.controls.buttons;
+    this.buttons = new ActionButtons(this, balance, {
+      onMain: () => this.pressSlot('main'),
+      onSecondary: () => this.pressSlot('secondary'),
+      onAttack: () => this.attackPress(false),
+      onQuick: () => this.onQuickTap(),
+      onHold: (name) => this.attackPress(true, name),
+      onPick: (id) => this.onQuickPick(id),
+      pickerItems: () => this.pickerItems(),
+      onNothing: () => this.toast.show('Nothing to keep at hand.', 1800),
+      longPressSeconds: quickConfig(balance).longPressSeconds,
+      holdSeconds: this.stickCfg.tapMaxSeconds,
+    });
+    this.buttons.setSide(this.stickSide);
+    this.targeting = new IsoTargeting(this);
+    this.throw = new IsoThrow(this);
     this.isoInput = new IsoInput(this, {
-      controls: balance.controls,
       stick: this.stickCfg,
-      bottomLimit: () => this.hud.bottomY,
+      bottomLimit: () => this.scale.height - getSafeArea().bottom,
       side: () => this.stickSide,
       canGesture: () => !this.gameOver && !this.dead && !this.anyPanelOpen(),
-      onTap: (wx, wy, sx, sy) => this.onWorldTap(wx, wy, sx, sy),
       onStick: (v, s, first) => this.onStick(v, s, first),
       onStickEnd: () => this.onStickEnd(),
-      onLookStart: () => this.onLookStart(),
-      onLook: (wx, wy) => this.onLook(wx, wy),
-      onLookEnd: () => this.onLookEnd(),
+      onDoubleTap: () => this.turnAround(),
     });
     this.setupLifecycle();
 
     this.syncBarricadeToDoor();
-    const hs = this.actors.toScreen(this.hero.x, this.hero.y, { x: 0, y: 0 });
-    this.camera.snapTo(hs.x, hs.y, this.hero.facing);
+    this.snapCamera();
     this.applyCamera();
     this.updateVision(true);
     this.view.refreshObjects();
@@ -327,33 +350,17 @@ export default class IsoGameScene extends Phaser.Scene {
 
   // ---------------------------------------------------------------- input
 
-  onLookStart() {
-    if (this.sleeping || this.gameOver) return;
-    this.looking = true;
-    this.walk = null;
-    this.pending = null;
-    this.run = null;
-    this.combat.order = null;
-    this.menu.close();
-  }
-
-  /** Look drag: face the finger (direction from the hero's body to the finger, world pixels). */
-  onLook(wx, wy) {
-    const hs = this.heroSp;
-    this.faceTarget = { angle: screenDeltaToAngle(this.iso, wx - hs.x, wy - hs.y), rate: this.balance.controls.lookTurnDegreesPerSecond };
-  }
-
   /** Joystick finger moved (or went down: `first`). */
   onStick(v, s, first) {
     const st = this.stick;
     if (first) {
       st.down = true;
       this.stickView.show(s.ox, s.oy);
-      this.menu.close();
       this.moodles.closeCard();
     }
-    this.stickView.setKnob(v.x, v.y, v.run ? 2 : v.creep ? 0 : 1);
+    this.stickView.setKnob(v.x, v.y, v.run ? 2 : v.creep || v.turn ? 0 : 1);
     st.active = v.active;
+    st.turn = v.turn;
     st.creep = v.creep;
     st.run = v.run;
     st.mag = v.mag;
@@ -365,89 +372,34 @@ export default class IsoGameScene extends Phaser.Scene {
     const st = this.stick;
     st.down = false;
     st.active = false;
+    st.turn = false;
     st.run = false;
     this.stickView.release();
     this.stickEngaged = false;
     this.doorPush.door = null;
-    if (this.combat.order?.type === 'zombie') this.combat.order = null;
     this.run = null; // release: the hero stops at once and keeps his facing
   }
 
-  onLookEnd() {
-    this.looking = false;
-    this.faceTarget = null; // he keeps that facing
-  }
-
-  /** Tap the hero: turn around (180 degrees in controls.heroTapTurnSeconds). */
+  /** Double tap in the stick zone: turn around (180 degrees in controls.turnAroundSeconds). Silent; never cancels an action. */
   turnAround() {
-    this.faceTarget = { angle: normalizeAngle(this.hero.facing + 180), rate: 180 / this.balance.controls.heroTapTurnSeconds };
+    if (this.sleeping || this.dead || this.gameOver) return;
+    this.faceTarget = { angle: normalizeAngle(this.hero.facing + 180), rate: 180 / this.balance.controls.turnAroundSeconds };
   }
 
-  /** Second finger while the stick moves the hero: only a zombie in weapon range is attacked (GDD 4). */
-  onTapWhileMoving(wx, wy) {
-    if (this.action) return;
-    this.buildTapCandidates();
-    const res = resolveTap(this.iso, this.tapCtx, wx, wy);
-    if (res.type !== 'zombie') return;
-    if (this.inReach(res.target.rt, heroWeapon(this.state, this.balance))) this.combat.order = { type: 'zombie', id: res.target.rt.rec.id };
+  /** Snap the camera to the hero (hero at the anchor). */
+  snapCamera() {
+    const hs = this.actors.toScreen(this.hero.x, this.hero.y, { x: 0, y: 0 });
+    this.camera.snapTo(hs.x, hs.y + this.anchorDy(), this.hero.facing);
   }
 
-  buildTapCandidates() {
-    const { zCands } = this;
-    zCands.length = 0;
-    const tmp = { x: 0, y: 0 };
-    for (const rt of this.zombies.list) {
-      if (!rt.visible || rt.dying) continue;
-      this.actors.toScreen(rt.rec.x, rt.rec.y, tmp);
-      zCands.push({ id: rt.rec.id, kind: 'zombie', x: tmp.x, y: tmp.y - this.iso.bodyRaise, w: 96, h: 96, depth: depthKey(Math.floor(rt.rec.x), Math.floor(rt.rec.y), LAYER.CHARACTER), rt });
-    }
-    const h = this.tapCtx.hero;
-    h.x = this.heroSp.x;
-    h.y = this.heroSp.y - this.iso.bodyRaise;
-    this.view.interactables(this.cands);
-  }
-
-  /** Is a visible pixel of the candidate's sprite (or, for doors, the door's art area) under the point? */
-  pixelHit(c, px, py) {
-    // a door is also solid over its door strip (a cut door shows only a low stub, but its leaf is tapped where it was)
-    if (c.kind === 'door' && Math.abs(px - c.x) <= DOOR_TAP_HALF_W && py >= c.y - 60 && py <= c.y + 50) return true;
-    if (c.kind === 'pile') return Math.abs(px - c.x) <= 36 && Math.abs(py - c.y) <= 30;
-    const sp = c.sp;
-    if (!sp) return false;
-    const fw = sp.frame.width;
-    const fh = sp.frame.height;
-    let lx = (px - sp.x) / 3 + c.origin[0] * fw;
-    const ly = (py - sp.y) / 3 + c.origin[1] * fh;
-    if (sp.flipX) lx = fw - lx;
-    if (lx < 0 || ly < 0 || lx >= fw || ly >= fh) return false;
-    return frameAlphaAt(this, sp.texture.key, sp.frame.name, Math.floor(lx), Math.floor(ly)) > 20;
-  }
-
-  onWorldTap(wx, wy, sx, sy) {
-    if (this.gameOver || this.dead || this.anyPanelOpen()) return;
-    if (this.sleeping) { this.wake(); return; }
-    if (this.stick.active) { this.onTapWhileMoving(wx, wy); return; }
-    this.menu.close();
-    this.moodles.closeCard();
-    this.combat.order = null; // a new tap cancels a queued attack or door bash
-    if (this.action) {
-      const progress = this.action.elapsed / this.action.duration;
-      if (this.action.spec.kind !== 'nap' && this.action.spec.kind !== 'door-open' && pastKeepThreshold(progress, this.balance)) {
-        this.queuedTap = { wx, wy, sx, sy };
-        return;
-      }
-      this.cancelAction();
-    }
-    this.buildTapCandidates();
-    const res = resolveTap(this.iso, this.tapCtx, wx, wy);
-    switch (res.type) {
-      case 'zombie': this.attackZombie(res.target.rt); break;
-      case 'hero': this.turnAround(); break;
-      case 'interact': this.handleInteract(res.target); break;
-      case 'stairs': this.toast.show('The stairs are blocked.', 2000); break;
-      case 'floor': break; // a tap on empty floor does nothing (the joystick moves the hero)
-      default:
-    }
+  /**
+   * The camera keeps the hero above the control band (camera.heroScreenYFrac, GDD 2): the camera centre sits
+   * (0.5 - frac) x the visible (safe-area) height below him.
+   */
+  anchorDy() {
+    const sa = getSafeArea();
+    const visible = this.scale.height - sa.top - sa.bottom;
+    return (0.5 - (this.balance.camera?.heroScreenYFrac ?? 0.5)) * visible;
   }
 
   // ---------------------------------------------------------------- walking
@@ -476,6 +428,14 @@ export default class IsoGameScene extends Phaser.Scene {
     return this.goToTile(best.x, best.y, pending, false);
   }
 
+  /** Walk to a stand tile next to an object (the front tile first); `pending` runs on arrival (Home only). */
+  goToObject(o, pending) {
+    pending.obj = o;
+    const step = FACING_STEP[o.facing] ?? [0, 1];
+    const own = o.mounted ? o.tiles.map((t) => ({ x: t.x, y: t.y })) : null; // mounted objects leave their tile free
+    if (!this.goToStand(o.tiles, step, pending, own)) this.toast.show('Cannot get there.', 1200);
+  }
+
   cantRun() {
     const t = performance.now();
     if (t - (this.cantRunAt ?? -Infinity) < CANT_RUN_COOLDOWN_MS) return;
@@ -483,13 +443,19 @@ export default class IsoGameScene extends Phaser.Scene {
     this.toast.show("I can't run anymore.", 1800);
   }
 
+  /** Footstep on the surface of the hero's room (audio.footstepSurfaceByRoom), three variations, small pitch spread. */
   footstep(dt, running, creeping = false) {
     this.stepT += dt;
     if (this.stepT < (running ? STEP_SECONDS * STEP_RUN_INTERVAL_MULT : creeping ? this.balance.audio.footstepCreepIntervalSeconds : (this.balance.audio.footstepWalkIntervalSeconds ?? STEP_SECONDS))) return;
     this.stepT = 0;
-    this.stepFlip = !this.stepFlip;
-    const opts = running ? { volume: STEP_RUN_VOLUME, rate: STEP_RUN_RATE } : { volume: creeping ? STEP_WALK_VOLUME * this.balance.audio.footstepCreepVolumeMult : STEP_WALK_VOLUME };
-    playSfx(this, this.stepFlip ? 'step_1' : 'step_2', opts);
+    const room = this.world.roomAt(Math.floor(this.hero.x), Math.floor(this.hero.y));
+    const surface = surfaceForRoom(room >= 0 ? this.world.rooms[room].type : '', this.balance);
+    const k = footstepKey(surface, this.rng, this.stepIdx);
+    this.stepIdx = k.index;
+    const [lo, hi] = this.balance.audio.footstepPitchRange ?? [0.95, 1.05];
+    const pitch = lo + this.rng() * (hi - lo);
+    const opts = running ? { volume: STEP_RUN_VOLUME, rate: STEP_RUN_RATE * pitch } : { volume: creeping ? STEP_WALK_VOLUME * this.balance.audio.footstepCreepVolumeMult : STEP_WALK_VOLUME, rate: pitch };
+    playSfx(this, k.key, opts);
   }
 
   updateHero(dt) {
@@ -500,12 +466,12 @@ export default class IsoGameScene extends Phaser.Scene {
     if (this.pauseT > 0) { this.pauseT -= dt; return; }
     if (this.faceTarget && !this.walk) {
       h.facing = turnToward(h.facing, this.faceTarget.angle, this.faceTarget.rate, dt);
-      if (!this.looking && Math.abs(angleDiff(h.facing, this.faceTarget.angle)) < 0.5) this.faceTarget = null;
+      if (Math.abs(angleDiff(h.facing, this.faceTarget.angle)) < 0.5) this.faceTarget = null;
     }
     if (!this.stick.active) this.stickEngaged = false;
+    else if (this.stick.turn) { this.stickTurn(dt); return; }
     else if (this.beginStickMove()) { this.updateStick(dt); return; }
-    if (this.sleeping || this.action || this.looking) return;
-    if (this.combat.order) { this.updateCombatApproach(dt); }
+    if (this.sleeping || this.action) return;
     const w = this.walk;
     if (!w) { this.run = null; return; }
     const tps = (this.run ? b.hero.runTilesPerSecond : b.hero.walkTilesPerSecond) * speedMult(this.state.needs, b);
@@ -534,16 +500,31 @@ export default class IsoGameScene extends Phaser.Scene {
   }
 
   /**
+   * Stick in the turn band (GDD 4, d 0.15 to below turnOnlyThreshold): turn on the spot toward the stick
+   * direction, no step, silent. Cancels a Home auto-walk and wakes a sleeper or napper; never cancels a
+   * timed action (he keeps facing his target).
+   */
+  stickTurn(dt) {
+    if (!this.stickEngaged) { this.walk = null; this.pending = null; this.stickEngaged = true; }
+    if (this.sleeping) { this.wake(); return; }
+    if (this.action) {
+      if (this.action.spec.kind === 'nap') this.cancelAction();
+      return;
+    }
+    this.run = null;
+    const dir = stickGridDir(this.iso, this.stick.ux, this.stick.uy, this.stickDir);
+    this.hero.facing = turnToward(this.hero.facing, dir.angle, this.balance.controls.walkTurnDegreesPerSecond, dt);
+  }
+
+  /**
    * The stick is pushed: cancel auto-walks (once per gesture), wake / drop a cancellable action.
    * @returns {boolean} the hero may move this frame (false while an uncancellable action runs, e.g. a
    * door opening or a search past half way; he moves on when it finishes if the stick is still held).
    */
   beginStickMove() {
-    if (this.looking) return false;
     if (!this.stickEngaged) {
       this.walk = null;
       this.pending = null;
-      this.combat.order = null;
       this.stickEngaged = true;
     }
     if (this.sleeping) { this.wake(); return false; }
@@ -574,7 +555,6 @@ export default class IsoGameScene extends Phaser.Scene {
     const r = stepStickMove(h, dir.x, dir.y, tps * dt, this.stickEnv);
     this.moving = r.moved;
     if (!r.moved && r.code === STICK.MOVING && this.bumpedStairs(dir.x, dir.y)) this.thought('stairs', 'The stairs are blocked.');
-    this.zombieOrderCheck();
     if (this.run && r.moved) this.stepRunning(dt); // run noise and energy only while actually moving
     if (r.moved) this.footstep(dt, !!this.run, st.creep);
     const push = this.doorPush;
@@ -602,14 +582,6 @@ export default class IsoGameScene extends Phaser.Scene {
     }
   }
 
-  /** Held stick: drop a queued attack whose zombie is not in reach (no auto-approach while steering). */
-  zombieOrderCheck() {
-    const o = this.combat.order;
-    if (!o || o.type !== 'zombie') return;
-    const rt = this.zombies.get(o.id);
-    if (!rt || rt.dying || !this.inReach(rt, heroWeapon(this.state, this.balance))) this.combat.order = null;
-  }
-
   stepRunning(dt) {
     const r = stepRun(this.run, this.state.needs, dt, this.balance);
     if (r.noise) this.noise(this.hero.x, this.hero.y, 'noisy', this.balance.hero.runNoiseRadiusTiles, 'run');
@@ -622,89 +594,225 @@ export default class IsoGameScene extends Phaser.Scene {
     this.bus.emit('noise', { x, y, level, radius, source });
   }
 
-  // ---------------------------------------------------------------- interaction targets
+  // ---------------------------------------------------------------- target and action buttons
 
-  handleInteract(t) {
-    switch (t.kind) {
-      case 'door': this.handleDoor(t.door); break;
-      case 'object': this.handleObject(t); break;
-      case 'workbench': this.goToObject(t.obj, { kind: 'workbench' }); break;
-      case 'stash': this.goToObject(t.obj, { kind: 'stash' }); break;
-      case 'pile': this.goToTile(Math.floor(t.pile.x), Math.floor(t.pile.y), { kind: 'pile', pile: t.pile }); break;
-      default:
-    }
+  /** The weapon in hand (cached; refreshWeapon() after equip, wear or break). */
+  currentWeapon() { return this.weaponNow ?? this.refreshWeapon(); }
+
+  refreshWeapon() {
+    this.weaponNow = heroWeapon(this.state, this.balance);
+    this.buttonsDirty = true;
+    return this.weaponNow;
   }
 
   objectDef(o) { return this.balance.objects[o.objectId]; }
 
   isHomeBed(o) { return o.id === this.world.home.bed; }
 
-  handleObject(t) {
-    const o = t.obj;
-    const def = this.objectDef(o);
-    if (!def) return;
-    if (this.isHomeBed(o)) {
-      this.openMenu(t, [{ kind: 'sleep', label: 'Sleep', enabled: true }, this.napButton()], o);
+  /**
+   * Is something in the doorway (the door cannot close)? A zombie whose centre is on one of the door's two
+   * tiles, or the hero if his circle reaches the door's edge (standing beside it is fine: GDD note in the report).
+   */
+  doorOccupied(door) {
+    const [a, b] = this.grid.doorTiles(door);
+    if (this.zombies.at(a.x, a.y) || this.zombies.at(b.x, b.y)) return true;
+    const r = doorEdgeRect(door);
+    const px = Math.min(Math.max(this.hero.x, r.x0), r.x1);
+    const py = Math.min(Math.max(this.hero.y, r.y0), r.y1);
+    return Math.hypot(this.hero.x - px, this.hero.y - py) < this.stickCfg.collisionRadiusTiles;
+  }
+
+  /** Recompute what Main and Secondary show for the current target. */
+  refreshSlots() {
+    const c = this.slotCtx || (this.slotCtx = {
+      balance: this.balance, state: this.state, hasTool: (id) => heroHasTool(this.state, id), doorOccupied: (d) => this.doorOccupied(d),
+      isHomeBed: (o) => this.isHomeBed(o), nap: { enabled: false }, canStoreAll: false, weapon: null, shove: { ready: false, inRange: false },
+    });
+    const t = this.targeting.target;
+    c.weapon = this.currentWeapon();
+    c.canStoreAll = this.canStoreAll();
+    if (t?.kind === 'object' && this.isHomeBed(t.obj)) c.nap = this.napButton();
+    if (t?.kind === 'zombie') {
+      c.shove.ready = this.shoveCd.ready;
+      c.shove.inRange = !!t.rt && inShoveRange(this.hero, t.rt.rec, this.shoveCfg);
+    }
+    const next = describeTarget(t, c);
+    this.slots = next;
+  }
+
+  /** Tap on Main or Secondary: acts on the CURRENT target (a tap during an icon fade acts on the new one). */
+  pressSlot(which) {
+    if (this.gameOver || this.dead) return;
+    this.quick.disarm();
+    this.moodles.closeCard();
+    if (this.sleeping) { this.wake(); return; }
+    if (this.action) return; // Main and Secondary do nothing during a timed action
+    this.refreshSlots();
+    const slot = this.slots[which];
+    const t = this.targeting.target;
+    if (!slot || !t) return;
+    if (!slot.enabled) { if (slot.reason) this.toast.show(slot.reason, 1800); return; }
+    if (slot.confirm && !this.confirmTap(slot.id)) return;
+    this.perform(slot.id, t);
+    this.buttonsDirty = true;
+  }
+
+  /** Confirm taps (GDD 4): a second tap on the same action within controls.buttons.confirmSeconds. */
+  confirmTap(id) {
+    const now = performance.now();
+    if (this.confirm.id === id && now - this.confirm.t < this.balance.controls.buttons.confirmSeconds * 1000) { this.confirm.id = null; return true; }
+    this.confirm.id = id;
+    this.confirm.t = now;
+    this.toast.show('Tap again to leave this place.', 1800);
+    return false;
+  }
+
+  /** Run an action by id on a target (see gameplay/isoButtons.js). */
+  perform(id, t) {
+    switch (id) {
+      case 'attack': this.attackPress(false); break;
+      case 'shove': this.shovePress(t); break;
+      case 'open': this.openPress(t.door); break;
+      case 'close': this.closeDoor(t.door); break;
+      case 'force': this.forceDoor(t.door); break;
+      case 'dismantle': if (t.kind === 'door') this.beginDoorDismantle(t.door); else this.startObjectAction(t.obj, 'dismantle'); break;
+      case 'search': case 'take': case 'drain': this.startObjectAction(t.obj, id); break;
+      case 'sleep': this.faceObject(t.obj); this.startSleep(); break;
+      case 'nap': this.faceObject(t.obj); this.startNap(t.obj); break;
+      case 'craft': this.craftPanel.open(); break;
+      case 'stash': this.panel.open('stock'); break;
+      case 'storeAll': this.storeAll(); break;
+      case 'pickup': this.takePile(t.pile); break;
+      case 'inspect': this.toast.show(inspectLine(t.door, this.state, this.balance), 2200); break;
+      case 'place': this.placeNow(); break;
+      case 'cancel': this.cancelPlacement(); break;
+      default:
+    }
+  }
+
+  /** Turn to face an object (540 deg/s while its timer already runs). */
+  faceObject(o) {
+    const cx = o.tile[0] + o.span[0] / 2;
+    const cy = o.tile[1] + o.span[1] / 2;
+    this.faceTarget = { angle: angleTo(this.hero.x, this.hero.y, cx, cy), rate: this.balance.controls.walkTurnDegreesPerSecond };
+  }
+
+  startObjectAction(o, kind) {
+    this.faceObject(o);
+    this.beginAction(o, kind);
+  }
+
+  /** Main on a door: open it, or try the handle of a stuck / barricaded one. */
+  openPress(door) {
+    if (door.state === 'jammed' || (door.barricade && door.barricade.hp > 0 && !door.barricade.own)) {
+      const barricaded = door.barricade?.hp > 0;
+      this.toast.show(barricaded ? 'Barricaded from the inside.' : "It's stuck.", 2000);
+      this.view.rattleDoor(door);
+      playSfx(this, 'door_hit', { volume: 0.5 });
       return;
     }
-    const actions = listActions(def, o.id, this.state, this.balance);
-    if (!actions.length) return;
-    if (actions.length === 1 && actions[0].enabled) this.goToObject(o, { kind: actions[0].kind });
-    else this.openMenu(t, actions, o);
+    if (door.state === 'closed') this.beginDoorOpen(door);
   }
 
-  /** Walk to a stand tile next to an object (the front tile first) and act on arrival. */
-  goToObject(o, pending) {
-    pending.obj = o;
-    const step = FACING_STEP[o.facing] ?? [0, 1];
-    // mounted objects leave their tile free: standing on it is fine
-    const own = o.mounted ? o.tiles.map((t) => ({ x: t.x, y: t.y })) : null;
-    if (!this.goToStand(o.tiles, step, pending, own)) this.toast.show('Cannot get there.', 1200);
+  // ---------------------------------------------------------------- quick-use
+
+  onQuickTap() {
+    if (this.gameOver || this.dead) return;
+    if (this.sleeping) { this.wake(); return; }
+    this.moodles.closeCard();
+    if (this.quick.armed) this.updateAim();
+    const r = this.quick.tap(this.state, this.balance);
+    switch (r.type) {
+      case 'toast': this.toast.show(r.reason, 1600); break;
+      case 'used': {
+        const water = this.balance.consumables?.[r.id]?.water || r.id.endsWith('water');
+        const med = this.balance.consumables?.[r.id]?.health && !water;
+        playSfx(this, water ? 'drink' : med ? 'pickup' : 'eat');
+        this.panel.refresh();
+        this.refreshMoodles();
+        this.save();
+        break;
+      }
+      case 'throw':
+        if (spendQuick(this.state)) {
+          this.throw.launch(this.aim.x, this.aim.y);
+          this.heroAnimNow = null;
+          this.swingUntil = this.time.now + SWING_ANIM_MS;
+          playSfx(this, 'swing');
+          this.panel.refresh();
+          this.save();
+        }
+        this.throw.hideAim();
+        break;
+      default:
+    }
+    this.buttonsDirty = true;
   }
 
-  openMenu(t, actions, o, onPick = null) {
-    const cam = this.cameras.main;
-    const top = t.y - t.h / 2 - cam.scrollY;
-    const bottom = t.y + t.h / 2 - cam.scrollY;
-    this.menu.open(
-      { x: t.x - cam.scrollX, topY: top, bottomY: bottom, screenTop: this.hud.topH + 8, screenBottom: this.hud.bottomY - MENU_BOTTOM_MARGIN, fixed: true },
-      actions,
-      onPick || ((kind) => this.goToObject(o, { kind })),
-    );
+  /** The picker's choice: a type, or null to clear the slot. */
+  onQuickPick(id) {
+    this.quick.disarm();
+    chooseQuick(this.state, id);
+    this.buttonsDirty = true;
+    this.save();
+  }
+
+  /** Picker cells: one per carried eligible type plus the empty cell (nothing carried: no picker). */
+  pickerItems() {
+    const list = carriedEligible(this.state, this.balance);
+    return list.length ? [...list.map((e) => ({ id: e.id, count: e.count })), { id: null, count: 0 }] : [];
+  }
+
+  /** Aim point of an armed throw, recomputed every frame (walking or turning re-aims). */
+  updateAim() {
+    const q = quickConfig(this.balance);
+    const zs = this.aimZombies || (this.aimZombies = []);
+    zs.length = 0;
+    for (const rt of this.zombies.list) if (rt.visible && !rt.dying) zs.push(rt.rec);
+    const o = this.aimOpts || (this.aimOpts = {
+      rangeTiles: this.balance.throw.rangeTiles, coneDegrees: q.throwAimConeDegrees, defaultTiles: q.throwDefaultTiles,
+      isWalkable: (x, y) => this.grid.isWalkable(x, y), los: (ax, ay, bx, by) => this.grid.hasLOS(ax, ay, bx, by),
+    });
+    throwAim(this.hero, zs, o, this.aim);
+  }
+
+  // ---------------------------------------------------------------- placement (GDD 5.6)
+
+  /**
+   * Crafting a barricade enters placement mode: the panel closes, the hero walks to the front door (the only
+   * spot in Stage A), the targeted door shows a ghost barricade; Main = Place (the cost is taken now),
+   * Secondary = Cancel (free; opening any panel also cancels).
+   */
+  startPlacement(recipeId) {
+    const door = homeFrontDoor(this.world);
+    if (!door) { this.finishCraft(recipeId, {}); return; }
+    this.craftPanel.close();
+    this.panel.close();
+    const spot = { id: `spot:${door.id}`, kind: 'thing', ...doorEdgeRect(door), tiles: this.grid.doorTiles(door), spot: true, target: { kind: 'spot', door, recipeId } };
+    this.placing = { recipeId, door };
+    this.targeting.setPlacement([spot]);
+    this.buttonsDirty = true;
+    this.toast.show('Walk to the front door, then Place.', 2600);
+  }
+
+  cancelPlacement() {
+    if (!this.placing) return;
+    this.placing = null;
+    this.view.setGhost(null, 0);
+    this.targeting.setPlacement(null);
+    this.buttonsDirty = true;
+  }
+
+  placeNow() {
+    const p = this.placing;
+    if (!p) return;
+    this.cancelPlacement();
+    this.finishCraft(p.recipeId, {});
   }
 
   // ---------------------------------------------------------------- doors
 
-  handleDoor(door) {
-    const t = this.view.interactables([]).find((c) => c.id === door.id);
-    if (!t) return;
-    if (door.state === 'closed') { this.goToDoor(door, 'open'); return; }
-    if (door.state === 'jammed') {
-      this.openMenu(t, [{ kind: 'force', label: 'Force', enabled: true }], null, () => this.goToDoor(door, 'force'));
-      return;
-    }
-    const acts = [];
-    if (door.state === 'open') acts.push({ kind: 'close', label: 'Close', enabled: true });
-    if (door.kind === 'interior' && !this.state.objects[door.id]?.dismantled) {
-      const def = this.balance.objects.interior_door;
-      const need = door.state !== 'broken' && def.tool && !heroHasTool(this.state, def.tool);
-      acts.push({ kind: 'dismantle', label: 'Dismantle', enabled: !need, reason: need ? `Needs ${def.tool}` : undefined });
-    }
-    if (!acts.length) return;
-    this.openMenu(t, acts, null, (kind) => this.goToDoor(door, kind));
-  }
-
-  /** Walk to the nearer tile touching the door and act on arrival. */
-  goToDoor(door, kind) {
-    const [a, b] = this.grid.doorTiles(door);
-    const from = this.heroTile();
-    const best = bestStandTile(this.grid, from, [a, b], this.balance, this.zombieAt);
-    if (!best) { this.toast.show('Cannot get there.', 1200); return; }
-    const pending = { kind: `door-${kind}`, door, stand: best };
-    this.goToTile(best.x, best.y, pending, false);
-  }
-
-  /** Face the door and open it (0.4 s). `onWalk`: the hero opens it on the way and keeps walking. */
+  /** Face the door and open it (0.4 s). `onWalk`: the hero opens it on the way and keeps walking (Home auto-walk). */
   beginDoorOpen(door, onWalk = false) {
     const mid = this.view.doorMid(door);
     this.faceDoor(door);
@@ -725,14 +833,13 @@ export default class IsoGameScene extends Phaser.Scene {
     this.action = null;
     this.hideBar();
     this.applyDoorOpen(door);
-    this.runQueuedTap();
     if (!onWalk) this.walk = null;
   }
 
   /** The door opens now (after its 0.4 s action, or at once when the hero runs into it). */
   applyDoorOpen(door) {
     this.grid.setDoorState(door, 'open');
-    playSfx(this, 'door_open');
+    playSfx(this, this.creeping ? 'door_creak' : 'door_open'); // creeping eases it open: the slow hinge
     if (this.run) this.noise(door.x + 0.5, door.y + 0.5, 'noisy', this.balance.doors.runOpenNoiseTiles, 'door-run'); // bursts open
     this.bus.emit('door-opened', { id: door.id });
     this.view.refreshDoors(true);
@@ -768,8 +875,7 @@ export default class IsoGameScene extends Phaser.Scene {
   }
 
   closeDoor(door) {
-    const [a, b] = this.grid.doorTiles(door);
-    if (this.zombies.at(a.x, a.y) || this.zombies.at(b.x, b.y)) { this.toast.show("Something's in the way.", 1800); return; }
+    if (this.doorOccupied(door)) { this.toast.show("Something's in the way.", 1800); return; }
     this.faceDoor(door);
     const spec = { kind: 'door-close', id: door.id, seconds: this.balance.doors.closeSeconds, energy: 0, tool: null, noise: 'quiet' };
     this.action = { spec, door, elapsed: 0, duration: spec.seconds };
@@ -782,7 +888,7 @@ export default class IsoGameScene extends Phaser.Scene {
     const [a, b] = this.grid.doorTiles(door);
     if (this.zombies.at(a.x, a.y) || this.zombies.at(b.x, b.y)) { this.toast.show("Something's in the way.", 1800); return; }
     this.grid.setDoorState(door, 'closed');
-    playSfx(this, 'door_open', { rate: 0.85 });
+    playSfx(this, 'door_close');
     this.bus.emit('door-closed', { id: door.id });
     this.view.refreshDoors(true);
     this.updateVision(true);
@@ -797,7 +903,9 @@ export default class IsoGameScene extends Phaser.Scene {
       this.action = { spec, door, elapsed: 0, duration: spec.seconds };
       return;
     }
-    this.combat.order = { type: 'door', door };
+    // no crowbar: one Noisy hit per tap (three open it)
+    if (this.combat.cd > 0) return;
+    this.swing(null, door, this.currentWeapon());
   }
 
   finishPry() {
@@ -813,7 +921,6 @@ export default class IsoGameScene extends Phaser.Scene {
     this.view.refreshDoors(true);
     this.updateVision(true);
     this.save();
-    this.runQueuedTap();
   }
 
   /** One hit on a jammed door (from the swing). */
@@ -840,7 +947,7 @@ export default class IsoGameScene extends Phaser.Scene {
     const dist = Math.hypot(mid.x - this.hero.x, mid.y - this.hero.y);
     const audible = dist <= this.balance.audio.doorBangHearTiles;
     let broke = false;
-    let sound = 'door_hit';
+    let sound = 'door_bang'; // a zombie pounding the door from outside
     if (!hit.jammed) {
       if (door.barricade && door.barricade.hp > 0) {
         broke = this.grid.damageBarricade(door, hit.damage);
@@ -879,6 +986,7 @@ export default class IsoGameScene extends Phaser.Scene {
 
   // ---------------------------------------------------------------- arrival and actions
 
+  /** The Home auto-walk arrived: face the bed. */
   onArrive(p = this.pending) {
     this.pending = null;
     if (!p) return;
@@ -887,20 +995,6 @@ export default class IsoGameScene extends Phaser.Scene {
       const cx = o.tile[0] + o.span[0] / 2;
       const cy = o.tile[1] + o.span[1] / 2;
       this.hero.facing = angleTo(this.hero.x, this.hero.y, cx, cy);
-    }
-    switch (p.kind) {
-      case 'sleep': this.startSleep(); break;
-      case 'nap': this.startNap(o); break;
-      case 'workbench': this.craftPanel.open(); break;
-      case 'stash': this.panel.open('stock'); break;
-      case 'pile': this.takePile(p.pile); break;
-      case 'door-open': if (p.door.state === 'closed') this.beginDoorOpen(p.door); break;
-      case 'door-close': this.closeDoor(p.door); break;
-      case 'door-force': this.forceDoor(p.door); break;
-      case 'door-dismantle': this.beginDoorDismantle(p.door); break;
-      case 'attack': { const rt = this.zombies.get(p.zid); if (rt) this.combat.order = { type: 'zombie', id: p.zid }; break; }
-      case 'walk': break;
-      default: this.beginAction(o, p.kind);
     }
   }
 
@@ -917,7 +1011,7 @@ export default class IsoGameScene extends Phaser.Scene {
     this.bus.emit('action-start', { spec, target: o });
     const rad = noiseTiles(spec.noise, balance);
     if (spec.kind === 'dismantle' && rad) this.noise(o.tile[0] + 0.5, o.tile[1] + 0.5, spec.noise, rad, o.id);
-    playSfx(this, this.actionSound(spec, def));
+    playSfx(this, this.actionSound(spec, def, o));
     this.heroAnimNow = kind === 'dismantle' ? 'attack' : 'idle';
     if (spec.seconds <= 0) this.finishAction();
   }
@@ -938,8 +1032,8 @@ export default class IsoGameScene extends Phaser.Scene {
     this.heroAnimNow = 'attack';
   }
 
-  actionSound(spec, def) {
-    if (spec.kind === 'search') return 'search';
+  actionSound(spec, def, o) {
+    if (spec.kind === 'search') return searchSoundKey(o.objectId); // cupboard / drawer / cloth
     if (spec.kind === 'drain') return 'drain';
     if (spec.kind === 'take') return 'pickup';
     const y = def.yield || {};
@@ -967,16 +1061,9 @@ export default class IsoGameScene extends Phaser.Scene {
     if (!this.action) return;
     this.bus.emit('action-cancel', { spec: this.action.spec });
     this.action = null;
-    this.queuedTap = null;
     this.hideBar();
     this.napFade.setVisible(false);
     this.heroAnimNow = null;
-  }
-
-  runQueuedTap() {
-    const q = this.queuedTap;
-    this.queuedTap = null;
-    if (q) this.onWorldTap(q.wx, q.wy, q.sx, q.sy);
   }
 
   finishAction() {
@@ -1005,7 +1092,8 @@ export default class IsoGameScene extends Phaser.Scene {
     if (door) { this.view.refreshDoors(true); this.updateVision(true); }
     this.bus.emit('action-done', { spec, result: res, target: o });
     if (res.gained.length) playSfx(this, 'pickup');
-    this.runQueuedTap();
+    autoFill(this.state, this.balance);
+    this.buttonsDirty = true;
     const parts = [];
     if (res.gained.length) parts.push(this.itemList(res.gained, '+'));
     else if (spec.kind === 'search') parts.push(EMPTY_LINES[Math.floor(this.rng() * EMPTY_LINES.length)]);
@@ -1033,7 +1121,7 @@ export default class IsoGameScene extends Phaser.Scene {
   startSleep() {
     this.sleeping = true;
     this.zzz.setVisible(true);
-    this.toast.show('Sleeping. Tap anywhere to wake up.');
+    this.toast.show('Sleeping. Push the stick to wake up.');
   }
 
   napButton() { return napAction(this.state, now(), this.balance, { unsafe: this.napUnsafe() }); }
@@ -1067,15 +1155,6 @@ export default class IsoGameScene extends Phaser.Scene {
 
   // ---------------------------------------------------------------- combat
 
-  /** Tap on a zombie: swing now if in range with a clear line, otherwise walk into range and swing once. */
-  attackZombie(rt) {
-    this.walk = null;
-    this.pending = null;
-    this.combat.order = { type: 'zombie', id: rt.rec.id };
-    this.combat.replanT = 0;
-    this.camera.resumeFollow();
-  }
-
   weaponRange(w) { return this.balance.combat.weapons[w.id].rangeTiles; }
 
   inReach(rt, w) {
@@ -1085,75 +1164,85 @@ export default class IsoGameScene extends Phaser.Scene {
     return this.grid.hasLOS(Math.floor(h.x), Math.floor(h.y), Math.floor(z.x), Math.floor(z.y));
   }
 
-  updateCombatApproach(dt) {
-    const o = this.combat.order;
-    if (!o || o.type !== 'zombie') return;
-    const rt = this.zombies.get(o.id);
-    if (!rt || rt.dying) { this.combat.order = null; return; }
-    const w = heroWeapon(this.state, this.balance);
-    if (this.inReach(rt, w)) { this.walk = null; this.run = null; return; }
-    this.combat.replanT -= dt;
-    if (this.walk && this.combat.replanT > 0) return;
-    this.combat.replanT = APPROACH_REPLAN;
-    const z = rt.rec;
-    const R = this.weaponRange(w) - 0.25;
-    const zx = Math.floor(z.x);
-    const zy = Math.floor(z.y);
-    const cands = [];
-    const r = Math.ceil(R);
-    for (let y = zy - r; y <= zy + r; y++) {
-      for (let x = zx - r; x <= zx + r; x++) {
-        if (!this.grid.isWalkable(x, y) || (x === zx && y === zy) || this.zombies.at(x, y)) continue;
-        if (Math.hypot(x + 0.5 - z.x, y + 0.5 - z.y) > R) continue;
-        if (!this.grid.hasLOS(x, y, zx, zy)) continue;
-        cands.push({ x, y, d: (x + 0.5 - this.hero.x) ** 2 + (y + 0.5 - this.hero.y) ** 2 });
-      }
+  /**
+   * Attack button, or Main while it shows Attack (GDD 4): swing at the zombie target, or (while an action
+   * locks the target) at the best zombie candidate; with no zombie in reach swing at the air. A tap during
+   * the weapon cooldown is buffered (one); holding repeats the swing every cooldown.
+   * @param {boolean} hold called every frame while the button is held
+   */
+  attackPress(hold) {
+    if (this.gameOver || this.dead) return;
+    if (this.sleeping) { if (!hold) this.wake(); return; }
+    this.quick.disarm();
+    this.moodles.closeCard();
+    const a = this.action;
+    if (a) {
+      // Attack cancels a timed action (past 50% the swing is dropped and the action completes)
+      if (a.spec.kind === 'door-open' || (a.duration > 0 && pastKeepThreshold(a.elapsed / a.duration, this.balance))) return;
+      this.cancelAction();
     }
-    cands.sort((a, b) => a.d - b.d);
-    const best = bestStandTile(this.grid, this.heroTile(), cands.slice(0, 6), this.balance, this.zombieAt);
-    if (!best) { this.combat.order = null; this.toast.show('Cannot reach it.', 1400); return; }
-    this.run = null;
-    const plan = planWalk(this.grid, this.hero, best, { run: false, balance: this.balance, isBlocked: this.zombieAt });
-    if (plan) this.walk = plan; else this.combat.order = null;
+    if (this.combat.cd > 0) { if (!hold) this.combat.buffered = true; return; }
+    this.doSwing();
+  }
+
+  /** Resolve one Attack: zombie, jammed door (same as Force), or air. */
+  doSwing() {
+    const w = this.currentWeapon();
+    const t = this.targeting.target;
+    let rt = t?.kind === 'zombie' ? t.rt : null;
+    if (!rt) rt = this.targeting.zombieCandidate()?.rt ?? null;
+    if (rt && !rt.dying) {
+      this.hero.facing = angleTo(this.hero.x, this.hero.y, rt.rec.x, rt.rec.y);
+      if (this.inReach(rt, w)) { this.swing(rt, null, w); return; }
+    } else if (t?.kind === 'door' && t.door.state === 'jammed') {
+      this.faceDoor(t.door);
+      this.swing(null, t.door, w);
+      return;
+    }
+    this.swing(null, null, w); // a whoosh at the air in his facing
+  }
+
+  /** Secondary on a zombie: push it back, stun it, cancel its wind-up (GDD 5.4). */
+  shovePress(t) {
+    const rt = t?.rt;
+    if (!rt || rt.dying) return;
+    if (!this.shoveCd.ready) { this.toast.show('Not yet.', 1200); return; }
+    if (!inShoveRange(this.hero, rt.rec, this.shoveCfg)) { this.toast.show('Too far.', 1200); return; }
+    this.hero.facing = angleTo(this.hero.x, this.hero.y, rt.rec.x, rt.rec.y);
+    this.state.needs.energy = Math.max(0, this.state.needs.energy - this.shoveCfg.energy);
+    this.zombies.shove(rt, this.hero);
+    this.shoveCd.start();
+    this.swingUntil = this.time.now + SWING_ANIM_MS;
   }
 
   updateCombat(dt) {
     const c = this.combat;
     if (c.cd > 0) c.cd = Math.max(0, c.cd - dt);
-    const o = c.order;
-    if (!o || this.sleeping || this.action || this.looking) return;
-    if (o.type === 'door') {
-      if (o.door.state !== 'jammed') { c.order = null; return; }
-      const [a, b] = this.grid.doorTiles(o.door);
-      const t = this.heroTile();
-      if (!((t.x === a.x && t.y === a.y) || (t.x === b.x && t.y === b.y))) { c.order = null; return; }
-      this.faceDoor(o.door);
-      if (c.cd <= 0) { c.order = null; this.swing(null, o.door); if (o.door.state === 'jammed') c.order = o; } // keep bashing until it gives way
-      return;
+    if (c.buffered && c.cd <= 0 && !this.sleeping && !this.action) {
+      c.buffered = false;
+      this.doSwing();
     }
-    const rt = this.zombies.get(o.id);
-    if (!rt || rt.dying) { c.order = null; return; }
-    const w = heroWeapon(this.state, this.balance);
-    if (!this.inReach(rt, w)) return;
-    this.hero.facing = angleTo(this.hero.x, this.hero.y, rt.rec.x, rt.rec.y);
-    if (c.cd <= 0) { c.order = null; this.swing(rt, null, w); }
   }
 
+  /** One swing: `rt` a zombie, `door` a jammed door, neither = the air (energy only: no durability, no noise). */
   swing(rt, door, weapon) {
     const { state, balance } = this;
-    const w = weapon || heroWeapon(state, balance);
+    const w = weapon || this.currentWeapon();
     this.combat.cd = w.cooldown;
+    this.combat.cdMax = w.cooldown;
     spendSwingEnergy(state.needs, balance);
     this.swingUntil = this.time.now + SWING_ANIM_MS;
     playSfx(this, 'swing');
-    if (!door) {
+    if (door) this.applyDoorHit(door);
+    else if (rt) {
       const dmg = swingDamage(w, state.needs, balance, { unaware: !isAware(rt.ai), panic: this.panic.level });
       playSfx(this, hitSoundKey(w.id, this.combat.lastHit));
       const killed = this.zombies.hurt(rt, dmg, isSmallHit(w.id));
       const wear = spendWeaponUse(state, balance);
       if (wear?.broke) { this.toast.show(`Your ${balance.combat.weapons[wear.id].name.toLowerCase()} broke. Back to fists.`); playSfx(this, 'weapon_break'); }
+      if (wear) this.refreshWeapon();
       if (killed || wear?.broke) this.save();
-    } else this.applyDoorHit(door);
+    }
   }
 
   onZombieAggro(rt, byNoise) {
@@ -1202,9 +1291,11 @@ export default class IsoGameScene extends Phaser.Scene {
     this.dead = true;
     this.cancelAction();
     this.walk = null;
-    this.combat.order = null;
     this.wake();
-    this.menu.close();
+    this.cancelPlacement();
+    this.quick.disarm();
+    this.throw.hideAim();
+    this.buttons.closePicker();
     this.isoInput.cancel();
     const key = `iso_hero_death_${this.actors.heroAnim.split('_').pop()}`;
     if (this.anims.exists(key)) this.actors.hero.clearTint().play(key);
@@ -1234,7 +1325,6 @@ export default class IsoGameScene extends Phaser.Scene {
   // ---------------------------------------------------------------- inventory
 
   toggleBag() {
-    this.menu.close();
     if (this.panel.isOpen) this.panel.close(); else this.panel.open('bag');
   }
 
@@ -1336,7 +1426,10 @@ export default class IsoGameScene extends Phaser.Scene {
   onCraftTap(id) {
     const check = craftCheck(this.state, this.tower, this.balance, id);
     if (!check.ok) { this.toast.show(check.reason); return; }
-    this.finishCraft(id, {});
+    if (check.kind === 'barricade') { this.startPlacement(id); return; } // placement mode: walk to the door, press Place
+    this.finishCraft(id, check.kind === 'secure' ? { floor: FLOOR } : {});
+    autoFill(this.state, this.balance);
+    this.buttonsDirty = true;
   }
 
   finishCraft(id, target) {
@@ -1436,14 +1529,17 @@ export default class IsoGameScene extends Phaser.Scene {
     this.isoInput.cancel();
     this.craftPanel.close();
     this.cancelAction();
-    this.combat.order = null;
+    this.combat.buffered = false;
+    this.quick.disarm();
+    this.throw.clear();
+    this.buttons.closePicker();
+    this.buttons.releaseAll();
     this.zombies.resetAll();
     this.ripples.clear();
     this.walk = null;
     this.pending = null;
     this.run = null;
     this.wake();
-    this.menu.close();
     this.save();
   }
 
@@ -1461,14 +1557,13 @@ export default class IsoGameScene extends Phaser.Scene {
       if (this.sleeping) this.wake();
       this.cancelAction();
       const bed = this.world.objectById.get(this.world.home.bed);
+      this.cancelPlacement();
       if (bed) this.goToObject(bed, { kind: 'walk' });
       this.toast.show('Heading home.');
     } else {
       this.lastHomeTap = t;
+      this.hud.pressHome(this.balance.controls.homeDoubleTapSeconds); // the pressed look says "tap again"
       this.camera.resumeFollow();
-      const hs = this.actors.toScreen(this.hero.x, this.hero.y, { x: 0, y: 0 });
-      this.camera.snapTo(hs.x, hs.y, this.hero.facing);
-      this.toast.show('Tap Home again to walk home.', 1400);
     }
   }
 
@@ -1513,6 +1608,8 @@ export default class IsoGameScene extends Phaser.Scene {
     this.tickClock();
     this.isoInput.update();
     this.stickView.update(dt);
+    this.shoveCd.step(dt);
+    this.quick.step(dt);
     if (!this.dead) {
       this.updateHero(dt);
       this.updateCombat(dt);
@@ -1525,25 +1622,67 @@ export default class IsoGameScene extends Phaser.Scene {
     if (anim) this.actors.syncHero(this.hero, anim, this.run ? 1.6 : 1, this.sleeping);
     this.zzz.setPosition(this.heroSp.x + 20, this.heroSp.y - 100);
     this.updateVision();
-    this.camera.update(dt, this.heroSp, this.hero.facing);
+    this.camHero.x = this.heroSp.x;
+    this.camHero.y = this.heroSp.y + this.anchorDy();
+    this.camera.update(dt, this.camHero, this.hero.facing);
     this.applyCamera();
     this.view.update(dt);
     this.actors.update(dt);
     this.ripples.update(dt, this.hero, (x, y) => this.vision.isVisible(x, y));
     this.occT += dt;
     if (this.occT >= OCCLUSION_EVERY) { this.occT = 0; this.updateOcclusionActors(); }
-    if (time - this.pulseAt > 100) {
+    if (time - this.pulseAt > PULSE_SECONDS * 1000) {
       this.pulseAt = time;
       this.refreshMoodles();
-      const w = heroWeapon(this.state, this.balance);
-      this.hudCombat = { weapon: { id: w.id, name: w.name, uses: w.uses } };
+      this.refreshWeapon();
+      autoFill(this.state, this.balance);
     }
-    this.hud.update({
-      canStore: this.canStoreAll() && !this.anyPanelOpen(),
-      weapon: this.hudCombat.weapon, canThrow: false, armed: false, crew: false,
-    });
+    this.throw.update(dt);
+    this.hud.update();
+    this.updateTargetAndButtons(dt);
     const modalBottom = this.craftPanel.isOpen ? this.craftPanel.bottomY : this.panel.isOpen ? this.panel.bottomY : 0;
     this.toast.setY(modalBottom ? modalBottom + TOAST_PANEL_GAP : this.hud.toastY);
+  }
+
+  /** Target selection, the outline, the placement ghost and the button HUD (once per frame). */
+  updateTargetAndButtons(dt) {
+    const panels = this.anyPanelOpen();
+    if (this.placing && panels) this.cancelPlacement();
+    if (panels) { this.quick.disarm(); this.buttons.closePicker(); }
+    this.targeting.update(dt, {
+      held: this.stick.down, locked: !!this.action && this.action.spec.kind !== 'nap',
+      suppress: panels || this.sleeping || this.dead || this.gameOver || !!this.action?.spec.kind.startsWith('nap'),
+    });
+    const t = this.targeting.target;
+    if (this.placing) this.view.setGhost(t?.kind === 'spot' ? t.door : null, this.targeting.cfg.ghostAlpha);
+    // aim ellipse of an armed throw
+    if (this.quick.armed) { this.updateAim(); this.throw.showAim(this.aim.x, this.aim.y); } else this.throw.hideAim();
+    this.btnT -= dt;
+    if (this.targeting.version !== this.lastTargetVersion || this.buttonsDirty || this.btnT <= 0) {
+      this.lastTargetVersion = this.targeting.version;
+      this.buttonsDirty = false;
+      this.btnT = PULSE_SECONDS;
+      this.refreshSlots();
+    }
+    const v = this.btnView;
+    const q = quickState(this.state);
+    const w = this.currentWeapon();
+    v.main = this.slots.main;
+    v.secondary = this.slots.secondary;
+    v.attack.icon = attackIcon(w.id);
+    v.quick.itemId = q.id;
+    v.quick.count = quickCount(this.state);
+    v.quick.icon = q.id ? QUICK_ICON[this.balance.items[q.id]?.type] ?? 'eat' : null;
+    if (q.id === 'bandage' || q.id === 'medkit') v.quick.icon = 'bandage';
+    v.quick.armed = this.quick.armed;
+    v.sleeping = this.sleeping;
+    const cd = v.cd;
+    cd.attack = this.combat.cdMax > 0 ? this.combat.cd / this.combat.cdMax : 0;
+    cd.main = v.main?.id === 'attack' ? cd.attack : 0;
+    cd.secondary = v.secondary?.id === 'shove' ? this.shoveCd.left / this.shoveCfg.cooldownSeconds : 0;
+    cd.quick = this.quick.cooldownFrac;
+    this.buttons.setVisible(!panels);
+    this.buttons.update(dt, v);
   }
 
   // ---------------------------------------------------------------- debug (?debug builds)
@@ -1558,21 +1697,17 @@ export default class IsoGameScene extends Phaser.Scene {
     return { x: rect.left + (wx - cam.scrollX) * k, y: rect.top + (wy - cam.scrollY) * k };
   }
 
-  /** Client (CSS) coordinates of a door / object / pile / zombie by id, for synthetic touches in e2e. */
-  debugClientOf(id) {
-    this.buildTapCandidates();
-    const c = this.cands.find((x) => x.id === id) ?? this.zCands.find((x) => x.id === id);
-    if (!c) return null;
-    const cam = this.cameras.main;
+  /** Client (CSS) coordinates of an action button ('main' | 'secondary' | 'attack' | 'quick'), for synthetic touches in e2e. */
+  debugButton(name) {
+    const c = this.buttons.centre(name);
     const rect = this.game.canvas.getBoundingClientRect();
     const k = rect.width / this.scale.width;
-    return { x: rect.left + (c.x - cam.scrollX) * k, y: rect.top + (c.y - cam.scrollY) * k };
+    return { x: rect.left + c.x * k, y: rect.top + c.y * k };
   }
 
-  /** Client coordinates of the i-th action menu button. */
-  debugMenuButton(i) {
-    const b = this.menu.c?.list[i];
-    if (!b) return null;
+  /** Client (CSS) coordinates of a top-bar button ('home' | 'bag' | 'workbench' | 'survivors' | 'menu'). */
+  debugBar(id) {
+    const b = this.hud.buttons[id];
     const rect = this.game.canvas.getBoundingClientRect();
     const k = rect.width / this.scale.width;
     return { x: rect.left + b.x * k, y: rect.top + b.y * k };
@@ -1581,17 +1716,18 @@ export default class IsoGameScene extends Phaser.Scene {
   /** Move the hero (testing). */
   debugGoto(tx, ty) {
     this.walk = null;
+    this.targeting?.tracker.reset(); // a teleport is a new situation: no kept target
     this.hero.x = tx + 0.5;
     this.hero.y = ty + 0.5;
     this.updateVision(true);
-    const hs = this.actors.toScreen(this.hero.x, this.hero.y, { x: 0, y: 0 });
-    this.camera.snapTo(hs.x, hs.y, this.hero.facing);
+    this.snapCamera();
   }
 
   /** Add items to the bag (testing). */
   debugGive(id, qty = 1) {
     if (!this.balance.items[id]) return false;
     const left = addItem(this.state.inventory, id, qty, this.balance);
+    autoFill(this.state, this.balance);
     this.panel.refresh();
     this.save();
     return left === 0;

@@ -19,7 +19,6 @@ import {
   tileBrightness, tintOf, shade, activeRooms, wallIsCut, doorFrameName, barricadeArtStage, propOrientation,
 } from '../gameplay/isoView.js';
 import { barricadeStage, barricadeMaxHp } from '../gameplay/barricade.js';
-import { opaqueBounds } from './spriteAlpha.js';
 
 const S = 3; // 1 art px = 3 game px
 export const DEPTH_DIV = 1000;
@@ -407,8 +406,9 @@ export default class IsoWorldView {
       w.full.setAlpha(w.fullA).setVisible(w.fullA > 0.01);
       if (w.stub) w.stub.setAlpha(w.stubA).setVisible(w.stubA > 0.01);
       if (w.bar) {
-        w.bar.setVisible(!!w.barOn).setAlpha(w.cut ? w.stubA : w.fullA);
-        if (w.barOn) { if (w.cut) w.bar.setCrop(0, 28, 16, 20); else w.bar.setCrop(); }
+        const ghost = w.ghost > 0 && !w.barOn; // placement ghost of a barricade not built yet
+        w.bar.setVisible(!!w.barOn || ghost).setAlpha(ghost ? w.ghost : w.cut ? w.stubA : w.fullA);
+        if (w.barOn || ghost) { if (w.cut) w.bar.setCrop(0, 28, 16, 20); else w.bar.setCrop(); }
       }
     }
     for (let k = 0; k < this.props.length; k++) {
@@ -464,7 +464,26 @@ export default class IsoWorldView {
     return Math.abs(a.x - p.cx) < w * 0.7 && a.y - 90 < p.cy && a.y > top;
   }
 
-  // ---------------------------------------------------------------- queries for taps
+  /**
+   * Show (alpha > 0) or hide a ghost of the Lv1 barricade over a door while the hero targets it in placement mode
+   * (GDD 5.6; alpha = controls.target.ghostAlpha). Pass null to remove it.
+   */
+  setGhost(door, alpha) {
+    const id = door ? door.id : null;
+    if (id === this.ghostId && (alpha > 0) === (this.ghostAlpha > 0)) return;
+    const old = this.ghostId ? this.doors.get(this.ghostId)?.rec : null;
+    if (old) old.ghost = 0;
+    this.ghostId = id;
+    this.ghostAlpha = alpha;
+    const rec = id ? this.doors.get(id)?.rec : null;
+    if (rec) {
+      rec.ghost = alpha;
+      if (!rec.barOn) rec.bar.setFrame(frameOf('iso_walls', `barricade_${rec.w.axis}_lv1_0`));
+    }
+    this.dirty = true;
+  }
+
+  // ---------------------------------------------------------------- queries
 
   /** Door midpoint in world px. */
   doorMid(door) {
@@ -481,43 +500,6 @@ export default class IsoWorldView {
       if (this.vision.seen[t]) best = 'remembered';
     }
     return best;
-  }
-
-  /**
-   * Tappable doors, props and piles that are Visible or Remembered (GDD 4 step 4).
-   * @param {object[]} out reused array (cleared here)
-   */
-  interactables(out) {
-    out.length = 0;
-    const g = this.floor.grid;
-    for (const e of this.doors.values()) {
-      if (this.vision.visible[e.ia] === 0 && this.vision.seen[e.ia] === 0 && this.vision.visible[e.ib] === 0 && this.vision.seen[e.ib] === 0) continue;
-      const m = this.doorMid(e.door);
-      const sp = e.rec.cut && e.rec.stub ? e.rec.stub : e.rec.full; // the door art a finger can actually touch
-      out.push({ id: e.door.id, kind: 'door', x: m.x, y: m.y - 40, w: 96, h: 96, depth: e.rec.depth, ax: m.x, ay: m.y - 40, door: e.door, sp, origin: DOOR_ORIGIN });
-    }
-    for (const p of this.props) {
-      if (p.gone) continue;
-      if (this.stateOfTiles(p.tiles) === 'unknown') continue;
-      // rect = the opaque art of the current frame, padded to at least 96 x 96 (tall props: their whole height)
-      const sp = p.sp;
-      const fr = sp.frame;
-      const b = opaqueBounds(this.scene, p.pf.key, sp.frame.name);
-      const org = p.big ? BIG_ORIGIN : PROP_ORIGIN;
-      const mx = ((b.x0 + b.x1) / 2 - org[0] * fr.width) * S * (sp.flipX ? -1 : 1);
-      const my = ((b.y0 + b.y1) / 2 - org[1] * fr.height) * S;
-      const cx = sp.x + mx;
-      const cy = sp.y + my;
-      const w = Math.max(96, (b.x1 - b.x0) * S + 16);
-      const h = Math.max(96, (b.y1 - b.y0) * S + 16);
-      out.push({ id: p.o.id, kind: p.o.stash ? 'stash' : p.o.fixture ? 'workbench' : 'object', x: cx, y: cy, w, h, depth: p.depth, ax: cx, ay: cy, obj: p.o, sp, origin: org });
-    }
-    for (const ps of this.pileSprites) {
-      if (!ps.pile || ps.entry?.forceHide) continue;
-      if (this.stateOfTiles([ps.entry.tiles[0]]) === 'unknown') continue;
-      out.push({ id: ps.pile.id, kind: 'pile', x: ps.sp.x, y: ps.sp.y - 20, w: 96, h: 96, depth: ps.sp.depth, ax: ps.sp.x, ay: ps.sp.y - 20, pile: ps.pile });
-    }
-    return out;
   }
 
   /** Shake a door sprite pair (zombie banging, jammed hit). */

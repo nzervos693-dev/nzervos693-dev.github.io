@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import balance from '../public/data/balance.json';
 import { isoConfig, FACINGS, angleDiff } from '../src/iso/projection.js';
 import {
-  stickConfig, stickSide, inStickZone, readStick, stickGridDir, stepStickMove, STICK,
+  stickConfig, stickSide, inStickZone, readStick, stickGridDir, stepStickMove, STICK, DoubleTapDetector,
 } from '../src/gameplay/isoStick.js';
 import { ascii, room, put } from './iso/helpers.js';
 
@@ -44,7 +44,8 @@ describe('stick reading and zone', () => {
   it('dead zone, creep, walk and run bands', () => {
     const r = (frac) => readStick(cfg, frac * cfg.radiusPx, 0);
     expect(r(0.1).active).toBe(false);
-    expect(r(0.2)).toMatchObject({ active: true, creep: true, run: false });
+    expect(r(0.2)).toMatchObject({ active: true, turn: true, creep: false, moving: false, run: false });
+    expect(r(0.3)).toMatchObject({ active: true, turn: false, creep: true, moving: true, run: false });
     expect(r(0.55)).toMatchObject({ active: true, creep: false, run: false });
     expect(r(0.7)).toMatchObject({ run: true, creep: false });
     expect(r(3).mag).toBe(1);
@@ -238,5 +239,31 @@ describe('assist does not trap a wall-corner slide', () => {
     const hero = { x: 5.5, y: 5.45 };
     run(grid, hero, 0.707, -0.707, 4);
     expect(hero.y).toBeLessThan(2); // slid up along the wall
+  });
+});
+
+describe('turn band and double tap (GDD 4)', () => {
+  it('turn band is 0.15 to below 0.25, creep starts at 0.25', () => {
+    const r = (frac) => readStick(cfg, frac * cfg.radiusPx, 0);
+    expect(r(0.14).turn).toBe(false);
+    expect(r(0.15)).toMatchObject({ active: true, turn: true });
+    expect(r(0.249).turn).toBe(true);
+    expect(r(0.25)).toMatchObject({ turn: false, creep: true });
+    expect(r(0.4)).toMatchObject({ creep: false, run: false });
+  });
+  it('a double tap within 0.3 s and 48 px is a turn around', () => {
+    const d = new DoubleTapDetector(cfg);
+    d.down(0, 100, 900); expect(d.up(0.1, false)).toBe('tap');
+    d.down(0.3, 120, 910); expect(d.up(0.38, false)).toBe('double');
+    // the detector resets after a double
+    d.down(0.5, 120, 910); expect(d.up(0.58, false)).toBe('tap');
+  });
+  it('too slow, too far, too long or a drag is not a double tap', () => {
+    const d = new DoubleTapDetector(cfg);
+    d.down(0, 100, 900); d.up(0.1, false);
+    d.down(0.5, 100, 900); expect(d.up(0.6, false)).toBe('tap'); // 0.4 s after the release
+    d.down(0.7, 300, 900); expect(d.up(0.8, false)).toBe('tap'); // 200 px away
+    d.down(0.9, 300, 900); expect(d.up(1.4, false)).toBe(null); // held 0.5 s: not a tap
+    d.down(1.5, 300, 900); expect(d.up(1.55, true)).toBe(null); // left the dead zone
   });
 });
