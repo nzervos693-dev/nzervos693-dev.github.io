@@ -166,13 +166,11 @@ from what the building already holds.
   screen position is outside that rect, the camera is moved the minimum
   amount to put him back on its edge. So at rest the hero sits up to
   120 px off-centre, away from the way he faces.
-- **Drag** (more than **16 game px** before the hold delay,
-  `controls.dragThresholdPx`) pans freely in both axes, with momentum that
-  decays by friction **5 per second** (velocity x e^(-5 x dt),
-  `controls.cameraDragFrictionPerSecond`; stops below 1 px/s).
-  Follow pauses for **2 s** after a drag ends
-  (`controls.cameraFollowPauseSeconds`); a new walk/run tap resumes follow
-  at once.
+- **No manual panning** (CD joystick decision, Stage A playtest): the view
+  always follows the hero with the look-ahead above. Drags never pan (a
+  drag outside the joystick zone is Look, section 4); no two-finger pan.
+  While the joystick moves the hero, the look-ahead uses his facing, which
+  equals his movement direction.
 - **Clamp**: the view centre stays inside the current floor's iso bounding
   box plus a **96 game px** pad (`controls.cameraIsoEdgePadPx`), so edge
   objects can be centred away from Android's back-swipe zone.
@@ -198,28 +196,106 @@ from what the building already holds.
    your door. Or don't notice, and find out how well it was built.
 
 ## 4. Touch controls
-One thumb, taps, holds and drags only. No multi-touch (no pinch zoom: CD
-decision, 12). No keyboard or hover.
+**Floating virtual joystick to move, taps to act** (CD decision after the
+Stage A playtest: tap-to-move made the target hard to see). The left
+thumb moves; any thumb taps. No keyboard or hover, no pinch zoom (CD
+decision, 12), no camera panning (section 2). At most **2 pointers** are
+tracked (Phaser `input.addPointer(1)`): the stick plus one tap.
+
+**The joystick** (`controls.joystick.*`)
+- **Zone**: a touch that starts in the **lower-left** area of the screen,
+  **55%** of the screen width from the left edge (`zoneWidthFrac`) by
+  **55%** of the screen height from the bottom edge (`zoneHeightFrac`),
+  measured inside the safe area, and that does not start on UI (bottom bar
+  hit areas, moodles, an open menu, panel or card), becomes the stick.
+  Touches starting anywhere else are taps or Look drags (below).
+- **Appears where the thumb lands**: the stick's centre is the touch-down
+  point. Ring radius **120 game px** (`radiusPx`) = full deflection; the
+  knob follows the finger, clamped to the ring. If the touch is closer
+  than `radiusPx` to a screen edge, only the drawing is shifted inward to
+  stay on screen; the logic still uses the touch-down point.
+- **Deflection** d = finger distance from centre / `radiusPx` (0-1).
+  - d below **0.15** (`deadZone`, 18 px): no movement.
+  - d **0.15-0.70**: **walk** at `hero.walkTilesPerSecond` (2.0, constant,
+    not analog). Quiet.
+  - d **0.70 or more** (`runThreshold`): **run** at
+    `hero.runTilesPerSecond` (3.4): noisy and costs energy (5.4).
+  - Release: the hero stops at once (no glide); he keeps his facing.
+- **Tap in the zone**: if the touch is released within **0.25 s**
+  (`tapMaxSeconds`) and never left the dead zone, it is **not** a stick
+  gesture but a normal tap at the touch-down point (tap resolution below),
+  so objects and zombies in the lower-left stay tappable.
+- **Direction is screen-correct**: pushing the knob up moves the hero up
+  the screen, right moves him right, and so on. The stick vector (sx, sy)
+  is converted to a grid vector with the inverse projection (section 2)
+  `gx = sx/48 + sy/24`, `gy = sy/24 - sx/48` (the section 2 formula; its
+  1/2 factor drops out), then normalised. Movement is
+  **free-angle** (not snapped to 8 directions) in grid space.
+- **Collision and sliding**: the hero is a circle of radius **0.3 tiles**
+  (`hero.collisionRadiusTiles`) against wall edges, closed jammed doors,
+  object footprints, void, and zombie circles of the same radius (one
+  zombie per tile still holds for zombies). When blocked, the movement
+  component along the blocking surface is kept (he **slides along walls**);
+  when both components are blocked he stands still with his facing set.
+- **Doorway assist**: if the hero pushes into a wall edge within **0.35
+  tiles** (`doorwayAssistTiles`) of the centre line of a doorway (open
+  door or empty gap) and the stick points at least half into it (angle to
+  the doorway normal under 60 degrees), he is nudged sideways toward the
+  doorway centre at walk speed, so 1-tile doorways are easy to pass.
+- **Closed doors**: pushing into a closed, unjammed door for **0.2 s**
+  (`doorPushSeconds`) opens it (`doors.openSeconds`, quiet); running into it
+  bursts it open at once with the 4-tile noise (5.18). Jammed doors and
+  barricades not built by the hero block like walls; the first bump shows
+  the thought "It's stuck." / "Barricaded from the inside." (normal thought
+  cooldown).
+- **Stairs**: walking onto a flight's landing-end tile and pushing further
+  into the flight climbs or descends (5.3); rubble flights block like walls
+  and show their thought on the first bump.
+- **Facing**: while moving, the hero faces his movement direction (turning
+  at `controls.walkTurnDegreesPerSecond`, 540 deg/s) and the vision cone
+  follows. On release he keeps his last facing.
+- **Visuals**: a **dark translucent ring** (fill `#0b0c0e` at alpha
+  **0.25**, 3 px stroke `#bdb8ab` at alpha **0.2**) and a **knob** of radius
+  **44 game px** (`knobRadiusPx`, fill `#bdb8ab` at alpha **0.3**). Past the
+  run threshold the knob alpha rises to **0.45** (`knobRunAlpha`), the only
+  run feedback besides the footsteps. No text, no arrows. It fades in over
+  **0.1 s** on touch-down and fades out over **0.3 s** on release
+  (`fadeSeconds`); when idle nothing is drawn. Colours and alphas are in
+  `controls.joystick.visual`.
+- **Interrupts**: moving the stick out of the dead zone cancels an
+  auto-walk (below) and any action in progress, except a search or
+  dismantle past 50% (it completes first; then, if the stick is still
+  held, he starts moving). It also wakes a sleeping or napping hero.
+
+**Taps and Look** (outside the stick)
 
 | Gesture | Where | Result |
 |---|---|---|
-| Tap | Walkable floor tile (Visible, Remembered or never seen) | Hero **walks** there (quiet) along an 8-direction path (5.3). If no path exists, nothing happens. |
-| Double tap | Floor tile (2nd tap within **0.3 s** and **48 game px** of the 1st) | Hero **runs** there: faster, noisy, costs energy (5.4). |
-| Tap | Object (Visible or Remembered) | **Action menu** (below). |
-| Tap | Closed door | Hero walks to the door's near side and **opens** it (5.18). |
+| Tap | Object (Visible or Remembered) | **Action menu** (below). Choosing an action makes the hero **auto-walk** there along an A* path (5.3, always a quiet walk) and act on arrival. |
+| Tap | Closed door | Hero auto-walks to the door's near side and **opens** it (5.18). |
 | Tap | Open door | Action menu: **Close** and **Dismantle** (interior doors) or **Close** and **Claim / Leave this place** (front doors). |
-| Tap | Visible zombie | In weapon range with a clear line: attack now. Otherwise walk to the nearest tile in range and attack once on arrival. |
+| Tap | Visible zombie | In weapon range with a clear line: attack now. Otherwise auto-walk to the nearest tile in range and attack once on arrival. |
 | Tap | The hero | He **turns around** (180 degrees in **0.2 s**, `controls.heroTapTurnSeconds`). Silent. |
-| Hold (**0.4 s** without moving more than 16 px, `controls.lookHoldSeconds`), then slide | Anywhere in the world | **Look**: the hero stops (cancelling a walk; an action in progress is not cancelled) and turns to face the finger at **720 deg/s** (`controls.lookTurnDegreesPerSecond`); the cone follows the finger while held. Release: he keeps that facing. Silent. |
-| Drag (moves > 16 px before 0.4 s) | Anywhere in the world | **Pans** the camera (section 2). |
-| Tap | A stair flight tile | Hero walks to the flight and climbs/descends one floor (5.3). |
+| Tap | Empty floor (walkable or not) | **Nothing** (no marker, no walk), after the forgiveness snap below. Exception: while Throw is armed, it is the throw target (5.11). |
+| Drag (moves > **16 game px**, `controls.dragThresholdPx`) | Anywhere outside the stick zone and UI, while the stick is not held | **Look**: the hero turns to face the finger (direction from the hero's body to the finger, converted to a grid angle) at **720 deg/s** (`controls.lookTurnDegreesPerSecond`); the cone follows while the finger is down. It cancels an auto-walk, but not an action in progress (he keeps working while looking). Release: he keeps that facing. Silent. |
+| Tap | A stair flight tile | Hero auto-walks to the flight and climbs/descends one floor (5.3). |
 | Tap | Moodle icon | Shows its plain-text card (5.2). |
-| Tap | "Home" button (bottom bar) | Camera re-centres on the hero; a second tap within **1 s** sends the hero to the main home's bed (pathing via the stairs if needed). |
+| Tap | "Home" button (bottom bar) | First tap shows the pressed state for **1 s**; a second tap within **1 s** sends the hero (auto-walk) to the main home's bed, pathing via the stairs if needed. |
 | Tap | Bottom bar buttons (icons only, section 8) | Inventory, Workbench, Survivors, Menu; **Throw** (only while a throwable is carried, 5.11). Sound toggle is in Menu. |
 
+- **Second finger while the stick is held** (past the dead zone): a tap on
+  a Visible zombie **in weapon range** with a clear line attacks at once
+  (the hero turns to it for the swing, then back to his movement
+  direction; movement continues). A tap on UI works normally. Every other
+  tap (objects, doors, out-of-range zombies, the hero) is **ignored** while
+  the stick is held. A second drag is ignored (no Look while moving).
+- **Auto-walk** (after a tap on an object, door, zombie, stair or Home) is
+  the only pathfinding movement; it is always a quiet walk, never a run.
+  Using the stick cancels it at once.
+
 **Facing**: the hero has a continuous facing angle that drives the vision
-cone (5.17) and an 8-direction sprite. While walking or running he faces
-his current step direction, turning at **540 deg/s**
+cone (5.17) and an 8-direction sprite. While walking or running (stick or
+auto-walk) he faces his movement direction, turning at **540 deg/s**
 (`controls.walkTurnDegreesPerSecond`). Idle, he keeps his last facing.
 Acting on an object, door or zombie, he faces it.
 - The facing angle is stored in **grid space** (angle of the direction
@@ -243,13 +319,11 @@ Acting on an object, door or zombie, he faces it.
    centred on the door edge's midpoint, raised 40 px. Front-most wins.
    Never-seen objects are not tappable.
 5. **Stair flight tiles** (diamond test).
-6. **Floor tile** under the point (inverse projection, section 2). If it is
-   walkable, walk there.
-7. **Forgiveness**: if the tile is not walkable (an object, void, outside
-   the floor), snap to the interactable from steps 2-5 whose anchor is
-   nearest the tap within **96 game px** (`controls.tapSnapRadiusPx`);
-   else walk to the nearest walkable tile within **1.5 tiles**
-   (`controls.tapSnapWalkTiles`); else nothing.
+6. **Forgiveness**: snap to the interactable from steps 2-5 whose anchor is
+   nearest the tap within **96 game px** (`controls.tapSnapRadiusPx`).
+7. Otherwise **nothing happens** (floor taps never move the hero; the old
+   walk-to-tile and `controls.tapSnapWalkTiles` snap are removed). Only
+   while Throw is armed is the floor tile under the point used (5.11).
 
 **Action menu**: a small header with the object's name (e.g. "Kitchen
 cupboard") and up to **3** buttons, each **96x96 game px** (icon + label),
@@ -265,11 +339,12 @@ the action starts on arrival. A tap elsewhere closes the menu and counts as
 a normal tap. Objects with exactly one action skip the menu and act
 directly. A closed door always opens on tap without a menu.
 
-Rules: a new tap cancels the current walk/action, except a search or
-dismantle past 50% completes. At most **1** attack tap is buffered during
-cooldown. Tiles inside a unit whose only way in is a jammed or barricaded
-(not by the hero) door are unreachable: the hero walks to the door and
-thinks "It's stuck." or "Barricaded from the inside."
+Rules: a new acting tap or moving the stick cancels the current
+auto-walk/action, except a search or dismantle past 50% completes. At most
+**1** attack tap is buffered during cooldown. Targets inside a unit whose
+only way in is a jammed or barricaded (not by the hero) door are
+unreachable by auto-walk: the hero walks to the door and thinks "It's
+stuck." or "Barricaded from the inside."
 
 ## 5. Mechanics
 All numbers below are starting values and live in
@@ -297,15 +372,19 @@ px. The old side-view px keys stay in balance.json only until the code
 reading them is replaced; they are listed in `_deprecatedSideViewKeys` and
 in 11.2.
 
-**Controls numbers**: drag threshold 16 px (`controls.dragThresholdPx`),
-look hold 0.4 s (`controls.lookHoldSeconds`), Home double tap 1 s
-(`controls.homeDoubleTapSeconds`), run double tap 0.3 s / 48 px
-(`controls.runDoubleTapSeconds`, `controls.runDoubleTapMaxDistancePx`),
-camera follow pause 2 s, lerp 0.12, hero clamp rect 160x240 px, look-ahead
-120 px, drag friction 5/s (`controls.cameraDragFrictionPerSecond`), edge
-pad 96 px, buttons and hit areas 96 px
-(`controls.buttonSizePx`, `controls.minHitAreaPx`), tap snap 96 px /
-1.5 tiles, 1 buffered attack tap (`controls.attackBuffer`), tutorial
+**Controls numbers**: joystick (`controls.joystick.*`): radius 120 px,
+dead zone 0.15, run at 0.70, zone 55% x 55% lower-left, tap in zone under
+0.25 s, fade 0.3 s, knob 44 px, door push 0.2 s, doorway assist 0.35
+tiles; hero collision radius 0.3 tiles (`hero.collisionRadiusTiles`);
+Look drag threshold 16 px (`controls.dragThresholdPx`), Home double tap
+1 s (`controls.homeDoubleTapSeconds`), camera lerp 0.12, hero clamp rect
+160x240 px, look-ahead 120 px, edge pad 96 px, buttons and hit areas 96 px
+(`controls.buttonSizePx`, `controls.minHitAreaPx`), tap snap 96 px, 1
+buffered attack tap (`controls.attackBuffer`). Removed with tap-to-move
+(listed in `_deprecatedTapToMoveKeys`): `controls.lookHoldSeconds`,
+`runDoubleTapSeconds`, `runDoubleTapMaxDistancePx`,
+`cameraFollowPauseSeconds`, `cameraDragFrictionPerSecond`,
+`tapSnapWalkTiles`. Tutorial
 front-door trigger 1.5 tiles (`tutorial.doorTriggerTiles`). M2 floors
 13-17 (`world.floorMin`, `world.floorMax`); floor grid in `grid.*`; start
 flat on floor 15, unit slot NW (`home.startFloor`, `home.startUnit`).
@@ -493,8 +572,10 @@ floor. Coordinates are (x, y), x = 0-29 along the corridor, y = 0-21 across.
   a door (5.18).
 
 **Movement and pathfinding**
-- Characters and zombies move on the grid in **8 directions** using A*
-  (orthogonal cost 1, diagonal 1.414). A diagonal step is allowed only if
+- **Hero with the joystick**: free-angle movement with collision and wall
+  sliding (section 4). **Auto-walks** (taps on objects, doors, zombies,
+  stairs, Home), zombies and survivors move on the grid in **8
+  directions** using A* (orthogonal cost 1, diagonal 1.414). A diagonal step is allowed only if
   both orthogonal neighbours it passes are walkable and no wall edge
   touches the corner being cut (no corner-cutting through walls, doors or
   objects).
@@ -517,8 +598,10 @@ floor. Coordinates are (x, y), x = 0-29 along the corridor, y = 0-21 across.
 - Hero walk **2.0 tiles/s** (`hero.walkTilesPerSecond`), run **3.4
   tiles/s** (`hero.runTilesPerSecond`). Corridor end to end (30 tiles):
   15 s walking. Zombie speeds: 5.4.
-- **Stairs**: tapping any tile of a flight walks the hero to the flight's
-  landing-end tile, then he climbs (up flight) or descends (down flight):
+- **Stairs**: tapping any tile of a flight auto-walks the hero to the
+  flight's landing-end tile (or he walks onto it with the stick and keeps
+  pushing into the flight for **0.2 s**, `controls.joystick.doorPushSeconds`),
+  then he climbs (up flight) or descends (down flight):
   **1.4 s per floor** (`hero.stairSecondsPerFloor`), shown as the 0.3 s
   fade; he arrives on the landing-end tile of the **opposite** flight one
   floor up or down (you come up the down-flight of the floor above). In M2,
@@ -674,13 +757,15 @@ usually wiser.
 - **Stealth target (QA)**: walking up behind an idle walker and hitting
   first succeeds in at least 4 of 5 tries when the hero starts outside its
   cone.
-- **Running** (CD decision): double tap = run (4), single tap = quiet walk.
-  Running costs **0.2 energy per second** (`hero.runEnergyPerSecond`; the
-  full corridor costs about 1.8). The Tired L3+ speed penalty applies to
-  running too. At energy below **5** (Tired L4, `hero.runMinEnergy`) a
-  double tap makes the hero walk and think "I can't run anymore." (once per
-  20 s, like all thoughts). A run ends on arrival; the next tap starts a
-  new walk or run. Running on stairs keeps the stair time but still makes
+- **Running** (CD decision, joystick version): pushing the stick past
+  **70%** of its radius runs (section 4); less is a quiet walk. Auto-walks
+  never run. Running costs **0.2 energy per second** of running
+  (`hero.runEnergyPerSecond`; the full corridor costs about 1.8). The
+  Tired L3+ speed penalty applies to running too. At energy below **5**
+  (Tired L4, `hero.runMinEnergy`) a push past the run threshold makes the
+  hero walk and think "I can't run anymore." (once per 20 s, like all
+  thoughts). Running noise fires once per second only while actually
+  moving at run speed (blocked against a wall = no noise). Running on stairs keeps the stair time but still makes
   noise on the floor being left.
 - **Unaware hit**: the first hit on a zombie that has not noticed the hero
   deals **x3** damage (`combat.unawareHitMult`). A walker (45 HP) dies to
@@ -975,7 +1060,9 @@ Recipe rules (numbers in `recipes.<id>` and `barricade.*`):
 - **Paying for placeables**: crafting a placeable enters spot-pick mode:
   free spots of its type in the **claimed apartments on the hero's floor**
   are outlined with a thin dashed off-white diamond (the only outline in
-  the game); the player can pan the camera to reach them. A 1x2 placeable
+  the game); spot-pick mode stays open while the player walks the hero with
+  the joystick (the camera follows) to bring far spots on screen; there is
+  no manual pan. A 1x2 placeable
   is placed with one tap: the tapped tile is its first tile and it takes
   whichever orientation fits, preferring its long side against a wall;
   tiles where neither orientation passes the placement rules (5.15) are
@@ -1269,8 +1356,9 @@ the stash of the apartment it is in.
   and panels in the same apartment.
 - **Generator**: *Use* toggles on/off and adds fuel. It holds **6 fuel**
   (`power.generatorFuelSlots`) and burns **1 per 4 h**
-  (`power.generatorFuelHours`) while on, online and offline. It hums
-  while running (ambience only, not noise). While any generator is running
+  (`power.generatorFuelHours`) while on, online and offline. It makes a
+  recorded, uneven engine chug while running, audible only within 4 tiles
+  (ambience only, not noise; never a tonal hum, section 10). While any generator is running
   in a claimed apartment, attacks are x**1.1**
   (`power.generatorAttackMult`, after the cap, 5.8). Out of fuel = off;
   the report says "The generator coughed and died."
@@ -1811,9 +1899,10 @@ setting; CD decision, 12) (`vision.soundRipple.*`):
 - **Light**: lamps and (M3) the flashlight extend what you see but make you
   easier to see (5.4, 5.11). Night (M3) turns Grey to Dim.
 - **Actions**: while searching or dismantling the hero faces the object;
-  the player can't look around without cancelling (except a hold-to-look,
-  which does not cancel an action in progress but turns the hero: he
-  keeps working while looking; the progress ring stays).
+  the player can't look around without cancelling (except a Look drag,
+  section 4, which does not cancel an action in progress but turns the
+  hero: he keeps working while looking; the progress ring stays). Moving
+  the stick cancels the action (50% rule, section 4).
 
 ### 5.18 Doors and claustrophobia (new, iso rebuild)
 **Doors** (keys `doors.*`)
@@ -1921,7 +2010,8 @@ setting; CD decision, 12) (`vision.soundRipple.*`):
    - Workbench (craft Barricade Lv1, placed at the front door).
    - Scratching from behind the hero, panned and muffled: "Behind me?" ->
      the step completes when the hero faces the sound (tap himself to turn
-     round, or hold to look). Teaches turning without text.
+     round, drag to look, or walk toward it with the stick). Teaches
+     turning without text.
    - Front door: the step completes when the hero is within **1.5 tiles**
      of the start flat's front door on floor 15 (`tutorial.doorTriggerTiles`,
      inclusive, walking or running); the door opens onto the corridor and
@@ -2066,30 +2156,85 @@ text at the bottom for 2 s, no icon, no sound.
   volume within **2 tiles** (`audio.fullVolumeTiles`), linear to 0 at the
   sound's hear radius. Sounds without line of sight are muffled (low-pass,
   x0.5). Sounds from other floors are not positional.
-- **Ambience**: a quiet room-tone bed (wind + rain) per light level (rain
-  louder within 3 tiles of a window, and through broken windows). Random
-  one-shots every **20-60 s** (`audio.ambientGapSeconds`): creak, pipe
-  knock, distant thud, glass tinkle. Distant groans every **45-120 s**
-  (`audio.distantGroanGapSeconds`), which also hide the attack cue (5.8).
+**Rule zero (CD, Stage A playtest)**: everything you hear sounds like a
+real place. "I don't like this constant buzzing when nothing is around, I
+want natural sounds, nothing that reminds of an arcade game."
+- **No continuous tonal sound anywhere**: no room-tone hum, drone, buzz,
+  electrical whine, lamp hiss loop or synth pad as a constant bed. The
+  M2 room-tone and lamp-hiss loops are **removed**.
+- **No synthesized sounds**: no synth tones, chimes, blips, beeps, whooshes
+  made in code, or musical stingers in UI or gameplay. Procedurally
+  generated audio (WebAudio oscillators, noise generators) is not used for
+  any sound in the shipped game.
+- **Everything is a real recording** (field recording or foley), from
+  **CC0 or public-domain** sources only (CD approved). Every file is listed
+  in **`public/assets/audio/CREDITS.md`** with: file name, what it is,
+  source URL, author, license (CC0 1.0 / public domain), and any edit made
+  (trim, fade, loudness, mono, format). A file without a CREDITS line does
+  not ship. No CC-BY, no "free for games" licences without an explicit
+  CC0/PD statement.
+- **Ambience = silence plus irregular natural sounds.** With nothing
+  around, the hero hears **nothing at all for stretches**; there is no
+  ambient loop. Ambient one-shots fire with a random gap of **25-70 s**
+  (`audio.ambientGapSeconds`), never the same file twice in a row, each at
+  a random volume **0.35-0.7** (`audio.ambientVolumeRange`) and random pan.
+  The pool (each 2-15 s, with natural fade in/out):
+  - **Weather**: wind gust against the building, rain on a window (a
+    burst that swells and fades, not a loop), a gutter dripping, thunder
+    far away (rare, weight 1).
+  - **Building**: concrete/wood settling creak, pipe knock or tick, a
+    radiator ticking as it cools, a door somewhere drifting shut, a
+    distant muffled thud from another floor, a loose window rattling in
+    a gust.
+  - **Outside, far**: a dog barking far away, crows, a car alarm far off
+    that stops by itself (rare, weight 1), a dead city's quiet (no
+    traffic). **Birds at dawn** arrive with day/night (M3).
+  - Weights: weather 3, building 4, outside 2 (`audio.ambientWeights`).
+- **Rain near windows**: within **3 tiles** of a window
+  (`audio.windowRainTiles`) the rain-on-window one-shot gets weight x3 and
+  plays from the window's direction; a broken window adds a soft wind
+  gust weight x2. Still one-shots, never a loop.
+- Distant groans every **45-120 s** (`audio.distantGroanGapSeconds`),
+  which also hide the attack cue (5.8). Groans are recorded human voice
+  (CC0 vocal recordings, pitched/filtered), never synthesized.
 - **Zombies are heard before seen**: 5.17 (12 tiles, 4-9 s gaps, max 3
   voices, muffled through walls; door banging 15 tiles).
-- **Music**: sparse and sad (a few piano or cello notes, 20-60 s pieces),
-  never during danger. Plays at most once per **8-12 min**
-  (`audio.musicCooldownMinutes`) and on moments: first claim, after an
-  attack ends, a survivor joins. 3 pieces in M2, plus the ending cue (M5).
-  No tense attack loop. Total audio under 3 MB.
-- **SFX (M2 list)**: footsteps (walk soft, run heavy), stairs, door
+- **Music**: sparse, sad and **acoustic**: real-instrument recordings only
+  (solo piano, cello, acoustic guitar, CC0/PD), **20-60 s** pieces, never
+  during danger, never looping. Plays at most once per **15-25 min**
+  (`audio.musicCooldownMinutes`, rarer than before) and only on moments:
+  first claim, after an attack ends, a survivor joins. **3 pieces** in M2,
+  plus the ending cue (M5). Volume **0.5** (`audio.musicVolume`). No tense
+  attack loop, no stingers. If no suitable CC0/PD acoustic piece is found
+  for a moment, that moment gets silence (not a substitute synth piece).
+- Total audio under **3 MB** (`audio.maxTotalMB`): mono OGG (with an M4A
+  fallback only if the engine programmer requires it), 44.1 kHz,
+  ~64-96 kbps; ambience and SFX files trimmed to their sound.
+- **SFX (M2 list)**, all recorded: footsteps by floor surface (walk soft,
+  run heavy; **surfaces** `wood`, `tile`, `carpet`, `concrete`, chosen by
+  the hero's room type via `audio.footstepSurfaceByRoom`, e.g. hallway/living/bedroom wood, kitchen
+  and bathroom tile, kids room carpet, corridor/landing/service rooms
+  concrete; 3+ variations each, picked at random with pitch x0.95-1.05,
+  `audio.footstepPitchRange`), searching sounds by container (cupboard
+  door, drawer slide, wardrobe creak, fridge seal, cabinet click, cloth
+  rummage, metal shelf), furniture dragging and breaking, glass, wet hits
+  for blades and blunt weapons, stairs, door
   open/close/creak, door burst (run), door bang (zombie), door splinter,
   jammed door hit, cupboard open, drawer slide, rustle, pick up (soft
   cloth/handling, no chime), punch, blunt hit, blade hit (stab) (picked
   per weapon by `combat.weapons.<id>.hitSound`, 5.4), weapon break, zombie
   breath/shuffle/groan/lean-in/death slump, hero hurt breath, barricade
   hit/creak/break, hammer, wood crack, metal clang, cloth rip, water pour,
-  glass shatter, fire whoosh, lamp wick hiss, rain, wind, pipe knock,
-  stairwell banging (cue), moodle cues (5.2), eat, drink, Mara's sob.
+  glass shatter, fire catching (recorded flame), lamp wick being lit (a
+  one-shot match strike, no loop), pipe knock, stairwell banging (cue),
+  moodle cues (5.2, recorded body sounds), eat, drink, Mara's sob.
+- **UI sounds**: menus and bottom-bar buttons are **silent** by default;
+  at most a very quiet recorded paper/cloth touch (volume **0.2**,
+  `audio.uiVolume`) on opening a panel. Crafting completes with the real
+  sound of the work (hammering, tape tearing), never a jingle.
 - **Removed**: attack siren, UI tap blips, noise alert sting, pickup chime,
-  any "level up" or success jingles. UI buttons make a faint paper or
-  cloth sound at most.
+  any "level up" or success jingles, room-tone hum, lamp hiss loop, every
+  generated/synth sound.
 
 ## 11. Scope
 **In for version 1**: everything in sections 1-10 for the Version 1 column
@@ -2107,10 +2252,11 @@ CD playtest on the phone.
   - **Must-haves**
     1. Iso renderer: 96x48 tiles, walls with height, cutaway and occluder
        fade, draw order, one floor visible, camera follow with look-ahead,
-       drag pan, clamp.
-    2. Grid movement: tap to walk (A*, 8 directions, no corner cutting),
-       double tap run, hold to look, tap hero to turn, iso hit-testing
-       with forgiveness.
+       clamp (no manual pan).
+    2. Movement: floating virtual joystick (walk, run past 70%, wall
+       sliding, doorway assist, door push), tap-to-act auto-walk (A*, 8
+       directions, no corner cutting), drag to look, tap hero to turn, iso
+       hit-testing with forgiveness.
     3. Vision: cone + close circle + LOS shadows (walls, doors), tile
        memory, zombies only on Visible tiles, soft edges, vignette,
        muffled positional zombie sounds.
@@ -2188,9 +2334,10 @@ pass positions change):
 | Positions in px on a 3120 x 240 strip | Tiles on a 30 x 22 grid, iso projection | `iso.*`, `grid.*` |
 | Walk 100 / run 170 px/s, run noise 250 px | 2.0 / 3.4 tiles/s, noise 5 tiles | `hero.walkTilesPerSecond`, `runTilesPerSecond`, `runNoiseRadiusTiles` |
 | Walking along x | A* 8-direction pathfinding, occupancy, doors on the way | 5.3 |
-| Camera: axis-locked drag, x dead zone, vertical floor scroll | Free 2D pan, follow with look-ahead, 2D hero clamp rect, one floor | `controls.cameraDeadzonePx`, `cameraLookAheadPx`, `cameraIsoEdgePadPx`, `floorFadeSeconds`, `zoom` |
+| Camera: axis-locked drag, x dead zone, vertical floor scroll | Follow with look-ahead, 2D hero clamp rect, one floor; no manual pan (after Stage A) | `controls.cameraDeadzonePx`, `cameraLookAheadPx`, `cameraIsoEdgePadPx`, `floorFadeSeconds`, `zoom` |
 | Tap tests on side sprites | Iso hit-testing order, snap 96 px | `controls.tapSnapRadiusPx`, `tapSnapWalkTiles`, `iso.bodyRaisePx` |
-| Hold: none | Hold to look; tap hero to turn | `controls.lookHoldSeconds`, `lookTurnDegreesPerSecond`, `walkTurnDegreesPerSecond`, `heroTapTurnSeconds` |
+| Hold: none | Drag (outside the stick zone) to look; tap hero to turn (hold-to-look replaced after Stage A) | `controls.dragThresholdPx`, `lookTurnDegreesPerSecond`, `walkTurnDegreesPerSecond`, `heroTapTurnSeconds` |
+| Tap to walk, double tap to run | Floating virtual joystick (run past 70%); taps only act (after Stage A) | `controls.joystick.*`, `hero.collisionRadiusTiles` |
 | Room light Dark/Dim/Grey/Lit, Dark until entered | Tile light Lit/Grey/Dim/Dark by room type and lamp LOS; vision states Visible/Remembered/Unknown | `light.lampRadiusTiles`, `light.darkTimeMult`, `vision.*` |
 | Zombie facing left/right, sight by \|dx\| | 8 facings, 120-degree cone with LOS, ranges in tiles | `zombies.sight.coneDegrees`, `frontTiles`, `behindWalkTiles`, `behindRunTiles`, `idleTurnChances` |
 | Zombie speeds px/s, ranges px | tiles/s, tiles | `zombies.types.<id>.speedTilesPerSecond`, `zombies.attackRangeTiles`, `zombies.tuning.*Tiles`, `combat.weapons.<id>.rangeTiles` |
@@ -2317,8 +2464,9 @@ screen, seeing more than one floor at a time.
 - **Mood**: darker desaturated look with light pools and rain; quiet
   creepy sound; slow, heavy zombies in numbers; fewer, logically placed
   items and found notes; no loot sparkle.
-- **Running**: double tap runs (fast, noisy, costs energy); single tap is a
-  quiet walk (5.4).
+- **Running**: running is fast, noisy and costs energy; walking is quiet
+  (5.4). Since the Stage A playtest it is triggered by pushing the
+  joystick past 70% (below), no longer by double tap.
 - **Bottom-bar labels** (Stage 1 playtest): the bottom bar is icons only;
   no text label ever shows (not on first sessions, not on long-press).
 - **Stage 1 feel** (playtest): the creepier mood, the 15 s attack cue and
@@ -2334,9 +2482,22 @@ screen, seeing more than one floor at a time.
 - **Field of view**: a **vision cone plus a small circle** around the hero;
   walls and doors block sight and cast shadows; zombies and items outside
   view are hidden but can be heard (5.17).
-- **Controls**: **tap to move** with pathfinding, **double tap to run**,
-  tap objects/zombies to act; the hero faces where he walks and the cone
-  follows; **tap-and-hold to look/turn** (section 4).
+- ~~Controls: tap to move, double tap to run, tap-and-hold to look~~
+  (replaced after the Stage A playtest, below).
+- **Stage A playtest**: brightness fine, runs smoothly. Tap-to-move was
+  hard ("hard to see target").
+- **Controls (Stage A playtest)**: **floating virtual joystick** in the
+  lower-left 55% of the screen, where the thumb lands; push to walk in
+  the screen direction, past 70% to run, release to stop; the hero faces
+  his movement and the cone follows; **tap** objects, doors and zombies
+  to auto-walk and act; tap on empty floor does nothing; **drag** outside
+  the stick to look; tap the hero to turn; camera always follows, no
+  manual pan (section 4).
+- **Audio (Stage A playtest)**: no constant hum/buzz/drone; natural,
+  irregular recorded sounds only; nothing arcade-like (no synth tones,
+  chimes, blips or stingers); music stays sparse and acoustic. Sources are
+  **CC0/public-domain field recordings only**, each logged with source
+  URL, author and license in `public/assets/audio/CREDITS.md` (section 10).
 
 ### Decided (Producer approved; CD may revisit at playtest)
 - Scavenger job works only during offline catch-up (5.7).
@@ -2365,7 +2526,12 @@ screen, seeing more than one floor at a time.
 - **Doors**: zombies can't open doors but bang them down (interior 60 HP,
   front 120 HP, x0.4 damage); the hero opens doors on his path but never
   closes them automatically.
-- Tap on the hero turns him around; hold 0.4 s to look (both silent).
+- Tap on the hero turns him around; a drag outside the stick zone looks
+  (both silent). Hold-to-look was dropped with the joystick.
+- Joystick details (CD may revisit): constant walk speed (not analog),
+  free-angle movement with wall sliding and a doorway assist, pushing into
+  a closed door for 0.2 s opens it, a second finger can only attack an
+  in-range zombie while moving, empty-floor taps show no marker.
 - Camera-facing walls are cut for the hero's room and any room he can see
   into; other walls stay full height.
 - Attackers: max 3 at the door at once (the corridor is narrow).
@@ -2389,3 +2555,13 @@ screen, seeing more than one floor at a time.
    (a) keep crowbar-only (current); (b) also open by hand in 8 s, Loud;
    (c) cap a storage room at 3 cages so it feels less like a wall of locks.
    (older)
+4. **Left-handed players** (joystick, check at next playtest): (a) stick
+   zone lower-left only (current); (b) a Menu setting "Stick on the right"
+   that mirrors the zone; (c) the stick appears on whichever lower half
+   the thumb lands, and Look is only possible in the upper half.
+5. **Music after the audio change**: (a) keep 3 rare acoustic pieces
+   (current); (b) no music at all, only the building's sounds; (c) one
+   piece only, for the ending (M5).
+6. **Walk speed with the stick**: (a) constant walk below 70% (current);
+   (b) analog: speed scales from 50% at the dead zone to full walk at
+   70%, letting you creep slowly (quieter? would need a stealth rule).

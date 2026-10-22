@@ -20,6 +20,10 @@
     "generator.pairMinDistanceFromEntrancePx", "generator.guarantees.minFlatWingsPerFloor",
     "home.startWing", "inventory.stockpileSlots", "inventory.shelfSlots"
   ],
+  "_deprecatedTapToMoveKeys": [
+    "controls.lookHoldSeconds", "controls.runDoubleTapSeconds", "controls.runDoubleTapMaxDistancePx",
+    "controls.cameraFollowPauseSeconds", "controls.cameraDragFrictionPerSecond", "controls.tapSnapWalkTiles"
+  ],
   "time": {
     "tickSeconds": 1,
     "offlineCapHours": 12,
@@ -49,7 +53,32 @@
     "cameraIsoEdgePadPx": 96,
     "cameraDragFrictionPerSecond": 5,
     "floorFadeSeconds": 0.3,
-    "zoom": { "default": 1, "min": 1, "max": 1 }
+    "zoom": { "default": 1, "min": 1, "max": 1 },
+    "maxPointers": 2,
+    "joystick": {
+      "radiusPx": 120,
+      "knobRadiusPx": 44,
+      "deadZone": 0.15,
+      "runThreshold": 0.7,
+      "zoneWidthFrac": 0.55,
+      "zoneHeightFrac": 0.55,
+      "tapMaxSeconds": 0.25,
+      "fadeInSeconds": 0.1,
+      "fadeSeconds": 0.3,
+      "doorPushSeconds": 0.2,
+      "doorwayAssistTiles": 0.35,
+      "doorwayAssistMaxAngleDegrees": 60,
+      "knobRunAlpha": 0.45,
+      "visual": {
+        "ringFillColor": "#0b0c0e",
+        "ringFillAlpha": 0.25,
+        "ringStrokeColor": "#bdb8ab",
+        "ringStrokeAlpha": 0.2,
+        "ringStrokePx": 3,
+        "knobColor": "#bdb8ab",
+        "knobAlpha": 0.3
+      }
+    }
   },
   "tutorial": {
     "doorTriggerPx": 60,
@@ -65,7 +94,8 @@
     "runNoiseRadiusTiles": 5,
     "runEnergyPerSecond": 0.2,
     "runMinEnergy": 5,
-    "stairSecondsPerFloor": 1.4
+    "stairSecondsPerFloor": 1.4,
+    "collisionRadiusTiles": 0.3
   },
   "world": {
     "floorMin": 13,
@@ -843,9 +873,29 @@
     }
   },
   "audio": {
-    "ambientGapSeconds": [20, 60],
+    "creditsFile": "assets/audio/CREDITS.md",
+    "allowedLicenses": ["CC0-1.0", "public-domain"],
+    "continuousLoops": false,
+    "synthesizedSounds": false,
+    "ambientGapSeconds": [25, 70],
+    "ambientVolumeRange": [0.35, 0.7],
+    "ambientWeights": { "weather": 3, "building": 4, "outside": 2 },
+    "windowRainTiles": 3,
+    "windowRainWeightMult": 3,
+    "brokenWindowWindWeightMult": 2,
     "distantGroanGapSeconds": [45, 120],
-    "musicCooldownMinutes": [8, 12],
+    "musicCooldownMinutes": [15, 25],
+    "musicVolume": 0.5,
+    "uiVolume": 0.2,
+    "generatorHearTiles": 4,
+    "maxTotalMB": 3,
+    "footstepPitchRange": [0.95, 1.05],
+    "footstepSurfaceByRoom": {
+      "hallway": "wood", "living": "wood", "bedroom": "wood", "studio": "wood", "office": "carpet",
+      "reception": "carpet", "kids_room": "carpet", "kitchen": "tile", "bathroom": "tile",
+      "break_room": "tile", "laundry": "concrete", "storage": "concrete", "janitor": "concrete",
+      "utility": "concrete", "corridor": "concrete", "landing": "concrete"
+    },
     "zombieHearRadiusPx": 600,
     "zombieHearRadiusTiles": 12,
     "zombieSoundGapSeconds": [4, 9],
