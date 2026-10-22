@@ -8,7 +8,7 @@ import floorsData from '../public/data/levels/floors.json';
 import { buildTower } from '../src/gameplay/layout.js';
 import { createGameState, normalizeGameState } from '../src/gameplay/gameState.js';
 import { addItem, countItem } from '../src/gameplay/inventory.js';
-import { craftCheck, performCraft, USE_ORDER, LATER_STAGE_EFFECTS } from '../src/gameplay/crafting.js';
+import { craftCheck, performCraft, useOrder, LATER_STAGE_EFFECTS } from '../src/gameplay/crafting.js';
 import { homeSpots, freeSpots, dismantleRefund, secureFloor } from '../src/gameplay/building.js';
 import { buildBarricade, damageBarricade, repairBarricade, barricadeMaxHp } from '../src/gameplay/barricade.js';
 import { advanceProducer, newProducer } from '../src/gameplay/producers.js';
@@ -22,7 +22,7 @@ const snapshot = (s) => JSON.stringify([s.inventory, s.stockpile, s.build, s.flo
 const R = balance.recipes;
 
 describe('QA 3a: recipe data is consistent with the rest of balance.json', () => {
-  const placeKinds = new Set(['none', 'window', 'floor', 'front_door', 'cleared_floor']);
+  const placeKinds = new Set(['none', 'window', 'floor', 'front_door', 'cleared_floor', 'hq_floor']);
   it('every item id in cost, output, effect exists in balance.items', () => {
     for (const [id, r] of Object.entries(R)) {
       for (const [i, q] of Object.entries(r.cost)) { expect(balance.items[i], `${id} cost ${i}`).toBeDefined(); expect(Number.isInteger(q) && q > 0, `${id} cost qty`).toBe(true); }
@@ -36,7 +36,7 @@ describe('QA 3a: recipe data is consistent with the rest of balance.json', () =>
   it('recipes have a name, a known use group, a valid build spot and exactly one of output / effect', () => {
     for (const [id, r] of Object.entries(R)) {
       expect(r.name?.length, id).toBeGreaterThan(2);
-      if (!LATER_STAGE_EFFECTS.includes(r.effect?.type)) expect(USE_ORDER, id).toContain(r.use);
+      if (!LATER_STAGE_EFFECTS.includes(r.effect?.type)) expect(useOrder(balance), id).toContain(r.use);
       expect(placeKinds.has(r.buildSpot), `${id} buildSpot ${r.buildSpot}`).toBe(true);
       expect(!!r.output !== !!r.effect, `${id} has output xor effect`).toBe(true);
       expect(r.workbenchLevel).toBe(1);

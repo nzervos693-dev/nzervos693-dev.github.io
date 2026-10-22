@@ -40,6 +40,9 @@ export default class ActionButtons {
     this.visible = true;
     this.picker = null;
     this.btn = {};
+    this.atkSlot = { icon: '', enabled: true };
+    this.quickSlot = { icon: '', item: null, enabled: true };
+    this.shownCount = -1;
     const spec = { main: this.cfg.main, attack: this.cfg.attack, secondary: this.cfg.secondary, quick: this.cfg.quickUse };
     for (const name of NAMES) this.btn[name] = this.make(name, spec[name]);
     this.count = label(scene, 0, 0, '', 22, CSS.text).setDepth(DEPTH.hud + 2).setVisible(false);
@@ -68,7 +71,7 @@ export default class ActionButtons {
     for (const o of parts) o.setScrollFactor(0).setDepth(depth);
     b.parts = parts;
     b.hit.on('pointerdown', (p) => { if (!this.visible) return; b.down = p.id; b.heldT = 0; b.longFired = false; b.holding = false; });
-    b.hit.on('pointerout', () => { b.down = -1; b.holding = false; });
+    b.hit.on('pointerout', (p) => { if (b.down === p.id) { b.down = -1; b.holding = false; } });
     b.hit.on('pointerup', (p) => {
       if (b.down !== p.id) return;
       b.down = -1;
@@ -142,10 +145,15 @@ export default class ActionButtons {
     const q = this.btn.quick;
     this.drawButton(this.btn.main, dt, v.main, v.cd.main, false);
     this.drawButton(this.btn.secondary, dt, v.secondary, v.cd.secondary, false);
-    this.drawButton(this.btn.attack, dt, { icon: v.attack.icon, enabled: !v.sleeping }, v.cd.attack, false);
-    const qs = v.quick.icon ? { icon: v.quick.icon, item: v.quick.itemId, enabled: v.quick.count > 0 } : null;
+    const as = this.atkSlot;
+    as.icon = v.attack.icon;
+    as.enabled = !v.sleeping;
+    this.drawButton(this.btn.attack, dt, as, v.cd.attack, false);
+    let qs = null;
+    if (v.quick.icon) { qs = this.quickSlot; qs.icon = v.quick.icon; qs.item = v.quick.itemId; qs.enabled = v.quick.count > 0; }
     this.drawButton(q, dt, qs, v.cd.quick, v.quick.armed);
-    this.count.setVisible(!!v.quick.itemId).setText(v.quick.itemId ? String(v.quick.count) : '');
+    this.count.setVisible(!!v.quick.itemId);
+    if (v.quick.itemId && v.quick.count !== this.shownCount) { this.shownCount = v.quick.count; this.count.setText(String(v.quick.count)); }
     for (const name of NAMES) {
       const b = this.btn[name];
       if (b.down < 0) continue;

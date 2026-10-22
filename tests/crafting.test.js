@@ -37,11 +37,12 @@ const killFloor = (s, n) => { for (const z of Object.values(s.zombies)) if (z.fl
 const craft = (s, id, target) => performCraft(s, tower, balance, id, target);
 
 describe('recipe list', () => {
-  it('has the 14 M1 recipes grouped by use in panel order', () => {
+  it('has the offered recipes (14 M1 + 3 C2 tools/materials) grouped by use in the panel order of balance.craftingPanel', () => {
     const groups = recipeGroups(balance);
-    expect(groups.map((g) => g.use)).toEqual(['weapon', 'throwable', 'tool', 'medicine', 'water', 'food', 'defense', 'home']);
-    expect(groups.flatMap((g) => g.ids)).toHaveLength(14);
-    expect(recipeRows(balance).filter((r) => r.type === 'recipe')).toHaveLength(14);
+    // 'light' (oil lamp) is a later-stage effect and not offered yet
+    expect(groups.map((g) => g.use)).toEqual(['weapon', 'throwable', 'tool', 'material', 'medicine', 'water', 'food', 'defense', 'home']);
+    expect(groups.flatMap((g) => g.ids)).toHaveLength(17);
+    expect(recipeRows(balance).filter((r) => r.type === 'recipe')).toHaveLength(17);
   });
   it('pages never end on a group header and keep every row once', () => {
     const rows = recipeRows(balance);

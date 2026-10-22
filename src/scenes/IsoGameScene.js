@@ -42,7 +42,7 @@ import { napAction, completeNap, napConfig } from '../gameplay/nap.js';
 import { getSafeArea } from '../core/safeArea.js';
 import { reportLines } from '../gameplay/report.js';
 import {
-  recipeRows, USE_NAMES, craftCheck, costLines, effectText, performCraft, recipeKind,
+  recipeRows, useNames, craftCheck, costLines, effectText, performCraft, recipeKind,
 } from '../gameplay/crafting.js';
 import { tickProducers } from '../gameplay/producers.js';
 import { noiseTiles, lightTimeMult, jamHit } from '../gameplay/isoActions.js';
@@ -159,6 +159,7 @@ export default class IsoGameScene extends Phaser.Scene {
     this.placing = null;
     this.nap = { enabled: false };
     this.camHero = { x: 0, y: 0 };
+    this.tFlags = { held: false, locked: false, suppress: false };
     this.btnView = { main: null, secondary: null, attack: { icon: 'attack_fists' }, quick: { itemId: null, icon: null, count: 0, armed: false }, cd: { main: 0, secondary: 0, attack: 0, quick: 0 }, sleeping: false };
     this.panic = makePanic();
     this.tiredLevel = 0;
@@ -301,6 +302,7 @@ export default class IsoGameScene extends Phaser.Scene {
     lifecycle.on('resume', onResume);
     this.events.once('shutdown', () => {
       this.soundscape.stopAll();
+      this.targeting?.destroy();
       this.bus.removeAllListeners();
       this.game.events.off('floor15:hide', onHide);
       lifecycle.off('resume', onResume);
@@ -552,9 +554,13 @@ export default class IsoGameScene extends Phaser.Scene {
     this.creeping = !this.run && st.creep;
     const gait = this.run ? b.hero.runTilesPerSecond : b.hero.walkTilesPerSecond * (st.creep ? this.stickCfg.creepSpeedMult : 1);
     const tps = gait * speedMult(this.state.needs, b);
+    const px = h.x;
+    const py = h.y;
     const r = stepStickMove(h, dir.x, dir.y, tps * dt, this.stickEnv);
     this.moving = r.moved;
-    if (!r.moved && r.code === STICK.MOVING && this.bumpedStairs(dir.x, dir.y)) this.thought('stairs', 'The stairs are blocked.');
+    // blocked = moved less than half the intended step (a tiny sideways slide along the stairs still counts)
+    const slid = Math.hypot(h.x - px, h.y - py) < 0.5 * tps * dt;
+    if (slid && r.code === STICK.MOVING && this.bumpedStairs(dir.x, dir.y)) this.thought('stairs', 'The stairs are blocked.');
     if (this.run && r.moved) this.stepRunning(dt); // run noise and energy only while actually moving
     if (r.moved) this.footstep(dt, !!this.run, st.creep);
     const push = this.doorPush;
@@ -1409,7 +1415,7 @@ export default class IsoGameScene extends Phaser.Scene {
   craftRows() {
     const { balance, state, tower } = this;
     return recipeRows(balance).map((r) => {
-      if (r.type === 'group') return { type: 'group', name: USE_NAMES[r.use] || r.use };
+      if (r.type === 'group') return { type: 'group', name: useNames(balance)[r.use] || r.use };
       const rec = balance.recipes[r.id];
       const costs = costLines(state, rec.cost).map((l) => ({ ...l, name: balance.items[l.id]?.name || l.id }));
       return {
@@ -1649,10 +1655,11 @@ export default class IsoGameScene extends Phaser.Scene {
     const panels = this.anyPanelOpen();
     if (this.placing && panels) this.cancelPlacement();
     if (panels) { this.quick.disarm(); this.buttons.closePicker(); }
-    this.targeting.update(dt, {
-      held: this.stick.down, locked: !!this.action && this.action.spec.kind !== 'nap',
-      suppress: panels || this.sleeping || this.dead || this.gameOver || !!this.action?.spec.kind.startsWith('nap'),
-    });
+    const tf = this.tFlags;
+    tf.held = this.stick.down;
+    tf.locked = !!this.action && this.action.spec.kind !== 'nap';
+    tf.suppress = panels || this.sleeping || this.dead || this.gameOver || !!this.action?.spec.kind.startsWith('nap');
+    this.targeting.update(dt, tf);
     const t = this.targeting.target;
     if (this.placing) this.view.setGhost(t?.kind === 'spot' ? t.door : null, this.targeting.cfg.ghostAlpha);
     // aim ellipse of an armed throw

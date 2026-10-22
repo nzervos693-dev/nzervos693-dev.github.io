@@ -9,7 +9,7 @@ import { nextGroanGap, nextAmbientGap, pickNoRepeat, musicAllowed, musicCooldown
 import { stairVolume, cueConfig } from '../gameplay/cue.js';
 import { floorAtY } from '../gameplay/layout.js';
 import { roomRefAt } from '../gameplay/zombies.js';
-import { playSfx, stopSfx, setLoopVolume, hasSfx } from './sfx.js';
+import { playSfx, stopSfx, setLoopVolume, hasSfx, stopSwells } from './sfx.js';
 
 const AMBIENT = ['creak_1', 'creak_2', 'creak_3', 'muffled_thud_1', 'muffled_thud_2', 'glass_tinkle', 'pipe_knock_1', 'pipe_knock_2'];
 const GROANS = ['distant_groan_1', 'distant_groan_2', 'distant_groan_3', 'distant_groan_4'];
@@ -208,6 +208,7 @@ export default class Soundscape {
   /** Silence everything we started (game over, scene shutdown, app hidden). */
   stopAll() {
     for (const k of ['amb_wind', 'amb_rain', 'stair_shuffle', 'heartbeat_soft']) stopSfx(k);
+    stopSwells();
     this.heartbeatOn = false;
     this.gustOn = {};
     this.stair.playing = false;

@@ -8,12 +8,18 @@ import { freeSpots, secureCandidates, placeObject, deliver, secureFloor } from '
 import { barricadeBlock, repairBlock, buildBarricade, repairBarricade, barricadeLevel } from './barricade.js';
 import { isProducerRecipe } from './producers.js';
 
-/** Order of the `use` groups in the Craft panel; unknown groups follow. */
-export const USE_ORDER = ['weapon', 'throwable', 'tool', 'medicine', 'water', 'food', 'defense', 'home'];
+/** Fallback group order and names when balance.craftingPanel is missing. */
+export const USE_ORDER = ['weapon', 'throwable', 'tool', 'material', 'medicine', 'water', 'food', 'light', 'defense', 'home'];
 export const USE_NAMES = {
-  weapon: 'Weapons', throwable: 'Throwables', tool: 'Tools', medicine: 'Medicine',
-  water: 'Water', food: 'Food', defense: 'Defense', home: 'Home',
+  weapon: 'Weapons', throwable: 'Throwables', tool: 'Tools', material: 'Materials', medicine: 'Medicine',
+  water: 'Water', food: 'Food', light: 'Light', defense: 'Defense', home: 'Home',
 };
+
+/** Order of the `use` groups in the Craft panel (balance.craftingPanel.useOrder); unknown groups follow. */
+export const useOrder = (balance) => balance.craftingPanel?.useOrder ?? USE_ORDER;
+
+/** Panel names of the groups (balance.craftingPanel.useNames). */
+export const useNames = (balance) => ({ ...USE_NAMES, ...(balance.craftingPanel?.useNames ?? {}) });
 
 /** Current workbench level (Workbench Lv2 arrives in M2). */
 export const workbenchLevel = (state) => state.workbenchLevel || 1;
@@ -35,7 +41,7 @@ export function recipeKind(recipe) {
  * Recipe effects that need systems from later M2 stages (lamp light and per-apartment workbenches arrive
  * with stages 3-4). Their recipes exist in balance v2 but are not offered in stage 1.
  */
-export const LATER_STAGE_EFFECTS = ['light', 'workbench'];
+export const LATER_STAGE_EFFECTS = ['light', 'workbench', 'trap'];
 
 /** Recipe ids grouped by `use` in panel order: [{use, ids}]. */
 export function recipeGroups(balance) {
@@ -45,9 +51,10 @@ export function recipeGroups(balance) {
     if (!by.has(r.use)) by.set(r.use, []);
     by.get(r.use).push(id);
   }
+  const order = useOrder(balance);
   const uses = [...by.keys()].sort((a, b) => {
-    const ia = USE_ORDER.indexOf(a) < 0 ? 99 : USE_ORDER.indexOf(a);
-    const ib = USE_ORDER.indexOf(b) < 0 ? 99 : USE_ORDER.indexOf(b);
+    const ia = order.indexOf(a) < 0 ? 99 : order.indexOf(a);
+    const ib = order.indexOf(b) < 0 ? 99 : order.indexOf(b);
     return ia - ib;
   });
   return uses.map((use) => ({ use, ids: by.get(use) }));
@@ -153,6 +160,7 @@ export function effectText(balance, id) {
   }
   if (e.type === 'repair_barricade') return 'Patches up the barricade.';
   if (e.type === 'secure_floor') return 'Seal a cleared floor so nothing wanders in.';
+  if (e.type === 'trap') return 'A trap for the HQ floor. Floor spot.';
   if (e.type === 'survivor_bed') return 'A bed for a survivor to move in. Floor spot.';
   return '';
 }

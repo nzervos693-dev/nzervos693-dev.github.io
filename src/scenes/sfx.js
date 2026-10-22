@@ -6,6 +6,7 @@ import audioManifest from '../../public/assets/audio/manifest.json';
 import { isAudioUnlocked } from '../core/audio.js';
 
 const loops = new Map();
+const swells = new Set();
 
 /** Queue every sound in the audio manifest on a scene's loader. */
 export function queueAudio(scene) {
@@ -72,6 +73,7 @@ export function playSwell(scene, key, opts = {}) {
   if (def?.deprecated) return null;
   const peak = (def?.volume ?? 1) * (opts.volume ?? 1);
   const s = scene.sound.add(key, { volume: 0, loop: false });
+  swells.add(s);
   if (opts.pan != null) s.setPan?.(opts.pan);
   const total = Math.min(opts.seconds ?? Infinity, def?.duration ?? opts.seconds ?? 8);
   const fade = Math.min(opts.fade ?? 2, total / 2);
@@ -82,10 +84,16 @@ export function playSwell(scene, key, opts = {}) {
       t += 0.05;
       const env = Math.max(0, Math.min(1, t / fade, (total - t) / fade));
       if (s.manager && !s.pendingRemove) s.setVolume(peak * env);
-      if (t >= total || !s.isPlaying) { timer.remove(); if (s.manager) s.destroy(); }
+      if (t >= total || !s.isPlaying) { timer.remove(); swells.delete(s); if (s.manager) s.destroy(); }
     },
   });
-  s.once('complete', () => { timer.remove(); s.destroy(); });
+  s.once('complete', () => { timer.remove(); swells.delete(s); s.destroy(); });
   s.play();
   return s;
+}
+
+/** Stop every weather swell still playing (game over, app hidden, scene shutdown). */
+export function stopSwells() {
+  for (const s of swells) { if (s.manager && !s.pendingRemove) { s.stop(); s.destroy(); } }
+  swells.clear();
 }
