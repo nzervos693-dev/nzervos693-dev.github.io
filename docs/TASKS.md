@@ -37,10 +37,14 @@ Side-view Stage 2 archived on branch archive/m2-side-view-stage2.
 - [x] Floating joystick: creep/walk/run, turn in place, wall slide (CD: "much much better")
 - [x] Natural audio: no hum, one-shot ambience, surface footsteps
 - [x] More human-like zombies (art)
-- [ ] Context buttons (Main/Secondary/Attack/Quick-use), no world taps: review + QA passed, minor fixes in progress
+- [x] Context buttons (Main/Secondary/Attack/Quick-use), no world taps (on main 7e9c982)
 - [x] HQ direction recorded in GDD 5.19–5.21 (sandbox floor 15, structures/traps, firearms) + balance keys
 - [x] HQ art: wall/door/window tiers, damage overlays, traps, rubble, shoot anim, muzzle flash, icons
 - [ ] Stage C2: HQ building on floor 15 (build/demolish/upgrade walls, doors, windows; claim floor; attacks probe weak spots)
+  - [ ] Piece 1: structure model + build/demolish/upgrade rules, save (gameplay-programmer, in progress)
+  - [ ] Piece 2: build buttons, ghost preview, art hookup
+  - [ ] Piece 3: attacks on floor 15 probe weak spots
+- [ ] Follow-ups: close BUG-050 in QA e2e; move stairs-blocked 0.5 to balance; fallback tests for craftingPanel
 - [ ] Stage B: floors 13–17, stairs, attacks, Mara, tutorial
 - [ ] Stage C: generator + claiming homes
 - [ ] Stage C3: traps + firearms (pistol, shotgun; hunting rifle M3)
