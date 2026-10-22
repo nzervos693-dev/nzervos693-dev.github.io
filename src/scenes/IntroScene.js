@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { getSafeArea } from '../core/safeArea.js';
 import { INTRO_CARDS } from '../gameplay/storyText.js';
 import { button, label, COLORS, CSS } from './ui.js';
+import { getBalance } from '../core/balance.js';
 import { playSfx } from './sfx.js';
 import { exposeScene } from './debug.js';
 
@@ -38,7 +39,7 @@ export default class IntroScene extends Phaser.Scene {
 
   next() {
     if (this.leaving) return;
-    playSfx(this, 'ui_tap');
+    playSfx(this, 'ui_tap', { volume: getBalance().audio?.uiVolume ?? 0.2 });
     this.i += 1;
     if (this.i >= INTRO_CARDS.length) this.finish();
     else this.show();

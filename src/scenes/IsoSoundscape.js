@@ -7,7 +7,7 @@
  * No stairwell cue (no attacks in Stage A).
  */
 import Soundscape from './Soundscape.js';
-import { playSfx, setLoopVolume } from './sfx.js';
+import { playSfx } from './sfx.js';
 
 /** Seconds between zombie sound checks. */
 const ZOMBIE_TICK = 0.5;
@@ -32,9 +32,7 @@ export default class IsoSoundscape extends Soundscape {
   updateStair() { /* no attacks in Stage A */ }
 
   updateRain(dt) {
-    const target = this.scene.heroInCorridor() ? 0.12 : 0.5;
-    this.rain += Math.max(-dt * 0.3, Math.min(dt * 0.3, target - this.rain));
-    setLoopVolume('amb_rain', this.rain);
+    this.updateGust('amb_rain', dt, this.gustCfg.rain, this.scene.heroInCorridor() ? 0.3 : 1);
   }
 
   /** Is there a free zombie voice slot right now? */

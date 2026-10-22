@@ -52,6 +52,7 @@ export default class IsoZombies {
     env.heroX = h.x;
     env.heroY = h.y;
     env.heroRunning = !!scene.run;
+    env.heroCreeping = !!scene.creeping;
     env.heroLight = scene.world.light[Math.floor(h.y) * scene.world.width + Math.floor(h.x)] ?? 'dim';
     const recs = this.records;
     recs.length = this.list.length;

@@ -44,6 +44,8 @@ export function isoZombieConfig(balance) {
     front: sight.frontTiles ?? { lit: 5, grey: 4, dim: 2.5, dark: 1.5 },
     behindWalk: sight.behindWalkTiles ?? 0.9,
     behindRun: sight.behindRunTiles ?? 1.5,
+    behindCreep: sight.behindCreepTiles ?? 0.5,
+    creepFrontMult: sight.creepFrontMult ?? 0.75,
     turnChances: sight.idleTurnChances ?? { left90: 0.4, right90: 0.4, turn180: 0.2 },
     attackRange: z.attackRangeTiles ?? 1.5,
     types: z.types,
@@ -100,14 +102,14 @@ export function canSee(z, ai, env) {
   const dx = env.heroX - z.x;
   const dy = env.heroY - z.y;
   const dist = Math.sqrt(dx * dx + dy * dy);
-  const front = cfg.front[env.heroLight] ?? cfg.front.dim;
+  const front = (cfg.front[env.heroLight] ?? cfg.front.dim) * (env.heroCreeping ? cfg.creepFrontMult : 1);
   const maxR = Math.max(front, cfg.behindRun);
   if (dist > maxR) return false;
   let range;
   if (dist < 0.05) range = Infinity;
   else {
     const diff = Math.abs(angleDiff(ai.facing, Math.atan2(dy, dx) * RAD));
-    range = diff <= cfg.cone / 2 ? front : env.heroRunning ? cfg.behindRun : cfg.behindWalk;
+    range = diff <= cfg.cone / 2 ? front : env.heroRunning ? cfg.behindRun : env.heroCreeping ? cfg.behindCreep : cfg.behindWalk;
   }
   if (dist > range) return false;
   return env.grid.hasLOS(Math.floor(z.x), Math.floor(z.y), Math.floor(env.heroX), Math.floor(env.heroY));

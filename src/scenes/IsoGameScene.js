@@ -18,7 +18,8 @@ import { resolveTap } from '../gameplay/isoTap.js';
 import { FACING_STEP } from '../iso/loader.js';
 import { tickNeeds, applyItem, itemEffect, speedMult } from '../gameplay/needs.js';
 import { activeMoodles, moodleKey, moodleAction, moodleHint, makePanic, stepPanic } from '../gameplay/moodles.js';
-import { isRunTap, canRun, stepRun, runConfig } from '../gameplay/running.js';
+import { canRun, stepRun, runConfig } from '../gameplay/running.js';
+import { stickConfig, stickSide, stickGridDir, stepStickMove, STICK } from '../gameplay/isoStick.js';
 import { wearWord, itemWords } from '../gameplay/words.js';
 import { BARRICADE_WORDS, barricadeStage, barricadeMaxHp, latchBreach } from '../gameplay/barricade.js';
 import { EMPTY_LINES } from '../gameplay/storyText.js';
@@ -43,6 +44,7 @@ import { noiseTiles, lightTimeMult, jamHit } from '../gameplay/isoActions.js';
 import IsoWorldView, { isoDepth } from './IsoWorldView.js';
 import IsoActors from './IsoActors.js';
 import IsoInput from './IsoInput.js';
+import IsoStickView from './IsoStickView.js';
 import IsoZombies from './IsoZombies.js';
 import IsoSoundscape from './IsoSoundscape.js';
 import { makeVignette, SoundRipples } from './IsoFx.js';
@@ -64,6 +66,19 @@ const LONG_GAP_MS = 30000;
 const SWING_ANIM_MS = 280;
 const STEP_SECONDS = 0.45;
 const CANT_RUN_COOLDOWN_MS = 20000;
+/** Thoughts shown on bumps ("It's stuck.", "The stairs are blocked.") use the normal thought cooldown. */
+const THOUGHT_COOLDOWN_MS = 20000;
+/** Ignore repeated barricade squeezes this long (the hero is still crossing the same one). */
+const SQUEEZE_REPEAT_MS = 1500;
+/** How far past the hero's circle the stairs bump probe looks (tiles). */
+const STAIRS_PROBE_TILES = 0.15;
+/** Footstep tuning (candidates for balance.json): volumes, run rate and run interval factor. */
+const STEP_WALK_VOLUME = 0.7;
+const STEP_RUN_VOLUME = 1.6;
+const STEP_RUN_RATE = 0.85;
+const STEP_RUN_INTERVAL_MULT = 0.6;
+/** A door is pushed only when the stick points at least this much into it (0-1 of the unit grid vector). */
+const DOOR_PUSH_MIN_COMPONENT = 0.35;
 const BAR_W = 120;
 const MENU_BOTTOM_MARGIN = 8;
 const TOAST_PANEL_GAP = 45;
@@ -121,7 +136,12 @@ export default class IsoGameScene extends Phaser.Scene {
     this.action = null;
     this.sleeping = false;
     this.run = null;
-    this.lastGroundTap = null;
+    this.stick = { down: false, active: false, creep: false, run: false, ux: 0, uy: 0, mag: 0 };
+    this.stickDir = { x: 0, y: 0, angle: 0 };
+    this.stickEngaged = false;
+    this.doorPush = { door: null, t: 0 };
+    this.thoughtAt = {};
+    this.squeezeAt = -Infinity;
     this.lastHomeTap = 0;
     this.queuedTap = null;
     this.faceTarget = null;
@@ -182,7 +202,16 @@ export default class IsoGameScene extends Phaser.Scene {
       badge: (slot, i, tab) => (tab === 'bag' && isEquipped(this.state, i) ? 'E' : slot.uses != null ? ' ' : null),
     });
     this.craftPanel = new CraftPanel(this, { rows: () => this.craftRows(), onCraft: (id) => this.onCraftTap(id), onClose: () => {} });
-    this.menuPanel = new MenuPanel(this, { day: () => daysSurvived(this.state, now()) + 1 });
+    this.stickSide = stickSide(getSave().settings);
+    this.menuPanel = new MenuPanel(this, {
+      day: () => daysSurvived(this.state, now()) + 1,
+      stickSide: () => this.stickSide,
+      onToggleStickSide: () => {
+        this.stickSide = this.stickSide === 'right' ? 'left' : 'right';
+        getSave().settings.joystickSide = this.stickSide;
+        writeSave();
+      },
+    });
     this.gameOverPanel = new GameOverPanel(this);
     this.soundscape = new IsoSoundscape(this);
     this.zombies = new IsoZombies(this);
@@ -192,12 +221,19 @@ export default class IsoGameScene extends Phaser.Scene {
       onAction: (id) => this.onMoodleAction(id),
     });
     this.bus.on('noise', (n) => this.zombies.onNoise(n));
+    this.stickCfg = stickConfig(balance);
+    this.stickView = new IsoStickView(this, this.stickCfg);
+    this.stickEnv = { grid: this.grid, isBlocked: this.zombieAt, radius: this.stickCfg.collisionRadiusTiles, doorMin: DOOR_PUSH_MIN_COMPONENT, maxStep: this.stickCfg.maxSubstepTiles,
+      assistTiles: this.stickCfg.doorwayAssistTiles, assistMinCos: Math.cos((this.stickCfg.doorwayAssistMaxAngleDegrees * Math.PI) / 180) };
     this.isoInput = new IsoInput(this, {
       controls: balance.controls,
-      camera: this.camera,
+      stick: this.stickCfg,
+      bottomLimit: () => this.hud.bottomY,
+      side: () => this.stickSide,
       canGesture: () => !this.gameOver && !this.dead && !this.anyPanelOpen(),
       onTap: (wx, wy, sx, sy) => this.onWorldTap(wx, wy, sx, sy),
-      onDragStart: () => this.menu.close(),
+      onStick: (v, s, first) => this.onStick(v, s, first),
+      onStickEnd: () => this.onStickEnd(),
       onLookStart: () => this.onLookStart(),
       onLook: (wx, wy) => this.onLook(wx, wy),
       onLookEnd: () => this.onLookEnd(),
@@ -301,9 +337,40 @@ export default class IsoGameScene extends Phaser.Scene {
     this.menu.close();
   }
 
+  /** Look drag: face the finger (direction from the hero's body to the finger, world pixels). */
   onLook(wx, wy) {
     const hs = this.heroSp;
     this.faceTarget = { angle: screenDeltaToAngle(this.iso, wx - hs.x, wy - hs.y), rate: this.balance.controls.lookTurnDegreesPerSecond };
+  }
+
+  /** Joystick finger moved (or went down: `first`). */
+  onStick(v, s, first) {
+    const st = this.stick;
+    if (first) {
+      st.down = true;
+      this.stickView.show(s.ox, s.oy);
+      this.menu.close();
+      this.moodles.closeCard();
+    }
+    this.stickView.setKnob(v.x, v.y, v.run ? 2 : v.creep ? 0 : 1);
+    st.active = v.active;
+    st.creep = v.creep;
+    st.run = v.run;
+    st.mag = v.mag;
+    st.ux = v.ux;
+    st.uy = v.uy;
+  }
+
+  onStickEnd() {
+    const st = this.stick;
+    st.down = false;
+    st.active = false;
+    st.run = false;
+    this.stickView.release();
+    this.stickEngaged = false;
+    this.doorPush.door = null;
+    if (this.combat.order?.type === 'zombie') this.combat.order = null;
+    this.run = null; // release: the hero stops at once and keeps his facing
   }
 
   onLookEnd() {
@@ -314,6 +381,15 @@ export default class IsoGameScene extends Phaser.Scene {
   /** Tap the hero: turn around (180 degrees in controls.heroTapTurnSeconds). */
   turnAround() {
     this.faceTarget = { angle: normalizeAngle(this.hero.facing + 180), rate: 180 / this.balance.controls.heroTapTurnSeconds };
+  }
+
+  /** Second finger while the stick moves the hero: only a zombie in weapon range is attacked (GDD 4). */
+  onTapWhileMoving(wx, wy) {
+    if (this.action) return;
+    this.buildTapCandidates();
+    const res = resolveTap(this.iso, this.tapCtx, wx, wy);
+    if (res.type !== 'zombie') return;
+    if (this.inReach(res.target.rt, heroWeapon(this.state, this.balance))) this.combat.order = { type: 'zombie', id: res.target.rt.rec.id };
   }
 
   buildTapCandidates() {
@@ -350,6 +426,7 @@ export default class IsoGameScene extends Phaser.Scene {
   onWorldTap(wx, wy, sx, sy) {
     if (this.gameOver || this.dead || this.anyPanelOpen()) return;
     if (this.sleeping) { this.wake(); return; }
+    if (this.stick.active) { this.onTapWhileMoving(wx, wy); return; }
     this.menu.close();
     this.moodles.closeCard();
     this.combat.order = null; // a new tap cancels a queued attack or door bash
@@ -368,17 +445,9 @@ export default class IsoGameScene extends Phaser.Scene {
       case 'hero': this.turnAround(); break;
       case 'interact': this.handleInteract(res.target); break;
       case 'stairs': this.toast.show('The stairs are blocked.', 2000); break;
-      case 'floor': this.handleGround(res.x, res.y, sx, sy); break;
+      case 'floor': break; // a tap on empty floor does nothing (the joystick moves the hero)
       default:
     }
-  }
-
-  handleGround(tx, ty, sx, sy) {
-    const tap = { t: performance.now(), x: sx, y: sy };
-    const run = isRunTap(this.lastGroundTap, tap, this.balance);
-    this.lastGroundTap = run ? null : tap;
-    this.combat.order = null;
-    this.goToTile(tx, ty, null, run);
   }
 
   // ---------------------------------------------------------------- walking
@@ -414,23 +483,27 @@ export default class IsoGameScene extends Phaser.Scene {
     this.toast.show("I can't run anymore.", 1800);
   }
 
-  footstep(dt, running) {
+  footstep(dt, running, creeping = false) {
     this.stepT += dt;
-    if (this.stepT < (running ? STEP_SECONDS * 0.6 : STEP_SECONDS)) return;
+    if (this.stepT < (running ? STEP_SECONDS * STEP_RUN_INTERVAL_MULT : creeping ? this.balance.audio.footstepCreepIntervalSeconds : (this.balance.audio.footstepWalkIntervalSeconds ?? STEP_SECONDS))) return;
     this.stepT = 0;
     this.stepFlip = !this.stepFlip;
-    playSfx(this, this.stepFlip ? 'step_1' : 'step_2', running ? { volume: 1.6, rate: 0.85 } : { volume: 0.7 });
+    const opts = running ? { volume: STEP_RUN_VOLUME, rate: STEP_RUN_RATE } : { volume: creeping ? STEP_WALK_VOLUME * this.balance.audio.footstepCreepVolumeMult : STEP_WALK_VOLUME };
+    playSfx(this, this.stepFlip ? 'step_1' : 'step_2', opts);
   }
 
   updateHero(dt) {
     const h = this.hero;
     const b = this.balance;
     this.moving = false;
+    this.creeping = false;
     if (this.pauseT > 0) { this.pauseT -= dt; return; }
     if (this.faceTarget && !this.walk) {
       h.facing = turnToward(h.facing, this.faceTarget.angle, this.faceTarget.rate, dt);
       if (!this.looking && Math.abs(angleDiff(h.facing, this.faceTarget.angle)) < 0.5) this.faceTarget = null;
     }
+    if (!this.stick.active) this.stickEngaged = false;
+    else if (this.beginStickMove()) { this.updateStick(dt); return; }
     if (this.sleeping || this.action || this.looking) return;
     if (this.combat.order) { this.updateCombatApproach(dt); }
     const w = this.walk;
@@ -458,6 +531,83 @@ export default class IsoGameScene extends Phaser.Scene {
         break;
       default:
     }
+  }
+
+  /**
+   * The stick is pushed: cancel auto-walks (once per gesture), wake / drop a cancellable action.
+   * @returns {boolean} the hero may move this frame (false while an uncancellable action runs, e.g. a
+   * door opening or a search past half way; he moves on when it finishes if the stick is still held).
+   */
+  beginStickMove() {
+    if (this.looking) return false;
+    if (!this.stickEngaged) {
+      this.walk = null;
+      this.pending = null;
+      this.combat.order = null;
+      this.stickEngaged = true;
+    }
+    if (this.sleeping) { this.wake(); return false; }
+    const a = this.action;
+    if (a) {
+      if (a.spec.kind === 'door-open') return false;
+      if (a.spec.kind === 'nap') { this.cancelAction(); return false; }
+      if (pastKeepThreshold(a.elapsed / a.duration, this.balance)) return false;
+      this.cancelAction();
+    }
+    return true;
+  }
+
+  /** Continuous joystick movement: walk, or run when pushed far (energy rules as for a run). */
+  updateStick(dt) {
+    const b = this.balance;
+    const st = this.stick;
+    const h = this.hero;
+    let running = st.run;
+    if (running && !canRun(this.state.needs.energy, b)) { running = false; this.cantRun(); }
+    if (running && !this.run) this.run = { noiseT: undefined };
+    if (!running) this.run = null;
+    const dir = stickGridDir(this.iso, st.ux, st.uy, this.stickDir);
+    h.facing = turnToward(h.facing, dir.angle, b.controls.walkTurnDegreesPerSecond, dt);
+    this.creeping = !this.run && st.creep;
+    const gait = this.run ? b.hero.runTilesPerSecond : b.hero.walkTilesPerSecond * (st.creep ? this.stickCfg.creepSpeedMult : 1);
+    const tps = gait * speedMult(this.state.needs, b);
+    const r = stepStickMove(h, dir.x, dir.y, tps * dt, this.stickEnv);
+    this.moving = r.moved;
+    if (!r.moved && r.code === STICK.MOVING && this.bumpedStairs(dir.x, dir.y)) this.thought('stairs', 'The stairs are blocked.');
+    this.zombieOrderCheck();
+    if (this.run && r.moved) this.stepRunning(dt); // run noise and energy only while actually moving
+    if (r.moved) this.footstep(dt, !!this.run, st.creep);
+    const push = this.doorPush;
+    if (r.code !== STICK.DOOR) push.door = null;
+    switch (r.code) {
+      case STICK.DOOR:
+        this.moving = false;
+        if (push.door !== r.door) { push.door = r.door; push.t = 0; }
+        push.t += dt;
+        // GDD 4: a push of doorPushSeconds opens it; running into it bursts it open at once
+        if (this.run) { push.door = null; this.applyDoorOpen(r.door); } // bursts open at once, noisily
+        else if (push.t >= this.stickCfg.doorPushSeconds) { push.door = null; this.beginDoorOpen(r.door, true); }
+        break;
+      case STICK.LOCKED:
+        this.moving = false;
+        this.onLockedDoor(r.door, true);
+        break;
+      case STICK.SQUEEZE:
+        if (performance.now() - this.squeezeAt < SQUEEZE_REPEAT_MS) break; // still crossing the same barricade
+        this.squeezeAt = performance.now();
+        if (r.door.state === 'closed') this.grid.setDoorState(r.door, 'open');
+        this.pauseT = b.doors.barricadeSqueezeSeconds;
+        break;
+      default:
+    }
+  }
+
+  /** Held stick: drop a queued attack whose zombie is not in reach (no auto-approach while steering). */
+  zombieOrderCheck() {
+    const o = this.combat.order;
+    if (!o || o.type !== 'zombie') return;
+    const rt = this.zombies.get(o.id);
+    if (!rt || rt.dying || !this.inReach(rt, heroWeapon(this.state, this.balance))) this.combat.order = null;
   }
 
   stepRunning(dt) {
@@ -574,6 +724,13 @@ export default class IsoGameScene extends Phaser.Scene {
     const { door, onWalk } = this.action;
     this.action = null;
     this.hideBar();
+    this.applyDoorOpen(door);
+    this.runQueuedTap();
+    if (!onWalk) this.walk = null;
+  }
+
+  /** The door opens now (after its 0.4 s action, or at once when the hero runs into it). */
+  applyDoorOpen(door) {
     this.grid.setDoorState(door, 'open');
     playSfx(this, 'door_open');
     if (this.run) this.noise(door.x + 0.5, door.y + 0.5, 'noisy', this.balance.doors.runOpenNoiseTiles, 'door-run'); // bursts open
@@ -581,16 +738,33 @@ export default class IsoGameScene extends Phaser.Scene {
     this.view.refreshDoors(true);
     this.updateVision(true);
     this.save();
-    this.runQueuedTap();
-    if (!onWalk) this.walk = null;
   }
 
-  onLockedDoor(door) {
+  onLockedDoor(door, bump = false) {
     const p = this.pending;
     this.walk = null;
     if (p?.kind === 'door-force' && p.door === door) { this.onArrive(p); return; }
     this.pending = null;
-    this.toast.show(door.barricade?.hp > 0 ? 'Barricaded from the inside.' : "It's stuck.", 2000);
+    const barricaded = door.barricade?.hp > 0;
+    if (bump) this.thought(barricaded ? 'barricaded' : 'stuck', barricaded ? 'Barricaded from the inside.' : "It's stuck.");
+    else this.toast.show(barricaded ? 'Barricaded from the inside.' : "It's stuck.", 2000);
+  }
+
+  /** A thought on a bump: shown once, then not again for THOUGHT_COOLDOWN_MS (per kind). */
+  thought(key, text) {
+    const t = performance.now();
+    if (t - (this.thoughtAt[key] ?? -Infinity) < THOUGHT_COOLDOWN_MS) return;
+    this.thoughtAt[key] = t;
+    this.toast.show(text, 2000);
+  }
+
+  /** Is the hero pushing into a stair flight? (Stage A: stairs are blocked.) */
+  bumpedStairs(dirX, dirY) {
+    const reach = this.stickCfg.collisionRadiusTiles + STAIRS_PROBE_TILES;
+    const tx = Math.floor(this.hero.x + dirX * reach);
+    const ty = Math.floor(this.hero.y + dirY * reach);
+    const { down, up } = this.world.stairs;
+    return down.some((s) => s.x === tx && s.y === ty) || up.some((s) => s.x === tx && s.y === ty);
   }
 
   closeDoor(door) {
@@ -1338,6 +1512,7 @@ export default class IsoGameScene extends Phaser.Scene {
     this.soundscape.setHeartbeat(this.state.needs.health < this.balance.moodles.injured.below[2] && !this.dead);
     this.tickClock();
     this.isoInput.update();
+    this.stickView.update(dt);
     if (!this.dead) {
       this.updateHero(dt);
       this.updateCombat(dt);

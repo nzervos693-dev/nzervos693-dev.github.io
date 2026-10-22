@@ -86,7 +86,7 @@ export function button(scene, o) {
   bg.on('pointerup', () => {
     c.setScale(1);
     skin?.setFrame(skin.frames[0]);
-    if (enabled) { playSfx(scene, 'ui_tap'); o.onTap?.(); }
+    if (enabled) { playSfx(scene, 'ui_tap', { volume: getBalance().audio?.uiVolume ?? 0.2 }); o.onTap?.(); }
   });
   c.setEnabled = (e) => {
     enabled = e;
@@ -125,7 +125,7 @@ export function plateButton(scene, o) {
   hit.on('pointerout', () => img.setAlpha(cfg.iconAlpha));
   hit.on('pointerup', () => {
     img.setAlpha(cfg.iconAlpha);
-    if (enabled) { playSfx(scene, 'ui_tap'); o.onTap?.(); }
+    if (enabled) { playSfx(scene, 'ui_tap', { volume: getBalance().audio?.uiVolume ?? 0.2 }); o.onTap?.(); }
   });
   c.setEnabled = (e) => { enabled = e; c.setAlpha(e ? 1 : 0.45); return c; };
   c.setLabel = () => c; // plates carry no text

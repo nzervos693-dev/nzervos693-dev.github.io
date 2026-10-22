@@ -1,88 +1,113 @@
 /**
- * One-thumb gestures for the iso world (GDD 4): tap, drag to pan, hold (0.4 s) to look. Double tap is
- * detected by the scene from consecutive taps (runPolicy in gameplay/running.js). Phaser pointer events
- * only; the first pointer drives a gesture, others are ignored. A gesture that starts on UI (an object
- * that is interactive and not flagged `dragThrough`) is ignored; one that starts on a dragThrough UI
- * object (the bottom bar background) may pan but never taps.
+ * Touch input for the iso world (GDD 4): a floating virtual joystick, look-by-drag and taps. Phaser
+ * pointer events only; pointers are tracked by id so the stick finger and a second finger coexist.
+ *
+ * - A touch that goes down in the stick zone (lower-left, above the bottom bar) is the STICK finger. It
+ *   reports a screen-space vector (readStick); a touch that never leaves the dead zone is a tap on release.
+ * - Any other touch is a GESTURE finger: a quick tap acts (onTap); a drag past the threshold is a look
+ *   (onLookStart / onLook(dsx,dsy) / onLookEnd), never while the stick is held.
+ * A touch that starts on UI (an interactive object not flagged `dragThrough`) is ignored.
  */
+import { inStickZone, readStick } from '../gameplay/isoStick.js';
+
 export default class IsoInput {
   /**
    * @param {Phaser.Scene} scene
-   * @param {{controls:object, camera:import('../iso/camera.js').IsoCamera,
-   *   canGesture:()=>boolean, onTap:(wx:number,wy:number,sx:number,sy:number)=>void,
-   *   onDragStart?:()=>void, onLookStart:()=>void, onLook:(wx:number,wy:number)=>void, onLookEnd:()=>void}} o
+   * @param {{controls:object, stick:object, bottomLimit:()=>number, side:()=>'left'|'right', canGesture:()=>boolean,
+   *   onTap:(wx:number,wy:number,sx:number,sy:number)=>void,
+   *   onStick:(s:object)=>void, onStickEnd:()=>void,
+   *   onLookStart:()=>void, onLook:(wx:number,wy:number)=>void, onLookEnd:()=>void}} o
    */
   constructor(scene, o) {
     this.scene = scene;
     this.o = o;
     this.thr = o.controls.dragThresholdPx;
-    this.holdMs = o.controls.lookHoldSeconds * 1000;
-    this.g = null;
+    this.cfg = o.stick;
+    this.g = null; // tap / look gesture
+    this.s = null; // stick finger
+    this.vec = readStick(this.cfg, 0, 0);
     scene.input.on('pointerdown', (p, over) => this.down(p, over));
     scene.input.on('pointermove', (p) => this.move(p));
     scene.input.on('pointerup', (p, over) => this.up(p, over));
     scene.input.on('pointerupoutside', (p) => this.up(p, []));
   }
 
-  /** Is a look (hold) in progress? */
-  get looking() { return !!this.g?.hold; }
+  /** Is a look drag in progress? */
+  get looking() { return !!this.g?.look; }
 
-  /** Abandon the current gesture (panel opened, app hidden). */
+  /** Is the stick finger down? */
+  get sticking() { return !!this.s; }
+
+  /** Abandon every gesture (panel opened, app hidden). */
   cancel() {
-    const g = this.g;
-    if (!g) return;
-    if (g.moved) this.o.camera.endDrag();
-    if (g.hold) this.o.onLookEnd();
+    if (this.g?.look) this.o.onLookEnd();
     this.g = null;
+    this.endStick();
+  }
+
+  endStick() {
+    if (!this.s) return;
+    this.s = null;
+    this.o.onStickEnd();
   }
 
   down(p, over) {
-    if (this.g) return;
-    const blocked = over.filter((x) => !x.getData?.('dragThrough')).length > 0;
+    const blocked = over.some((x) => !x.getData?.('dragThrough'));
     if (blocked || !this.o.canGesture()) return;
-    this.g = {
-      id: p.id, sx: p.x, sy: p.y, lx: p.x, ly: p.y, lt: performance.now(), t0: performance.now(),
-      moved: false, hold: false, swallow: over.length > 0, p,
-    };
+    const { width, height } = this.scene.scale;
+    if (!this.s && inStickZone(this.cfg, p.x, p.y, width, height, this.o.bottomLimit(), this.o.side())) {
+      this.s = { id: p.id, ox: p.x, oy: p.y, t0: performance.now(), travel: 0 };
+      if (this.g?.look) { this.o.onLookEnd(); this.g = null; }
+      readStick(this.cfg, 0, 0, this.vec);
+      this.o.onStick(this.vec, this.s, true);
+      return;
+    }
+    if (this.g || over.length) return; // one gesture finger; the bottom bar swallows taps
+    this.g = { id: p.id, sx: p.x, sy: p.y, look: false };
   }
 
   move(p) {
+    if (!p.isDown) return;
+    const s = this.s;
+    if (s && s.id === p.id) {
+      s.travel = Math.max(s.travel, Math.hypot(p.x - s.ox, p.y - s.oy));
+      readStick(this.cfg, p.x - s.ox, p.y - s.oy, this.vec);
+      this.o.onStick(this.vec, s, false);
+      return;
+    }
     const g = this.g;
-    if (!g || g.id !== p.id || !p.isDown) return;
-    if (!g.moved && !g.hold && Math.hypot(p.x - g.sx, p.y - g.sy) > this.thr) {
-      g.moved = true;
-      this.o.camera.beginDrag();
-      this.o.onDragStart?.();
+    if (!g || g.id !== p.id) return;
+    const dx = p.x - g.sx;
+    const dy = p.y - g.sy;
+    if (!g.look && !this.s && Math.hypot(dx, dy) > this.thr) {
+      g.look = true;
+      this.o.onLookStart();
     }
-    if (g.moved) {
-      const t = performance.now();
-      const dt = Math.max(0.001, (t - g.lt) / 1000);
-      this.o.camera.dragBy(p.x - g.lx, p.y - g.ly, dt);
-      g.lx = p.x; g.ly = p.y; g.lt = t;
-    } else if (g.hold) {
-      const cam = this.scene.cameras.main;
-      this.o.onLook(p.x + cam.scrollX, p.y + cam.scrollY);
-    }
+    if (g.look) { const cam = this.scene.cameras.main; this.o.onLook(p.x + cam.scrollX, p.y + cam.scrollY); }
   }
 
-  /** Call every frame: starts the look when the finger has rested for the hold time. */
+  /** Call every frame: drops gestures when a panel opens. */
   update() {
-    const g = this.g;
-    if (!g || g.moved || g.hold || g.swallow) return;
-    if (performance.now() - g.t0 < this.holdMs) return;
-    g.hold = true;
-    this.o.onLookStart();
-    const cam = this.scene.cameras.main;
-    this.o.onLook(g.p.x + cam.scrollX, g.p.y + cam.scrollY);
+    if ((this.g || this.s) && !this.o.canGesture()) this.cancel();
   }
 
   up(p, over) {
+    const s = this.s;
+    if (s && s.id === p.id) {
+      // a touch that never left the dead zone is a tap, however long it lasted
+      const quick = s.travel <= this.cfg.deadZone * this.cfg.radiusPx;
+      this.endStick();
+      if (quick && !over.some((x) => !x.getData?.('dragThrough'))) {
+        const cam = this.scene.cameras.main;
+        this.o.onTap(p.x + cam.scrollX, p.y + cam.scrollY, p.x, p.y);
+      }
+      return;
+    }
     const g = this.g;
     if (!g || g.id !== p.id) return;
     this.g = null;
-    if (g.moved) { this.o.camera.endDrag(); return; }
-    if (g.hold) { this.o.onLookEnd(); return; }
-    if (g.swallow || over.length) return;
+    if (g.look) { this.o.onLookEnd(); return; }
+    if (over.length) return;
     const cam = this.scene.cameras.main;
     this.o.onTap(p.x + cam.scrollX, p.y + cam.scrollY, p.x, p.y);
   }

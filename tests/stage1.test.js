@@ -157,15 +157,15 @@ describe('attack cue', () => {
 });
 
 describe('soundscape scheduling', () => {
-  it('distant groans every 45-120 s and ambient one-shots every 20-60 s', () => {
+  it('distant groans every 45-120 s and ambient one-shots every 25-70 s', () => {
     const rng = seededRng(7);
     for (let i = 0; i < 100; i++) {
       const g = nextGroanGap(rng, balance);
       expect(g).toBeGreaterThanOrEqual(45);
       expect(g).toBeLessThanOrEqual(120);
       const a = nextAmbientGap(rng, balance);
-      expect(a).toBeGreaterThanOrEqual(20);
-      expect(a).toBeLessThanOrEqual(60);
+      expect(a).toBeGreaterThanOrEqual(25);
+      expect(a).toBeLessThanOrEqual(70);
     }
   });
   it('one-shots never repeat the last pick', () => {

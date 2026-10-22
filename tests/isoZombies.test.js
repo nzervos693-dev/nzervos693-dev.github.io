@@ -35,6 +35,21 @@ describe('zombie sight', () => {
     hero(env, 3, 2, true); // running: 1.5
     expect(canSee(z, ai, env)).toBe(true);
   });
+  it('creeping shrinks the front range (x0.75) and the behind range (0.5 tiles)', () => {
+    const g = ascii(room(12, 4));
+    const { z, ai, env } = setup(g, 2, 2, 0);
+    env.heroCreeping = true;
+    hero(env, 5, 2); // 3 tiles: inside grey 4 x 0.75 = 3
+    expect(canSee(z, ai, env)).toBe(true);
+    hero(env, 6, 2); // 4 tiles: seen walking, not creeping
+    expect(canSee(z, ai, env)).toBe(false);
+    env.heroCreeping = false;
+    expect(canSee(z, ai, env)).toBe(true);
+    ai.facing = 180;
+    hero(env, 2, 2); hero(env, 3, 2); // 1 tile behind
+    env.heroCreeping = true;
+    expect(canSee(z, ai, env)).toBe(false);
+  });
   it('a closed door blocks sight, an open one does not', () => {
     const l = room(8, 3);
     put(l, 8, 3, 'D'); put(l, 8, 1, '|'); put(l, 8, 5, '|');

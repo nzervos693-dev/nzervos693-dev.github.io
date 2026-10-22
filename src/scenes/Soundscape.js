@@ -1,11 +1,11 @@
 /**
- * The quiet soundscape (GDD 10): wind and room tone beds, random one-shots, distant groans,
+ * The quiet soundscape (GDD 10): intermittent wind and rain gusts (no constant beds), random one-shots, distant groans,
  * low-health heartbeat, sparse sad music, and the attack cue sounds. Scheduling rules live in
  * gameplay/soundscape.js and gameplay/cue.js. Everything is silent until the first tap and any
  * missing sound file is skipped.
  */
 import { isAudioUnlocked } from '../core/audio.js';
-import { nextGroanGap, nextAmbientGap, pickNoRepeat, musicAllowed, musicCooldownMs, randBetween } from '../gameplay/soundscape.js';
+import { nextGroanGap, nextAmbientGap, pickNoRepeat, musicAllowed, musicCooldownMs, randBetween, createGust, stepGust, GUST_DEFAULTS } from '../gameplay/soundscape.js';
 import { stairVolume, cueConfig } from '../gameplay/cue.js';
 import { floorAtY } from '../gameplay/layout.js';
 import { roomRefAt } from '../gameplay/zombies.js';
@@ -18,11 +18,10 @@ const MUSIC = ['music_sad_1', 'music_sad_2', 'music_sad_3'];
 const ZOMBIE_TICK = 0.5; // seconds between zombie sound checks
 const ZOMBIE_MAX_VOLUME = 0.25;
 const MUSIC_RETRY_MS = 60000; // after an attack: wait up to a minute for the danger to pass
-const RAIN_ROOM = 0.5; // amb_rain level inside the rooms (they have windows); the landing is dry
-const RAIN_LANDING = 0.12;
+const RAIN_LANDING_MULT = 0.3; // rain gusts are quieter on the dry landing
 const SHUFFLE_FADE_SECONDS = 1.5;
 const SHUFFLE_VOLUME = 0.67;
-const WIND_INDOORS = 0.4;
+const GUST_STOP_LEVEL = 0.002;
 
 export default class Soundscape {
   /** @param {import('./GameScene.js').default} scene */
@@ -42,6 +41,9 @@ export default class Soundscape {
     this.heartbeatOn = false;
     this.musicWantUntil = 0;
     this.rain = 0;
+    const g = scene.balance.audio?.gusts;
+    this.gustCfg = { wind: { ...GUST_DEFAULTS.wind, ...g?.wind }, rain: { ...GUST_DEFAULTS.rain, ...g?.rain } };
+    this.gusts = { amb_wind: createGust(this.rng, this.gustCfg.wind), amb_rain: createGust(this.rng, this.gustCfg.rain) };
   }
 
   /** Floor under the middle of the screen (where the player is looking). */
@@ -69,16 +71,13 @@ export default class Soundscape {
     if (!isAudioUnlocked() || this.scene.gameOver) return;
     if (!this.bedsOn) {
       this.bedsOn = true;
-      playSfx(this.scene, 'amb_room_tone', { loop: true });
-      playSfx(this.scene, 'amb_wind', { loop: true });
-      setLoopVolume('amb_wind', WIND_INDOORS);
-      playSfx(this.scene, 'amb_rain', { loop: true });
     }
     this.groanT -= dt;
     if (this.groanT <= 0) { this.groan(); this.groanT = nextGroanGap(this.rng, this.scene.balance); }
     this.ambientT -= dt;
     if (this.ambientT <= 0) { this.oneShot(AMBIENT, 'lastAmbient'); this.ambientT = nextAmbientGap(this.rng, this.scene.balance); }
     this.updateStair(dt);
+    this.updateGust('amb_wind', dt, this.gustCfg.wind, 1);
     this.updateRain(dt);
     this.zombieT -= dt;
     if (this.zombieT <= 0) { this.zombieT = ZOMBIE_TICK; this.zombieSounds(); }
@@ -123,13 +122,28 @@ export default class Soundscape {
     }
   }
 
-  /** Rain is louder inside the rooms (windows) than on the dry landing. */
+  /** Rain gusts come and go; quieter on the dry landing. */
   updateRain(dt) {
     const h = this.scene.state.hero;
     const inRoom = roomRefAt(this.scene.tower, h.floor, h.x) != null;
-    const target = inRoom ? RAIN_ROOM : RAIN_LANDING;
-    this.rain += Math.max(-dt * 0.3, Math.min(dt * 0.3, target - this.rain));
-    setLoopVolume('amb_rain', this.rain);
+    this.updateGust('amb_rain', dt, this.gustCfg.rain, inRoom ? 1 : RAIN_LANDING_MULT);
+  }
+
+  /**
+   * One intermittent bed: the loop plays only while its gust is audible (no constant hum), swelling
+   * in and out. Keys stay manifest driven, so a recorded file can replace the generated one.
+   */
+  updateGust(key, dt, cfg, mult) {
+    const level = stepGust(this.gusts[key], dt, this.rng, cfg) * mult;
+    if (level > GUST_STOP_LEVEL) {
+      playSfx(this.scene, key, { loop: true, volume: level });
+      setLoopVolume(key, level);
+      this.gustOn = this.gustOn || {};
+      this.gustOn[key] = true;
+    } else if (this.gustOn?.[key]) {
+      stopSfx(key);
+      this.gustOn[key] = false;
+    }
   }
 
   /**
@@ -190,8 +204,9 @@ export default class Soundscape {
 
   /** Silence everything we started (game over, scene shutdown, app hidden). */
   stopAll() {
-    for (const k of ['amb_room_tone', 'amb_wind', 'amb_rain', 'stair_shuffle', 'heartbeat_soft']) stopSfx(k);
+    for (const k of ['amb_wind', 'amb_rain', 'stair_shuffle', 'heartbeat_soft']) stopSfx(k);
     this.heartbeatOn = false;
+    this.gustOn = {};
     this.stair.playing = false;
     this.bedsOn = false;
     this.stair.on = false;
