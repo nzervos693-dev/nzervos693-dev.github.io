@@ -484,23 +484,23 @@
       "fists": { "name": "Fists", "damage": 5, "rangePx": 40, "rangeTiles": 1.5, "cooldownSeconds": 0.4, "durability": null, "source": "default", "hitSound": "punch" },
       "kitchen_knife": { "name": "Kitchen knife", "damage": 10, "rangePx": 45, "rangeTiles": 1.5, "cooldownSeconds": 0.35, "durability": 40, "source": "loot", "hitSound": "stab" },
       "spiked_bat": { "name": "Spiked bat", "damage": 14, "rangePx": 55, "rangeTiles": 1.6, "cooldownSeconds": 0.5, "durability": 50, "source": "crafted", "hitSound": "blunt" },
-      "hammer": { "name": "Hammer", "damage": 8, "rangeTiles": 1.4, "cooldownSeconds": 0.4, "durability": 40, "source": "loot_or_crafted", "hitSound": "blunt", "milestone": "C3" },
-      "crowbar": { "name": "Crowbar", "damage": 12, "rangeTiles": 1.5, "cooldownSeconds": 0.5, "durability": 40, "source": "tool", "hitSound": "blunt", "milestone": "C3" },
-      "sledgehammer": { "name": "Sledgehammer", "damage": 24, "rangeTiles": 1.6, "cooldownSeconds": 1.3, "durability": 60, "energyPerSwing": 1.5, "source": "loot_or_crafted", "hitSound": "blunt", "milestone": "C3" },
-      "fire_axe": { "name": "Fire axe", "damage": 30, "rangeTiles": 1.8, "cooldownSeconds": 0.9, "durability": 80, "source": "loot", "hitSound": "stab", "milestone": "C3" },
+      "hammer": { "name": "Hammer", "damage": 8, "rangePx": 75, "rangeTiles": 1.5, "cooldownSeconds": 0.4, "durability": 40, "source": "loot_or_crafted", "hitSound": "blunt", "milestone": "C3" },
+      "crowbar": { "name": "Crowbar", "damage": 12, "rangePx": 75, "rangeTiles": 1.5, "cooldownSeconds": 0.5, "durability": 40, "source": "tool", "hitSound": "blunt", "milestone": "C3" },
+      "sledgehammer": { "name": "Sledgehammer", "damage": 24, "rangePx": 80, "rangeTiles": 1.6, "cooldownSeconds": 1.3, "durability": 60, "energyPerSwing": 1.5, "source": "loot_or_crafted", "hitSound": "blunt", "milestone": "C3" },
+      "fire_axe": { "name": "Fire axe", "damage": 30, "rangePx": 90, "rangeTiles": 1.8, "cooldownSeconds": 0.9, "durability": 80, "source": "loot", "hitSound": "stab", "milestone": "C3" },
       "pistol": {
-        "name": "Pistol", "firearm": true, "damage": 25, "rangeTiles": 7, "aimConeDegrees": 90, "cooldownSeconds": 0.45,
+        "name": "Pistol", "firearm": true, "damage": 25, "rangeTiles": 7, "rangePx": 350, "aimConeDegrees": 90, "cooldownSeconds": 0.45,
         "magazine": 8, "reloadMode": "magazine", "reloadSeconds": 2.0, "ammo": "pistol_ammo",
         "hitChanceNear": 0.9, "hitChanceFar": 0.55, "durability": 300, "noise": "gunshot", "hitSound": "gunshot", "source": "loot", "milestone": "C3"
       },
       "shotgun": {
         "name": "Shotgun", "firearm": true, "damage": 40, "extraTargets": 2, "extraTargetDamage": 20, "spreadDegrees": 25,
-        "falloffFromTiles": 3, "falloffMult": 0.5, "rangeTiles": 5, "aimConeDegrees": 90, "cooldownSeconds": 1.0,
+        "falloffFromTiles": 3, "falloffMult": 0.5, "rangeTiles": 5, "rangePx": 250, "aimConeDegrees": 90, "cooldownSeconds": 1.0,
         "magazine": 2, "reloadMode": "perRound", "reloadSeconds": 1.0, "ammo": "shotgun_shell",
         "hitChanceNear": 1.0, "hitChanceFar": 0.7, "durability": 150, "noise": "gunshot", "hitSound": "gunshot", "source": "loot", "milestone": "C3"
       },
       "hunting_rifle": {
-        "name": "Hunting rifle", "firearm": true, "damage": 80, "pierceTargets": 1, "pierceDamageMult": 0.5, "rangeTiles": 9, "aimConeDegrees": 60,
+        "name": "Hunting rifle", "firearm": true, "damage": 80, "pierceTargets": 1, "pierceDamageMult": 0.5, "rangeTiles": 9, "rangePx": 450, "aimConeDegrees": 60,
         "cooldownSeconds": 1.5, "magazine": 5, "reloadMode": "perRound", "reloadSeconds": 0.8, "ammo": "rifle_round",
         "hitChanceNear": 0.95, "hitChanceFar": 0.85, "durability": 200, "noise": "gunshot", "hitSound": "gunshot", "source": "loot", "milestone": "M3"
       }
@@ -808,6 +808,14 @@
     "charred_debris": {
       "name": "Burned furniture", "size": "medium", "tool": null, "noise": "quiet", "primary": null, "milestone": "M2",
       "yield": { "wood": 1, "metal": 1 }, "chanceYield": [{ "id": "parts", "qty": 1, "chance": 0.3 }]
+    }
+  },
+  "craftingPanel": {
+    "useOrder": ["weapon", "throwable", "tool", "material", "medicine", "water", "food", "light", "defense", "home"],
+    "useNames": {
+      "weapon": "Weapons", "throwable": "Throwables", "tool": "Tools", "material": "Materials", "medicine": "Medicine",
+      "water": "Water", "food": "Food", "light": "Light", "defense": "Defense", "home": "Home",
+      "power": "Power", "gear": "Gear", "comfort": "Comfort", "cooking": "Cooking"
     }
   },
   "recipes": {

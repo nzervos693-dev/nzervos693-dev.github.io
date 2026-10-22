@@ -9,7 +9,8 @@
 > **CD direction "Floor 15 sandbox"** (added after Stage C was planned):
 > floor 15 becomes a headquarters you can break and rebuild (5.19),
 > reinforce against growing waves (5.20), plus rare, loud firearms and new
-> melee tools (5.21). Delivered as Stages C2 and C3 (11.3).
+> melee tools (5.21). Delivered as Stages C2 and C3 (11.3); CD build
+> order A -> C2 -> B -> C -> C3 -> D (the HQ comes next).
 
 ## 1. Pitch
 A quiet, creepy zombie survival game in a 30-story apartment tower, seen
@@ -1152,13 +1153,28 @@ usually wiser.
 | Lead pipe | 16 | 1.7 | 0.6 | 60 | blunt | loot, crafted (M3) |
 | Pipe spear | 20 | 2.2 | 0.7 | 50 | stab | crafted (M3) |
 | Fire axe | 30 | 1.8 | 0.9 | 80 | stab | loot (**C3**, was M3; also demolishes light pieces, 5.19) |
-| Hammer | 8 | 1.4 | 0.4 | 40 | blunt | loot, crafted (C2; building tool, 5.19) |
+| Hammer | 8 | 1.5 (was 1.4, which missed diagonal neighbours at 1.41) | 0.4 | 40 | blunt | loot, crafted (C2; building tool, 5.19) |
 | Crowbar | 12 | 1.5 | 0.5 | 40 | blunt | the existing tool, now equippable (C3) |
 | Sledgehammer | 24 | 1.6 | 1.3 | 60 | blunt | loot, crafted (C2; demolition tool, 5.19) |
 | Pistol / Shotgun / Hunting rifle | 5.21 | | | | gunshot | rare loot (C3 / C3 / M3) |
 
 Range 1.5 reaches all 8 neighbouring tiles; 2.2 (spear) also reaches 2
 tiles straight ahead. (`combat.weapons.<id>.rangeTiles`)
+- **Range units (rule for every weapon row)**: `rangeTiles` is the only
+  range the iso game reads (`IsoGameScene.weaponRange`; tile distance in
+  grid units, not screen px). Every `combat.weapons` row, melee and
+  firearm, also keeps a legacy `rangePx` for the side-view code
+  (`combat.js` `heroWeapon`) and its tests, listed in
+  `_deprecatedSideViewKeys` (this both-keys rule covers `combat.weapons`
+  rows only; `firearms.emptyGunMelee` has `rangeTiles` alone). For new
+  rows `rangePx = rangeTiles x 50` (50 px per tile, from 11.2: walk
+  100 px/s = 2 tiles/s, throw 300 px = 6 tiles): hammer 75, crowbar 75,
+  sledgehammer 80, fire axe 90, pistol 350, shotgun 250, hunting rifle
+  450. Fists 40, knife 45 and spiked bat 55 keep their M1 px values. Every
+  melee weapon must have `rangeTiles` >= `zombies.attackRangeTiles` (1.5)
+  and `rangePx` > `zombies.attackRange` (30), so the hero can always hit
+  any zombie that can hit him. Firearms add their own keys (5.21); the
+  empty-gun club uses `firearms.emptyGunMelee.rangeTiles` 1.5.
 - **Tools as weapons** (C3): crowbar, hammer and sledgehammer keep their
   tool uses (`salvage.toolUses` 20; sledgehammer `build.sledgehammerUses`
   30; hammer never wears from building) and also have a separate weapon
@@ -1349,7 +1365,14 @@ containers, storage cages (rare tins), toy boxes (chocolate) and desks
 **Recipes** (workbench, instant once the hero is at it; materials come
 from carried inventory first, then that workbench's apartment stash; all
 recipes of the current milestone are listed from the start, greyed while
-unaffordable; WB = workbench level):
+unaffordable; WB = workbench level). The panel groups recipes under a
+heading per use, in this order (`craftingPanel.useOrder` / `useNames`):
+**Weapons, Throwables, Tools, Materials, Medicine, Water, Food, Light,
+Defense, Home**, then any later group (Power, Gear, Comfort, Cooking) in
+table order. "Material" is an intended group (from C2: sheet metal; M4:
+rope): intermediate materials sit next to the tools that use them. An
+unknown use is never hidden; it goes at the end. Within a group, recipes
+keep their balance.json order:
 
 | Use | Recipe | Cost | Effect | WB | MS |
 |---|---|---|---|---|---|
@@ -1533,7 +1556,7 @@ the floors you scavenge saves walking.
 
 - Scheduled every **8 h +/- 2 h** (`attacks.intervalHours`,
   `attacks.jitterHours`). First attack is scripted, **10 min** after the
-  tutorial ends (`attacks.firstAttackDelayMinutes`; skipping the tutorial
+  tutorial ends (C2: after New game, 11.3) (`attacks.firstAttackDelayMinutes`; skipping the tutorial
   counts as ending it): strength **15**, **2 crawlers**
   (`attacks.scripted`). No scheduled attack happens before it resolves; the
   first scheduled attack is 8 h +/- 2 h after it ends. Scheduled attacks
@@ -2391,7 +2414,7 @@ grid. Outer walls and the stairwell stay solid. Keys `hq.*`, `build.*`,
 
 | Edge kind | Player demolishes | Player builds / upgrades / overlays | Zombies can break |
 |---|---|---|---|
-| exterior | never | overlays on exterior windows only | never (M2) |
+| exterior | never | overlays on exterior windows only | never before M4 (climbers) |
 | shaft | never | never | never |
 | perimeter, non-gate (12) | never: "Load-bearing. Leave it." | upgrade to block (already block), plating, repair | yes |
 | gate (2) | yes | anything | yes |
@@ -2554,7 +2577,10 @@ HP it shatters (Loud, glass sound) into a **broken window**: zombies climb
 through in **1.5 s**, the hero in **1.0 s** (push into it,
 `structures.brokenWindowVaultSeconds`). Glass can't be repaired: demolish
 (2 s, yields 1 wood) and fit again. **Exterior windows** can take overlays
-but are never attacked in M2 (open question H1).
+but are never attacked before M4 (H1, CD decided): attackers only come up
+the stairs. In **M4**, **climber** zombies (a new zombie type, numbers set
+in M4) break in through floor 15's outer windows, so outer window boards
+and plating then matter. Until M4 no code path targets exterior edges.
 
 **Overlays** (one per edge, `structures.overlays.*`; zombies destroy the
 overlay before the piece; both HPs count in path cost)
@@ -2797,7 +2823,7 @@ the floor **and the floors next to it**. Keys `combat.weapons.<gun>`,
 | View | Side cutaway | Isometric 2.5D, vision cone, one floor visible | same |
 | Floors | 5 authored (13-17) | 5 generated (13-17), 30 x 22 tiles, 4 apartments + 1 small unit each | 30 + roof |
 | Unit templates | - | 6 apartment + 3 small + start flat, 2+ blueprints each, 14 room types, 3 conditions | ~12 templates |
-| Zombie types | Crawler, Walker | same, rebalanced (slow, heavy, groups, 8 facings) | + Runner? (M3), Brute (M4) |
+| Zombie types | Crawler, Walker | same, rebalanced (slow, heavy, groups, 8 facings) | + Runner? (M3), Brute, Climber (M4) |
 | Weapons | Fists, knife, spiked bat | + crowbar, hammer, sledgehammer, fire axe; pistol, shotgun (C3) | + lead pipe, pipe spear, hunting rifle |
 | Tools | Crowbar, wrench | + hammer, sledgehammer (C2) | + saw, flashlight, tool wraps |
 | Materials | 10 | 12 (+ sheet metal, concrete block) | 21 |
@@ -3171,7 +3197,9 @@ CD playtest on the phone.
   comfort, hygiene; medicine recipes; Workbench Lv2, storage shelf;
   survivors 2-3, Medic and Cook; runner re-evaluated; ~20 notes.
 - **M4 "Power and defense"**: all 30 floors, brutes (x2 structure
-  damage); rope, wire, rubber, leather, container; power, the remaining
+  damage); **climbers** (CD, H1: break in through floor 15's outer
+  windows, so outer window covers matter; stats and schedule designed at
+  M4 start); rope, wire, rubber, leather, container; power, the remaining
   traps (nail board, tripwire chimes, electric fence), Barricade Lv3,
   gear, tool wraps, water
   tank, lockbox; stairwell fire-door barricades between floors; antiviral;
@@ -3264,37 +3292,70 @@ balance.json):
   not visible); only the Home double tap paths across floors.
 
 ### 11.3 M2 delivery stages (iso rebuild)
-M2 continues in 6 stages, **A, B, C, C2, C3, D**, after the finished
-Stage 1 (C2 and C3 added for the CD's "Floor 15 sandbox" direction; they
-need claiming and main-home attacks from C, and don't need D's lamps). Each stage
-keeps `main` playable, ends with a CD playtest, and builds only on
-finished stages. **The side-view Stage 1 build stays on `main` until Stage
-A passes review and QA**; Stage A work happens on a branch. Numbers refer
-to the must-haves in 11.1.
+M2 continues in 6 stages after the finished Stage 1. **Build order (CD
+decision): A (done) -> C2 -> B -> C -> C3 -> D.** The HQ (C2) comes
+right after Stage A, before the other floors, stairs, Mara and the
+tutorial (B), before the generator (C) and before traps and guns (C3).
+The letters are kept as names, not order. Each stage keeps `main`
+playable, ends with a CD playtest, and builds only on finished stages.
+**The side-view Stage 1 build stays on `main` until Stage A passes review
+and QA**; Stage A work happens on a branch. Numbers refer to the
+must-haves in 11.1.
+
+**What C2 needs that was planned for B or C** (C2 builds these minimal
+versions itself, all on floor 15 only; B and C later extend them):
+- **Claim the floor** works on floor 15 alone: the trigger is "floor 15
+  Cleared" (its own 3-5 Stage A zombies; no wanderers exist yet), the
+  fire door action and the HQ claim need no other floor, no generator and
+  no apartment claiming. Before the HQ claim, home = the start flat
+  (Stage rules below); after it, main home = HQ, heart = the bed last
+  slept in.
+- **Attacks** come up the stairs as designed (5.8 / 5.20): attackers
+  appear on floor 15's landing-end tile of the down flight, 3 s apart;
+  no other floor needs to exist. C2 ports the Stage 1 attack schedule,
+  strength A, cue timeline (groans, bangs, flicker) and the start flat's
+  front-door barricade to iso (B's "attacks up the stairwell" item moves
+  into C2). Before the HQ claim they target the start flat's door (max 3
+  at the door, 5.8); after it, HQ rules (5.20). The scripted first attack
+  starts **10 min after a New game** (no tutorial yet).
+- **Stairs** stay blocked for the hero ("The stairs are blocked.").
+- **Offline**: catch-up and the attack resolve run for floor 15 only
+  (offline path defense, 5.20); the prose report is ported here (moved
+  from B).
+- **Loot and demolition** only on floor 15: hammer and sledgehammer come
+  from floor 15 loot and the workbench recipes; sheet metal and concrete
+  blocks from floor 15 demolition. "Demolition on any floor" applies once
+  B adds floors.
+- **Not in C2**: Mara, wanderers, the tutorial, other floors, the
+  generator, apartment claiming elsewhere, traps, guns, lamps.
 
 | Stage | Content | Must-haves | Done when (CD playtest checks) |
 |---|---|---|---|
 | **A. Iso engine, one floor** | Iso renderer with cutaway and fade; camera; grid movement and all touch gestures; vision (cone, close circle, LOS, memory, vignette, soft edges); base room light (grey/dim/dark, no lamps yet); doors (open/close, sight, zombie banging); **floor 15 only**, authored by level-designer from blueprints (start flat + 3 apartments + small unit), with ~25 of the existing objects, search/dismantle/drain and crafting working; 3-5 zombies with 8 facings, sight cones, hearing, door banging; combat with tile ranges and hit FX; muffled positional zombie sounds; save v2. Stairs show "The stairs are blocked." Attacks, tutorial and Mara are off. | 1, 2, 3, 4, 10, 15 (+ parts of 5, 7, 12, 13) | Moving, looking and tapping objects work one-thumbed (the right menu opens on 9 of 10 taps on any Visible object); it feels **claustrophobic but readable**: you can't see round corners, a closed door hides what's behind it, a zombie heard behind a door is scary; walls never hide the hero or a zombie in his view; 30+ fps on the CD's phone. |
-| **B. The five floors** | Floors 13-17 as authored data (`floors_iso.json`, 5.15) with all 30 objects; stairs between floors with the fade; attacks up the stairwell to the start flat's door (max 3 at the door), barricade on its inside; Mara and her quest; wanderers; throwables in tiles; tutorial ported (door step, turn step, no arrows); offline catch-up and report working with the iso world; iso art for all props. Home = start flat only. | 5, 7, 9, 12, 13, (14 tutorial) | A full session: wake, tutorial, scout two floors, fight, come home for the first attack; floors 13 and 17 feel fair (5.4 encounter targets); attackers are heard on the stairs before they are seen. |
-| **C. Generator and homes** | Seeded generator on blueprints and templates (mirroring, conditions, fill rules, doors, zombies, guarantees, saved layout); `blueprints.json` with 2+ per template; claiming, stashes, build spots, beds, main home by sleeping, Workbench recipe, barricade per claimed door, attacks target the main home, Leave this place. Save version bumped (older saves reset). | 6, 8 | Two New games give clearly different floors that still look designed; every floor has food and water; a claimed flat on floor 14 becomes the main home and gets attacked. |
-| **C2. Headquarters** | HQ claim of floor 15 (5.19); edge model and save overrides; build mode (Build top-bar icon, edge cursor, piece selector, Main/Secondary rules, seal warning); hammer, sledgehammer recipes and loot; demolition on any floor with yields; wall tiers wood / sheet metal / block, door tiers, glass windows, boards, plating, barricades on any HQ door, repair; sheet metal recipe and chance yields; concrete blocks; rooms/vision/pathing/re-bake on change; HQ attacks: structure path costs, slots, entries by day, heart, online breach, offline path defense (5.20). New art: tier sprites, overlays, broken stub, Build icon, piece icons. Save version bumped. | 17, 18, 19 | Merge the start flat with the neighbour by knocking out the wall; wall off the corridor and fit a door; the first attacks hit the weakest spot you left, and by day 3 two places at once; nothing on screen needs text to understand; 30+ fps after 20 edge changes. |
-| **C3. Traps and guns** | Spike strip and alarm lure (5.20); pistol and shotgun, ammo items and loot rules, pistol guarantee, gunshot noise with adjacent-floor responders, attack bonus, auto reload, empty-gun club, weapon quick-use swap; crowbar, hammer, sledgehammer, fire axe as weapons; gunshot SFX (CC0). | 20, 21 | A lure behind spike strips kills walkers without a fight; finding the pistol feels like a big moment and firing it feels like a mistake you sometimes have to make (zombies come up from the next floor). |
-| **D. Light and story** | Tile light from lamps (pools with LOS), landing flicker outside the cue, oil lamp recipe and fuel, light changing vision and zombie sight; ~12 notes, flavour lines, thoughts; final tutorial polish; nice-to-haves only after the D playtest. | 11, 14 | A lamp-lit room glows from down a dark corridor and makes you feel seen; the first 90 s teach search, dismantle, craft, doors, turning and fighting without arrows or highlights. |
+| **C2. Headquarters (next, 2nd)** | Minimal attacks and offline resolve on floor 15 (above); HQ claim of floor 15 (5.19); edge model and save overrides; build mode (Build top-bar icon, edge cursor, piece selector, Main/Secondary rules, seal warning); hammer, sledgehammer recipes and loot; demolition on floor 15 with yields (any floor once B lands); wall tiers wood / sheet metal / block, door tiers, glass windows, boards, plating, barricades on any HQ door, repair; sheet metal recipe and chance yields; concrete blocks; rooms/vision/pathing/re-bake on change; HQ attacks: structure path costs, slots, entries by day, heart, online breach, offline path defense (5.20). New art: tier sprites, overlays, broken stub, Build icon, piece icons. Save version bumped. | 17, 18, 19 | Merge the start flat with the neighbour by knocking out the wall; wall off the corridor and fit a door; the first attacks hit the weakest spot you left, and by day 3 two places at once; nothing on screen needs text to understand; 30+ fps after 20 edge changes. |
+| **B. The five floors (3rd)** | Floors 13-17 as authored data (`floors_iso.json`, 5.15) with all 30 objects; stairs between floors with the fade; attackers now physically come up from floor 14 (C2's landing spawn stays the arrival tile); Mara and her quest; wanderers (they can un-Clear floor 15 before the HQ claim, never undo it after); throwables in tiles; tutorial ported (door step, turn step, no arrows), placed before the HQ claim is offered; offline catch-up and report extended to all five floors; demolition on all floors; iso art for all props. Home = start flat, or the HQ once claimed. | 5, 7, 9, 12, 13, (14 tutorial) | A full session: wake, tutorial, scout two floors, fight, come home for the first attack; floors 13 and 17 feel fair (5.4 encounter targets); attackers are heard on the stairs before they are seen. |
+| **C. Generator and homes (4th)** | Seeded generator on blueprints and templates (mirroring, conditions, fill rules, doors, zombies, guarantees, saved layout), keeping floor 15's HQ edge overrides; `blueprints.json` with 2+ per template; claiming, stashes, build spots, beds, main home by sleeping, Workbench recipe, barricade per claimed door, attacks target the main home (HQ or another claim), Leave this place. Save version bumped (older saves reset). | 6, 8 | Two New games give clearly different floors that still look designed; every floor has food and water; a claimed flat on floor 14 becomes the main home and gets attacked. |
+| **C3. Traps and guns (5th)** | Spike strip and alarm lure (5.20); pistol and shotgun, ammo items and loot rules, pistol guarantee, gunshot noise with adjacent-floor responders, attack bonus, auto reload, empty-gun club, weapon quick-use swap; crowbar, hammer, sledgehammer, fire axe as weapons; gunshot SFX (CC0). | 20, 21 | A lure behind spike strips kills walkers without a fight; finding the pistol feels like a big moment and firing it feels like a mistake you sometimes have to make (zombies come up from the next floor). |
+| **D. Light and story (6th)** | Tile light from lamps (pools with LOS), landing flicker outside the cue, oil lamp recipe and fuel, light changing vision and zombie sight; ~12 notes, flavour lines, thoughts; final tutorial polish; nice-to-haves only after the D playtest. | 11, 14 | A lamp-lit room glows from down a dark corridor and makes you feel seen; the first 90 s teach search, dismantle, craft, doors, turning and fighting without arrows or highlights. |
 
 Stage rules:
 - **Before Stage D** no lamps exist; tiles use only their room's base light
   (5.3), and oil lamp objects are plain salvage.
-- **Before Stage C** home is the start flat (floor 15, NW) with its 40-slot
-  stash, its front-door barricade and its bed (the only bed with Sleep and
-  Nap); attacks target it; the hero starts at, and Home returns to, that
-  bed. Cleared = no living zombies on the floor.
+- **Before the HQ claim (or Stage C)** home is the start flat (floor 15,
+  NW) with its 40-slot stash, its front-door barricade and its bed (the
+  only bed with Sleep and Nap); attacks target it; the hero starts at, and
+  Home returns to, that bed. **After the C2 HQ claim, main home = HQ**
+  (5.19/5.20). Cleared = no living zombies on the floor.
 - **Stage A** has no attacks, no tutorial (New game starts in the start
   flat's bedroom with one thought, "Dark in here."), no Mara; needs and
   moodles run normally; the start flat has its food and water.
 - **Before Stage C2** walls can't be demolished, there is no build mode,
-  and floor 15 is just floors with claimable units. **Before Stage C3**
+  and floor 15 has no claimable units yet. **Before Stage C3**
   there are no traps, no guns or ammo in loot, and crowbar/hammer/
-  sledgehammer can't be equipped; the fire axe stays M3.
+  sledgehammer/fire axe can't be equipped (the fire axe arrives in C3,
+  5.4). **Before Stage B** only floor 15 exists (C2 rules above).
+- **Exterior windows** of floor 15 are never attacked until the M4
+  climbers (5.20, H1 decided).
 - Any change of save format inside M2 bumps the save version; an older
   save is deleted on launch with the one line "The building has changed."
 
@@ -3405,13 +3466,27 @@ screen, seeing more than one floor at a time.
   chokepoints, spike traps, noise traps that lure attackers), waves that
   grow and try weak spots (5.20).
 
+### Decided by the Creative Director for the HQ direction
+- **Build order**: HQ (Stage C2) next, right after Stage A, before Stage B
+  (other floors, stairs, Mara, tutorial), C and C3 (guns, traps). Order
+  A -> C2 -> B -> C -> C3 -> D; what C2 borrows from B/C is listed in 11.3.
+- **H1 Exterior windows**: yes, later. **Climber** zombies arrive in
+  **M4** and break in through floor 15's outer windows, so outer window
+  boards/plating matter then. Until M4 outer windows are never attacked
+  (5.20).
+- **H2 Guns**: pistol + shotgun in M2 (Stage C3), hunting rifle in M3 on
+  deeper floors (5.21).
+- **H3 Landing walls**: reinforce-only, as written: the player can't
+  demolish or fit doors/windows in the 12 landing edges, only upgrade and
+  plate them; zombies can break them; the 2-edge gate is free to build on.
+
 ### Decided by game-designer for the HQ direction (CD may revisit at playtest)
 - HQ trigger: floor 15 Cleared, then Claim the floor at the stairwell fire
   door (5 s); HQ = all floor 15 units + corridor, counts as 1 claim and as
   Secured; one stash pool; heart = the bed last slept in.
 - Landing walls (12 perimeter edges) can't be demolished or fitted by the
   player, only upgraded/plated; the 2-edge gate is free to build on.
-  Zombies can break any perimeter edge (open question H3).
+  Zombies can break any perimeter edge (H3, CD confirmed above).
 - Build mode via a 6th top-bar icon; the edge cursor is the side of the
   hero's own tile he faces (snapped to 4 directions); Quick-use becomes the
   piece picker; doors and windows only fitted into walls; materials taken
@@ -3428,7 +3503,8 @@ screen, seeing more than one floor at a time.
 
 ### Decided (Producer approved; CD may revisit at playtest)
 - Scavenger job works only during offline catch-up (5.7).
-- Scripted first attack 10 min after the tutorial (with the 15 s cue).
+- Scripted first attack 10 min after the tutorial (with the 15 s cue;
+  C2: after New game, 11.3).
 - Attackers keep hitting while the hero is away; they bite only on the
   attacked floor (5.8).
 - Online repel +5 morale only if the barricade never broke (5.8).
@@ -3517,23 +3593,13 @@ screen, seeing more than one floor at a time.
   colour, no colour or glow (section 4).
 
 ### Open questions
-**New (HQ direction), for the CD:**
-- H1. **Exterior windows on floor 15**: attackers come up the stairs, so they
-   can never reach the outer windows, and boarding them only darkens rooms.
-   (a) Keep it so: outer windows are never attacked; boards/plating are for
-   the HQ's inner windows (current); (b) add M4 "climbers" that come in
-   through the outer windows from the fire escape from day 10, so every
-   window is a weak spot; (c) let outer windows break on their own in storms
-   (rain and wind get in, comfort -1) until boarded, no zombies.
-- H2. **Guns in M2**: (a) pistol + shotgun in M2, hunting rifle in M3 on deeper
-   floors (current); (b) all three now, the rifle very rare on floors 13
-   and 17; (c) only the pistol in M2, shotgun and rifle in M3.
-- H3. **Landing walls** (the 12 edges between the stairwell landing and the
-   flats/corridor): (a) the player can't demolish or put doors in them,
-   only reinforce them; zombies can break them (current, keeps the stairwell
-   readable); (b) fully buildable like any interior wall (a second gate
-   possible); (c) unbreakable for zombies too, so the gate is the only way
-   in and weak spots are only inside the HQ.
+**HQ direction**: H1, H2, H3 and the build order are Decided (above).
+- H4. **Tutorial after the HQ exists** (low priority, for when Stage B
+   starts): C2 ships with no tutorial and the first attack 10 min after a
+   New game. When B ports the tutorial: (a) tutorial first, the HQ claim
+   only offered after it (current plan); (b) tutorial also teaches one
+   build action (knock out one wall); (c) no change to the tutorial, the
+   HQ is learned by doing.
 
 **Older:**
 1. **Backstory names** ("grey fever", "river docks" group): keep, rename,
