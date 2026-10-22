@@ -63,7 +63,20 @@ describe('sounds the code asks for', () => {
     expect(bytes).toBeLessThan(3 * 1024 * 1024);
   });
   it('ambient ambience and the cue sounds exist', () => {
-    for (const k of ['amb_room_tone', 'amb_wind', 'stair_shuffle', 'stair_bang_1', 'stair_bang_2', 'stair_bang_3', 'distant_groan_1', 'heartbeat_soft', 'music_sad_1']) expect(live).toContain(k);
+    for (const k of ['amb_wind', 'amb_rain', 'stair_shuffle', 'stair_bang_1', 'stair_bang_2', 'stair_bang_3', 'distant_groan_1', 'heartbeat_soft', 'music_sad_1']) expect(live).toContain(k);
+  });
+});
+
+describe('no constant hum (CD, GDD 10 rule zero)', () => {
+  it('the manifest has no room tone or lamp hiss and no file for them', () => {
+    for (const k of ['amb_room_tone', 'lamp_hiss']) {
+      expect(audioManifest.sounds[k], k).toBeUndefined();
+      expect(readdirSync('public/assets/audio').includes(`${k}.ogg`), k).toBe(false);
+    }
+  });
+  it('the only loops are the gust sources and the cue/health beds', () => {
+    const loops = Object.entries(audioManifest.sounds).filter(([, v]) => v.loop).map(([k]) => k).sort();
+    expect(loops).toEqual(['amb_rain', 'amb_wind', 'heartbeat_soft', 'stair_shuffle']);
   });
 });
 

@@ -1,0 +1,2420 @@
+{
+  "_doc": [
+    "Source list for scripts/fetch-audio.mjs. Network was blocked when this was written, so NOTHING here is verified.",
+    "I (audio-designer) do not reliably remember specific freesound sound IDs, so freesoundId is null everywhere instead of guessed IDs; each entry has a pre-filtered CC0 search URL. Pick a sound, put its numeric id in freesoundId.",
+    "With env FREESOUND_TOKEN set, fetch-audio asks the freesound API for the licence and refuses anything that is not CC0, then downloads the HQ OGG preview.",
+    "For opengameart/wikimedia/pack files set downloadUrl (direct file URL), author, sourceUrl, license, and verified:true after reading the licence on the source page.",
+    "Fields: trim{start,duration} seconds; edit{highpassHz,lowpassHz,fadeInMs,fadeOutMs,pitchSemitones?}; norm = target peak (0..1); sr = output sample rate; fetched is set by the script.",
+    "Once an entry is fetched, make-audio.mjs stops regenerating that key and the CREDITS.md line moves to the recorded table."
+  ],
+  "packs": [
+    {
+      "name": "Kenney - Impact Sounds",
+      "url": "https://kenney.nl/assets/impact-sounds",
+      "author": "Kenney (kenney.nl)",
+      "license": "CC0 1.0",
+      "covers": "footsteps (wood/tile/carpet/concrete/soft), hits, thuds, wood/metal/glass impacts",
+      "status": "to verify"
+    },
+    {
+      "name": "Kenney - RPG Audio",
+      "url": "https://kenney.nl/assets/rpg-audio",
+      "author": "Kenney (kenney.nl)",
+      "license": "CC0 1.0",
+      "covers": "cloth, door open/close, footsteps, metal, coins/handling",
+      "status": "to verify"
+    },
+    {
+      "name": "OpenGameArt - 50 CC0 wood, drop & clutter SFX",
+      "url": "https://opengameart.org/content/50-cc0-wood-drop-clutter-sfx",
+      "author": "rubberduck",
+      "license": "CC0 1.0",
+      "covers": "wood knocks, drops, clutter, drawers",
+      "status": "to verify"
+    },
+    {
+      "name": "OpenGameArt - 100 CC0 SFX",
+      "url": "https://opengameart.org/content/100-cc0-sfx",
+      "author": "rubberduck",
+      "license": "CC0 1.0",
+      "covers": "misc foley (metal, wood, impacts)",
+      "status": "to verify"
+    },
+    {
+      "name": "Musopen (public-domain recordings)",
+      "url": "https://musopen.org/",
+      "author": "various performers",
+      "license": "CC0 / public domain (check each recording)",
+      "covers": "solo piano / cello / guitar for music_sad_1..3",
+      "status": "to verify"
+    },
+    {
+      "name": "Wikimedia Commons - Category: Piano music (sound recordings)",
+      "url": "https://commons.wikimedia.org/wiki/Category:Piano_music_(sound_recordings)",
+      "author": "various",
+      "license": "check each file page: PD or CC0 only (no CC-BY / CC-BY-SA)",
+      "covers": "music_sad_1",
+      "status": "to verify"
+    }
+  ],
+  "entries": [
+    {
+      "key": "ui_tap",
+      "what": "Panel open / button tap: a faint paper rustle (GDD 10: very quiet, uiVolume 0.2)",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=paper+rustle+small&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 0.12
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "footstep_wood_1",
+      "what": "Hero footstep on wood (3 variations, pick at random, pitch x0.95-1.05)",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=footstep+wooden+floor+single+step&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 0.49
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "footstep_wood_2",
+      "what": "Hero footstep on wood (3 variations, pick at random, pitch x0.95-1.05)",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=footstep+wooden+floor+single+step&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 0.49
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "footstep_wood_3",
+      "what": "Hero footstep on wood (3 variations, pick at random, pitch x0.95-1.05)",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=footstep+wooden+floor+single+step&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 0.49
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "footstep_tile_1",
+      "what": "Hero footstep on tile (3 variations, pick at random, pitch x0.95-1.05)",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=footstep+tile+floor+single+step&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 0.51
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "footstep_tile_2",
+      "what": "Hero footstep on tile (3 variations, pick at random, pitch x0.95-1.05)",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=footstep+tile+floor+single+step&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 0.51
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "footstep_tile_3",
+      "what": "Hero footstep on tile (3 variations, pick at random, pitch x0.95-1.05)",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=footstep+tile+floor+single+step&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 0.57
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "footstep_carpet_1",
+      "what": "Hero footstep on carpet (3 variations, pick at random, pitch x0.95-1.05)",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=footstep+carpet+single+step&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 0.42
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "footstep_carpet_2",
+      "what": "Hero footstep on carpet (3 variations, pick at random, pitch x0.95-1.05)",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=footstep+carpet+single+step&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 0.43
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "footstep_carpet_3",
+      "what": "Hero footstep on carpet (3 variations, pick at random, pitch x0.95-1.05)",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=footstep+carpet+single+step&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 0.42
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "footstep_concrete_1",
+      "what": "Hero footstep on concrete (3 variations, pick at random, pitch x0.95-1.05)",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=footstep+concrete+single+step&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 0.9
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "footstep_concrete_2",
+      "what": "Hero footstep on concrete (3 variations, pick at random, pitch x0.95-1.05)",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=footstep+concrete+single+step&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 0.88
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "footstep_concrete_3",
+      "what": "Hero footstep on concrete (3 variations, pick at random, pitch x0.95-1.05)",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=footstep+concrete+single+step&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 0.96
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "step_1",
+      "what": "Legacy hero step (wood); use footstep_<surface>_N",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=footstep+wooden+floor+single+step&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 0.48
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "step_2",
+      "what": "Legacy hero step (wood); use footstep_<surface>_N",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=footstep+wooden+floor+single+step&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 0.5
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "stairs",
+      "what": "Hero changes floor via stairs (five steps, concrete stairwell)",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=footsteps+concrete+stairs&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 1.68
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "door_open",
+      "what": "Door opens (floor door or apartment): latch, hinge creak, soft stop",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=door+open+wood+latch&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 1.55
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "door_close",
+      "what": "Door closes: short hinge creak, wooden clack and latch",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=door+close+wood+latch&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 1.13
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "door_creak",
+      "what": "Door hinge creaking on its own or while held ajar (slow, long)",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=door+hinge+creak&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 2.1
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "door_hit",
+      "what": "Jammed or locked door hit / zombie pounds a door",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=heavy+door+pound+knock&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 0.74
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "door_bang",
+      "what": "Zombie bangs on a door from outside: heavy wood hit, frame rattle, small bounce",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=heavy+door+pound+knock&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 1.18
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "search_cupboard",
+      "what": "Search a cupboard/cabinet: door scrape, wood knock, things shifted",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=cupboard+door+open+wood&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 1.38
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "search_drawer",
+      "what": "Search a drawer: wood slide, contents rattle and shift",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=drawer+open+wood+rummage&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 1.08
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "search_cloth",
+      "what": "Search clothes / bedding: cloth rummage",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=cloth+rustle+clothes+rummage&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 1.08
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "search",
+      "what": "Search / scavenge rummage (generic, start of search): shifting cloth, small objects",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=cloth+rustle+clothes+rummage&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 1.01
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "dismantle_wood",
+      "what": "Dismantle a wooden object: nail squeal, wood crack, drop",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=wood+plank+pry+crack+nail&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 1.12
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "dismantle_metal",
+      "what": "Dismantle a metal object: scrape of bent metal, two dull clanks",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=metal+scrape+clank&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 1.33
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "drain",
+      "what": "Drain / collect water: pouring and glugging bubbles",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=water+pour+glug+bottle&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 0.99
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "pickup",
+      "what": "Item added to inventory: soft cloth/handling, no chime",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=pick+up+object+cloth+handling&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 0.3
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "eat",
+      "what": "Use food item (eat): crunchy bites and chewing",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=eating+crunch+bite+chewing&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 0.72
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "drink",
+      "what": "Use drink item (drink): lip slosh and three swallows",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=drinking+gulp+swallow+water&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 0.84
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "craft",
+      "what": "Craft / build completes: cloth/tape rustle then two wooden taps",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=hammer+nail+wood+tape+tear&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 1.13
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "swing",
+      "what": "Melee swing starts: air moving past a held object",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=weapon+swing+whoosh+bat&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 0.3
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "hit_flesh",
+      "what": "Player melee or thrown hit lands on a zombie",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=punch+body+hit+flesh&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 0.29
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "hit_stab_1",
+      "what": "Stab weapon hits a zombie: puncture + wet squelch (1..3)",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=knife+stab+flesh+wet&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 0.31
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "hit_stab_2",
+      "what": "Stab weapon hit (variation, deeper squelch)",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=knife+stab+flesh+wet&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 0.31
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "hit_stab_3",
+      "what": "Stab weapon hit (variation, shorter and brighter)",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=knife+stab+flesh+wet&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 0.31
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "hit_blunt_1",
+      "what": "Blunt weapon hits a zombie: heavy wet thud + dull crack (1..3)",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=bat+hit+body+blunt+wet+thud&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 0.4
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "hit_blunt_2",
+      "what": "Blunt weapon hit (variation, deeper)",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=bat+hit+body+blunt+wet+thud&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 0.4
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "hit_blunt_3",
+      "what": "Blunt weapon hit (variation, sharper crack)",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=bat+hit+body+blunt+wet+thud&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 0.4
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "hit_punch_1",
+      "what": "Fists hit a zombie: dull fleshy punch (1..2)",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=punch+fist+hit+body&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 0.2
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "hit_punch_2",
+      "what": "Fists hit (variation)",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=punch+fist+hit+body&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 0.2
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "weapon_break",
+      "what": "Weapon durability hits zero: snap, splinters, pieces dropping",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=wood+snap+break+splinter&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 0.74
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "glass_shatter",
+      "what": "Glass breaks (molotov lands, window smash): crack + shower of shards",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=glass+window+break+shatter&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 1
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "glass_tinkle",
+      "what": "Ambient one-shot: small glass pieces settling somewhere",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=glass+shards+falling&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 1.45
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "fire_whoosh",
+      "what": "Molotov ignites / fire bursts: gas catching with a roar and crackle",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=fire+ignite+whoosh+gas&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 1.4
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "zombie_groan_1",
+      "what": "Zombie idle / spotted you (groan)",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=zombie+groan+moan&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 1.58
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "zombie_groan_2",
+      "what": "Zombie idle / aggro (lower, longer groan)",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=zombie+groan+moan&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 1.86
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "zombie_hit",
+      "what": "Zombie attacks / bites the hero: rasping lunge",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=zombie+growl+attack&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 0.44
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "zombie_death",
+      "what": "Zombie killed: a last rattling breath, then the body slumps",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=zombie+death+gasp+fall&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 1.56
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "hero_hurt",
+      "what": "Hero takes damage: a short pained grunt",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=male+pain+grunt+hurt&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 0.35
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "zombie_breath_1",
+      "what": "Near zombie: wet exhale through a damaged throat",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=raspy+breathing+wheeze&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 1.44
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "zombie_breath_2",
+      "what": "Near zombie: slower rattling breath in, then out",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=raspy+breathing+wheeze&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 2.43
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "zombie_shuffle",
+      "what": "Near zombie: dragging shuffle, 2 steps",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=dragging+feet+shuffle+floor&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 1.54
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "distant_groan_1",
+      "what": "Far-away groan, 45-120 s apart; hides the attack cue. Pick randomly of 1..4",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=zombie+groan+moan&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 3.75
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "distant_groan_2",
+      "what": "Far-away groan (lower, long)",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=zombie+groan+moan&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 4.3
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "distant_groan_3",
+      "what": "Far-away groan (higher, shorter)",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=zombie+groan+moan&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 3.5
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "distant_groan_4",
+      "what": "Far-away groan (two-part moan)",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=zombie+groan+moan&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 5.02
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "barricade_hit",
+      "what": "Zombies hit a barricade: boards thump and shift",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=wood+door+pounding+planks&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 0.9
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "barricade_break",
+      "what": "A barricade is destroyed: planks crack, splinter and fall",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=wood+planks+break+collapse&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 1.37
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "amb_wind",
+      "what": "Wind gusting past the building: broadband filtered noise, irregular non-periodic swells. Loop; quiet",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=wind+gust+howling+building&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 8
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "amb_rain",
+      "what": "Rain on a window: dense droplets + soft roof patter. Loop; louder near windows",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=rain+on+window&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 8
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "stair_bang_1",
+      "what": "Attack cue (T-8 s): single heavy muffled bang from the stairwell below",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=metal+door+bang+stairwell+echo&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 2.29
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "stair_bang_2",
+      "what": "Attack cue: two bangs, slightly uneven",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=metal+door+bang+stairwell+echo&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 2.95
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "stair_bang_3",
+      "what": "Attack cue: three bangs, building",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=metal+door+bang+stairwell+echo&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 3.57
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "stair_shuffle",
+      "what": "Loop: many feet shuffling in the stairwell, muffled. Fade in with the attack cue, out when it ends",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=shuffling+footsteps+echo+stairwell&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 6
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "creak_1",
+      "what": "Ambient one-shot: floorboard creak (long gaps)",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=floorboard+creak+wood+settling&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 1.34
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "creak_2",
+      "what": "Ambient one-shot: slow door hinge creak somewhere",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=floorboard+creak+wood+settling&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 2.13
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "creak_3",
+      "what": "Ambient one-shot: short wood settling",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=floorboard+creak+wood+settling&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 0.83
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "muffled_thud_1",
+      "what": "Ambient one-shot: distant thud from another floor",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=muffled+thud+distant+upstairs&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 1.64
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "muffled_thud_2",
+      "what": "Ambient one-shot: double thump far off",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=muffled+thud+distant+upstairs&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 1.83
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "pipe_knock_1",
+      "what": "Ambient one-shot: pipe knocks twice",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=pipe+knock+metal+tick&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 1.89
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "pipe_knock_2",
+      "what": "Ambient one-shot: pipe tick-tick-knock (cooling metal)",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=pipe+knock+metal+tick&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 2.22
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "heartbeat_soft",
+      "what": "Low-health loop: soft heartbeat felt more than heard",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=heartbeat+slow&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 1.1
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "moodle_stomach",
+      "what": "Hungry moodle: stomach growl (gurgling, no pitch)",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=stomach+growl&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 1.1
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "moodle_swallow",
+      "what": "Thirsty moodle: dry swallow",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=swallow+gulp&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 0.24
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "moodle_yawn",
+      "what": "Tired moodle: a yawn",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=yawn&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 1.5
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "moodle_pain",
+      "what": "Injured moodle: pained breath in through the teeth",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=inhale+through+teeth+pain+hiss&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 0.6
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "moodle_sigh",
+      "what": "Low-spirits moodle: a long sigh",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=sigh+exhale&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 1.3
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "moodle_panic",
+      "what": "Panic moodle: quiet fast heartbeat, ~2 s one-shot",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=heartbeat+slow&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 2.2
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "blood_drip",
+      "what": "Quiet one-shot: a few drips on the floor after a hit/kill",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "freesound": "https://freesound.org/search/?q=water+drip+single&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      },
+      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
+      "trim": {
+        "start": 0,
+        "duration": 1.44
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 10000,
+        "fadeInMs": 4,
+        "fadeOutMs": 40
+      },
+      "norm": 0.79,
+      "sr": 22050
+    },
+    {
+      "key": "music_sad_1",
+      "what": "Sparse sad piece, one-shot (not looped); on quiet moments only (first claim, after attack ends, survivor joins). Never in danger. Piano model, A minor, ~55 s",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "opengameart": "https://opengameart.org/art-search-advanced?keys=piano&field_art_licenses_tid%5B%5D=4&field_art_type_tid%5B%5D=12",
+        "wikimedia": "https://commons.wikimedia.org/wiki/Category:Piano_music_(sound_recordings)",
+        "musopen": "https://musopen.org/music/"
+      },
+      "note": "solo piano slow sad (public domain composition, CC0/PD recording). The recording must be CC0/PD, not just the composition. 20-60 s excerpt with natural fade out.",
+      "trim": {
+        "start": 0,
+        "duration": 60
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 9000,
+        "fadeInMs": 4,
+        "fadeOutMs": 1500
+      },
+      "norm": 0.7,
+      "sr": 44100
+    },
+    {
+      "key": "music_sad_2",
+      "what": "Sparse sad piece, one-shot (not looped); on quiet moments only (first claim, after attack ends, survivor joins). Never in danger. Low plucked strings (harp/kantele-like Karplus-Strong), D minor, ~42 s",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "opengameart": "https://opengameart.org/art-search-advanced?keys=piano&field_art_licenses_tid%5B%5D=4&field_art_type_tid%5B%5D=12",
+        "wikimedia": "https://commons.wikimedia.org/wiki/Category:Piano_music_(sound_recordings)",
+        "musopen": "https://musopen.org/music/"
+      },
+      "note": "solo cello or harp slow (CC0/PD recording). The recording must be CC0/PD, not just the composition. 20-60 s excerpt with natural fade out.",
+      "trim": {
+        "start": 0,
+        "duration": 46.19
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 9000,
+        "fadeInMs": 4,
+        "fadeOutMs": 1500
+      },
+      "norm": 0.7,
+      "sr": 44100
+    },
+    {
+      "key": "music_sad_3",
+      "what": "Sparse sad piece, one-shot (not looped); on quiet moments only (first claim, after attack ends, survivor joins). Never in danger. Fingerpicked nylon guitar model (Karplus-Strong + body), E minor, ~32 s",
+      "status": "to verify",
+      "verified": false,
+      "fetched": false,
+      "freesoundId": null,
+      "downloadUrl": null,
+      "sourceUrl": null,
+      "author": null,
+      "license": "CC0 1.0 (to verify)",
+      "search": {
+        "opengameart": "https://opengameart.org/art-search-advanced?keys=piano&field_art_licenses_tid%5B%5D=4&field_art_type_tid%5B%5D=12",
+        "wikimedia": "https://commons.wikimedia.org/wiki/Category:Piano_music_(sound_recordings)",
+        "musopen": "https://musopen.org/music/"
+      },
+      "note": "solo acoustic nylon guitar slow (CC0/PD recording). The recording must be CC0/PD, not just the composition. 20-60 s excerpt with natural fade out.",
+      "trim": {
+        "start": 0,
+        "duration": 33.82
+      },
+      "edit": {
+        "highpassHz": 40,
+        "lowpassHz": 9000,
+        "fadeInMs": 4,
+        "fadeOutMs": 1500
+      },
+      "norm": 0.7,
+      "sr": 44100
+    }
+  ]
+}
