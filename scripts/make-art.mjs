@@ -1914,6 +1914,89 @@ isoChars('iso_crawler', [['shuffle', 4, 5, -1], ['attack', 2, 6, 0], ['death', 3
   isoLying(c, v, { skin: 'Z', shirt: 'R', pants: 'B', shoe: 'ZD', hair: null, hairStyle: 'bald', decay: true }, true);
 }, NOTE_CH + 'Crawler zombie (legless, low to the ground, about 12 px high): dragging itself on its arms, head leading. "shuffle" 4 frames (5 fps) is the crawl loop; "attack" 2 (rear back, lunge); "death" 3 (sag, flatten, isoLying).');
 
+// ---------- action_icons 24x24 (GDD 4 context buttons, GDD 8 muted icon HUD) ----------
+// Flat #bdb8ab on transparent, no outline; alpha / tint set in game. Pure geometry, no rng.
+const AX = [189, 184, 171, 255];
+const aset = (c, x, y, on) => { x |= 0; y |= 0; if (x < 0 || y < 0 || x >= c.w || y >= c.h) return; if (on) c.d.set(AX, (y * c.w + x) * 4); else c.d.fill(0, (y * c.w + x) * 4, (y * c.w + x) * 4 + 4); };
+const aR = (c, x, y, w, h, on = true) => { for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) aset(c, x + i, y + j, on); };
+const aHollow = (c, x, y, w, h, t = 2) => { aR(c, x, y, w, h); aR(c, x + t, y + t, w - 2 * t, h - 2 * t, false); };
+const aDisc = (c, cx, cy, r, on = true) => { for (let y = 0; y < c.h; y++) for (let x = 0; x < c.w; x++) if (Math.hypot(x + 0.5 - cx, y + 0.5 - cy) <= r) aset(c, x, y, on); };
+const aRing = (c, cx, cy, r, t) => { for (let y = 0; y < c.h; y++) for (let x = 0; x < c.w; x++) { const d = Math.hypot(x + 0.5 - cx, y + 0.5 - cy); if (d <= r && d > r - t) aset(c, x, y, true); } };
+// bar: thick segment, width w0 at (x0,y0) tapering to w1 at (x1,y1)
+const aBar = (c, x0, y0, x1, y1, w0, w1 = w0, on = true) => {
+  const dx = x1 - x0, dy = y1 - y0, l2 = dx * dx + dy * dy;
+  for (let y = 0; y < c.h; y++) for (let x = 0; x < c.w; x++) {
+    const px = x + 0.5, py = y + 0.5;
+    const t = Math.max(0, Math.min(1, ((px - x0) * dx + (py - y0) * dy) / l2));
+    if (Math.hypot(px - x0 - dx * t, py - y0 - dy * t) <= (w0 + (w1 - w0) * t) / 2) aset(c, x, y, on);
+  }
+};
+const aTri = (c, ax, ay, bx, by, cx2, cy2) => { const s = (px, py, x1, y1, x2, y2) => (px - x2) * (y1 - y2) - (x1 - x2) * (py - y2);
+  for (let y = 0; y < c.h; y++) for (let x = 0; x < c.w; x++) { const px = x + 0.5, py = y + 0.5, d1 = s(px, py, ax, ay, bx, by), d2 = s(px, py, bx, by, cx2, cy2), d3 = s(px, py, cx2, cy2, ax, ay);
+    if (!((d1 < 0 || d2 < 0 || d3 < 0) && (d1 > 0 || d2 > 0 || d3 > 0))) aset(c, x, y, true); } };
+const aArrow = (c, x0, y0, x1, y1) => { // shaft + head at (x1,y1)
+  const dx = x1 - x0, dy = y1 - y0, l = Math.hypot(dx, dy), ux = dx / l, uy = dy / l, nx = -uy, ny = ux;
+  aBar(c, x0, y0, x1 - ux * 4, y1 - uy * 4, 2.4);
+  aTri(c, x1, y1, x1 - ux * 5 + nx * 3.5, y1 - uy * 5 + ny * 3.5, x1 - ux * 5 - nx * 3.5, y1 - uy * 5 - ny * 3.5);
+};
+const aDoorFrame = (c) => aHollow(c, 4, 2, 13, 20);
+const aEye = (c, cx, cy, hw) => { for (let x = -hw; x <= hw; x++) { const t = x / hw, y = Math.round(cy + (hw * 0.45) * Math.sqrt(1 - t * t)); aR(c, cx + x, y - 1, 1, 2); } [-0.7, 0, 0.7].forEach((k) => aBar(c, cx + k * hw, cy + hw * 0.45 * Math.sqrt(1 - k * k) + 1, cx + k * hw * 1.2, cy + hw * 0.45 * Math.sqrt(1 - k * k) + 3.5, 1.4)); };
+const aHandIcon = (c) => { aR(c, 8, 1, 2, 6); aR(c, 11, 0, 2, 7); aR(c, 14, 1, 2, 6); aR(c, 7, 6, 10, 4); aR(c, 5, 5, 2, 3); };
+const aDrawer = (c, dotted) => { if (!dotted) aHollow(c, 2, 12, 20, 10); else { for (let x = 2; x < 22; x++) if (x % 3 !== 2) { aR(c, x, 12, 1, 2); aR(c, x, 20, 1, 2); } for (let y = 12; y < 22; y++) if (y % 3 !== 2) { aR(c, 2, y, 2, 1); aR(c, 20, y, 2, 1); } } aR(c, 9, 16, 6, 2); };
+const aBox = (c, y0 = 10) => { aHollow(c, 3, y0, 18, 22 - y0 + 1); aR(c, 3, y0 + 3, 18, 2); };
+
+const ACT = [
+  ['open_door', (c) => { aDoorFrame(c); aTri(c, 6, 4, 6, 20, 14, 21); aTri(c, 6, 4, 14, 3, 14, 21); aR(c, 6, 4, 2, 16, false); aR(c, 6, 4, 2, 16); aR(c, 11, 12, 2, 2, false); aArrow(c, 15, 12, 23, 12); }],
+  ['close_door', (c) => { aDoorFrame(c); aR(c, 6, 4, 9, 16); aR(c, 11, 11, 2, 2, false); aArrow(c, 23, 12, 18, 12); }],
+  ['force_door', (c) => { aDoorFrame(c); aR(c, 6, 4, 9, 16, false); aR(c, 6, 4, 4, 16); aBar(c, 4, 22, 20, 5, 2.6); aBar(c, 20, 5, 23, 8, 2.6); aBar(c, 4, 22, 2, 19, 2.6); aBar(c, 16, 4, 19, 1, 1.4); aBar(c, 20, 8, 23, 5, 1.4); }],
+  ['search', (c) => { aDrawer(c, false); aHandIcon(c); aR(c, 9, 7, 6, 8, false); aR(c, 9, 7, 6, 3); aR(c, 8, 4, 2, 7); aR(c, 11, 3, 2, 7); aR(c, 14, 4, 2, 7); aR(c, 9, 9, 6, 4); aR(c, 4, 17, 0, 0); }],
+  ['dismantle', (c) => { aBar(c, 4, 20, 17, 7, 3); aR(c, 13, 2, 8, 5); aBar(c, 15, 4, 21, 10, 2.5); aBar(c, 20, 20, 8, 8, 3); aBar(c, 8, 8, 4, 4, 1.6); aDisc(c, 20, 20, 2.4); }],
+  ['drain', (c) => { aR(c, 2, 2, 14, 4); aR(c, 2, 2, 4, 10); aR(c, 14, 5, 3, 0); aR(c, 17, 1, 3, 6); aR(c, 3, 13, 2, 2); aTri(c, 13, 12, 9, 18, 17, 18); aDisc(c, 13, 18.5, 4.2); aR(c, 11, 17, 1, 2, false); }],
+  ['drink', (c) => { aBar(c, 5, 3, 8, 20, 2.2); aBar(c, 19, 3, 16, 20, 2.2); aR(c, 7, 20, 10, 2); for (let y = 11; y < 20; y++) { const k = Math.round((y - 3) * 3 / 17); aR(c, 5 + k, y, 14 - 2 * k, 1); } [[9, 14], [14, 16], [11, 18]].forEach(([x, y]) => aR(c, x, y, 2, 1, false)); }],
+  ['eat', (c) => { aR(c, 4, 2, 2, 8); aR(c, 8, 2, 2, 8); aR(c, 12, 2, 2, 8); aR(c, 4, 8, 10, 3); aR(c, 7, 11, 4, 3); aBar(c, 9, 12, 9, 22, 2.6); aDisc(c, 19, 7, 3.8); aR(c, 17, 5, 1, 1, false); aBar(c, 19, 10, 19, 22, 2.4); }],
+  ['bandage', (c) => { aBar(c, 3, 21, 21, 3, 8); aBar(c, 12, 12, 12, 12, 1, 1); aR(c, 9, 9, 6, 6, false); aR(c, 10, 10, 4, 4); aR(c, 11, 11, 2, 2, false); [[5, 17], [7, 19], [17, 5], [19, 7]].forEach(([x, y]) => aR(c, x, y, 1, 1, false)); aR(c, 11, 11, 2, 2, false); }],
+  ['talk', (c) => { aDisc(c, 6, 13, 3.4); aR(c, 2, 18, 9, 5); aDisc(c, 18, 13, 3.4); aR(c, 13, 18, 9, 5); aBar(c, 9, 6, 15, 6, 2); aBar(c, 10, 2, 14, 2, 2); aBar(c, 9, 10, 9, 10, 1, 1); }],
+  ['sleep', (c) => { aR(c, 1, 15, 22, 7); aR(c, 1, 15, 2, 1, false); aR(c, 21, 15, 2, 1, false); aEye(c, 12, 5, 8); aR(c, 5, 18, 14, 1, false); }],
+  ['nap', (c) => { aR(c, 1, 17, 14, 5); aEye(c, 8, 8, 6); aRing(c, 18, 6, 5, 2); aR(c, 17, 3, 2, 4); aR(c, 17, 6, 3, 2); }],
+  ['craft', (c) => { aR(c, 2, 13, 20, 3); aR(c, 4, 16, 3, 7); aR(c, 17, 16, 3, 7); aR(c, 7, 19, 10, 2); aR(c, 6, 2, 9, 5); aR(c, 15, 3, 3, 3); aR(c, 9, 7, 3, 6); }],
+  ['store', (c) => { aBox(c, 12); aArrow(c, 12, 0, 12, 10); }],
+  ['take', (c) => { aBox(c, 12); aArrow(c, 12, 11, 12, 1); aR(c, 11, 11, 2, 3, false); aR(c, 11, 12, 2, 3); }],
+  ['place', (c) => { aR(c, 1, 20, 22, 2); aHollow(c, 6, 8, 12, 9, 3); aArrow(c, 12, 0, 12, 7); aR(c, 11, 8, 2, 1, true); }],
+  ['cancel', (c) => { aBar(c, 4, 4, 20, 20, 3.4); aBar(c, 20, 4, 4, 20, 3.4); }],
+  ['leave', (c) => { aHollow(c, 2, 2, 11, 20); aR(c, 4, 4, 7, 16, false); aR(c, 4, 4, 3, 16); aArrow(c, 9, 12, 23, 12); }],
+  ['shove', (c) => { aR(c, 6, 7, 8, 11); aR(c, 14, 7, 6, 2); aR(c, 14, 10, 8, 2); aR(c, 14, 13, 7, 2); aR(c, 14, 16, 5, 2); aR(c, 5, 3, 7, 3); aR(c, 6, 5, 2, 3); aR(c, 8, 18, 5, 4); aR(c, 0, 8, 3, 1); aR(c, 0, 12, 4, 1); aR(c, 0, 16, 3, 1); }],
+  ['attack_fists', (c) => { aR(c, 4, 6, 15, 11); aR(c, 7, 3, 4, 3); aR(c, 11, 3, 4, 3); aR(c, 15, 4, 3, 2); [8, 12, 16].forEach((x) => aR(c, x, 12, 1, 5, false)); aR(c, 6, 17, 10, 5); aR(c, 5, 14, 5, 2, false); aR(c, 19, 8, 3, 2); aR(c, 19, 12, 3, 2); }],
+  ['attack_knife', (c) => { aBar(c, 21, 3, 10, 14, 1, 6); aBar(c, 8, 10, 14, 16, 2.6); aBar(c, 11, 13, 4, 20, 4); aDisc(c, 4, 20, 2.2); }],
+  ['attack_bat', (c) => { aBar(c, 20, 4, 5, 19, 6.4, 2.2); aDisc(c, 4.5, 19.5, 2.2); aBar(c, 6, 17, 4, 15, 0.01, 0.01, false); aR(c, 19, 2, 0, 0); }],
+  ['attack_crowbar', (c) => { aBar(c, 5, 20, 17, 7, 2.8); aBar(c, 17, 7, 21, 6, 2.8); aBar(c, 21, 6, 22, 10, 2.8); aBar(c, 5, 20, 2, 17, 2.8); aBar(c, 2, 17, 2, 14, 2.8); }],
+  ['attack_pipe', (c) => { aBar(c, 5, 19, 19, 5, 4.4); aBar(c, 15.5, 3.5, 20.5, 8.5, 2.6); aBar(c, 3.5, 15.5, 8.5, 20.5, 2.6); aBar(c, 12, 12, 12.5, 11.5, 1, 1, false); }],
+  ['throw_molotov', (c) => { aR(c, 8, 12, 9, 10); aR(c, 9, 11, 7, 1); aR(c, 10, 7, 5, 5); aR(c, 11, 5, 3, 2); aR(c, 9, 15, 7, 1, false); aTri(c, 12.5, 0, 9, 5, 16, 5); aDisc(c, 12.5, 3, 3); aR(c, 12, 2, 1, 2, false); aBar(c, 3, 4, 6, 3, 1.4); aBar(c, 3, 9, 7, 8, 1.4); aBar(c, 18, 3, 22, 4, 1.4); }],
+  ['collect', (c) => { aR(c, 3, 0, 1, 3); aR(c, 11, 0, 1, 3); aR(c, 19, 0, 1, 3); for (let y = 5; y <= 11; y++) aR(c, 4 + (y - 5) * 0.5 | 0, y, 16 - (y - 5), 1); aR(c, 10, 11, 4, 4); aHollow(c, 5, 15, 14, 8); aR(c, 6, 20, 12, 2); aR(c, 11, 15, 2, 2, false); aR(c, 11, 15, 2, 1); }],
+  ['climb_stairs', (c) => { [[2, 18], [7, 14], [12, 10], [17, 6]].forEach(([x, y]) => aR(c, x, y, 5, 22 - y + 1)); aArrow(c, 4, 11, 4, 1); }],
+  ['barricade', (c) => { aHollow(c, 4, 1, 16, 22); aBar(c, 1, 8, 23, 6, 3.4); aBar(c, 1, 17, 23, 19, 3.4); [[3, 8], [20, 6], [3, 17], [20, 19]].forEach(([x, y]) => aR(c, x, y, 1, 1, false)); }],
+  ['repair', (c) => { aBar(c, 5, 19, 16, 8, 3.6); aDisc(c, 17, 7, 5.2); aDisc(c, 17.5, 6.5, 2.4, false); aBar(c, 17.5, 6.5, 24, 0, 3.2, 3.2, false); aDisc(c, 5, 19, 2.6); aR(c, 2, 20, 0, 0); }],
+  ['search_empty', (c) => { aDrawer(c, true); aR(c, 10, 5, 4, 1); aR(c, 6, 3, 1, 1); aR(c, 17, 3, 1, 1); }],
+  ['none', (c) => aDisc(c, 12, 12, 3)],
+];
+sheet('action_icons', 24, 24, ACT, { note: 'Context-button pictograms 24x24 (display 72-96 game px), flat #bdb8ab, no outline; alpha/tint in game (search_empty/disabled use the plate disabled variant). Frame names = icon ids.' });
+
+// button_plates 40x40 frames: round dark translucent plates (art size 40/32/30/28 = 120/96/88/80 game px), centered in the frame.
+// Frames: plate_<s>, plate_<s>_pressed, plate_<s>_disabled for s in 40,32,30,28, then ring_<s> (2px ring, white-ish, tint + mask in game for the cooldown sweep).
+const PLATE = { n: { f: [16, 18, 21, 170], r: [189, 184, 171, 90], i: [189, 184, 171, 22] }, p: { f: [8, 9, 11, 225], r: [189, 184, 171, 170], i: [0, 0, 0, 90] }, d: { f: [16, 18, 21, 100], r: [189, 184, 171, 36], i: [189, 184, 171, 0] } };
+const PS = [40, 32, 30, 28];
+function plate(c, s, k) {
+  const m = PLATE[k], r = s / 2;
+  for (let y = 0; y < 40; y++) for (let x = 0; x < 40; x++) {
+    const d = Math.hypot(x + 0.5 - 20, y + 0.5 - 20);
+    if (d > r) continue;
+    c.px(x, y, d > r - 1.5 ? m.r : (d > r - 3.5 && m.i[3] ? m.i : m.f));
+  }
+}
+sheet('button_plates', 40, 40, [
+  ...PS.flatMap((s) => [[`plate_${s}`, (c) => plate(c, s, 'n')], [`plate_${s}_pressed`, (c) => plate(c, s, 'p')], [`plate_${s}_disabled`, (c) => plate(c, s, 'd')]]),
+  ...PS.map((s) => [`ring_${s}`, (c) => { for (let y = 0; y < 40; y++) for (let x = 0; x < 40; x++) { const d = Math.hypot(x + 0.5 - 20, y + 0.5 - 20); if (d <= s / 2 && d > s / 2 - 2) c.px(x, y, [222, 218, 205, 255]); } }]),
+], { note: 'Plates 40x40 frames; plate_40/32/30/28 = 120/96/88/80 game px (Main/Secondary/Attack/Quick-use) each with _pressed and _disabled; ring_<s> 2px ring for cooldown sweep (mask in game).' });
+
 // ---------- manifest ----------
 const list = Object.values(files);
 const total = list.reduce((s, f) => s + f.bytes, 0);
