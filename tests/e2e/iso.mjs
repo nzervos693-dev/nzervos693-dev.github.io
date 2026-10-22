@@ -90,7 +90,7 @@ try {
   await sleep(900);
   check(await E(() => window.__floor15.zombies.get('f15SW-z1').visible), 'a zombie in the hero\'s view is drawn');
   check(!(await E(() => window.__floor15.zombies.get('f15NE-z1').visible)), 'a zombie out of sight is not drawn');
-  await E(() => { const g = window.__floor15; const z = g.zombies.get('f15SW-z1'); z.rec.y = 19.0; z.ai.pause = 9999; g.debugGoto(3, 18); g.hero.facing = 90; });
+  await E(() => { const g = window.__floor15; const z = g.zombies.get('f15SW-z1'); z.rec.x = 3.5; z.rec.y = 19.0; z.ai.pause = 9999; z.ai.mode = 'idle'; z.ai.noticed = false; z.ai.path = null; g.debugGoto(3, 18); g.hero.facing = 90; });
   await waitTarget('f15SW-z1');
   check(await E(() => window.__floor15.slots.main?.id === 'attack' && window.__floor15.slots.secondary?.id === 'shove'), 'a zombie target shows Attack on Main and Shove on Secondary');
   await page.screenshot({ path: `${shots}/e2e-iso-target-zombie-360x800.png` });

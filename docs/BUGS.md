@@ -4,21 +4,38 @@
 
 ## Open
 
+### Context-button controls QA (commit d68d4ad, e2e build, 360x800 and 412x915, real multi-touch via CDP, 2026-10-22)
+
+### BUG-050 · The "stairs are blocked" and other bump thoughts only show when the hero does not move at all · minor
+- **Steps:** `?debug`, wait 4 s, hero at (12.5, 6.6) next to the down flight, push the stick straight into the flight (grid -y). At 360x800 the toast "The stairs are blocked." shows. At 412x915 it never shows: the pushed direction has a 1e-5 sideways part from the pixel scaling, so the hero "slides" by 0.000016 tiles per frame and `r.moved` stays true (`tests/e2e/iso-qa.mjs`, KNOWN BUG-050, 412 only). Pushing at a slight angle slides him along the flight with no thought at all.
+- **Expected:** GDD 4: pushing into a blocked flight shows the thought on the first bump.
+- **Actual:** `if (!r.moved && r.code === STICK.MOVING && this.bumpedStairs(...))` needs zero movement.
+- **Likely file:** `src/scenes/IsoGameScene.js` `updateStick` (use a displacement threshold, for example moved less than a quarter of the step, or show the thought whenever the probe tile is a stair tile and the forward component is blocked).
+
+### Context-button controls notes (not bugs)
+- Layout at both sizes: all hit circles at least 96 game px (Main 128, Attack 104, Secondary 96, Quick-use 96, top bar 96 = 48 css px at 360, 55 at 412), no overlap (closest gap 7.2 game px, Attack-Secondary), the arc's left edge (Attack 398) is right of the stick zone edge (396), Main is 66 px from the right edge, top bar and moodle column do not meet. The hero's feet always sit at x 440, y 458 of 1280 when standing (36% from the top, a little more while moving: up to 566), never under the thumbs or the top bar (checked on all 481 walkable tiles x 4 facings).
+- Target flicker: with finger tremor of +-6 to +-10 degrees every 40-60 ms the target between two neighbouring units changed at most twice in 5 s (hysteresis works). A deliberate +-15 degree swing every 100 ms between the drawer and the cupboard switched 8 times in 5 s, one switch per swing: expected.
+- Close on an open door is greyed ("Something's in the way.") while the hero's circle is within 0.3 tiles of the door edge, not only when his centre is on a door tile (GDD 4 says "centre on one of its two tiles", which would always grey it when standing beside the door). He can close from 0.35 tiles away. Sensible; the GDD wording could follow.
+- `main.js` still has `activePointers: 3`, the GDD says 2. Harmless.
+- Floor 15 has 3 zombies (2 crawlers, 1 walker); the id hash gave all three the base look, so the two crawlers look identical. Variants work: 5 walker and 2 crawler sheets exist and render, picks are even over 100 ids (17-23 per walker look, 50/50 crawler) and the same after a reload.
+- `tests/e2e/iso.mjs` combat part was flaky (about half of the runs): it moved the walker to y 19 but left its x where it had wandered, so it was outside the target cone. It now also sets x, mode and path (5/5 runs pass). That is the uncommitted edit in the tree.
+- `tests/e2e/iso-qa.mjs` edits by the programmer reviewed: fine (world takes no touches, front door targeted from 4 spots, Home pressed look and auto-walk, turn band vs creep). The stairs check now waits for the opening thought and is KNOWN BUG-050.
+
 ### Joystick controls QA (uncommitted working tree on ccd185d, e2e build, 360x800 and 412x915, real multi-touch via CDP, 2026-10-22)
 
-### BUG-047 · The hero can end up 0.15 tiles inside a wall corner after leaving a doorway sideways · minor
+### BUG-047 · The hero can end up 0.15 tiles inside a wall corner after leaving a doorway sideways · minor · FIXED (verified: the hero now stops at the wall corner)
 - **Steps:** pure logic, `stepStickMove` with the real floor 15 grid (`/tmp/.../scratchpad/rep.mjs`). The west door `f15NE-4.2.W` (open, tile (22,2)) is a doorway; wall on the west edge of (22,1). Hero at (22.15, 2.55) (standing half in the doorway) pushes straight up (0, -1) for 2 s. A fuzz of 300 random 60 s walks over floor 15 (150,000 steps) found 59 such cases (and no hero in an unwalkable tile, none through a wall, none stuck).
 - **Expected:** GDD 4: the hero is a circle of radius 0.3 against wall edges; never overlapping them.
 - **Actual:** he ends at (22.15, 1.30): 0.15 tiles (about 14 px) inside the wall line, so the sprite overlaps the jamb a little. The sideways check in `moveAxis` (`clipsSideways`) only looks at the crossing edge of the neighbouring tile, not at the wall edge that starts on the new row (west edge of (22,1)). He can always walk out again.
 - **Likely file:** `src/gameplay/isoStick.js` `clipsSideways` / `moveAxis` (also test the edge of the target row on the side the circle leans to).
 
-### BUG-048 · Walking the stick into the stairs gives no feedback · minor
+### BUG-048 · Walking the stick into the stairs gives no feedback · minor · FIXED (toast shows when the push is exact; see BUG-050)
 - **Steps:** `?debug`, hero at (12.5, 6.6) next to the down flight of the stairs, push the stick toward screen up-right (grid -y) for 1.5 s.
 - **Expected:** GDD 4/5.3: pushing into the flight shows a thought (Stage A: the stairs are blocked; taps already show "The stairs are blocked.").
 - **Actual:** the hero stops silently at the flight (no toast). The tap path still shows the toast.
 - **Likely file:** `src/scenes/IsoGameScene.js` `updateStick` (detect a bump into `world.stairs` tiles and toast with the existing cooldown).
 
-### BUG-049 · Audio files are still the generated ones, the room-tone loop is still shipped, no CREDITS.md (GDD 10 rule zero) · minor (audio-designer, not the programmer)
+### BUG-049 · Audio files are still the generated ones, the room-tone loop is still shipped, no CREDITS.md (GDD 10 rule zero) · minor (audio-designer, not the programmer) · FIXED (room tone and lamp hiss deleted, CREDITS.md exists; gust sound quality still needs a phone)
 - **Steps:** `public/assets/audio/`: `amb_room_tone.ogg` (not played any more), `lamp_hiss` loop and `amb_wind`/`amb_rain` loops are still in `manifest.json` (`loop: true`); `scripts/make-audio.mjs` still generates them; `public/assets/audio/CREDITS.md` does not exist; `balance.json` has `audio.continuousLoops: false` and `synthesizedSounds: false` but the files are synthesized.
 - **Expected:** GDD 10: everything is a real CC0/public-domain recording with a CREDITS.md line; no continuous tonal sound.
 - **Actual:** the code now plays wind and rain only as gusts (idle sample over 170 s: signal in 32% of the time, first wind gust at 37 s, rain at 78 s, then a thud, a groan and a pipe knock, nothing continuous, no loops playing between gusts). But the gust content is the old generated wind and rain loops, and they only count as a hum if the generated noise has a tonal character: needs a human ear on a phone.
@@ -356,3 +373,9 @@ Stick zone: a touch in the lower-left 55% x 55% above the bottom bar starts the 
 Doorway assist and collision: 637 in-window doorway approaches 99%; fuzz of 150,000 random stick steps on floor 15: never in an unwalkable tile, never through a wall, no jumps (the wall-corner clip is BUG-047).
 Sound: 170 s idle: no looping sound playing at the end and none between gusts; `sound.play/add` calls: wind loop at 37 s (a gust), muffled thud 71 s, rain gust 78 s, distant groan 91 s, pipe knock 140 s; RMS above -80 dBFS in 32% of the samples. The earlier zombie voice problem is fixed (0.09 behind walls, 0.44 at 3 tiles).
 Edits to the tests by the programmer: `stage1.test.js` bounds 25-70 match `audio.ambientGapSeconds` [25, 70] in balance.json and the code (fine). `iso-qa.mjs` look-drag edit is correct (moves 60 px, inside the right half) but once failed in a full run (the search had already finished before the drag; timing); it passed in 3 other runs.
+
+
+## Context-button controls QA result (Chromium 360x800 and 412x915, real multi-touch via CDP, 2026-10-22)
+Passed: `npm run build`, `npm test` (600), `npm run test:e2e` (smoke, iso, iso-qa; iso-qa at 412x915 has one KNOWN), no console errors in any script.
+Controls: the world takes no touches (taps, double taps, a drag and a 1 s press on a zombie, the hero and empty floor changed nothing: no action, walk, swing, turn, camera move; both sizes); a quick double tap in the stick zone turns 180 degrees (0 -> 180), two taps 0.6 s apart do nothing; the turn band (d 0.2) turns to 90 degrees with no step, no footstep, no noise and does not open a door, creep (d 0.3) into the door opens it; the Home first tap only presses, the second walks, the stick (even the turn band) cancels it; a turn-band push does not cancel a search, creep does before 50%; fridge target gives Search on Main and a greyed Dismantle (needs a wrench), after the search Main is the greyed empty icon ("Nothing left.") and 6 rapid Main taps start nothing and make no noise; a chair shows Dismantle on Main and 3 rapid taps start one dismantle; a zombie coming into reach steals the target from the fridge within 114 ms and shows Attack and Shove; Attack at the air costs 0.5 energy, no noise; stick held plus Attack held: the stick keeps moving the hero and swings repeat (3 in 1.5 s); Main/Secondary/Attack/Quick-use pressed while the stick is held work; iso.mjs covers shove (0.5 tiles, 2.5 s cooldown, "Not yet."), hold repeat, quick-use "Not now.", long-press picker, molotov arm and throw, doors Open/Close/Force x3 and "It's stuck.", barricade ghost Place/Cancel; Menu "Stick: Right" mirrors the arc exactly and the stick zone, Attack works there with the stick held, and it survives a reload; footsteps follow the floor (tile in kitchens and bathrooms, wood in bedrooms, concrete in the corridor), search and door sounds play, ambient is one-shots only.
+Not covered: feel of the button arc under a real thumb, outline visibility on the phone, whether a 0.25 s tap window for the double tap suits real fingers, performance.

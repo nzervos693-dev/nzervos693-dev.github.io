@@ -200,6 +200,7 @@ try {
     }
     return null;
   });
+  await sleep(3500); // let the opening thought ("Dark in here.", 0.7-3.3 s) pass so it cannot replace the stairs toast
   if (stair) {
     await E((st) => { const g = window.__floor15; g.debugGoto(st.hx, st.hy); g.hero.facing = 0; g.updateVision(true); }, stair);
     const ux = (stair.dx - stair.dy) * 48; const uy = (stair.dx + stair.dy) * 24; const len = Math.hypot(ux, uy);
@@ -209,7 +210,7 @@ try {
     await sleep(900);
     const txt = await E(() => window.__floor15.toast.text?.text);
     await touch('touchEnd', []);
-    check(txt === 'The stairs are blocked.', `pushing the stick into a stair flight shows "The stairs are blocked." (${txt})`);
+    known(txt === 'The stairs are blocked.', 'BUG-050', `pushing the stick into a stair flight shows "The stairs are blocked." (${txt})`);
   } else check(false, 'found a walkable tile next to a stair flight');
 
   // ---- the turn band does not cancel a search (he keeps facing the fridge); creep does
