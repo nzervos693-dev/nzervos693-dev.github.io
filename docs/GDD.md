@@ -198,7 +198,8 @@ from what the building already holds.
 ## 4. Touch controls
 **Floating virtual joystick to move, taps to act** (CD decision after the
 Stage A playtest: tap-to-move made the target hard to see). The left
-thumb moves; any thumb taps. No keyboard or hover, no pinch zoom (CD
+thumb moves by default (a Menu setting puts the stick on the right for
+left-handed play, below); any thumb taps. No keyboard or hover, no pinch zoom (CD
 decision, 12), no camera panning (section 2). At most **2 pointers** are
 tracked (Phaser `input.addPointer(1)`): the stick plus one tap.
 
@@ -209,6 +210,16 @@ tracked (Phaser `input.addPointer(1)`): the stick plus one tap.
   measured inside the safe area, and that does not start on UI (bottom bar
   hit areas, moodles, an open menu, panel or card), becomes the stick.
   Touches starting anywhere else are taps or Look drags (below).
+- **Stick side setting** (CD decision, open question 4): Menu (section 8)
+  has a toggle **"Stick: Left / Right"**, default **Left**
+  (`controls.joystick.sideSettingDefault`, `"left"` or `"right"`). On
+  Right, the zone is mirrored to the **lower-right** (55% of the width
+  from the right edge, same 55% height); everything else (taps, Look
+  drags outside the zone, UI exclusion, thresholds) is unchanged. The
+  choice is saved with the other settings (sound, music) as
+  `settings.joystickSide`, survives restarts and New game, and applies
+  the next time a finger touches down (a stick already held keeps its
+  side until release). A save without the key uses the default.
 - **Appears where the thumb lands**: the stick's centre is the touch-down
   point. Ring radius **120 game px** (`radiusPx`) = full deflection; the
   knob follows the finger, clamped to the ring. If the touch is closer
@@ -216,10 +227,18 @@ tracked (Phaser `input.addPointer(1)`): the stick plus one tap.
   stay on screen; the logic still uses the touch-down point.
 - **Deflection** d = finger distance from centre / `radiusPx` (0-1).
   - d below **0.15** (`deadZone`, 18 px): no movement.
-  - d **0.15-0.70**: **walk** at `hero.walkTilesPerSecond` (2.0, constant,
-    not analog). Quiet.
+  - d **0.15 to below 0.40** (`creepThreshold`, CD decision, open
+    question 6): **creep** at `hero.walkTilesPerSecond` x **0.5**
+    (`hero.creepSpeedMult`) = 1.0 tiles/s. Silent and harder to notice
+    (5.4, "Creeping"). Knob alpha **0.2** (`knobCreepAlpha`).
+  - d **0.40 to below 0.70**: **walk** at `hero.walkTilesPerSecond` (2.0,
+    constant, not analog). Quiet.
   - d **0.70 or more** (`runThreshold`): **run** at
     `hero.runTilesPerSecond` (3.4): noisy and costs energy (5.4).
+  - The three bands are discrete (no speed blending). The band is
+    re-read every frame from the current deflection, so sliding the thumb
+    in or out changes gait at once; the dead zone (0.15) has no
+    hysteresis beyond the rule above.
   - Release: the hero stops at once (no glide); he keeps his facing.
 - **Tap in the zone**: if the touch is released within **0.25 s**
   (`tapMaxSeconds`) and never left the dead zone, it is **not** a stick
@@ -257,8 +276,9 @@ tracked (Phaser `input.addPointer(1)`): the stick plus one tap.
 - **Visuals**: a **dark translucent ring** (fill `#0b0c0e` at alpha
   **0.25**, 3 px stroke `#bdb8ab` at alpha **0.2**) and a **knob** of radius
   **44 game px** (`knobRadiusPx`, fill `#bdb8ab` at alpha **0.3**). Past the
-  run threshold the knob alpha rises to **0.45** (`knobRunAlpha`), the only
-  run feedback besides the footsteps. No text, no arrows. It fades in over
+  run threshold the knob alpha rises to **0.45** (`knobRunAlpha`); in the
+  creep band it drops to **0.2** (`knobCreepAlpha`); these are the only
+  gait feedback besides the footsteps. No text, no arrows. It fades in over
   **0.1 s** on touch-down and fades out over **0.3 s** on release
   (`fadeSeconds`); when idle nothing is drawn. Colours and alphas are in
   `controls.joystick.visual`.
@@ -732,7 +752,12 @@ usually wiser.
     walking hero is never noticed by sight from behind or beside, and
     fists reach 1.5 tiles: he can always strike first), within **1.5
     tiles** while he runs (`behindRunTiles`; run noise usually wakes it
-    sooner anyway). Light does not change these.
+    sooner anyway), within **0.5 tiles** while he creeps
+    (`behindCreepTiles`). Light does not change these.
+  - **Creeping** also shortens the in-cone range: x**0.75**
+    (`creepFrontMult`; Lit 5 -> 3.75, Grey 4 -> 3, Dim 2.5 -> 1.9, Dark
+    1.5 -> 1.1 tiles). The gait used is the hero's gait on the frame the
+    check runs; standing still counts as walking (no bonus).
   - **Facing rules**: a walking zombie faces its step direction. A paused
     idle zombie turns every **4-8 s** (random, `idleTurnSeconds`): 90
     degrees left (40%), 90 degrees right (40%) or 180 degrees (20%)
@@ -754,11 +779,29 @@ usually wiser.
   silent. A zombie that heard a noise walks to the noise tile (pathing,
   bashing closed doors in the way for up to 10 s, 5.18) and looks around;
   it aggroes only if it then sees the hero.
+- **Creeping** (CD decision, joystick light push, section 4): below
+  **0.40** deflection (`controls.joystick.creepThreshold`) the hero moves
+  at **0.5x** walk speed (`hero.creepSpeedMult`, 1.0 tiles/s).
+  - **Hearing**: creeping makes **no** hearing noise
+    (`hero.creepNoiseRadiusTiles` 0, same as walking,
+    `hero.walkNoiseRadiusTiles` 0). Creeping into a closed door opens it
+    quietly as when walking (never a burst).
+  - **Sight**: behind/beside radius **0.5 tiles** instead of 0.9, and
+    in-cone range x**0.75** (zombie sight above).
+  - **Footstep sound** (audio only, the player's feedback): volume x**0.4**
+    (`audio.footstepCreepVolumeMult`) of the walk footstep, one step every
+    **0.6 s** (`audio.footstepCreepIntervalSeconds`; walk 0.4 s,
+    `audio.footstepWalkIntervalSeconds`).
+  - Costs no energy. Tired L3+ speed penalty applies on top. Auto-walks
+    never creep (they walk). Stairs take the normal stair time.
 - **Stealth target (QA)**: walking up behind an idle walker and hitting
   first succeeds in at least 4 of 5 tries when the hero starts outside its
-  cone.
+  cone. Creeping: a creeping hero can pass a Grey-lit idle walker's cone
+  edge at 3.5 tiles without being noticed in 5 of 5 tries (walking at 3.5
+  tiles is noticed).
 - **Running** (CD decision, joystick version): pushing the stick past
-  **70%** of its radius runs (section 4); less is a quiet walk. Auto-walks
+  **70%** of its radius runs (section 4); 40-70% is a quiet walk, below
+  40% a creep (above). Auto-walks
   never run. Running costs **0.2 energy per second** of running
   (`hero.runEnergyPerSecond`; the full corridor costs about 1.8). The
   Tired L3+ speed penalty applies to running too. At energy below **5**
@@ -2064,7 +2107,8 @@ dark room, not as game buttons.
 6. **Inventory**: carry slots and the stash of the claimed apartment the
    hero is in (a tab per claimed apartment; only the current one is
    usable, others are read-only "Floor 14, north-east").
-7. **Menu**: day N (the only place it is shown), sound, music, notes read,
+7. **Menu**: day N (the only place it is shown), sound, music, stick
+   Left/Right (section 4, default Left), notes read,
    replay ending (once unlocked), resume. Pausing does not stop real time.
 8. **Pass the torch** -> pick survivor -> play.
 9. **Game over** -> stats -> New game.
@@ -2202,8 +2246,11 @@ want natural sounds, nothing that reminds of an arcade game."
 - **Music**: sparse, sad and **acoustic**: real-instrument recordings only
   (solo piano, cello, acoustic guitar, CC0/PD), **20-60 s** pieces, never
   during danger, never looping. Plays at most once per **15-25 min**
-  (`audio.musicCooldownMinutes`, rarer than before) and only on moments:
-  first claim, after an attack ends, a survivor joins. **3 pieces** in M2,
+  (`audio.musicCooldownMinutes`, rarer than before; CD confirmed, open
+  question 5) and only on quiet moments: first claim, after an attack
+  ends, a survivor joins. A moment is quiet only if no zombie on the
+  hero's floor is aggroed and no attack cue is running; otherwise the
+  moment is skipped (not queued) and the cooldown is not spent. **3 pieces** in M2,
   plus the ending cue (M5). Volume **0.5** (`audio.musicVolume`). No tense
   attack loop, no stingers. If no suitable CC0/PD acoustic piece is found
   for a moment, that moment gets silence (not a substitute synth piece).
@@ -2528,7 +2575,8 @@ screen, seeing more than one floor at a time.
   closes them automatically.
 - Tap on the hero turns him around; a drag outside the stick zone looks
   (both silent). Hold-to-look was dropped with the joystick.
-- Joystick details (CD may revisit): constant walk speed (not analog),
+- Joystick details (CD may revisit): three discrete gaits, creep / walk
+  / run (not analog; creep added by CD decision below),
   free-angle movement with wall sliding and a doorway assist, pushing into
   a closed door for 0.2 s opens it, a second finger can only attack an
   in-range zombie while moving, empty-floor taps show no marker.
@@ -2545,6 +2593,16 @@ screen, seeing more than one floor at a time.
 - **Playing with the sound off**: a faint dark **sound ripple** at the edge
   of the vision area toward Noisy/Loud unseen sounds within hearing range,
   always on (not a setting), no icons (5.17, `vision.soundRipple.*`).
+- **Left-handed players** (was open question 4): the stick zone is
+  lower-left by default; a Menu setting "Stick: Left / Right" mirrors it
+  to the lower-right, saved with the other settings (section 4,
+  `controls.joystick.sideSettingDefault`).
+- **Music** (was open question 5): keep the **3 rare, short acoustic
+  pieces**, at most once per 15-25 min, only at quiet moments (section 10).
+- **Creep** (was open question 6): a light push (below 40% of the stick
+  radius, `controls.joystick.creepThreshold`) creeps at 0.5x walk speed,
+  silently and harder to see (behind/beside sight 0.5 tiles, cone range
+  x0.75); 40-70% walks; 70%+ runs (sections 4 and 5.4).
 
 ### Open questions
 1. **Backstory names** ("grey fever", "river docks" group): keep, rename,
@@ -2555,13 +2613,7 @@ screen, seeing more than one floor at a time.
    (a) keep crowbar-only (current); (b) also open by hand in 8 s, Loud;
    (c) cap a storage room at 3 cages so it feels less like a wall of locks.
    (older)
-4. **Left-handed players** (joystick, check at next playtest): (a) stick
-   zone lower-left only (current); (b) a Menu setting "Stick on the right"
-   that mirrors the zone; (c) the stick appears on whichever lower half
-   the thumb lands, and Look is only possible in the upper half.
-5. **Music after the audio change**: (a) keep 3 rare acoustic pieces
-   (current); (b) no music at all, only the building's sounds; (c) one
-   piece only, for the ending (M5).
-6. **Walk speed with the stick**: (a) constant walk below 70% (current);
-   (b) analog: speed scales from 50% at the dead zone to full walk at
-   70%, letting you creep slowly (quieter? would need a stealth rule).
+4. ~~Left-handed players~~: Decided (above).
+5. ~~Music after the audio change~~: Decided (above).
+6. ~~Walk speed with the stick~~: Decided, creep band (above). Check at
+   playtest whether the 0.40 creep band feels too wide or too narrow.
