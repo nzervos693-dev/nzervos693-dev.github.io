@@ -2334,7 +2334,9 @@ setting; CD decision, 12) (`vision.soundRipple.*`):
   noise (`doors.noiseBangSeconds`); then it gives up and returns. Door
   damage is not repaired in M2 and is shown in 3 stages by HP ratio
   (intact above 0.66, splintered above 0.33, hanging above 0;
-  `doors.visualStages`), never as numbers.
+  `doors.visualStages`), never as numbers. **From Stage C2** doors use the
+  4 structure damage stages instead (`structures.damageStages`, 5.20) and
+  HQ doors can be repaired.
 - **Front doors**: closed at New game; a targeted jammed one shows Main
   **Open** ("It's stuck.") and Secondary **Force** (3 hits, or 1 s with a
   crowbar, 5.3; Attack also hits it). A claimed unit's
@@ -2405,18 +2407,24 @@ grid. Outer walls and the stairwell stay solid. Keys `hq.*`, `build.*`,
 - Each edge holds at most one **piece** (wall, door, window, or nothing =
   **gap**) and at most one **overlay** (boards, plating, barricade; 5.20).
   A piece has a type, a **tier** and HP.
-- **HQ perimeter** (`hq.perimeterEdges`): the edges between the landing
-  and the rest of floor 15: landing/corridor x 12-17 at y = 10 (6 edges,
-  incl. the 2-edge **gate** at x 14-15, `hq.gateEdges`), landing/NW unit
-  at x = 12, y 6-9 (4 edges), landing/NE unit at x = 18, y 6-9 (4 edges).
-  The 12 non-gate perimeter edges start as block walls; the gate starts as
-  a gap with the propped fire door frame (cosmetic, never closes).
+- **HQ perimeter** (`hq.perimeterEdges`): every edge between a stairwell
+  tile and a **walkable** non-stairwell tile of floor 15. On the authored
+  floor 15 (`floors_iso.json`) that is **10 edges**: landing/corridor
+  x 12-17 at y = 10 (6 edges, incl. the 2-edge **gate** at x 14-15,
+  `hq.gateEdges`) and landing/NW unit at x = 12, y 6-9 (4 edges). The
+  landing's east side (x = 18, y 6-9) faces a **void** column (x = 18,
+  y 0-9; the NE unit starts at x = 19), so those edges are **void edges**,
+  not perimeter: treated like shaft edges (no target, never built on,
+  never broken; nothing can stand on the far side). Stage C's generator
+  derives the list with the same rule. The **8 non-gate** perimeter edges
+  start as block walls; the gate starts as a gap with the propped fire
+  door frame (cosmetic, never closes).
 
 | Edge kind | Player demolishes | Player builds / upgrades / overlays | Zombies can break |
 |---|---|---|---|
 | exterior | never | overlays on exterior windows only | never before M4 (climbers) |
-| shaft | never | never | never |
-| perimeter, non-gate (12) | never: "Load-bearing. Leave it." | upgrade to block (already block), plating, repair | yes |
+| shaft, void (edge onto a void tile) | never | never | never |
+| perimeter, non-gate (8) | never: "Load-bearing. Leave it." | repair, plating; if broken to a gap: **rebuild** a wood wall, then upgrade it back up to block. Never a door or window. | yes |
 | gate (2) | yes | anything | yes |
 | block, partition, built pieces, doors, gaps | yes (sledgehammer) | **inside HQ only** | yes |
 
@@ -2455,7 +2463,12 @@ touch-interactive)
 - **Main** (first rule that applies, icon = the action; greyed reasons as
   toasts):
   1. Piece or overlay below full HP -> **Repair** (overlay first).
-  2. Gap + selected **wall** -> **Build** wood wall. Gap + door/window ->
+  2. Gap + selected **wall** -> **Build** wood wall. This includes a
+     **broken perimeter edge** (a zombie breach, online or offline, leaves
+     a gap): rebuilding it counts as reinforcing, so the CD's
+     reinforce-only rule (H3) allows it; normal wood wall cost, time and
+     tools, then Upgrade (rule 3) to sheet metal and block. The edge stays
+     a perimeter edge (no demolish, no fit). Gap + door/window ->
      greyed "Needs a wall first." Gap + overlay -> greyed "Nothing to
      cover."
   3. Wall + selected **wall** -> **Upgrade** to the next wall tier (5.20);
@@ -2464,7 +2477,9 @@ touch-interactive)
      replaces the wall with a wood door / glass window; returns **50%** of
      the wall tier's build cost rounded down (`build.fitRefundRatio`;
      generated walls: partition nothing, block 2 concrete blocks). Needs
-     hammer **and** sledgehammer. Not on perimeter walls ("Load-bearing.
+     hammer **and** sledgehammer; uses **1 sledgehammer use**
+     (`build.sledgehammerUsesPerFit`; cutting the opening is part
+     demolition) and never wears the hammer. Not on perimeter walls ("Load-bearing.
      Leave it.").
   5. Door + selected **door** -> **Upgrade** the door tier.
   6. Piece + selected overlay that fits it (5.20) and no overlay yet ->
@@ -2499,7 +2514,9 @@ touch-interactive)
 
 **Demolition**
 - **Tools**: the **sledgehammer** demolishes anything demolishable, 1 use
-  each of **30** (`build.sledgehammerUses`). The **fire axe** demolishes
+  each of **30** (`build.sledgehammerUses`, `sledgehammerUsesPerDemolish`
+  1); fitting a door or window also costs 1 use (rule 4 above). Build,
+  upgrade and repair cost no uses. The use is spent at completion. The **fire axe** demolishes
   partition walls, wood walls, doors, windows and boards only, at **x1.5**
   time and **5** weapon durability each (`build.fireAxe*`). The crowbar
   still dismantles interior doors (5.6) but not walls.
@@ -2532,8 +2549,13 @@ touch-interactive)
   already re-bakes on object changes); new art: wall tiers, door tiers,
   glass window, boards, plating, broken stub (section 9 style).
 
-**Save** (save version bump at Stage C2; older saves reset with "The
-building has changed.")
+**Save** (**no reset at Stage C2**: the floor 15 layout is unchanged and
+the new fields are additive, so Stage A saves keep working. A save without
+them loads with `edges` empty for every floor, `hq` `{ claimed: false }`,
+`build.selectedPiece` "wall"; if floor 15 is already Cleared on load the
+"This whole floor could be mine." thought fires once and Claim the floor
+is offered. Only a change to the authored layout or an incompatible
+field forces the "The building has changed." reset.)
 - Per floor `edges`: an override map holding **only edges that differ from
   the generated layout**, keyed canonically as the **N or W edge of a
   tile**: `"<x>.<y>.N"` (between (x, y-1) and (x, y)) or `"<x>.<y>.W"`
@@ -2597,9 +2619,17 @@ overlay before the piece; both HPs count in path cost)
   HP, `barricade.repairHpPerWood`).
 - **Repair** (build mode Main, rule 1): **2 s**, Noisy, restores the HP of
   one unit of the repair material (table), up to full; each tap is one
-  unit. Damage is shown only by sprite stages (`doors.visualStages` for
-  doors, `barricade.visualStages` for walls, windows and overlays), never
-  numbers.
+  unit. Damage is shown only by sprite stages, never numbers.
+- **Damage stages** (from C2; `structures.damageStages` 0.75 / 0.5 /
+  0.25): every edge piece and overlay with a structures tier (walls of
+  all tiers, **all doors** incl. generated interior/front doors, glass
+  windows, boards, plating, HQ barricades) uses 4 stages by HP ratio:
+  **0** undamaged above 0.75; **1** at or below 0.75; **2** at or below
+  0.5; **3** at or below 0.25 (art `dmg_*_1..3`). At **0 HP** it is not a
+  stage: the piece becomes a gap with the broken stub (window: broken
+  window). This replaces `doors.visualStages` (2 damaged stages, Stage A)
+  for doors; the workbench front-door barricade outside HQ keeps
+  `barricade.visualStages` (5.10).
 
 **Traps** (Stage C3; workbench recipes with build spot `hq_floor`: any
 free floor tile inside HQ **or on floor 15's landing**, normal placement
@@ -3000,7 +3030,9 @@ icon, no sound. Thoughts and flavour lines use the same position.
     per floor. Target 60 fps, never below 30 on a mid-range phone.
 - **Burned units**: soot-black walls, charred shapes, broken windows.
   **Ransacked**: open drawers, papers and clothes on the floor.
-- Barricade and doors: 5 / 3 damage stages, splinters on hits.
+- Barricade and doors: 5 / 3 damage stages, splinters on hits. From C2
+  all structure pieces incl. doors: undamaged + 3 damage stages
+  (`dmg_*_1..3`, 5.20).
 - Fire: 3-frame flame loop (molotov). Blood is limited to dark hit
   splashes, floor stains and drips (5.4); no dismemberment or body parts;
   corpses slump and fade.
@@ -3332,7 +3364,7 @@ versions itself, all on floor 15 only; B and C later extend them):
 | Stage | Content | Must-haves | Done when (CD playtest checks) |
 |---|---|---|---|
 | **A. Iso engine, one floor** | Iso renderer with cutaway and fade; camera; grid movement and all touch gestures; vision (cone, close circle, LOS, memory, vignette, soft edges); base room light (grey/dim/dark, no lamps yet); doors (open/close, sight, zombie banging); **floor 15 only**, authored by level-designer from blueprints (start flat + 3 apartments + small unit), with ~25 of the existing objects, search/dismantle/drain and crafting working; 3-5 zombies with 8 facings, sight cones, hearing, door banging; combat with tile ranges and hit FX; muffled positional zombie sounds; save v2. Stairs show "The stairs are blocked." Attacks, tutorial and Mara are off. | 1, 2, 3, 4, 10, 15 (+ parts of 5, 7, 12, 13) | Moving, looking and tapping objects work one-thumbed (the right menu opens on 9 of 10 taps on any Visible object); it feels **claustrophobic but readable**: you can't see round corners, a closed door hides what's behind it, a zombie heard behind a door is scary; walls never hide the hero or a zombie in his view; 30+ fps on the CD's phone. |
-| **C2. Headquarters (next, 2nd)** | Minimal attacks and offline resolve on floor 15 (above); HQ claim of floor 15 (5.19); edge model and save overrides; build mode (Build top-bar icon, edge cursor, piece selector, Main/Secondary rules, seal warning); hammer, sledgehammer recipes and loot; demolition on floor 15 with yields (any floor once B lands); wall tiers wood / sheet metal / block, door tiers, glass windows, boards, plating, barricades on any HQ door, repair; sheet metal recipe and chance yields; concrete blocks; rooms/vision/pathing/re-bake on change; HQ attacks: structure path costs, slots, entries by day, heart, online breach, offline path defense (5.20). New art: tier sprites, overlays, broken stub, Build icon, piece icons. Save version bumped. | 17, 18, 19 | Merge the start flat with the neighbour by knocking out the wall; wall off the corridor and fit a door; the first attacks hit the weakest spot you left, and by day 3 two places at once; nothing on screen needs text to understand; 30+ fps after 20 edge changes. |
+| **C2. Headquarters (next, 2nd)** | Minimal attacks and offline resolve on floor 15 (above); HQ claim of floor 15 (5.19); edge model and save overrides; build mode (Build top-bar icon, edge cursor, piece selector, Main/Secondary rules, seal warning); hammer, sledgehammer recipes and loot; demolition on floor 15 with yields (any floor once B lands); wall tiers wood / sheet metal / block, door tiers, glass windows, boards, plating, barricades on any HQ door, repair; sheet metal recipe and chance yields; concrete blocks; rooms/vision/pathing/re-bake on change; HQ attacks: structure path costs, slots, entries by day, heart, online breach, offline path defense (5.20). New art: tier sprites, overlays, broken stub, Build icon, piece icons. Save fields added with defaults; Stage A saves keep working (no reset, 5.19). | 17, 18, 19 | Merge the start flat with the neighbour by knocking out the wall; wall off the corridor and fit a door; the first attacks hit the weakest spot you left, and by day 3 two places at once; nothing on screen needs text to understand; 30+ fps after 20 edge changes. |
 | **B. The five floors (3rd)** | Floors 13-17 as authored data (`floors_iso.json`, 5.15) with all 30 objects; stairs between floors with the fade; attackers now physically come up from floor 14 (C2's landing spawn stays the arrival tile); Mara and her quest; wanderers (they can un-Clear floor 15 before the HQ claim, never undo it after); throwables in tiles; tutorial ported (door step, turn step, no arrows), placed before the HQ claim is offered; offline catch-up and report extended to all five floors; demolition on all floors; iso art for all props. Home = start flat, or the HQ once claimed. | 5, 7, 9, 12, 13, (14 tutorial) | A full session: wake, tutorial, scout two floors, fight, come home for the first attack; floors 13 and 17 feel fair (5.4 encounter targets); attackers are heard on the stairs before they are seen. |
 | **C. Generator and homes (4th)** | Seeded generator on blueprints and templates (mirroring, conditions, fill rules, doors, zombies, guarantees, saved layout), keeping floor 15's HQ edge overrides; `blueprints.json` with 2+ per template; claiming, stashes, build spots, beds, main home by sleeping, Workbench recipe, barricade per claimed door, attacks target the main home (HQ or another claim), Leave this place. Save version bumped (older saves reset). | 6, 8 | Two New games give clearly different floors that still look designed; every floor has food and water; a claimed flat on floor 14 becomes the main home and gets attacked. |
 | **C3. Traps and guns (5th)** | Spike strip and alarm lure (5.20); pistol and shotgun, ammo items and loot rules, pistol guarantee, gunshot noise with adjacent-floor responders, attack bonus, auto reload, empty-gun club, weapon quick-use swap; crowbar, hammer, sledgehammer, fire axe as weapons; gunshot SFX (CC0). | 20, 21 | A lure behind spike strips kills walkers without a fight; finding the pistol feels like a big moment and firing it feels like a mistake you sometimes have to make (zombies come up from the next floor). |
@@ -3356,8 +3388,10 @@ Stage rules:
   5.4). **Before Stage B** only floor 15 exists (C2 rules above).
 - **Exterior windows** of floor 15 are never attacked until the M4
   climbers (5.20, H1 decided).
-- Any change of save format inside M2 bumps the save version; an older
-  save is deleted on launch with the one line "The building has changed."
+- Any incompatible change of save format inside M2 bumps the save
+  version; an older save is deleted on launch with the one line "The
+  building has changed." Additive fields with defaults (as in C2, 5.19)
+  are not a format change: old saves keep working.
 
 **Stage 1 playtest result (CD)**: the tower feels creepier, "better"; the
 attack cue works as is (no change); floors 13 and 17 are fair (encounter
@@ -3477,14 +3511,15 @@ screen, seeing more than one floor at a time.
 - **H2 Guns**: pistol + shotgun in M2 (Stage C3), hunting rifle in M3 on
   deeper floors (5.21).
 - **H3 Landing walls**: reinforce-only, as written: the player can't
-  demolish or fit doors/windows in the 12 landing edges, only upgrade and
+  demolish or fit doors/windows in the 8 non-gate landing edges (corrected
+  from 12: the landing's east side faces a void column, 5.19), only upgrade and
   plate them; zombies can break them; the 2-edge gate is free to build on.
 
 ### Decided by game-designer for the HQ direction (CD may revisit at playtest)
 - HQ trigger: floor 15 Cleared, then Claim the floor at the stairwell fire
   door (5 s); HQ = all floor 15 units + corridor, counts as 1 claim and as
   Secured; one stash pool; heart = the bed last slept in.
-- Landing walls (12 perimeter edges) can't be demolished or fitted by the
+- Landing walls (8 non-gate perimeter edges) can't be demolished or fitted by the
   player, only upgraded/plated; the 2-edge gate is free to build on.
   Zombies can break any perimeter edge (H3, CD confirmed above).
 - Build mode via a 6th top-bar icon; the edge cursor is the side of the

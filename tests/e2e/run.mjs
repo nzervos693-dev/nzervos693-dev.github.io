@@ -2,7 +2,7 @@
 import { spawnSync } from 'node:child_process';
 
 // combat.mjs, craft.mjs and story.mjs drove the retired side-view GameScene (scene key "Game") and are no longer run
-const scripts = ['smoke', 'iso', 'iso-qa'];
+const scripts = ['smoke', 'iso', 'iso-qa', 'iso-hq'];
 const results = scripts.map((n) => {
   console.log(`\n=== e2e: ${n} ===`);
   const r = spawnSync('node', [`tests/e2e/${n}.mjs`], { stdio: 'inherit' });

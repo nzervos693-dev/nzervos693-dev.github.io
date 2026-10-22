@@ -9,6 +9,8 @@
  *   zombies    { id, type, floor, x, y, homeX, homeY, hp, dead, facing }
  *   doors      { [doorId]: { state, hp, hits, barricade } }
  *   seen       { [floor]: 'WxH:base64' } vision memory
+ *   edges      { [floor]: { 'x.y.N|W': override } } built / demolished edges (isoStructures)
+ *   hq         { claimed, claimedAt } (isoHq)
  *   piles      { id, floor, x, y, items } on a tile
  */
 import { createSlots, normalizeSlots } from './inventory.js';
@@ -17,7 +19,7 @@ import { makeZombie } from './zombies.js';
 
 /** Marker for the isometric world. Bump when the iso save shape changes. */
 export const ISO_WORLD = 'iso-1';
-export const ISO_STATE_VERSION = 2;
+export const ISO_STATE_VERSION = 3; // 3: C2 edges / hq / build.selectedPiece (missing keys default, old v2 saves load)
 /** The one line shown when an older save is dropped. */
 export const STALE_SAVE_LINE = 'The building has changed.';
 
@@ -66,7 +68,7 @@ export function createIsoState(balance, floor, nowMs) {
     story: { tutorial: 'skipped', walked: true, doorOpened: true }, // Stage A: no tutorial (GDD 11.3)
     attacks: { scriptedDone: true, nextAt: null, kind: 'scripted', current: null }, // no attacks in Stage A
     flags: {}, stats: { objectsSalvaged: 0, zombiesKilled: 0 }, counters: { pile: 0, wander: 0 },
-    seen: {}, thoughts: { darkInHere: false },
+    seen: {}, edges: {}, hq: { claimed: false, claimedAt: null }, thoughts: { darkInHere: false },
     times: { startedAt: nowMs, lastTickAt: nowMs },
   };
   return normalizeIsoState(state, balance, floor, nowMs);
@@ -116,7 +118,10 @@ export function normalizeIsoState(raw, balance, floor, nowMs) {
   const b = s.build && typeof s.build === 'object' ? s.build : {};
   const bc = b.barricade || {};
   const lv = balance.barricade.levels.find((l) => l.level === bc.level);
-  s.build = { ...b, spots: b.spots || {}, barricade: lv ? { level: lv.level, hp: Math.max(0, Math.min(lv.hp, Number.isFinite(bc.hp) ? bc.hp : 0)) } : { level: 0, hp: 0 }, breachLatched: !!b.breachLatched };
+  s.edges = s.edges && typeof s.edges === 'object' ? s.edges : {};
+  s.hq = { claimed: !!s.hq?.claimed, claimedAt: s.hq?.claimed && Number.isFinite(s.hq.claimedAt) ? s.hq.claimedAt : null };
+  const piece = balance.build?.pieces?.includes(b.selectedPiece) ? b.selectedPiece : balance.build?.defaultPiece ?? 'wall';
+  s.build = { ...b, selectedPiece: piece, spots: b.spots || {}, barricade: lv ? { level: lv.level, hp: Math.max(0, Math.min(lv.hp, Number.isFinite(bc.hp) ? bc.hp : 0)) } : { level: 0, hp: 0 }, breachLatched: !!b.breachLatched };
   // zombies: authored ones keep their record, new ones are created, removed ones are dropped
   const zs = s.zombies && typeof s.zombies === 'object' ? s.zombies : {};
   const wanted = new Set();

@@ -6,6 +6,7 @@ import { getSave, writeSave } from '../core/save.js';
 import { now, elapsedInfo } from '../core/clock.js';
 import { lifecycle } from '../core/lifecycle.js';
 import { loadIsoFloor } from '../iso/loader.js';
+import { restoreStructures, snapshotStructures } from '../gameplay/isoHq.js';
 import { isoConfig, depthKey, LAYER, angleDiff, normalizeAngle } from '../iso/projection.js';
 import { VisionMap, visionConfig, coneAngle, viewRange, soundRipple } from '../iso/vision.js';
 import { IsoCamera, cameraConfig, floorBounds } from '../iso/camera.js';
@@ -29,7 +30,7 @@ import { BARRICADE_WORDS, barricadeStage, barricadeMaxHp, latchBreach } from '..
 import { EMPTY_LINES } from '../gameplay/storyText.js';
 import { catchUp } from '../gameplay/offline.js';
 import { heroCtx, objState, takeFromPile } from '../gameplay/gameState.js';
-import { moveAll, addItem } from '../gameplay/inventory.js';
+import { moveAll, addItem, maxUses } from '../gameplay/inventory.js';
 import {
   heroWeapon, equipSlot, unequip, isEquipped, isEquippable, damageHero, swingDamage, spendSwingEnergy, spendWeaponUse,
 } from '../gameplay/combat.js';
@@ -126,6 +127,7 @@ export default class IsoGameScene extends Phaser.Scene {
     if (fresh) state = createIsoState(balance, this.world, t0);
     this.state = state;
     save.game = state;
+    restoreStructures(state, this.world, balance); // built / demolished edges first, then door states
     applyDoorsToGrid(state, this.world);
     this.hero = state.hero;
 
@@ -303,6 +305,7 @@ export default class IsoGameScene extends Phaser.Scene {
     this.events.once('shutdown', () => {
       this.soundscape.stopAll();
       this.targeting?.destroy();
+      this.view?.destroy();
       this.bus.removeAllListeners();
       this.game.events.off('floor15:hide', onHide);
       lifecycle.off('resume', onResume);
@@ -1365,7 +1368,7 @@ export default class IsoGameScene extends Phaser.Scene {
     const e = itemEffect(slot.id, balance, heroCtx(this.state, balance));
     let words;
     if (e) words = itemWords(e);
-    else if (slot.uses != null) words = wearWord(slot.uses, balance.salvage.toolUses);
+    else if (slot.uses != null) words = wearWord(slot.uses, maxUses(slot.id, balance) ?? balance.salvage.toolUses);
     else words = it.type === 'material' ? 'Crafting material.' : '';
     const home = this.inHome();
     if (it.type === 'weapon' && isEquippable(slot, balance)) {
@@ -1551,6 +1554,7 @@ export default class IsoGameScene extends Phaser.Scene {
 
   save() {
     snapshotDoors(this.state, this.world);
+    snapshotStructures(this.state, this.world);
     this.state.seen[FLOOR] = this.vision.serialize();
     writeSave();
   }

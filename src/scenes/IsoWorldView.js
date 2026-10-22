@@ -15,6 +15,7 @@ import { frameOf, hasFrame } from './art.js';
 import { LAYER, depthKey, wallDepthKey, footprintDepthKey } from '../iso/projection.js';
 import { FLOOR_BY_TYPE, FINISH_BY_TYPE } from '../iso/loader.js';
 import { VIS } from '../iso/vision.js';
+import { PIECE, edgeTiles } from '../gameplay/isoStructures.js';
 import {
   tileBrightness, tintOf, shade, activeRooms, wallIsCut, doorFrameName, barricadeArtStage, propOrientation,
 } from '../gameplay/isoView.js';
@@ -67,6 +68,8 @@ export default class IsoWorldView {
     this.lastRevision = -1;
     this.buildFloors();
     this.buildWalls();
+    this.wallsStale = false;
+    this.unsubStructures = this.floor.structures?.onChange(() => { this.wallsStale = true; });
     this.buildProps();
     this.buildStairs();
     this.buildStencil();
@@ -112,15 +115,72 @@ export default class IsoWorldView {
     const f = this.floor;
     if (w.kind === 'window') return `wall_${w.axis}_${h}_window`;
     if (w.kind === 'elevator') return `door_${w.axis}_${h}_closed`;
+    if ((w.tier === 'wood' || w.tier === 'sheet_metal') && hasFrame('iso_walls', `wall_${w.axis}_${h}_${w.tier}`)) return `wall_${w.axis}_${h}_${w.tier}`;
     let ri = w.roomB >= 0 ? w.roomB : w.roomA;
     let finish = FINISH_BY_TYPE[f.rooms[ri].type] ?? 'plaster';
     if (w.roomB < 0 || w.roomA < 0) finish = w.roomB < 0 ? 'concrete' : finish;
     return `wall_${w.axis}_${h}_${finish}`;
   }
 
+  /**
+   * The wall / door / window layer as draw records, derived from the grid + structure model (so built and
+   * demolished edges show). Rooms stay the generated ones (cutaway uses them); the elevator door is static.
+   */
+  wallRecords() {
+    const f = this.floor;
+    const st = f.structures;
+    if (!st) return f.walls;
+    const out = f.walls.filter((w) => w.kind === 'elevator');
+    const elevator = new Set(out.map((w) => f.grid.edgeId(w.x, w.y, w.side))); // drawn as the dead elevator door, not as walls
+    const curtains = new Map(f.windows.map((wn) => [wn.eid, wn.curtains]));
+    for (const rec of st.recs.values()) {
+      if (elevator.has(rec.eid)) continue;
+      const [a, b] = edgeTiles(rec);
+      const kind = rec.piece === PIECE.DOOR ? 'door' : rec.piece === PIECE.WINDOW ? 'window' : 'wall';
+      out.push({
+        x: rec.x, y: rec.y, side: rec.side, axis: rec.side === 'N' ? 'x' : 'y', a, b, roomA: f.roomAt(a.x, a.y), roomB: f.roomAt(b.x, b.y),
+        kind, tier: rec.tier, doorId: rec.door?.id, curtains: !!curtains.get(rec.eid),
+      });
+    }
+    return out;
+  }
+
+  /** Destroy the wall layer and draw it again from the current structures (after a build / demolish). */
+  rebuildWalls() {
+    const dead = new Set();
+    const occ = new Map(this.walls.filter((r) => r.occ).map((r) => [`${r.w.x}.${r.w.y}.${r.w.side}`, true]));
+    for (const rec of this.walls) {
+      for (const sp of [rec.full, rec.stub, rec.bar]) sp?.destroy();
+      dead.add(rec.entry);
+    }
+    this.entries = this.entries.filter((e) => !dead.has(e) && !e.curtain);
+    this.walls = [];
+    this.doors = new Map();
+    this.ghostId = null;
+    this.buildWalls();
+    this.wallsStale = false;
+    for (const r of this.walls) r.occ = !!occ.get(`${r.w.x}.${r.w.y}.${r.w.side}`);
+    if (this.lastHeroTile) this.onVision(this.lastHeroTile);
+    for (const r of this.walls) { // snap: new sprites must not fade in from fully opaque (cut walls would flash)
+      this.setWallTargets(r);
+      r.fullA = r.fullT;
+      r.stubA = r.stubT;
+    }
+    this.dirty = true;
+  }
+
+  /** Stop listening to structure changes (scene shutdown). */
+  destroy() {
+    this.unsubStructures?.();
+    this.unsubStructures = null;
+  }
+
   buildWalls() {
     const f = this.floor;
-    for (const w of f.walls) {
+    if (!this.curtainSprites) this.curtainSprites = [];
+    for (const s of this.curtainSprites) s.destroy();
+    this.curtainSprites = [];
+    for (const w of this.wallRecords()) {
       const vx = (w.x - w.y) * 48;
       const vy = (w.x + w.y) * 24;
       const px = w.axis === 'x' ? vx : vx - 48;
@@ -175,7 +235,8 @@ export default class IsoWorldView {
     const flip = false;
     const name = w.axis === 'x' ? 'curtains_a' : 'curtains_b';
     const im = this.img('iso_props', name, (t.x - t.y) * 48, (t.x + t.y + 1) * 24, PROP_ORIGIN[0], PROP_ORIGIN[1], isoDepth(depthKey(t.x, t.y, LAYER.OBJECT)) - EPS).setFlipX(flip);
-    this.track([im], [this.tileIdx(t.x, t.y)]);
+    this.track([im], [this.tileIdx(t.x, t.y)]).curtain = true;
+    this.curtainSprites.push(im);
   }
 
   propFrame(o) {
@@ -311,6 +372,7 @@ export default class IsoWorldView {
 
   /** Recompute per-tile targets and wall cuts after a vision update. @param {{x:number,y:number}} heroTile */
   onVision(heroTile) {
+    this.lastHeroTile = heroTile;
     const v = this.vision;
     const f = this.floor;
     const hx = heroTile.x;
@@ -346,6 +408,7 @@ export default class IsoWorldView {
    * @param {number} dt seconds
    */
   update(dt) {
+    if (this.wallsStale) this.rebuildWalls();
     let moving = this.dirty;
     const step = this.fadeRate * dt;
     for (let i = 0; i < this.n; i++) {

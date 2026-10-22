@@ -17,18 +17,24 @@ export function stackLimit(id, balance) {
   const inv = balance.inventory;
   if (kind === 'material') return inv.materialStack;
   if (kind === 'item') return inv.itemStack;
+  if (kind === 'heavy') return inv.heavyStack ?? inv.toolStack;
   return inv.toolStack;
+}
+
+/** Full uses of a tool / durability of a weapon (the sledgehammer has its own count), or null for other items. */
+export function maxUses(id, balance) {
+  if (id === 'sledgehammer' && balance.build?.sledgehammerUses) return balance.build.sledgehammerUses;
+  const type = balance.items?.[id]?.type;
+  if (type === 'tool') return balance.salvage.toolUses;
+  if (type === 'weapon') return balance.combat?.weapons?.[id]?.durability ?? null;
+  return null;
 }
 
 /** Fresh stack with tool uses / weapon durability filled in. */
 export function newStack(id, qty, balance) {
   const s = { id, qty };
-  const type = balance.items?.[id]?.type;
-  if (type === 'tool') s.uses = balance.salvage.toolUses;
-  else if (type === 'weapon') {
-    const d = balance.combat?.weapons?.[id]?.durability;
-    if (d != null) s.uses = d;
-  }
+  const u = maxUses(id, balance);
+  if (u != null) s.uses = u;
   return s;
 }
 

@@ -49,6 +49,8 @@ export class Grid {
      * never affects sight). Vision recompute trigger.
      */
     this.version = 0;
+    /** @type {Set<number>} window edges that do NOT stop sight (built glass, broken panes; GDD 5.19). */
+    this.seeThrough = new Set();
   }
 
   // ---- building ----------------------------------------------------------
@@ -164,7 +166,9 @@ export class Grid {
 
   /** Set an edge type (EDGE.*). Doors go through addDoor. */
   setEdge(x, y, side, type) {
-    this.edges[this.edgeId(x, y, side)] = type;
+    const eid = this.edgeId(x, y, side);
+    this.edges[eid] = type;
+    this.seeThrough.delete(eid);
     this.version++;
   }
 
@@ -193,6 +197,27 @@ export class Grid {
     this.doors.set(edge, door);
     this.version++;
     return door;
+  }
+
+  /**
+   * Remove the door on an edge (the edge becomes NONE).
+   * @returns {boolean} true if a door was there
+   */
+  removeDoor(x, y, side) {
+    const eid = this.edgeId(x, y, side);
+    if (!this.doors.delete(eid)) return false;
+    this.edges[eid] = EDGE.NONE;
+    this.version++;
+    return true;
+  }
+
+  /** Mark or clear a WINDOW edge as see-through (glass does not block sight). Bumps version on change. */
+  setSeeThrough(x, y, side, on) {
+    const eid = this.edgeId(x, y, side);
+    if (on && this.edges[eid] !== EDGE.WINDOW) return; // only windows can be see-through
+    if (this.seeThrough.has(eid) === !!on) return;
+    if (on) this.seeThrough.add(eid); else this.seeThrough.delete(eid);
+    this.version++;
   }
 
   /** Door on a side of tile (x,y), or null. */
@@ -259,6 +284,7 @@ export class Grid {
   edgeBlocksSight(eid) {
     const t = this.edges[eid];
     if (t === EDGE.NONE) return false;
+    if (t === EDGE.WINDOW) return !this.seeThrough.has(eid);
     if (t !== EDGE.DOOR) return true;
     const s = this.doors.get(eid).state;
     return s === 'closed' || s === 'jammed';
