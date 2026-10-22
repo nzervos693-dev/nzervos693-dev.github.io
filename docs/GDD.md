@@ -157,16 +157,30 @@ from what the building already holds.
 - Zoom fixed at **1.0** (`controls.zoom`; no pinch zoom, no zoom toggle:
   CD decision, 12). At zoom 1 the screen shows about 7 tiles across and 13 tiles down
   the screen's axes, roughly 400 tiles of floor.
+- **Hero anchor above the control band** (CD decision, open question 9):
+  the hero's resting screen point is not the screen centre but the
+  **anchor** at the horizontal centre and **40%** of the visible height
+  from the top (`camera.heroScreenYFrac` 0.40; on the 1280 px base that
+  is y = 512, 128 px above centre and 368 px above the top of the
+  400 px control band). Visible height = the safe-area height in game px.
+  In camera terms: the camera centre is offset **down** from the hero by
+  (0.5 - `heroScreenYFrac`) x visible height (128 px at 1280).
 - **Follow**: every frame the camera centre eases toward a target point =
-  the hero's screen position + a **look-ahead** of **120 game px** in the
-  screen direction the hero faces (`controls.cameraLookAheadPx`), with lerp
-  **0.12** per frame (`controls.cameraLerp`), so more of the cone is on
-  screen. The ease is not limited by a dead zone; the
-  **160 x 240 game px** rect (`controls.cameraDeadzonePx`, centred on the
-  camera centre) is only a **hard clamp**: after easing, if the hero's
+  the hero's screen position + the anchor offset above + a
+  **look-ahead** of **120 game px** in the screen direction the hero
+  faces (`controls.cameraLookAheadPx`), with lerp **0.12** per frame
+  (`controls.cameraLerp`), so more of the cone is on screen. The ease is
+  not limited by a dead zone; the **160 x 240 game px** rect
+  (`controls.cameraDeadzonePx`, centred on the **anchor**, not the
+  screen centre) is only a **hard clamp**: after easing, if the hero's
   screen position is outside that rect, the camera is moved the minimum
   amount to put him back on its edge. So at rest the hero sits up to
-  120 px off-centre, away from the way he faces.
+  120 px from the anchor, away from the way he faces: between about
+  y 392 and y 632 on the base screen, always above the control band
+  (top at y 880) and the HUD text line (y 840).
+- **Edge case**: the floor clamp below wins over the anchor; near the
+  floor's lower edge the hero may sit lower than the anchor (the
+  `cameraIsoEdgePadPx` pad keeps him at least partly clear of the band).
 - **No manual panning** (CD joystick decision, Stage A playtest): the view
   always follows the hero with the look-ahead above. Drags on the world
   do nothing (section 4); no two-finger pan.
@@ -175,7 +189,8 @@ from what the building already holds.
 - **Clamp**: the view centre stays inside the current floor's iso bounding
   box plus a **96 game px** pad (`controls.cameraIsoEdgePadPx`), so edge
   objects can be centred away from Android's back-swipe zone.
-- After a floor change the camera snaps to the hero during the fade.
+- After a floor change the camera snaps (hero at the anchor) during the
+  fade.
 
 ## 3. Core loop
 1. **Check in**: read the short "While you were away" note (plain sentences,
@@ -235,7 +250,20 @@ keyboard or hover, no pinch zoom (CD decision, 12), no camera panning
   stay on screen; the logic still uses the touch-down point.
 - **Deflection** d = finger distance from centre / `radiusPx` (0-1).
   - d below **0.15** (`deadZone`, 18 px): no movement.
-  - d **0.15 to below 0.40** (`creepThreshold`, CD decision, open
+  - d **0.15 to below 0.25** (`turnOnlyThreshold`, CD decision, open
+    question 7): **turn in place**. The hero does not step; he turns on
+    the spot toward the stick direction (converted to grid space as
+    below) at `controls.walkTurnDegreesPerSecond` (540 deg/s) and the
+    vision cone follows. Silent: no footsteps, no noise, sight as when
+    standing still (5.4). It never opens doors (no door push) and never
+    climbs stairs. Knob alpha as creep (`knobCreepAlpha`). While the stick
+    stays in this band the target can change as usual (stick held).
+    Edge cases: during a **timed action** the turn band is ignored (he
+    keeps facing the target; the action is **not** cancelled; only creep
+    or faster cancels, 50% rule below). It **does** wake a sleeping or
+    napping hero and cancels a Home auto-walk (any push out of the dead
+    zone does).
+  - d **0.25 to below 0.40** (`creepThreshold`, CD decision, open
     question 6): **creep** at `hero.walkTilesPerSecond` x **0.5**
     (`hero.creepSpeedMult`) = 1.0 tiles/s. Silent and harder to notice
     (5.4, "Creeping"). Knob alpha **0.2** (`knobCreepAlpha`).
@@ -243,10 +271,12 @@ keyboard or hover, no pinch zoom (CD decision, 12), no camera panning
     constant, not analog). Quiet.
   - d **0.70 or more** (`runThreshold`): **run** at
     `hero.runTilesPerSecond` (3.4): noisy and costs energy (5.4).
-  - The three bands are discrete (no speed blending). The band is
-    re-read every frame from the current deflection, so sliding the thumb
-    in or out changes gait at once; the dead zone (0.15) has no
-    hysteresis beyond the rule above.
+  - The four bands (turn, creep, walk, run) are discrete (no speed
+    blending). The band is re-read every frame from the current
+    deflection, so sliding the thumb in or out changes gait at once; the
+    band edges (0.15, 0.25, 0.40, 0.70) have no hysteresis. Moving from
+    the turn band into creep: he steps as soon as d reaches 0.25, turning
+    while moving as usual (no wait for the turn to finish).
   - Release: the hero stops at once (no glide); he keeps his facing.
 - **Tap in the zone**: a touch released within **0.25 s**
   (`tapMaxSeconds`) that never left the dead zone does nothing, except:
@@ -296,14 +326,18 @@ keyboard or hover, no pinch zoom (CD decision, 12), no camera panning
   (`fadeSeconds`); when idle nothing is drawn. Colours and alphas are in
   `controls.joystick.visual`.
 - **Interrupts**: moving the stick out of the dead zone cancels a Home
-  auto-walk (below) and any timed action in progress (search, dismantle,
-  drain, claim, force with a crowbar, door open/close), except a search or
-  dismantle past 50% (it completes first; then, if the stick is still
-  held, he starts moving). It also wakes a sleeping or napping hero.
-- **Looking around** (Look drag removed with world touches): the hero
-  faces where he moves. A short, light push (creep band) turns him with a
-  step of about 0.2 tiles; the double tap above turns him round on the
-  spot. Acting on a target turns him to it.
+  auto-walk (below) and wakes a sleeping or napping hero. Moving it into
+  the **creep band or beyond** (d 0.25 or more) cancels any timed action
+  in progress (search, dismantle, drain, claim, force with a crowbar,
+  door open/close), except a search or dismantle past 50% (it completes
+  first; then, if the stick is still held, he starts moving). The turn
+  band never cancels a timed action.
+- **Looking around** (CD decision, open question 7; Look drag removed
+  with world touches): a very light push (turn band, d 0.15 to below
+  0.25) turns him on the spot to face the stick direction without
+  stepping; a firmer push moves him and he faces where he moves; the
+  double tap above turns him 180 degrees. Acting on a target turns him
+  to it.
 
 **The target** (keys `controls.target.*`)
 
@@ -353,8 +387,11 @@ thing targets it; there is no other way to pick one.
 - **Target outline**: the target gets a thin **dark outline** around its
   sprite silhouette (doors: the leaf; edge things: their sprite; zombies:
   the body): **3 game px** (1 art px, `outline.widthPx`), colour
-  `#0b0c0e` at alpha **0.6** (`outline.color`, `outline.alpha`); no glow,
-  no pulse, no colour, no text. It fades in/out over **0.1 s**
+  `#0b0c0e` at alpha **0.6** (`outline.color`, `outline.alpha`). On a
+  **zombie** target it is slightly stronger (CD decision, open question
+  10): **4 game px** at alpha **0.75** (`outline.zombieWidthPx`,
+  `outline.zombieAlpha`), same colour. Survivors and the dog use the
+  object values. No glow, no pulse, no colour, no text. It fades in/out over **0.1 s**
   (`outline.fadeSeconds`) on change. It is not drawn while a panel or menu
   is open, during sleep/nap, or when there is no target. This is the only
   world outline besides the placement spots (5.6).
@@ -444,7 +481,10 @@ Placeables not listed (survivor bed, M3+ devices) use **Use** on Main and
 Main home bed and beds in claimed apartments cannot be dismantled (leave
 the place first).
 
-**Attack button** (`controls.attackBuffer`)
+**Attack button** (`controls.attackBuffer`). **Both stay** (CD decision,
+open question 8): Main shows Attack whenever the target is a zombie (one
+thumb play), and the dedicated Attack button is always present (to swing
+while an object is the target or an action locks it).
 - Shows the **equipped weapon** as its icon (fist, knife, bat; a weapon
   that breaks switches it to the fist). Always shown, never greyed except
   while asleep.
@@ -596,19 +636,22 @@ reading them is replaced; they are listed in `_deprecatedSideViewKeys` and
 in 11.2.
 
 **Controls numbers**: joystick (`controls.joystick.*`): radius 120 px,
-dead zone 0.15, run at 0.70, zone 55% x 55% lower-left, tap in zone under
+dead zone 0.15, turn in place below 0.25 (`turnOnlyThreshold`), creep
+below 0.40, run at 0.70, zone 55% x 55% lower-left, tap in zone under
 0.25 s, fade 0.3 s, knob 44 px, door push 0.2 s, doorway assist 0.35
 tiles, double tap to turn 0.3 s / 48 px, turn around 0.2 s
 (`controls.turnAroundSeconds`); hero collision radius 0.3 tiles
 (`hero.collisionRadiusTiles`); target (`controls.target.*`): object reach
 1.2 tiles, object cone 120 degrees, zombie cone 180 degrees (reach =
 weapon range), keep +0.3 tiles / +30 degrees, switch hold 0.15 s, angle
-buckets 15 degrees, outline 3 px `#0b0c0e` alpha 0.6, placement reach 1.5
+buckets 15 degrees, outline 3 px `#0b0c0e` alpha 0.6 (zombies 4 px
+alpha 0.75), placement reach 1.5
 tiles; action buttons (`controls.buttons.*`): Main 120 / Attack 96 /
 Secondary 88 / Quick-use 80 px, confirm 2 s; quick-use (`quickUse.*`):
 long-press 0.5 s, cooldown 1 s, throw arm 3 s; shove (`combat.shove.*`);
 Home double tap 1 s (`controls.homeDoubleTapSeconds`), camera lerp 0.12,
 hero clamp rect 160x240 px, look-ahead 120 px, edge pad 96 px, minimum
+hero anchor 40% from the top (`camera.heroScreenYFrac`), minimum
 hit area 96 px (`controls.buttonSizePx`, `controls.minHitAreaPx`), 1
 buffered attack tap (`controls.attackBuffer`). Removed with the context
 buttons: see `_deprecatedWorldTapKeys`. Removed with tap-to-move
@@ -994,8 +1037,10 @@ usually wiser.
   silent. A zombie that heard a noise walks to the noise tile (pathing,
   bashing closed doors in the way for up to 10 s, 5.18) and looks around;
   it aggroes only if it then sees the hero.
-- **Creeping** (CD decision, joystick light push, section 4): below
-  **0.40** deflection (`controls.joystick.creepThreshold`) the hero moves
+- **Creeping** (CD decision, joystick light push, section 4): from
+  **0.25** (`controls.joystick.turnOnlyThreshold`; below it he only turns
+  in place) to below **0.40** deflection
+  (`controls.joystick.creepThreshold`) the hero moves
   at **0.5x** walk speed (`hero.creepSpeedMult`, 1.0 tiles/s).
   - **Hearing**: creeping makes **no** hearing noise
     (`hero.creepNoiseRadiusTiles` 0, same as walking,
@@ -2909,6 +2954,22 @@ screen, seeing more than one floor at a time.
   radius, `controls.joystick.creepThreshold`) creeps at 0.5x walk speed,
   silently and harder to see (behind/beside sight 0.5 tiles, cone range
   x0.75); 40-70% walks; 70%+ runs (sections 4 and 5.4).
+- **Looking around** (was open question 7): **turn in place**. A very
+  light push (15% to below 25% of the stick radius,
+  `controls.joystick.turnOnlyThreshold` 0.25) turns the hero to face that
+  way without stepping; creep starts at 25%; the stick double tap still
+  turns him 180 degrees (section 4).
+- **Two attack buttons** (was open question 8): keep both. Main attacks
+  when a zombie is the target; the dedicated Attack button stays
+  (section 4).
+- **Hero high on screen** (was open question 9): the camera keeps the
+  hero above the control band, anchored at 40% of the visible height
+  from the top (`camera.heroScreenYFrac` 0.40), look-ahead and clamp
+  rect measured from that anchor (section 2).
+- **Target outline on zombies** (was open question 10): slightly
+  stronger than on objects, 4 px at alpha 0.75
+  (`controls.target.outline.zombieWidthPx`, `zombieAlpha`), same dark
+  colour, no colour or glow (section 4).
 
 ### Open questions
 1. **Backstory names** ("grey fever", "river docks" group): keep, rename,
@@ -2923,24 +2984,13 @@ screen, seeing more than one floor at a time.
 5. ~~Music after the audio change~~: Decided (above).
 6. ~~Walk speed with the stick~~: Decided, creep band (above). Check at
    playtest whether the 0.40 creep band feels too wide or too narrow.
-7. **Looking around without walking** (context buttons): Look drag is
-   gone; facing follows movement plus a stick double tap to turn round.
-   Is that enough? (a) keep as is (simplest); (b) add a **turn-in-place**
-   rule: a stick push more than 60 degrees off his facing turns him on the
-   spot before he steps; (c) bring back a Look drag in the upper half of
-   the screen (above the control band).
-8. **Two attack buttons**: Main shows Attack when a zombie is targeted and
-   the separate Attack button is always there. (a) keep both (Main for
-   one-thumb play, Attack for fighting while an object is targeted);
-   (b) Main never attacks (only the Attack button does; Main keeps
-   showing the object or Shove); (c) drop the Attack button and grow
-   Quick-use instead.
-9. **Hero high on screen?** The control band covers the bottom ~30% of
-   the screen; with the look-ahead the hero sometimes stands just above
-   it. (a) leave the camera as is; (b) shift the camera target down so the
-   hero sits ~120 px above centre; (c) shift only while a zombie is
-   Visible.
-10. **Target outline on zombies** reads as a thicker dark edge (zombies
-    already have a 1 px dark outline). Check at playtest: (a) fine;
-    (b) use alpha 0.85 on characters only; (c) no outline on zombies (the
-    Attack icon on Main is enough).
+7. ~~Looking around without walking~~: Decided, turn in place (above).
+   Check at playtest whether the 0.15-0.25 turn band is easy to hit and
+   whether the creep band (now 0.25-0.40) still feels wide enough.
+8. ~~Two attack buttons~~: Decided, keep both (above).
+9. ~~Hero high on screen~~: Decided, hero anchor at 40% from the top
+   (above). Check at playtest; tune `camera.heroScreenYFrac` within
+   0.38-0.42.
+10. ~~Target outline on zombies~~: Decided, 4 px / alpha 0.75 (above).
+    Check at playtest that it still reads as subtle next to the zombie's
+    own 1 art px edge.

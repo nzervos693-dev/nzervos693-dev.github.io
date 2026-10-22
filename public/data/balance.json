@@ -70,7 +70,7 @@
       "switchHoldSeconds": 0.15,
       "placeReachTiles": 1.5,
       "ghostAlpha": 0.5,
-      "outline": { "color": "#0b0c0e", "alpha": 0.6, "widthPx": 3, "fadeSeconds": 0.1 }
+      "outline": { "color": "#0b0c0e", "alpha": 0.6, "widthPx": 3, "zombieAlpha": 0.75, "zombieWidthPx": 4, "fadeSeconds": 0.1 }
     },
     "buttons": {
       "bandHeightPx": 400,
@@ -92,6 +92,7 @@
       "radiusPx": 120,
       "knobRadiusPx": 44,
       "deadZone": 0.15,
+      "turnOnlyThreshold": 0.25,
       "creepThreshold": 0.4,
       "runThreshold": 0.7,
       "sideSettingDefault": "left",
@@ -117,6 +118,9 @@
         "knobAlpha": 0.3
       }
     }
+  },
+  "camera": {
+    "heroScreenYFrac": 0.4
   },
   "tutorial": {
     "doorTriggerPx": 60,
