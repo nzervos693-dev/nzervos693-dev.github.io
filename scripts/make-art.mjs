@@ -1833,45 +1833,8 @@ function isoLying(c, v, pal, blood = true) {
   });
   if (pal.decay) c.px(8, 24, 'B');
 }
-// crawler: low to the ground (about 12 px high), hand-laid per view; ph alternates the arm reach, lunge 1 = rear back, 2 = lunge, oy sags it down
-function isoCrawler(c, v, p, pal = { skin: 'Z', shirt: 'R', arm: 'ZD' }) {
-  const { ph = 0, lunge = 0, oy = 0, bob = 0 } = p;
-  const R = (x, y, w, h, col) => c.rect(x, y + oy + bob, w, h, col);
-  const P = (x, y, col) => c.px(x, y + oy + bob, col);
-  const rs = ph % 2, lu = lunge === 2 ? 2 : 0, lb = lunge === 1 ? 1 : 0;
-  const open = lunge === 2;
-  if (v === 'E') {
-    R(0, 24, 3, 4, 'B'); R(1, 23, 2, 2, 'ZD');                      // bloody stump, legs gone
-    R(2, 20, 9, 7, pal.shirt); R(3, 20, 7, 2, shd('R', 1.15)); P(5, 23, 'B'); P(8, 21, 'ZD'); P(4, 25, 'ZD'); // back
-    R(8 - lb, 25, 6 + rs + lu, 2, pal.arm); R(13 + rs + lu - lb, 25, 2, 2, pal.skin); // far arm
-    R(9 + lu - lb, 17 + lb * 2, 5, 6, pal.skin); R(9 + lu - lb, 17 + lb * 2, 2, 2, 'ZD'); P(12 + lu - lb, 19 + lb * 2, 'RED'); // head
-    if (open) R(12 + lu, 21, 3, 2, 'B'); else P(13 + lu - lb, 22 + lb * 2, 'B');
-    R(5, 26, 6 + (1 - rs) + lu, 2, pal.arm); R(10 + (1 - rs) + lu, 26, 2, 2, pal.skin); // near arm
-  } else if (v === 'S') {
-    R(5, 11, 6, 3, 'B'); R(5, 14, 6, 4, shd('R', 0.9));              // stump and back, farther up
-    R(3, 17, 10, 5, pal.shirt); R(4, 17, 8, 1, shd('R', 1.15)); P(6, 19, 'B'); P(10, 20, 'ZD');
-    R(1, 20 + rs + lu, 3, 6, pal.arm); R(1, 26 + rs + lu, 3, 2, pal.skin); R(12, 20 + (1 - rs) + lu, 3, 6, pal.arm); R(12, 26 + (1 - rs) + lu, 3, 2, pal.skin);
-    R(5, 21 + lu, 6, 6, pal.skin); R(5, 21 + lu, 6, 1, 'ZD'); P(6, 24 + lu, 'RED'); P(9, 24 + lu, 'RED'); if (open) R(7, 26 + lu, 2, 2, 'B'); else R(7, 26 + lu, 2, 1, 'B');
-  } else if (v === 'N') {
-    R(1, 15 - lb + rs, 3, 3, pal.arm); R(1, 14 - lb + rs, 3, 2, pal.skin); R(12, 15 - lb + (1 - rs), 3, 3, pal.arm); R(12, 14 - lb + (1 - rs), 3, 2, pal.skin);
-    R(6, 14 + lb, 4, 5, 'ZD'); R(6, 14 + lb, 4, 2, 'ZD'); P(7, 17 + lb, 'B');   // head peeking (back of skull)
-    R(3, 18, 10, 8, pal.shirt); R(4, 18, 8, 2, shd('R', 1.15)); R(7, 20, 1, 5, 'ZD'); P(10, 22, 'B');
-    R(5, 26, 6, 2, 'B'); R(6, 25, 4, 1, 'ZD');
-  } else if (v === 'SE') {
-    R(1, 18, 3, 3, 'B'); R(3, 19, 8, 6, pal.shirt); R(4, 19, 6, 2, shd('R', 1.15)); P(6, 22, 'B'); P(9, 21, 'ZD');
-    R(7, 22 + lu, 5 + rs, 2, pal.arm); R(11 + rs + lu, 22 + lu, 2, 2, pal.skin);
-    R(9 + lu, 22 + lu, 5, 6, pal.skin); R(9 + lu, 22 + lu, 5, 1, 'ZD'); P(11 + lu, 25 + lu, 'RED'); P(13 + lu, 25 + lu, 'RED'); if (open) R(11 + lu, 27 + lu, 2, 1, 'B');
-    R(6, 26, 5 + (1 - rs), 2, pal.arm); R(10 + (1 - rs) + lu, 26 + lu, 2, 2, pal.skin);
-  } else { // NE
-    R(1, 24, 3, 4, 'B'); R(3, 20, 8, 7, pal.shirt); R(4, 20, 6, 2, shd('R', 1.15)); P(6, 23, 'B'); R(7, 22, 1, 4, 'ZD');
-    R(7, 18 - lb, 5 + rs, 2, pal.arm); R(11 + rs, 17 - lb, 2, 2, pal.skin);
-    R(9, 15 + lb, 5, 5, 'ZD'); R(10, 15 + lb, 3, 1, 'ZD'); P(13, 18 + lb, pal.skin);
-    R(5, 26, 5 + (1 - rs), 2, pal.arm); R(9 + (1 - rs), 26, 2, 2, pal.skin);
-  }
-}
 const HERO_PAL = { skin: 'SK', hair: 'S', shirt: 'T', sleeve: 'TD', pants: 'PANT', shoe: 'S', accent: 'X', pack: 'R', weapon: 'L', hairStyle: 'short' };
 const MARA_PAL = { skin: 'SK', hair: 'WOODD', shirt: 'X', sleeve: 'X', pants: 'T', shoe: 'METAL', accent: 'RED', pack: null, weapon: 'L', hairStyle: 'bun' };
-const WALKER_PAL = { skin: 'Z', hair: null, shirt: 'R', sleeve: 'Z', pants: 'WOODD', shoe: 'O', accent: null, pack: null, hairStyle: 'bald', eye: 'RED', decay: true };
 const WALK = [{ bob: 1, sw: [1, -1], lift: [0, 0] }, { bob: 0, sw: [0, 0], lift: [0, 1] }, { bob: 1, sw: [-1, 1], lift: [0, 0] }, { bob: 0, sw: [0, 0], lift: [1, 0] }];
 function isoChars(key, anims, draw, note) {
   const frames = [], animDefs = [];
@@ -1898,21 +1861,291 @@ isoChars('iso_hero', [['idle', 2, 2, -1], ['walk', 4, 8, -1], ['attack', 3, 12, 
   NOTE_CH + 'Hero: faded teal jacket, dark hair, rust backpack visible from behind and the side, pale face on the front. idle 2 (2 fps), walk 4 (8 fps; use a higher fps for running), attack 3 (windup, swing, recover; swings a pipe on the right hand), death 3 (stagger, kneel, isoLying).');
 isoChars('iso_mara', [['idle', 2, 2, -1], ['walk', 4, 8, -1], ['attack', 3, 12, 0], ['hurt', 1, 8, 0], ['death', 3, 6, 0]], humanDraw(MARA_PAL),
   NOTE_CH + 'Mara: nurse in light scrubs, dark hair in a bun, red chest mark, dark teal trousers. Same frame layout as iso_hero.');
-const zBase = (v, extra) => ({ ...extra });
-isoChars('iso_walker', [['shuffle', 4, 5, -1], ['attack', 2, 6, 0], ['death', 3, 6, 0]], (c, v, name, i) => {
-  if (name === 'shuffle') { const sh = [{ bob: 0, sw: [1, -1] }, { bob: 1, sw: [0, 0] }, { bob: 0, sw: [-1, 1] }, { bob: 1, sw: [0, 0] }][i]; return person(c, v, WALKER_PAL, { ...sh, zomb: true, reach: 1, headDx: v === 'E' || v === 'SE' ? 1 : 0, tired: i % 2 }); }
-  if (name === 'attack') return person(c, v, WALKER_PAL, { zomb: true, atk: i === 0 ? 0 : 1, bob: i, headDx: i === 1 ? (v === 'E' || v === 'SE' ? 2 : 0) : (v === 'E' ? 1 : 0), mouth: i === 1, reach: 1, sw: [i, 0] });
-  if (i === 0) return person(c, v, WALKER_PAL, { zomb: true, bob: 3, reach: 1, tired: 1 });
-  if (i === 1) return person(c, v, WALKER_PAL, { bob: 6, kneel: 3, headDx: 0 });
-  isoLying(c, v, WALKER_PAL, true);
-}, NOTE_CH + 'Walker zombie: grey-green skin, bald with sores, torn rust shirt, arms reaching. Anim "shuffle" (4 frames, 5 fps) is the move/idle loop; "attack" 2 frames (lean-in wind-up, lunge with open mouth); "death" 3 (slump, kneel, isoLying). Facing is readable by the pale face and hands (front) vs. dark back.');
-isoChars('iso_crawler', [['shuffle', 4, 5, -1], ['attack', 2, 6, 0], ['death', 3, 6, 0]], (c, v, name, i) => {
-  if (name === 'shuffle') return isoCrawler(c, v, { ph: i, bob: i % 2 });
-  if (name === 'attack') return isoCrawler(c, v, { ph: 1, lunge: i === 0 ? 1 : 2 });
-  if (i === 0) return isoCrawler(c, v, { ph: 0, oy: 1 });
-  if (i === 1) return isoCrawler(c, v, { ph: 1, oy: 3 });
-  isoLying(c, v, { skin: 'Z', shirt: 'R', pants: 'B', shoe: 'ZD', hair: null, hairStyle: 'bald', decay: true }, true);
-}, NOTE_CH + 'Crawler zombie (legless, low to the ground, about 12 px high): dragging itself on its arms, head leading. "shuffle" 4 frames (5 fps) is the crawl loop; "attack" 2 (rear back, lunge); "death" 3 (sag, flatten, isoLying).');
+// ---------- zombies: ordinary residents who died (GDD 9: dark blood only, no gore body parts) ----------
+// Same proportions as the hero (head y4-9, torso y10-19, legs y20-28, shoes y29). Slack posture: tilted head,
+// arms hanging low, uneven limping gait. Only deterministic fixed pixels here (no rng) so other sheets stay byte-identical.
+const ZBL = '#4a1a18', ZBD = '#33100f', ZMOUTH = '#2a1414';
+const ZOUT = {
+  office: { kind: 'office', skin: '#8c8a80', hair: '#2a211c', hairStyle: 'short', top: '#9a978c', inner: '#9a978c', tie: '#3a2226', pants: '#2b2f36', shoe: '#14171b', sleeves: 'long' },
+  gown: { kind: 'gown', skin: '#938f86', hair: '#18130f', hairStyle: 'long', top: '#8d97a0', pants: '#8d97a0', shoe: null, sleeves: 'short' },
+  hoodie: { kind: 'hoodie', skin: '#76695f', hair: '#141211', hairStyle: 'short', top: '#454b53', pants: '#3b4a5c', shoe: '#a8a69b', sleeves: 'long' },
+  scrubs: { kind: 'scrubs', skin: '#96928a', hair: '#3a2a20', hairStyle: 'bun', top: '#5d7b80', pants: '#52707a', shoe: '#b8b4a8', sleeves: 'short', badge: '#bdb8ab' },
+  elder: { kind: 'cardigan', skin: '#9a968c', hair: '#a09e98', hairStyle: 'thin', top: '#6a5442', inner: '#a8a396', pants: '#4a4a48', shoe: '#2a211c', sleeves: 'long', droop: 1 },
+  pyjama: { kind: 'pyjama', skin: '#8f8c82', hair: '#2b2220', hairStyle: 'short', top: '#7d8a96', stripe: '#a2adb6', pants: '#7d8a96', shoe: null, sleeves: 'long' },
+  blouse: { kind: 'blouse', skin: '#85827a', hair: '#1c1514', hairStyle: 'long', top: '#6a3a3e', pants: '#2b2f36', shoe: '#14171b', sleeves: 'long' },
+};
+function zres(c, v, o, p = {}) {
+  const { bob = 0, sw = [0, 0], lift = [0, 0], hd = 0, tilt = 0, lean = 0, kneel = 0, mouth = false, grab = 0, sway = [0, 0], dropHead = 0 } = p;
+  const skin = o.skin, skinD = shd(skin, 0.78), top = o.top, topD = shd(top, 0.78), shoe = o.shoe || skinD;
+  const legCol = o.kind === 'gown' ? skin : o.pants;
+  const TT = 10 + bob, HT = 4 + bob + (o.droop || 0) + dropHead, legTop = 20 + kneel, hipB = 19 + kneel, foot = 29;
+  const back = v === 'N' || v === 'NE';
+  const R = (x, y, w, h, col) => c.rect(x, y, w, h, col);
+  const legs = () => {
+    const draw = (i) => {
+      const s = sw[i], l = lift[i], col = i ? shd(legCol, 0.78) : legCol;
+      if (v === 'E') {
+        const fx = 7 + s * 2, fy = foot - l;
+        line2(c, 7, legTop, fx, fy, col); R(fx - 1, fy, 4, 1, shoe);
+      } else if (v === 'S' || v === 'N') {
+        const f = foot - l - ((v === 'S' ? s < 0 : s > 0) ? 1 : 0), x = i ? 8 : 5;
+        R(x, legTop, 3, f - legTop, col); R(x, f, 3, 1, shoe);
+      } else {
+        const x = (i ? 8 : 5) + (v === 'SE' ? s : -s), f = foot - l;
+        line2(c, i ? 8 : 5, legTop, x, f, col); R(x, f, 3, 1, shoe);
+      }
+    };
+    draw(1); draw(0);
+    if ((v === 'S' || v === 'N') && o.kind !== 'gown') R(7, legTop, 2, 3, shd(legCol, 0.6));
+    if (o.kind === 'office' || o.kind === 'blouse') { if (v === 'S') c.px(6, 26, shd(legCol, 1.4)); } // trouser crease
+    if (o.kind === 'hoodie' && v !== 'E') { R(5, foot - 1, 3, 1, '#7d7a70'); R(8, foot - 1, 3, 1, '#7d7a70'); } // jeans cuffs (dirty)
+  };
+  const shoulder = (side) => (v === 'S' || v === 'N') ? [side ? 11 : 3, TT + 1] : v === 'E' ? [7, TT + 1] : [side ? 10 : 4, TT + 1];
+  const handPos = (side) => {
+    const [sx] = shoulder(side), sy2 = sway[side];
+    if (grab) {
+      const g = grab - 1;
+      if (v === 'S') return [side ? 10 : 5, TT + 7 + g + sy2 * 0];
+      if (v === 'SE') return side ? [13 + g, TT + 6 + g] : [8 + g, TT + 8 + g];
+      if (v === 'E') return side ? [13 + g, TT + 5 + g] : [12 + g, TT + 7 + g];
+      if (v === 'NE') return side ? [13 + g, TT + g] : [11 + g, TT + 1];
+      return [side ? 11 : 4, TT - 1 - g];
+    }
+    if (v === 'S' || v === 'N') return [sx + (side ? 0 : 0) + (side ? 1 : -1) * 0, TT + 8 + sy2];
+    if (v === 'E') return [7 + (side ? 2 : 1) + (sy2 > 0 ? 1 : 0), TT + 8 + (side ? 0 : 0)];
+    return [sx + (side ? 0 : 1), TT + 8 + sy2];
+  };
+  const arm = (side) => {
+    const [sx, sy] = shoulder(side), [ex, ey] = handPos(side);
+    const far = side === 1 && v === 'E';
+    const slv = far ? shd(top, 0.7) : top;
+    line2(c, sx, sy, ex, ey, slv);
+    if (o.sleeves === 'short') { // bare forearm
+      const mx = Math.round(sx + (ex - sx) * 0.45), my = Math.round(sy + (ey - sy) * 0.45) + 1;
+      line2(c, mx, my, ex, ey, far ? shd(skin, 0.7) : skin);
+    }
+    R(ex, ey, 2, 2, far ? shd(skin, 0.75) : skin);
+    // dried blood on one hand / forearm
+    if (side === 0 && v !== 'N' && v !== 'NE') { c.px(ex, ey + 1, ZBL); if (grab) c.px(ex + 1, ey, ZBD); }
+    if (side === 1 && o.bite && !back) c.px(Math.round((sx + ex) / 2), Math.round((sy + ey) / 2) + 1, ZBL);
+  };
+  // far arm / arms behind the body
+  if (v === 'E') arm(1);
+  if (back) { arm(0); arm(1); }
+  legs();
+  // torso
+  const tx = 5 + (v === 'E' ? 0 : 0) + (v === 'E' ? lean : 0), tw = v === 'E' ? 5 : 6;
+  R(tx, TT, tw, hipB - TT + 1, top);
+  if (o.kind !== 'gown') R(tx, hipB, tw, 1, legCol);
+  if (o.kind === 'gown') {
+    R(tx, TT + 9, tw, 4, top); R(tx - 1, TT + 11, tw + 2, 5, top);
+    for (let x = tx - 1; x < tx + tw + 1; x += 3) c.clear(x, 26, 1, 1); // torn hem
+    R(tx - 1, TT + 14, tw + 2, 1, topD);
+  }
+  // front shading and details
+  if (v === 'S') {
+    R(7, TT + 1, 2, hipB - TT - 1, shd(top, 0.86));
+    if (o.kind === 'office') { R(5, TT, 2, 2, '#b8b4a8'); R(9, TT, 2, 2, '#b8b4a8'); R(7, TT, 2, 1, skinD); c.px(7, TT + 1, o.tie); R(7, TT + 2, 2, 5, o.tie); c.px(8, TT + 7, o.tie); c.px(10, TT + 8, shd(top, 0.65)); }
+    if (o.kind === 'hoodie') { R(4, TT, 8, 1, topD); R(6, TT + 6, 4, 3, topD); c.px(6, TT + 1, '#a8a69b'); c.px(9, TT + 1, '#a8a69b'); c.px(6, TT + 2, '#a8a69b'); c.px(9, TT + 2, '#a8a69b'); }
+    if (o.kind === 'scrubs') { R(6, TT, 4, 2, skinD); c.px(7, TT + 2, skinD); c.px(8, TT + 2, skinD); R(5, TT + 4, 2, 2, topD); c.px(9, TT + 4, o.badge); c.px(9, TT + 5, o.badge); }
+    if (o.kind === 'cardigan') { R(7, TT, 2, hipB - TT, o.inner); c.px(7, TT + 3, '#4a3828'); c.px(7, TT + 6, '#4a3828'); R(5, TT + 7, 2, 2, topD); R(9, TT + 7, 2, 2, topD); }
+    if (o.kind === 'pyjama') { for (let y = TT + 1; y < hipB; y += 3) R(5, y, 6, 1, o.stripe); R(7, TT, 2, 1, skinD); }
+    if (o.kind === 'gown') { R(6, TT, 4, 1, skinD); R(7, TT + 1, 2, 12, shd(top, 0.9)); }
+    if (o.kind === 'blouse') { R(6, TT, 4, 1, skinD); R(7, TT + 1, 2, 1, skinD); c.px(7, TT + 4, '#a8a69b'); c.px(7, TT + 7, '#a8a69b'); }
+  } else if (v === 'SE') {
+    R(9, TT + 1, 1, hipB - TT - 1, shd(top, 0.82));
+    if (o.kind === 'office') { R(5, TT, 4, 1, '#b8b4a8'); R(7, TT + 1, 2, 5, o.tie); }
+    if (o.kind === 'hoodie') { R(5, TT, 6, 1, topD); R(6, TT + 6, 3, 3, topD); c.px(7, TT + 1, '#a8a69b'); c.px(7, TT + 2, '#a8a69b'); }
+    if (o.kind === 'scrubs') { R(7, TT, 3, 1, skinD); c.px(6, TT + 4, topD); c.px(8, TT + 4, o.badge); }
+    if (o.kind === 'cardigan') { R(8, TT, 1, hipB - TT, o.inner); c.px(8, TT + 3, '#4a3828'); c.px(8, TT + 6, '#4a3828'); }
+    if (o.kind === 'pyjama') { for (let y = TT + 1; y < hipB; y += 3) R(5, y, 6, 1, o.stripe); }
+    if (o.kind === 'gown') R(8, TT + 1, 1, 13, shd(top, 0.9));
+    if (o.kind === 'blouse') { R(6, TT, 3, 1, skinD); }
+  } else if (v === 'E') {
+    R(tx, TT + 4, 5, 1, shd(top, 0.82));
+    if (o.kind === 'office') { R(tx + 3, TT, 2, 1, '#b8b4a8'); R(tx + 4, TT + 1, 1, 5, o.tie); }
+    if (o.kind === 'hoodie') { R(tx, TT, 5, 1, topD); R(tx + 3, TT + 6, 2, 3, topD); }
+    if (o.kind === 'scrubs') { c.px(tx + 4, TT, skinD); c.px(tx + 3, TT + 4, o.badge); }
+    if (o.kind === 'cardigan') { R(tx + 4, TT, 1, hipB - TT, o.inner); c.px(tx + 4, TT + 5, '#4a3828'); }
+    if (o.kind === 'pyjama') { for (let y = TT + 1; y < hipB; y += 3) R(tx, y, 5, 1, o.stripe); }
+    if (o.kind === 'blouse') c.px(tx + 4, TT, skinD);
+  } else if (v === 'NE') {
+    R(7, TT + 1, 1, hipB - TT - 1, shd(top, 0.8));
+    if (o.kind === 'hoodie') { R(5, TT, 6, 3, topD); R(6, TT + 3, 4, 1, shd(top, 0.9)); }
+    if (o.kind === 'pyjama') { for (let y = TT + 1; y < hipB; y += 3) R(5, y, 6, 1, o.stripe); }
+    if (o.kind === 'scrubs') { R(5, TT + hipB - TT - 1, 6, 1, topD); }
+    if (o.kind === 'cardigan') { R(7, TT, 1, hipB - TT, topD); }
+  } else { // N
+    R(7, TT + 1, 1, hipB - TT - 1, shd(top, 0.8));
+    if (o.kind === 'hoodie') { R(5, TT, 6, 3, topD); R(6, TT + 3, 4, 1, shd(top, 0.9)); }
+    if (o.kind === 'pyjama') { for (let y = TT + 1; y < hipB; y += 3) R(5, y, 6, 1, o.stripe); }
+    if (o.kind === 'scrubs') { R(6, TT + 5, 4, 1, topD); }
+    if (o.kind === 'cardigan') { R(7, TT, 1, hipB - TT, topD); R(5, TT, 6, 1, o.inner); }
+  }
+  // dried dark blood and stains on the clothes (kept small and dark)
+  const st = o.stains || [];
+  for (const [u, vv, col, w = 1, h = 1, bk = 0] of st) {
+    if (back && !bk) continue;
+    const x = tx + Math.min(tw - 1, Math.floor(u * tw)), y = TT + vv;
+    R(x, y, Math.min(w, tx + tw - x), h, col);
+  }
+  // ragged hem tear
+  if (o.kind !== 'gown') { c.px(tx + 1, hipB - 1, topD); c.px(tx + tw - 2, hipB, shd(legCol, 0.7)); }
+  // ---------------- head ----------------
+  const hx = 5 + hd + (v === 'E' ? lean : 0), tl = tilt;
+  const hair = o.hair, hs = o.hairStyle;
+  // neck shadow
+  const faceSkin = v === 'N' || v === 'NE' ? skinD : skin;
+  R(hx + tl, HT, 6, 3, skin); R(hx, HT + 3, 6, 3, skin);
+  if (v === 'S') {
+    if (hs !== 'thin') R(hx + tl, HT, 6, 2, hair);
+    if (hs === 'short' || hs === 'bun') { c.px(hx + tl, HT + 2, hair); c.px(hx + tl + 5, HT + 2, hair); }
+    if (hs === 'bun') R(hx + tl + 2, HT - 1, 2, 1, hair);
+    if (hs === 'long') { R(hx + tl, HT + 2, 1, 1, hair); R(hx + tl + 5, HT + 2, 1, 1, hair); R(hx, HT + 3, 1, 4, hair); R(hx + 5, HT + 3, 1, 4, hair); R(hx + tl + 1, HT - 1, 4, 1, hair); }
+    if (hs === 'thin') { R(hx + tl, HT, 1, 3, hair); R(hx + tl + 5, HT, 1, 3, hair); R(hx + tl + 1, HT, 4, 1, shd(hair, 0.9)); c.px(hx + tl + 2, HT + 1, mixc(skin, hair, 0.35)); }
+    c.px(hx + 1, HT + 3, '#14110f'); c.px(hx + 4, HT + 3, '#14110f');
+    c.px(hx + 1, HT + 4, shd(skin, 0.68)); c.px(hx + 4, HT + 4, shd(skin, 0.68)); // sunken eyes
+    if (mouth) R(hx + 2, HT + 4, 2, 2, ZMOUTH); else R(hx + 2, HT + 5, 2, 1, shd(skin, 0.6));
+    if (o.headWound) c.px(hx + tl + o.headWound[0], HT + o.headWound[1], ZBL);
+  } else if (v === 'N') {
+    R(hx + tl, HT, 6, 3, hair); R(hx, HT + 3, 6, 2, hair);
+    if (hs === 'thin') { R(hx + tl + 2, HT, 2, 2, mixc(skin, hair, 0.45)); }
+    if (hs === 'bun') { R(hx + tl + 2, HT - 1, 2, 1, hair); R(hx + 2, HT + 3, 2, 2, shd(hair, 1.25)); }
+    if (hs === 'long') { R(hx, HT + 5, 6, 2, hair); }
+    else R(hx + 1, HT + 5, 4, 1, skinD);
+    if (o.headWound) c.px(hx + 4, HT + 2, ZBL);
+  } else if (v === 'E') {
+    const t = tl;
+    R(hx + t, HT, 3, 5, hair); R(hx + t + 3, HT, 3, 2, hair);
+    if (hs === 'thin') { R(hx + t + 3, HT, 3, 1, mixc(skin, hair, 0.4)); R(hx + t + 3, HT + 1, 3, 1, skin); }
+    if (hs === 'bun') { R(hx - 1, HT + 1, 2, 3, hair); }
+    if (hs === 'long') { R(hx, HT + 5, 3, 3, hair); }
+    c.px(hx + 4, HT + 3, '#14110f'); c.px(hx + 4, HT + 4, shd(skin, 0.68)); c.px(hx + 6, HT + 4, skin);
+    if (mouth) R(hx + 4, HT + 4, 2, 2, ZMOUTH); else c.px(hx + 4, HT + 5, shd(skin, 0.6));
+    if (o.headWound) c.px(hx + 5, HT + 2, ZBL);
+  } else if (v === 'SE') {
+    R(hx + tl, HT, 6, 2, hair); R(hx + tl, HT + 2, 2, 3, hair);
+    if (hs === 'thin') { R(hx + tl + 2, HT, 4, 1, mixc(skin, hair, 0.4)); R(hx + tl, HT + 2, 1, 2, hair); c.px(hx + tl + 1, HT + 4, skin); R(hx + tl + 1, HT + 2, 1, 1, skin); }
+    if (hs === 'bun') { R(hx + tl, HT + 2, 1, 3, hair); R(hx + tl + 1, HT - 1, 3, 1, hair); }
+    if (hs === 'long') { R(hx, HT + 2, 2, 5, hair); R(hx + 1, HT - 1, 4, 1, hair); }
+    c.px(hx + 3, HT + 3, '#14110f'); c.px(hx + 5, HT + 3, '#14110f');
+    c.px(hx + 3, HT + 4, shd(skin, 0.68)); c.px(hx + 5, HT + 4, shd(skin, 0.68));
+    if (mouth) R(hx + 3, HT + 4, 2, 2, ZMOUTH); else R(hx + 3, HT + 5, 2, 1, shd(skin, 0.6));
+    if (o.headWound) c.px(hx + 5, HT + 1, ZBL);
+  } else { // NE
+    R(hx + tl, HT, 6, 3, hair); R(hx, HT + 3, 5, 2, hair);
+    if (hs === 'thin') R(hx + tl + 2, HT, 3, 1, mixc(skin, hair, 0.45));
+    if (hs === 'bun') { R(hx + tl + 2, HT - 1, 2, 1, hair); }
+    if (hs === 'long') { R(hx, HT + 5, 5, 2, hair); }
+    c.px(hx + 5, HT + 3, skin); c.px(hx + 5, HT + 4, skin);
+    if (hs !== 'long') R(hx + 1, HT + 5, 4, 1, skinD);
+    if (o.headWound) c.px(hx + 3, HT + 2, ZBL);
+  }
+  // bite / wound at the neck and shoulder (dark blood, small)
+  if (!back && o.neckWound) { c.px(hx + o.neckWound[0], HT + 5, ZBL); if (v === 'S') c.px(hx + o.neckWound[0] + 1, TT, ZBD); }
+  // near / front arms
+  if (v === 'E') arm(0); else if (!back) { arm(0); arm(1); }
+}
+// collapsed body on the floor (death frame 3): reuses isoLying with the outfit colours
+const lyingPal = (o) => ({ skin: o.skin, hair: o.hair, hairStyle: o.hairStyle === 'thin' ? 'short' : o.hairStyle, shirt: o.top, pants: o.pants, shoe: o.shoe || shd(o.skin, 0.78), decay: false });
+function zombieDraw(o) {
+  return (c, v, name, i) => {
+    const lim = v === 'E' || v === 'SE';
+    if (name === 'shuffle') {
+      // limp: the right leg is the weak one, dragged and shorter; weight dips onto it, shoulders and head sag
+      const f = [
+        { bob: 0, sw: [1, -1], lift: [0, 0], hd: lim ? 1 : 0, tilt: -1, sway: [1, -1] },
+        { bob: 1, sw: [0, 0], lift: [0, 0], hd: 0, tilt: -1, sway: [0, 0] },
+        { bob: 0, sw: [-1, 1], lift: [1, 0], hd: lim ? 1 : 0, tilt: 0, sway: [-1, 1], lean: v === 'E' ? 1 : 0 },
+        { bob: 0, sw: [0, 0], lift: [0, 1], hd: 0, tilt: -1, sway: [0, 1] },
+      ][i];
+      return zres(c, v, o, f);
+    }
+    if (name === 'attack') return i === 0
+      ? zres(c, v, o, { bob: 0, grab: 1, hd: lim ? 1 : 0, tilt: -1, sw: [1, 0] })
+      : zres(c, v, o, { bob: 1, grab: 2, hd: lim ? 2 : 0, tilt: 0, mouth: true, sw: [-1, 1], lean: v === 'E' ? 1 : 0, dropHead: 1 });
+    if (i === 0) return zres(c, v, o, { bob: 2, hd: lim ? -1 : 0, tilt: 1, sway: [1, 1], lean: v === 'E' ? -1 : 0, mouth: true, sw: [0, 1] });
+    if (i === 1) return zres(c, v, o, { bob: 5, kneel: 3, dropHead: 1, tilt: 1, sway: [1, 0], sw: [0, 0] });
+    isoLying(c, v, lyingPal(o), true);
+  };
+}
+// crawler: a person dragging themselves forward on their arms, hips and legs limp behind. ~13 px high.
+// views are hand-laid; ph alternates the reaching arm, lunge 1 = rear back, 2 = lunge, oy sags down.
+function zcrawl(c, v, o, p) {
+  const { ph = 0, lunge = 0, oy = 0, bob = 0 } = p;
+  const skin = o.skin, skinD = shd(skin, 0.78), top = o.top, topD = shd(top, 0.8), pants = o.pants, shoe = o.shoe || skinD, hair = o.hair;
+  const R = (x, y, w, h, col) => c.rect(x, y + oy + bob, w, h, col);
+  const P = (x, y, col) => c.px(x, y + oy + bob, col);
+  const rs = ph % 2, lu = lunge === 2 ? 2 : 0, lb = lunge === 1 ? 1 : 0, open = lunge === 2;
+  const hand = (x, y, col = skin) => R(x, y, 2, 2, col);
+  const stripe = (x, y, w, h) => { if (o.kind === 'pyjama') for (let j = 0; j < h; j += 3) R(x, y + j, w, 1, o.stripe); };
+  if (v === 'E') {
+    R(0, 25, 5, 2, shd(pants, 0.8)); R(0, 24, 1, 3, shoe); R(1, 22, 4, 2, pants); P(1, 22, shoe); P(0, 23, shoe); // limp legs, one bent
+    R(4, 21, 7, 6, top); R(4, 21, 7, 1, shd(top, 1.15)); stripe(4, 22, 7, 5); P(6, 24, ZBL); P(9, 25, ZBD); P(5, 26, topD);
+    R(10 + lu - lb, 16 + lb * 2, 5, 6, skin); R(10 + lu - lb, 16 + lb * 2, 3, 3, hair); R(10 + lu - lb, 19 + lb * 2, 1, 2, hair);
+    if (o.hairStyle === 'long') R(9 + lu - lb, 19 + lb * 2, 2, 4, hair);
+    P(13 + lu - lb, 19 + lb * 2, '#14110f'); P(13 + lu - lb, 20 + lb * 2, shd(skin, 0.68)); if (open) R(13 + lu, 21 + lb * 2, 2, 1, ZMOUTH); else P(14 + lu - lb, 21 + lb * 2, shd(skin, 0.6));
+    line2(c, 9, 22 + oy + bob, 12 + rs + lu - lb, 26 + oy + bob, shd(top, 0.7)); hand(12 + rs + lu - lb, 26, shd(skin, 0.75));
+    line2(c, 8, 22 + oy + bob, 11 + (1 - rs) + lu, 26 + oy + bob, top); hand(11 + (1 - rs) + lu, 26); P(11 + (1 - rs) + lu, 27, ZBL);
+  } else if (v === 'S') {
+    R(4, 8, 3, 5, shd(pants, 0.8)); R(9, 9, 3, 4, pants); R(4, 8, 3, 1, shoe); R(9, 9, 3, 1, shoe); // legs trailing up the screen
+    R(4, 13, 8, 2, pants); R(3, 15, 10, 6, top); R(4, 15, 8, 1, shd(top, 1.15)); stripe(3, 16, 10, 5); P(6, 18, ZBL); P(10, 19, ZBD);
+    line2(c, 3, 17 + oy + bob, 2 - 0, 22 + rs + lu + oy + bob, top); hand(1, 23 + rs + lu); P(1, 24 + rs + lu, ZBL);
+    line2(c, 12, 17 + oy + bob, 13, 22 + (1 - rs) + lu + oy + bob, top); hand(13, 23 + (1 - rs) + lu);
+    R(5, 19 + lu, 6, 6, skin); R(5, 19 + lu, 6, 2, hair); if (o.hairStyle === 'long') { R(4, 20 + lu, 1, 5, hair); R(11, 20 + lu, 1, 5, hair); }
+    P(6, 22 + lu, '#14110f'); P(9, 22 + lu, '#14110f'); P(6, 23 + lu, shd(skin, 0.68)); P(9, 23 + lu, shd(skin, 0.68));
+    if (open) R(7, 24 + lu, 2, 2, ZMOUTH); else R(7, 24 + lu, 2, 1, shd(skin, 0.6));
+  } else if (v === 'N') {
+    R(1, 13 - lb + rs, 3, 3, top); R(1, 12 - lb + rs, 3, 2, skin); R(12, 13 - lb + (1 - rs), 3, 3, top); R(12, 12 - lb + (1 - rs), 3, 2, skin);
+    R(5, 12 + lb, 6, 5, hair); R(5, 16 + lb, 6, 1, skinD); if (o.hairStyle === 'long') R(5, 16 + lb, 6, 3, hair);
+    R(3, 17, 10, 6, top); R(4, 17, 8, 1, shd(top, 1.15)); R(7, 18, 1, 4, topD); stripe(3, 18, 10, 5); P(10, 20, ZBD);
+    R(4, 23, 3, 4, shd(pants, 0.8)); R(9, 23, 3, 4, pants); R(4, 27, 3, 1, shoe); R(9, 27, 3, 1, shoe); R(4, 23, 8, 1, shd(pants, 1.2));
+  } else if (v === 'SE') {
+    R(1, 17, 4, 3, shd(pants, 0.8)); R(0, 18, 2, 2, shoe); R(2, 20, 4, 3, pants); R(1, 22, 2, 1, shoe);
+    R(3, 19, 8, 6, top); R(4, 19, 6, 1, shd(top, 1.15)); stripe(3, 20, 8, 5); P(6, 22, ZBL); P(9, 23, ZBD);
+    line2(c, 8, 21 + oy + bob, 11 + rs + lu, 24 + oy + bob, shd(top, 0.7)); hand(11 + rs + lu, 24, shd(skin, 0.75));
+    R(9 + lu, 20 + lu, 5, 6, skin); R(9 + lu, 20 + lu, 5, 2, hair); if (o.hairStyle === 'long') R(9 + lu, 22 + lu, 1, 4, hair);
+    P(11 + lu, 23 + lu, '#14110f'); P(13 + lu, 23 + lu, '#14110f'); P(11 + lu, 24 + lu, shd(skin, 0.68)); P(13 + lu, 24 + lu, shd(skin, 0.68));
+    if (open) R(11 + lu, 25 + lu, 2, 1, ZMOUTH);
+    line2(c, 7, 22 + oy + bob, 10 + (1 - rs) + lu, 26 + oy + bob, top); hand(10 + (1 - rs) + lu, 26 + lu); P(11 + (1 - rs) + lu, 27 + lu, ZBL);
+  } else { // NE
+    R(1, 24, 4, 3, shd(pants, 0.8)); R(0, 26, 2, 2, shoe); R(3, 23, 4, 3, pants); R(1, 27, 2, 1, shoe);
+    R(3, 19, 8, 6, top); R(4, 19, 6, 1, shd(top, 1.15)); R(7, 20, 1, 4, topD); stripe(3, 20, 8, 5); P(9, 22, ZBD);
+    line2(c, 8, 19 + oy + bob, 12 + rs, 17 - lb + oy + bob, top); hand(12 + rs, 16 - lb);
+    R(8, 14 + lb, 5, 5, hair); R(8, 18 + lb, 5, 1, skinD); P(13, 17 + lb, skin); if (o.hairStyle === 'long') R(8, 18 + lb, 4, 3, hair);
+    line2(c, 6, 21 + oy + bob, 9 + (1 - rs), 25 + oy + bob, shd(top, 0.8)); hand(9 + (1 - rs), 25);
+  }
+}
+function crawlDraw(o) {
+  return (c, v, name, i) => {
+    if (name === 'shuffle') return zcrawl(c, v, o, { ph: i, bob: i % 2 });
+    if (name === 'attack') return zcrawl(c, v, o, { ph: 1, lunge: i === 0 ? 1 : 2 });
+    if (i === 0) return zcrawl(c, v, o, { ph: 0, oy: 1 });
+    if (i === 1) return zcrawl(c, v, o, { ph: 1, oy: 3 });
+    isoLying(c, v, lyingPal(o), true);
+  };
+}
+const ZANIMS = [['shuffle', 4, 5, -1], ['attack', 2, 6, 0], ['death', 3, 6, 0]];
+const ZNOTE = ' Zombies are ordinary residents who died: human proportions (same height as the hero), pale grey skin, dark dried blood only, slack posture (head tilted, arms low, limp gait). ';
+const ZW = [
+  ['iso_walker', { ...ZOUT.office, stains: [[0.1, 3, ZBL, 2, 3], [0.5, 4, ZBD], [0.2, 7, ZBD, 2, 1], [0.8, 6, ZBL, 1, 2, 1]], headWound: [4, 1], neckWound: [4], bite: true }, 'office worker: dirty grey shirt, loosened dark tie, charcoal trousers, short dark hair, dried blood on the collar and chest.'],
+  ['iso_walker_b', { ...ZOUT.gown, stains: [[0.3, 6, ZBL, 2, 3], [0.6, 11, ZBD, 2, 2], [0.1, 13, ZBL, 1, 2]], neckWound: [1], bite: true }, 'woman in a pale blue nightgown, long dark hair, bare feet, torn hem and dried blood at the side.'],
+  ['iso_walker_c', { ...ZOUT.hoodie, stains: [[0.7, 3, ZBL, 2, 2], [0.3, 8, ZBD, 1, 2, 1], [0.5, 9, ZBD]], headWound: [1, 1] }, 'young man in a dark slate hoodie and faded jeans, dirty sneakers, short black hair, darker skin tone, dried blood on the hood.'],
+  ['iso_walker_d', { ...ZOUT.scrubs, stains: [[0.1, 5, ZBL, 2, 3], [0.7, 8, ZBD, 2, 1], [0.4, 9, ZBL]], neckWound: [2], bite: true }, 'care worker in muted teal scrubs with an ID badge, brown hair in a bun, pale shoes, blood on the front.'],
+  ['iso_walker_e', { ...ZOUT.elder, stains: [[0.6, 4, ZBL, 2, 2], [0.2, 8, ZBD, 2, 1], [0.8, 3, ZBD, 1, 1, 1]], headWound: [1, 2] }, 'elderly resident in a brown cardigan over a cream shirt, grey trousers, thin white hair, slightly stooped.'],
+];
+for (const [key, o, desc] of ZW) {
+  isoChars(key, ZANIMS, zombieDraw(o), NOTE_CH + 'Walker zombie, ' + desc + ZNOTE + 'Anim "shuffle" (4 frames, 5 fps, limping gait) is the move/idle loop; "attack" 2 frames (lean in grabbing with both hands, lunge); "death" 3 (collapse, kneel, lying). Identical layout to every iso_walker* sheet; pick any variant per zombie.');
+}
+const ZC = [
+  ['iso_crawler', { ...ZOUT.pyjama, stains: [[0.3, 2, ZBL, 2, 2], [0.7, 4, ZBD]] }, 'man in grey-blue striped pyjamas, short dark hair.'],
+  ['iso_crawler_b', { ...ZOUT.blouse, stains: [[0.2, 3, ZBL, 2, 2], [0.8, 5, ZBD]] }, 'woman in a dark burgundy blouse and charcoal trousers, long dark hair.'],
+];
+for (const [key, o, desc] of ZC) {
+  isoChars(key, ZANIMS, crawlDraw(o), NOTE_CH + 'Crawler zombie, ' + desc + ' A person dragging themselves forward on their arms with limp legs trailing, about 12 px high.' + ZNOTE + '"shuffle" 4 frames (5 fps) is the crawl loop; "attack" 2 (rear back, lunge); "death" 3 (sag, flatten, lying).');
+}
+files.iso_walker.variants = ['iso_walker_b', 'iso_walker_c', 'iso_walker_d', 'iso_walker_e'];
+files.iso_crawler.variants = ['iso_crawler_b'];
 
 // ---------- action_icons 24x24 (GDD 4 context buttons, GDD 8 muted icon HUD) ----------
 // Flat #bdb8ab on transparent, no outline; alpha / tint set in game. Pure geometry, no rng.

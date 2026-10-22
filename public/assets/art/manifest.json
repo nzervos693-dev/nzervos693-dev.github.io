@@ -2644,7 +2644,1309 @@
      "repeat": 0
     }
    ],
-   "note": "Frames 16x32 art px, ANCHOR: feet / tile centre at (16/2, 30) = (8,30) (setOrigin(0.5, 30/32)). 8 facings in the order S, SW, W, NW, N, NE, E, SE (S = toward the camera, E = screen right, N = away). Frame names <anim>_<DIR>_<i>, animation keys <anim>_<DIR> (e.g. walk_SE). SW, W, NW are baked mirrors of SE, E, NE (no flipX needed). 1 px near-black outline. Walker zombie: grey-green skin, bald with sores, torn rust shirt, arms reaching. Anim \"shuffle\" (4 frames, 5 fps) is the move/idle loop; \"attack\" 2 frames (lean-in wind-up, lunge with open mouth); \"death\" 3 (slump, kneel, isoLying). Facing is readable by the pale face and hands (front) vs. dark back."
+   "note": "Frames 16x32 art px, ANCHOR: feet / tile centre at (16/2, 30) = (8,30) (setOrigin(0.5, 30/32)). 8 facings in the order S, SW, W, NW, N, NE, E, SE (S = toward the camera, E = screen right, N = away). Frame names <anim>_<DIR>_<i>, animation keys <anim>_<DIR> (e.g. walk_SE). SW, W, NW are baked mirrors of SE, E, NE (no flipX needed). 1 px near-black outline. Walker zombie, office worker: dirty grey shirt, loosened dark tie, charcoal trousers, short dark hair, dried blood on the collar and chest. Zombies are ordinary residents who died: human proportions (same height as the hero), pale grey skin, dark dried blood only, slack posture (head tilted, arms low, limp gait). Anim \"shuffle\" (4 frames, 5 fps, limping gait) is the move/idle loop; \"attack\" 2 frames (lean in grabbing with both hands, lunge); \"death\" 3 (collapse, kneel, lying). Identical layout to every iso_walker* sheet; pick any variant per zombie.",
+   "variants": [
+    "iso_walker_b",
+    "iso_walker_c",
+    "iso_walker_d",
+    "iso_walker_e"
+   ]
+  },
+  {
+   "key": "iso_walker_b",
+   "path": "assets/art/iso_walker_b.png",
+   "frameWidth": 16,
+   "frameHeight": 32,
+   "frames": 72,
+   "names": [
+    "shuffle_S_0",
+    "shuffle_S_1",
+    "shuffle_S_2",
+    "shuffle_S_3",
+    "attack_S_0",
+    "attack_S_1",
+    "death_S_0",
+    "death_S_1",
+    "death_S_2",
+    "shuffle_SW_0",
+    "shuffle_SW_1",
+    "shuffle_SW_2",
+    "shuffle_SW_3",
+    "attack_SW_0",
+    "attack_SW_1",
+    "death_SW_0",
+    "death_SW_1",
+    "death_SW_2",
+    "shuffle_W_0",
+    "shuffle_W_1",
+    "shuffle_W_2",
+    "shuffle_W_3",
+    "attack_W_0",
+    "attack_W_1",
+    "death_W_0",
+    "death_W_1",
+    "death_W_2",
+    "shuffle_NW_0",
+    "shuffle_NW_1",
+    "shuffle_NW_2",
+    "shuffle_NW_3",
+    "attack_NW_0",
+    "attack_NW_1",
+    "death_NW_0",
+    "death_NW_1",
+    "death_NW_2",
+    "shuffle_N_0",
+    "shuffle_N_1",
+    "shuffle_N_2",
+    "shuffle_N_3",
+    "attack_N_0",
+    "attack_N_1",
+    "death_N_0",
+    "death_N_1",
+    "death_N_2",
+    "shuffle_NE_0",
+    "shuffle_NE_1",
+    "shuffle_NE_2",
+    "shuffle_NE_3",
+    "attack_NE_0",
+    "attack_NE_1",
+    "death_NE_0",
+    "death_NE_1",
+    "death_NE_2",
+    "shuffle_E_0",
+    "shuffle_E_1",
+    "shuffle_E_2",
+    "shuffle_E_3",
+    "attack_E_0",
+    "attack_E_1",
+    "death_E_0",
+    "death_E_1",
+    "death_E_2",
+    "shuffle_SE_0",
+    "shuffle_SE_1",
+    "shuffle_SE_2",
+    "shuffle_SE_3",
+    "attack_SE_0",
+    "attack_SE_1",
+    "death_SE_0",
+    "death_SE_1",
+    "death_SE_2"
+   ],
+   "animations": [
+    {
+     "name": "shuffle_S",
+     "frames": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_S",
+     "frames": [
+      4,
+      5
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_S",
+     "frames": [
+      6,
+      7,
+      8
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_SW",
+     "frames": [
+      9,
+      10,
+      11,
+      12
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_SW",
+     "frames": [
+      13,
+      14
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_SW",
+     "frames": [
+      15,
+      16,
+      17
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_W",
+     "frames": [
+      18,
+      19,
+      20,
+      21
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_W",
+     "frames": [
+      22,
+      23
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_W",
+     "frames": [
+      24,
+      25,
+      26
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_NW",
+     "frames": [
+      27,
+      28,
+      29,
+      30
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_NW",
+     "frames": [
+      31,
+      32
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_NW",
+     "frames": [
+      33,
+      34,
+      35
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_N",
+     "frames": [
+      36,
+      37,
+      38,
+      39
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_N",
+     "frames": [
+      40,
+      41
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_N",
+     "frames": [
+      42,
+      43,
+      44
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_NE",
+     "frames": [
+      45,
+      46,
+      47,
+      48
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_NE",
+     "frames": [
+      49,
+      50
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_NE",
+     "frames": [
+      51,
+      52,
+      53
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_E",
+     "frames": [
+      54,
+      55,
+      56,
+      57
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_E",
+     "frames": [
+      58,
+      59
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_E",
+     "frames": [
+      60,
+      61,
+      62
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_SE",
+     "frames": [
+      63,
+      64,
+      65,
+      66
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_SE",
+     "frames": [
+      67,
+      68
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_SE",
+     "frames": [
+      69,
+      70,
+      71
+     ],
+     "fps": 6,
+     "repeat": 0
+    }
+   ],
+   "note": "Frames 16x32 art px, ANCHOR: feet / tile centre at (16/2, 30) = (8,30) (setOrigin(0.5, 30/32)). 8 facings in the order S, SW, W, NW, N, NE, E, SE (S = toward the camera, E = screen right, N = away). Frame names <anim>_<DIR>_<i>, animation keys <anim>_<DIR> (e.g. walk_SE). SW, W, NW are baked mirrors of SE, E, NE (no flipX needed). 1 px near-black outline. Walker zombie, woman in a pale blue nightgown, long dark hair, bare feet, torn hem and dried blood at the side. Zombies are ordinary residents who died: human proportions (same height as the hero), pale grey skin, dark dried blood only, slack posture (head tilted, arms low, limp gait). Anim \"shuffle\" (4 frames, 5 fps, limping gait) is the move/idle loop; \"attack\" 2 frames (lean in grabbing with both hands, lunge); \"death\" 3 (collapse, kneel, lying). Identical layout to every iso_walker* sheet; pick any variant per zombie."
+  },
+  {
+   "key": "iso_walker_c",
+   "path": "assets/art/iso_walker_c.png",
+   "frameWidth": 16,
+   "frameHeight": 32,
+   "frames": 72,
+   "names": [
+    "shuffle_S_0",
+    "shuffle_S_1",
+    "shuffle_S_2",
+    "shuffle_S_3",
+    "attack_S_0",
+    "attack_S_1",
+    "death_S_0",
+    "death_S_1",
+    "death_S_2",
+    "shuffle_SW_0",
+    "shuffle_SW_1",
+    "shuffle_SW_2",
+    "shuffle_SW_3",
+    "attack_SW_0",
+    "attack_SW_1",
+    "death_SW_0",
+    "death_SW_1",
+    "death_SW_2",
+    "shuffle_W_0",
+    "shuffle_W_1",
+    "shuffle_W_2",
+    "shuffle_W_3",
+    "attack_W_0",
+    "attack_W_1",
+    "death_W_0",
+    "death_W_1",
+    "death_W_2",
+    "shuffle_NW_0",
+    "shuffle_NW_1",
+    "shuffle_NW_2",
+    "shuffle_NW_3",
+    "attack_NW_0",
+    "attack_NW_1",
+    "death_NW_0",
+    "death_NW_1",
+    "death_NW_2",
+    "shuffle_N_0",
+    "shuffle_N_1",
+    "shuffle_N_2",
+    "shuffle_N_3",
+    "attack_N_0",
+    "attack_N_1",
+    "death_N_0",
+    "death_N_1",
+    "death_N_2",
+    "shuffle_NE_0",
+    "shuffle_NE_1",
+    "shuffle_NE_2",
+    "shuffle_NE_3",
+    "attack_NE_0",
+    "attack_NE_1",
+    "death_NE_0",
+    "death_NE_1",
+    "death_NE_2",
+    "shuffle_E_0",
+    "shuffle_E_1",
+    "shuffle_E_2",
+    "shuffle_E_3",
+    "attack_E_0",
+    "attack_E_1",
+    "death_E_0",
+    "death_E_1",
+    "death_E_2",
+    "shuffle_SE_0",
+    "shuffle_SE_1",
+    "shuffle_SE_2",
+    "shuffle_SE_3",
+    "attack_SE_0",
+    "attack_SE_1",
+    "death_SE_0",
+    "death_SE_1",
+    "death_SE_2"
+   ],
+   "animations": [
+    {
+     "name": "shuffle_S",
+     "frames": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_S",
+     "frames": [
+      4,
+      5
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_S",
+     "frames": [
+      6,
+      7,
+      8
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_SW",
+     "frames": [
+      9,
+      10,
+      11,
+      12
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_SW",
+     "frames": [
+      13,
+      14
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_SW",
+     "frames": [
+      15,
+      16,
+      17
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_W",
+     "frames": [
+      18,
+      19,
+      20,
+      21
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_W",
+     "frames": [
+      22,
+      23
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_W",
+     "frames": [
+      24,
+      25,
+      26
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_NW",
+     "frames": [
+      27,
+      28,
+      29,
+      30
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_NW",
+     "frames": [
+      31,
+      32
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_NW",
+     "frames": [
+      33,
+      34,
+      35
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_N",
+     "frames": [
+      36,
+      37,
+      38,
+      39
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_N",
+     "frames": [
+      40,
+      41
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_N",
+     "frames": [
+      42,
+      43,
+      44
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_NE",
+     "frames": [
+      45,
+      46,
+      47,
+      48
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_NE",
+     "frames": [
+      49,
+      50
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_NE",
+     "frames": [
+      51,
+      52,
+      53
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_E",
+     "frames": [
+      54,
+      55,
+      56,
+      57
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_E",
+     "frames": [
+      58,
+      59
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_E",
+     "frames": [
+      60,
+      61,
+      62
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_SE",
+     "frames": [
+      63,
+      64,
+      65,
+      66
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_SE",
+     "frames": [
+      67,
+      68
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_SE",
+     "frames": [
+      69,
+      70,
+      71
+     ],
+     "fps": 6,
+     "repeat": 0
+    }
+   ],
+   "note": "Frames 16x32 art px, ANCHOR: feet / tile centre at (16/2, 30) = (8,30) (setOrigin(0.5, 30/32)). 8 facings in the order S, SW, W, NW, N, NE, E, SE (S = toward the camera, E = screen right, N = away). Frame names <anim>_<DIR>_<i>, animation keys <anim>_<DIR> (e.g. walk_SE). SW, W, NW are baked mirrors of SE, E, NE (no flipX needed). 1 px near-black outline. Walker zombie, young man in a dark slate hoodie and faded jeans, dirty sneakers, short black hair, darker skin tone, dried blood on the hood. Zombies are ordinary residents who died: human proportions (same height as the hero), pale grey skin, dark dried blood only, slack posture (head tilted, arms low, limp gait). Anim \"shuffle\" (4 frames, 5 fps, limping gait) is the move/idle loop; \"attack\" 2 frames (lean in grabbing with both hands, lunge); \"death\" 3 (collapse, kneel, lying). Identical layout to every iso_walker* sheet; pick any variant per zombie."
+  },
+  {
+   "key": "iso_walker_d",
+   "path": "assets/art/iso_walker_d.png",
+   "frameWidth": 16,
+   "frameHeight": 32,
+   "frames": 72,
+   "names": [
+    "shuffle_S_0",
+    "shuffle_S_1",
+    "shuffle_S_2",
+    "shuffle_S_3",
+    "attack_S_0",
+    "attack_S_1",
+    "death_S_0",
+    "death_S_1",
+    "death_S_2",
+    "shuffle_SW_0",
+    "shuffle_SW_1",
+    "shuffle_SW_2",
+    "shuffle_SW_3",
+    "attack_SW_0",
+    "attack_SW_1",
+    "death_SW_0",
+    "death_SW_1",
+    "death_SW_2",
+    "shuffle_W_0",
+    "shuffle_W_1",
+    "shuffle_W_2",
+    "shuffle_W_3",
+    "attack_W_0",
+    "attack_W_1",
+    "death_W_0",
+    "death_W_1",
+    "death_W_2",
+    "shuffle_NW_0",
+    "shuffle_NW_1",
+    "shuffle_NW_2",
+    "shuffle_NW_3",
+    "attack_NW_0",
+    "attack_NW_1",
+    "death_NW_0",
+    "death_NW_1",
+    "death_NW_2",
+    "shuffle_N_0",
+    "shuffle_N_1",
+    "shuffle_N_2",
+    "shuffle_N_3",
+    "attack_N_0",
+    "attack_N_1",
+    "death_N_0",
+    "death_N_1",
+    "death_N_2",
+    "shuffle_NE_0",
+    "shuffle_NE_1",
+    "shuffle_NE_2",
+    "shuffle_NE_3",
+    "attack_NE_0",
+    "attack_NE_1",
+    "death_NE_0",
+    "death_NE_1",
+    "death_NE_2",
+    "shuffle_E_0",
+    "shuffle_E_1",
+    "shuffle_E_2",
+    "shuffle_E_3",
+    "attack_E_0",
+    "attack_E_1",
+    "death_E_0",
+    "death_E_1",
+    "death_E_2",
+    "shuffle_SE_0",
+    "shuffle_SE_1",
+    "shuffle_SE_2",
+    "shuffle_SE_3",
+    "attack_SE_0",
+    "attack_SE_1",
+    "death_SE_0",
+    "death_SE_1",
+    "death_SE_2"
+   ],
+   "animations": [
+    {
+     "name": "shuffle_S",
+     "frames": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_S",
+     "frames": [
+      4,
+      5
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_S",
+     "frames": [
+      6,
+      7,
+      8
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_SW",
+     "frames": [
+      9,
+      10,
+      11,
+      12
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_SW",
+     "frames": [
+      13,
+      14
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_SW",
+     "frames": [
+      15,
+      16,
+      17
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_W",
+     "frames": [
+      18,
+      19,
+      20,
+      21
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_W",
+     "frames": [
+      22,
+      23
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_W",
+     "frames": [
+      24,
+      25,
+      26
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_NW",
+     "frames": [
+      27,
+      28,
+      29,
+      30
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_NW",
+     "frames": [
+      31,
+      32
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_NW",
+     "frames": [
+      33,
+      34,
+      35
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_N",
+     "frames": [
+      36,
+      37,
+      38,
+      39
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_N",
+     "frames": [
+      40,
+      41
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_N",
+     "frames": [
+      42,
+      43,
+      44
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_NE",
+     "frames": [
+      45,
+      46,
+      47,
+      48
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_NE",
+     "frames": [
+      49,
+      50
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_NE",
+     "frames": [
+      51,
+      52,
+      53
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_E",
+     "frames": [
+      54,
+      55,
+      56,
+      57
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_E",
+     "frames": [
+      58,
+      59
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_E",
+     "frames": [
+      60,
+      61,
+      62
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_SE",
+     "frames": [
+      63,
+      64,
+      65,
+      66
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_SE",
+     "frames": [
+      67,
+      68
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_SE",
+     "frames": [
+      69,
+      70,
+      71
+     ],
+     "fps": 6,
+     "repeat": 0
+    }
+   ],
+   "note": "Frames 16x32 art px, ANCHOR: feet / tile centre at (16/2, 30) = (8,30) (setOrigin(0.5, 30/32)). 8 facings in the order S, SW, W, NW, N, NE, E, SE (S = toward the camera, E = screen right, N = away). Frame names <anim>_<DIR>_<i>, animation keys <anim>_<DIR> (e.g. walk_SE). SW, W, NW are baked mirrors of SE, E, NE (no flipX needed). 1 px near-black outline. Walker zombie, care worker in muted teal scrubs with an ID badge, brown hair in a bun, pale shoes, blood on the front. Zombies are ordinary residents who died: human proportions (same height as the hero), pale grey skin, dark dried blood only, slack posture (head tilted, arms low, limp gait). Anim \"shuffle\" (4 frames, 5 fps, limping gait) is the move/idle loop; \"attack\" 2 frames (lean in grabbing with both hands, lunge); \"death\" 3 (collapse, kneel, lying). Identical layout to every iso_walker* sheet; pick any variant per zombie."
+  },
+  {
+   "key": "iso_walker_e",
+   "path": "assets/art/iso_walker_e.png",
+   "frameWidth": 16,
+   "frameHeight": 32,
+   "frames": 72,
+   "names": [
+    "shuffle_S_0",
+    "shuffle_S_1",
+    "shuffle_S_2",
+    "shuffle_S_3",
+    "attack_S_0",
+    "attack_S_1",
+    "death_S_0",
+    "death_S_1",
+    "death_S_2",
+    "shuffle_SW_0",
+    "shuffle_SW_1",
+    "shuffle_SW_2",
+    "shuffle_SW_3",
+    "attack_SW_0",
+    "attack_SW_1",
+    "death_SW_0",
+    "death_SW_1",
+    "death_SW_2",
+    "shuffle_W_0",
+    "shuffle_W_1",
+    "shuffle_W_2",
+    "shuffle_W_3",
+    "attack_W_0",
+    "attack_W_1",
+    "death_W_0",
+    "death_W_1",
+    "death_W_2",
+    "shuffle_NW_0",
+    "shuffle_NW_1",
+    "shuffle_NW_2",
+    "shuffle_NW_3",
+    "attack_NW_0",
+    "attack_NW_1",
+    "death_NW_0",
+    "death_NW_1",
+    "death_NW_2",
+    "shuffle_N_0",
+    "shuffle_N_1",
+    "shuffle_N_2",
+    "shuffle_N_3",
+    "attack_N_0",
+    "attack_N_1",
+    "death_N_0",
+    "death_N_1",
+    "death_N_2",
+    "shuffle_NE_0",
+    "shuffle_NE_1",
+    "shuffle_NE_2",
+    "shuffle_NE_3",
+    "attack_NE_0",
+    "attack_NE_1",
+    "death_NE_0",
+    "death_NE_1",
+    "death_NE_2",
+    "shuffle_E_0",
+    "shuffle_E_1",
+    "shuffle_E_2",
+    "shuffle_E_3",
+    "attack_E_0",
+    "attack_E_1",
+    "death_E_0",
+    "death_E_1",
+    "death_E_2",
+    "shuffle_SE_0",
+    "shuffle_SE_1",
+    "shuffle_SE_2",
+    "shuffle_SE_3",
+    "attack_SE_0",
+    "attack_SE_1",
+    "death_SE_0",
+    "death_SE_1",
+    "death_SE_2"
+   ],
+   "animations": [
+    {
+     "name": "shuffle_S",
+     "frames": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_S",
+     "frames": [
+      4,
+      5
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_S",
+     "frames": [
+      6,
+      7,
+      8
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_SW",
+     "frames": [
+      9,
+      10,
+      11,
+      12
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_SW",
+     "frames": [
+      13,
+      14
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_SW",
+     "frames": [
+      15,
+      16,
+      17
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_W",
+     "frames": [
+      18,
+      19,
+      20,
+      21
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_W",
+     "frames": [
+      22,
+      23
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_W",
+     "frames": [
+      24,
+      25,
+      26
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_NW",
+     "frames": [
+      27,
+      28,
+      29,
+      30
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_NW",
+     "frames": [
+      31,
+      32
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_NW",
+     "frames": [
+      33,
+      34,
+      35
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_N",
+     "frames": [
+      36,
+      37,
+      38,
+      39
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_N",
+     "frames": [
+      40,
+      41
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_N",
+     "frames": [
+      42,
+      43,
+      44
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_NE",
+     "frames": [
+      45,
+      46,
+      47,
+      48
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_NE",
+     "frames": [
+      49,
+      50
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_NE",
+     "frames": [
+      51,
+      52,
+      53
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_E",
+     "frames": [
+      54,
+      55,
+      56,
+      57
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_E",
+     "frames": [
+      58,
+      59
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_E",
+     "frames": [
+      60,
+      61,
+      62
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_SE",
+     "frames": [
+      63,
+      64,
+      65,
+      66
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_SE",
+     "frames": [
+      67,
+      68
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_SE",
+     "frames": [
+      69,
+      70,
+      71
+     ],
+     "fps": 6,
+     "repeat": 0
+    }
+   ],
+   "note": "Frames 16x32 art px, ANCHOR: feet / tile centre at (16/2, 30) = (8,30) (setOrigin(0.5, 30/32)). 8 facings in the order S, SW, W, NW, N, NE, E, SE (S = toward the camera, E = screen right, N = away). Frame names <anim>_<DIR>_<i>, animation keys <anim>_<DIR> (e.g. walk_SE). SW, W, NW are baked mirrors of SE, E, NE (no flipX needed). 1 px near-black outline. Walker zombie, elderly resident in a brown cardigan over a cream shirt, grey trousers, thin white hair, slightly stooped. Zombies are ordinary residents who died: human proportions (same height as the hero), pale grey skin, dark dried blood only, slack posture (head tilted, arms low, limp gait). Anim \"shuffle\" (4 frames, 5 fps, limping gait) is the move/idle loop; \"attack\" 2 frames (lean in grabbing with both hands, lunge); \"death\" 3 (collapse, kneel, lying). Identical layout to every iso_walker* sheet; pick any variant per zombie."
   },
   {
    "key": "iso_crawler",
@@ -2968,7 +4270,334 @@
      "repeat": 0
     }
    ],
-   "note": "Frames 16x32 art px, ANCHOR: feet / tile centre at (16/2, 30) = (8,30) (setOrigin(0.5, 30/32)). 8 facings in the order S, SW, W, NW, N, NE, E, SE (S = toward the camera, E = screen right, N = away). Frame names <anim>_<DIR>_<i>, animation keys <anim>_<DIR> (e.g. walk_SE). SW, W, NW are baked mirrors of SE, E, NE (no flipX needed). 1 px near-black outline. Crawler zombie (legless, low to the ground, about 12 px high): dragging itself on its arms, head leading. \"shuffle\" 4 frames (5 fps) is the crawl loop; \"attack\" 2 (rear back, lunge); \"death\" 3 (sag, flatten, isoLying)."
+   "note": "Frames 16x32 art px, ANCHOR: feet / tile centre at (16/2, 30) = (8,30) (setOrigin(0.5, 30/32)). 8 facings in the order S, SW, W, NW, N, NE, E, SE (S = toward the camera, E = screen right, N = away). Frame names <anim>_<DIR>_<i>, animation keys <anim>_<DIR> (e.g. walk_SE). SW, W, NW are baked mirrors of SE, E, NE (no flipX needed). 1 px near-black outline. Crawler zombie, man in grey-blue striped pyjamas, short dark hair. A person dragging themselves forward on their arms with limp legs trailing, about 12 px high. Zombies are ordinary residents who died: human proportions (same height as the hero), pale grey skin, dark dried blood only, slack posture (head tilted, arms low, limp gait). \"shuffle\" 4 frames (5 fps) is the crawl loop; \"attack\" 2 (rear back, lunge); \"death\" 3 (sag, flatten, lying).",
+   "variants": [
+    "iso_crawler_b"
+   ]
+  },
+  {
+   "key": "iso_crawler_b",
+   "path": "assets/art/iso_crawler_b.png",
+   "frameWidth": 16,
+   "frameHeight": 32,
+   "frames": 72,
+   "names": [
+    "shuffle_S_0",
+    "shuffle_S_1",
+    "shuffle_S_2",
+    "shuffle_S_3",
+    "attack_S_0",
+    "attack_S_1",
+    "death_S_0",
+    "death_S_1",
+    "death_S_2",
+    "shuffle_SW_0",
+    "shuffle_SW_1",
+    "shuffle_SW_2",
+    "shuffle_SW_3",
+    "attack_SW_0",
+    "attack_SW_1",
+    "death_SW_0",
+    "death_SW_1",
+    "death_SW_2",
+    "shuffle_W_0",
+    "shuffle_W_1",
+    "shuffle_W_2",
+    "shuffle_W_3",
+    "attack_W_0",
+    "attack_W_1",
+    "death_W_0",
+    "death_W_1",
+    "death_W_2",
+    "shuffle_NW_0",
+    "shuffle_NW_1",
+    "shuffle_NW_2",
+    "shuffle_NW_3",
+    "attack_NW_0",
+    "attack_NW_1",
+    "death_NW_0",
+    "death_NW_1",
+    "death_NW_2",
+    "shuffle_N_0",
+    "shuffle_N_1",
+    "shuffle_N_2",
+    "shuffle_N_3",
+    "attack_N_0",
+    "attack_N_1",
+    "death_N_0",
+    "death_N_1",
+    "death_N_2",
+    "shuffle_NE_0",
+    "shuffle_NE_1",
+    "shuffle_NE_2",
+    "shuffle_NE_3",
+    "attack_NE_0",
+    "attack_NE_1",
+    "death_NE_0",
+    "death_NE_1",
+    "death_NE_2",
+    "shuffle_E_0",
+    "shuffle_E_1",
+    "shuffle_E_2",
+    "shuffle_E_3",
+    "attack_E_0",
+    "attack_E_1",
+    "death_E_0",
+    "death_E_1",
+    "death_E_2",
+    "shuffle_SE_0",
+    "shuffle_SE_1",
+    "shuffle_SE_2",
+    "shuffle_SE_3",
+    "attack_SE_0",
+    "attack_SE_1",
+    "death_SE_0",
+    "death_SE_1",
+    "death_SE_2"
+   ],
+   "animations": [
+    {
+     "name": "shuffle_S",
+     "frames": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_S",
+     "frames": [
+      4,
+      5
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_S",
+     "frames": [
+      6,
+      7,
+      8
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_SW",
+     "frames": [
+      9,
+      10,
+      11,
+      12
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_SW",
+     "frames": [
+      13,
+      14
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_SW",
+     "frames": [
+      15,
+      16,
+      17
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_W",
+     "frames": [
+      18,
+      19,
+      20,
+      21
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_W",
+     "frames": [
+      22,
+      23
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_W",
+     "frames": [
+      24,
+      25,
+      26
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_NW",
+     "frames": [
+      27,
+      28,
+      29,
+      30
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_NW",
+     "frames": [
+      31,
+      32
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_NW",
+     "frames": [
+      33,
+      34,
+      35
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_N",
+     "frames": [
+      36,
+      37,
+      38,
+      39
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_N",
+     "frames": [
+      40,
+      41
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_N",
+     "frames": [
+      42,
+      43,
+      44
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_NE",
+     "frames": [
+      45,
+      46,
+      47,
+      48
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_NE",
+     "frames": [
+      49,
+      50
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_NE",
+     "frames": [
+      51,
+      52,
+      53
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_E",
+     "frames": [
+      54,
+      55,
+      56,
+      57
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_E",
+     "frames": [
+      58,
+      59
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_E",
+     "frames": [
+      60,
+      61,
+      62
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "shuffle_SE",
+     "frames": [
+      63,
+      64,
+      65,
+      66
+     ],
+     "fps": 5,
+     "repeat": -1
+    },
+    {
+     "name": "attack_SE",
+     "frames": [
+      67,
+      68
+     ],
+     "fps": 6,
+     "repeat": 0
+    },
+    {
+     "name": "death_SE",
+     "frames": [
+      69,
+      70,
+      71
+     ],
+     "fps": 6,
+     "repeat": 0
+    }
+   ],
+   "note": "Frames 16x32 art px, ANCHOR: feet / tile centre at (16/2, 30) = (8,30) (setOrigin(0.5, 30/32)). 8 facings in the order S, SW, W, NW, N, NE, E, SE (S = toward the camera, E = screen right, N = away). Frame names <anim>_<DIR>_<i>, animation keys <anim>_<DIR> (e.g. walk_SE). SW, W, NW are baked mirrors of SE, E, NE (no flipX needed). 1 px near-black outline. Crawler zombie, woman in a dark burgundy blouse and charcoal trousers, long dark hair. A person dragging themselves forward on their arms with limp legs trailing, about 12 px high. Zombies are ordinary residents who died: human proportions (same height as the hero), pale grey skin, dark dried blood only, slack posture (head tilted, arms low, limp gait). \"shuffle\" 4 frames (5 fps) is the crawl loop; \"attack\" 2 (rear back, lunge); \"death\" 3 (sag, flatten, lying)."
   },
   {
    "key": "action_icons",
