@@ -90,13 +90,13 @@ from what the building already holds.
 - Android phones (PWA + PWABuilder -> Google Play); also any phone browser.
 - Orientation: **portrait**, locked.
 - **720x1280** base, Phaser `Scale.FIT`, centered, `pixelArt: true`,
-  `roundPixels: true`. Moodles and the bottom bar are offset by
+  `roundPixels: true`. Moodles, the top bar and the action buttons are offset by
   `env(safe-area-inset-*)`.
 - Session **1-5 minutes** (check moodles, one scouting run or one attack,
   close); 3-6 check-ins per day.
-- Every tappable thing has a hit area of at least **96x96 game px** (about
-  48 CSS px on a 400 CSS px wide phone); small sprites get a padded hit
-  area (iso hit-testing rules in section 4).
+- Every tappable thing (buttons, top bar, moodles, panel rows) has a hit
+  area of at least **96x96 game px** (about 48 CSS px on a 400 CSS px wide
+  phone). The world itself is not tappable (section 4).
 - Audio starts on the first tap ("Tap to start"). Download under 20 MB
   (expected under 6 MB).
 
@@ -113,7 +113,7 @@ from what the building already holds.
   so grid point (0, 0) is the top corner of tile (0, 0). A tile **centre**
   (gx = x + 0.5, gy = y + 0.5) is therefore at
   **`sx = (x - y) * 48`, `sy = (x + y + 1) * 24`** (not `(x + y) * 24`).
-  Inverse (for taps): `gx = (sx / 48 + sy / 24) / 2`,
+  Inverse (screen to grid): `gx = (sx / 48 + sy / 24) / 2`,
   `gy = (sy / 24 - sx / 48) / 2`, then tile = (floor(gx), floor(gy)).
   Art, level tools and code all use these formulas.
 - **"North/west"** edges of a room are its far edges (top of the screen,
@@ -129,7 +129,8 @@ from what the building already holds.
 - **Readability on a small screen**: a visible zombie must be readable at a
   glance: pale face/hands vs. dark back (facing), slow shamble, and a
   lean-in wind-up. Interactables are read by shape and light, never by
-  highlights (9). Text is never drawn in the world except the stencil floor
+  highlights (9); the one exception is the thin dark outline on the
+  hero's current target (section 4). Text is never drawn in the world except the stencil floor
   number on the landing.
 
 **Wall cutaway** (so you can see inside rooms)
@@ -140,12 +141,12 @@ from what the building already holds.
   north/west walls, are full height.
 - **Occluder fade**: any full-height wall or tall object (wardrobe, fridge,
   storage cage, water heater, washing machine) whose sprite overlaps the
-  sprite of the hero, a Visible zombie or the target of the current walk
-  or action fades to alpha **0.3** (`iso.occluderFadeAlpha`).
+  sprite of the hero, a Visible zombie or the hero's current target
+  (section 4) fades to alpha **0.3** (`iso.occluderFadeAlpha`).
 - Cut and fade changes animate over **0.2 s** (`iso.cutawayFadeSeconds`).
 - Doors in cut walls are drawn as a stub frame with the door leaf shown on
   the floor line (closed = a low filled panel across the gap, open = the
-  leaf swung against the wall); they stay tappable (section 4).
+  leaf swung against the wall); they stay targetable (section 4).
 - Windows in cut walls show as a low sill with a glass edge.
 - **Draw order**: per tile, by (x + y) ascending, then: floor, floor decals,
   north/west walls of that tile, objects and characters on that tile,
@@ -167,8 +168,8 @@ from what the building already holds.
   amount to put him back on its edge. So at rest the hero sits up to
   120 px off-centre, away from the way he faces.
 - **No manual panning** (CD joystick decision, Stage A playtest): the view
-  always follows the hero with the look-ahead above. Drags never pan (a
-  drag outside the joystick zone is Look, section 4); no two-finger pan.
+  always follows the hero with the look-ahead above. Drags on the world
+  do nothing (section 4); no two-finger pan.
   While the joystick moves the hero, the look-ahead uses his facing, which
   equals his movement direction.
 - **Clamp**: the view centre stays inside the current floor's iso bounding
@@ -196,26 +197,33 @@ from what the building already holds.
    your door. Or don't notice, and find out how well it was built.
 
 ## 4. Touch controls
-**Floating virtual joystick to move, taps to act** (CD decision after the
-Stage A playtest: tap-to-move made the target hard to see). The left
-thumb moves by default (a Menu setting puts the stick on the right for
-left-handed play, below); any thumb taps. No keyboard or hover, no pinch zoom (CD
-decision, 12), no camera panning (section 2). At most **2 pointers** are
-tracked (Phaser `input.addPointer(1)`): the stick plus one tap.
+**Floating virtual joystick to move, context buttons to act** (CD
+decisions: joystick after the Stage A playtest; context buttons after the
+joystick playtest, "keep all interaction in a joystick and buttons"). The
+left thumb moves; the right thumb presses the buttons in the lower-right
+arc (a Menu setting mirrors both for left-handed play, below). **The world
+is not touch-interactive**: tapping or dragging on objects, doors,
+zombies, stairs, the floor or the hero does nothing. Only the stick, the
+action buttons, the top bar, moodles and open panels take touches. No
+keyboard or hover, no pinch zoom (CD decision, 12), no camera panning
+(section 2). At most **2 pointers** are tracked (Phaser
+`input.addPointer(1)`): the stick plus one button.
 
 **The joystick** (`controls.joystick.*`)
 - **Zone**: a touch that starts in the **lower-left** area of the screen,
   **55%** of the screen width from the left edge (`zoneWidthFrac`) by
   **55%** of the screen height from the bottom edge (`zoneHeightFrac`),
-  measured inside the safe area, and that does not start on UI (bottom bar
-  hit areas, moodles, an open menu, panel or card), becomes the stick.
-  Touches starting anywhere else are taps or Look drags (below).
+  measured inside the safe area, and that does not start on UI (action
+  button or top bar hit areas, moodles, an open menu, panel or card),
+  becomes the stick. UI always wins over the stick zone. Touches starting
+  anywhere else on the world do nothing.
 - **Stick side setting** (CD decision, open question 4): Menu (section 8)
   has a toggle **"Stick: Left / Right"**, default **Left**
   (`controls.joystick.sideSettingDefault`, `"left"` or `"right"`). On
   Right, the zone is mirrored to the **lower-right** (55% of the width
-  from the right edge, same 55% height); everything else (taps, Look
-  drags outside the zone, UI exclusion, thresholds) is unchanged. The
+  from the right edge, same 55% height) and the action button arc is
+  mirrored to the **lower-left** (HUD layout below); everything else (UI
+  exclusion, thresholds, top bar, moodles) is unchanged. The
   choice is saved with the other settings (sound, music) as
   `settings.joystickSide`, survives restarts and New game, and applies
   the next time a finger touches down (a stick already held keeps its
@@ -240,10 +248,15 @@ tracked (Phaser `input.addPointer(1)`): the stick plus one tap.
     in or out changes gait at once; the dead zone (0.15) has no
     hysteresis beyond the rule above.
   - Release: the hero stops at once (no glide); he keeps his facing.
-- **Tap in the zone**: if the touch is released within **0.25 s**
-  (`tapMaxSeconds`) and never left the dead zone, it is **not** a stick
-  gesture but a normal tap at the touch-down point (tap resolution below),
-  so objects and zombies in the lower-left stay tappable.
+- **Tap in the zone**: a touch released within **0.25 s**
+  (`tapMaxSeconds`) that never left the dead zone does nothing, except:
+- **Double tap in the zone = turn around**: a second such tap whose
+  touch-down is within **0.3 s** (`doubleTapSeconds`) of the first tap's
+  release and within **48 game px** (`doubleTapMaxDistancePx`) of the
+  first touch-down turns the hero **180 degrees** in **0.2 s**
+  (`controls.turnAroundSeconds`). Silent. It does not cancel an action in
+  progress (he keeps working; the target stays locked, below). This
+  replaces the old tap-on-hero turn.
 - **Direction is screen-correct**: pushing the knob up moves the hero up
   the screen, right moves him right, and so on. The stick vector (sx, sy)
   is converted to a grid vector with the inverse projection (section 2)
@@ -282,42 +295,227 @@ tracked (Phaser `input.addPointer(1)`): the stick plus one tap.
   **0.1 s** on touch-down and fades out over **0.3 s** on release
   (`fadeSeconds`); when idle nothing is drawn. Colours and alphas are in
   `controls.joystick.visual`.
-- **Interrupts**: moving the stick out of the dead zone cancels an
-  auto-walk (below) and any action in progress, except a search or
+- **Interrupts**: moving the stick out of the dead zone cancels a Home
+  auto-walk (below) and any timed action in progress (search, dismantle,
+  drain, claim, force with a crowbar, door open/close), except a search or
   dismantle past 50% (it completes first; then, if the stick is still
   held, he starts moving). It also wakes a sleeping or napping hero.
+- **Looking around** (Look drag removed with world touches): the hero
+  faces where he moves. A short, light push (creep band) turns him with a
+  step of about 0.2 tiles; the double tap above turns him round on the
+  spot. Acting on a target turns him to it.
 
-**Taps and Look** (outside the stick)
+**The target** (keys `controls.target.*`)
 
-| Gesture | Where | Result |
+The hero always has **at most one target**: the interactable he would act
+on. The action buttons (below) show what he can do to it. Walking up to a
+thing targets it; there is no other way to pick one.
+- **Candidates** (re-checked every frame):
+  - **Zombies**: Visible (5.17), alive, with a **clear line** (5.4), within
+    the equipped weapon's range (`combat.weapons.<id>.rangeTiles`,
+    centre to centre) and within **+-90 degrees** of the hero's facing
+    (`zombieConeDegrees` 180 total).
+  - **Objects, doors and the rest** (containers, drainables, beds,
+    workbench, stash, placeables, survivors, the dog, material and bag
+    piles, the elevator door): within **1.2 tiles**
+    (`objectReachTiles`) and within **+-60 degrees** of his facing
+    (`objectConeDegrees` 120 total), with at least one main or secondary
+    action (greyed counts). Distance is from the hero's centre to the
+    **nearest point** of the thing's footprint rectangle; **edge things**
+    (doors, window panes, curtains, mounted cabinets) use their wall-edge
+    segment. The angle is to the footprint's centre (edge things: the
+    segment's midpoint). At least one footprint tile (edge things: one of
+    the two tiles beside the edge) must be **Visible**, and the straight
+    segment from the hero's centre to the nearest point must not cross a
+    wall or a closed/jammed door other than the target itself.
+  - Never candidates: stairs (walk into them, 5.3), floor tiles, the
+    hero himself, corpses, decals, Remembered-only or Unknown things.
+- **Choosing**: if any zombie is a candidate, only zombies compete
+  (zombies always beat objects). Among the competitors, sort by the
+  absolute angle from his facing in **15-degree buckets**
+  (`angleBucketDegrees`; floor(angle / 15)), then by distance; the first
+  is the **best candidate**.
+- **Hysteresis (no flicker)**: the current target is **kept** while it is
+  still valid under loosened limits: reach **+0.3 tiles**
+  (`keepReachExtraTiles`) and the cone **+15 degrees per side**
+  (`keepConeExtraDegrees` 30 total). A different best candidate replaces
+  it only after being best for **0.15 s** without a break
+  (`switchHoldSeconds`). Exceptions, which switch at once: a zombie
+  candidate appears while the target is not a zombie; the current target
+  stops being valid (gone, dismantled, out of the loosened limits) - then
+  the best candidate (or none) is taken immediately.
+- **Standing still keeps the target**: while the stick is not held, the
+  target only changes through the two exceptions above (a new object
+  coming into reach never steals it; a zombie always does).
+- **Locked during actions**: from the start of a timed action until it
+  ends or is cancelled, the target does not change (not even for a
+  zombie; the Attack button still swings at the zombie candidate, below).
+- **Target outline**: the target gets a thin **dark outline** around its
+  sprite silhouette (doors: the leaf; edge things: their sprite; zombies:
+  the body): **3 game px** (1 art px, `outline.widthPx`), colour
+  `#0b0c0e` at alpha **0.6** (`outline.color`, `outline.alpha`); no glow,
+  no pulse, no colour, no text. It fades in/out over **0.1 s**
+  (`outline.fadeSeconds`) on change. It is not drawn while a panel or menu
+  is open, during sleep/nap, or when there is no target. This is the only
+  world outline besides the placement spots (5.6).
+
+**Action buttons** (lower-right arc, sizes and positions under HUD layout
+below; muted UI style, section 8; icons only, never text)
+
+| Button | Size | What it does |
 |---|---|---|
-| Tap | Object (Visible or Remembered) | **Action menu** (below). Choosing an action makes the hero **auto-walk** there along an A* path (5.3, always a quiet walk) and act on arrival. |
-| Tap | Closed door | Hero auto-walks to the door's near side and **opens** it (5.18). |
-| Tap | Open door | Action menu: **Close** and **Dismantle** (interior doors) or **Close** and **Claim / Leave this place** (front doors). |
-| Tap | Visible zombie | In weapon range with a clear line: attack now. Otherwise auto-walk to the nearest tile in range and attack once on arrival. |
-| Tap | The hero | He **turns around** (180 degrees in **0.2 s**, `controls.heroTapTurnSeconds`). Silent. |
-| Tap | Empty floor (walkable or not) | **Nothing** (no marker, no walk), after the forgiveness snap below. Exception: while Throw is armed, it is the throw target (5.11). |
-| Drag (moves > **16 game px**, `controls.dragThresholdPx`) | Anywhere outside the stick zone and UI, while the stick is not held | **Look**: the hero turns to face the finger (direction from the hero's body to the finger, converted to a grid angle) at **720 deg/s** (`controls.lookTurnDegreesPerSecond`); the cone follows while the finger is down. It cancels an auto-walk, but not an action in progress (he keeps working while looking). Release: he keeps that facing. Silent. |
-| Tap | A stair flight tile | Hero auto-walks to the flight and climbs/descends one floor (5.3). |
-| Tap | Moodle icon | Shows its plain-text card (5.2). |
-| Tap | "Home" button (bottom bar) | First tap shows the pressed state for **1 s**; a second tap within **1 s** sends the hero (auto-walk) to the main home's bed, pathing via the stairs if needed. |
-| Tap | Bottom bar buttons (icons only, section 8) | Inventory, Workbench, Survivors, Menu; **Throw** (only while a throwable is carried, 5.11). Sound toggle is in Menu. |
+| **Main** | 120 px | The target's main action (table below); its icon is that action's pictogram. |
+| **Secondary** | 88 px | The target's alternative action (table below). |
+| **Attack** | 96 px | Swing the equipped weapon; its icon is that weapon (fist / knife / bat ...). Always shown. |
+| **Quick-use** | 80 px | Use the chosen carried item; long-press to choose (below). |
 
-- **Second finger while the stick is held** (past the dead zone): a tap on
-  a Visible zombie **in weapon range** with a clear line attacks at once
-  (the hero turns to it for the swing, then back to his movement
-  direction; movement continues). A tap on UI works normally. Every other
-  tap (objects, doors, out-of-range zombies, the hero) is **ignored** while
-  the stick is held. A second drag is ignored (no Look while moving).
-- **Auto-walk** (after a tap on an object, door, zombie, stair or Home) is
-  the only pathfinding movement; it is always a quiet walk, never a run.
-  Using the stick cancels it at once.
+- **Tap, not hold**: every action starts on a tap (finger down and up on
+  the same button within its hit area; the action fires on release). A
+  finger that slides off the button before release does nothing.
+  Exception: **holding Attack** (or Main while it shows Attack) repeats
+  the swing every weapon cooldown while held.
+- **Empty and greyed**: the four plates are always drawn, so the arc never
+  jumps. A button with no action shows an empty plate at alpha **0.3**
+  (`controls.buttons.emptyPlateAlpha`) and ignores taps. A button whose
+  action is **unavailable** (missing tool, cooldown, unsafe, full, empty)
+  shows the action's icon at alpha **0.3** (`disabledIconAlpha`); a tap
+  shows the reason as a toast or thought ("Needs crowbar", "Not safe.",
+  "Nothing left.") and does nothing.
+- **Icon change**: when the target or its state changes, the icon
+  cross-fades over **0.1 s** (`iconSwapFadeSeconds`). A tap during the
+  fade acts on the **new** target.
+- **No main action -> secondary moves up**: if a target has no main
+  action at all (objects whose `primary` is `null`, e.g. chair, table,
+  sofa, curtains, sink pipes, window pane), its secondary action
+  (Dismantle) is shown on **Main** and Secondary is empty. Things that
+  have a main action that is merely used up (searched, drained) keep it
+  greyed on Main and Dismantle stays on Secondary, so a repeated tap on
+  Main never starts a noisy dismantle by surprise.
+- **Confirm taps**: actions marked "confirm" below need a second tap on
+  the same button within **2 s** (`confirmSeconds`); the first tap shows
+  the pressed plate and the toast "Tap again to leave this place." Any
+  other input or target change cancels the confirm.
+- **Timed actions** (search, dismantle, drain, claim, force with a
+  crowbar, door open/close, nap): a tap starts them; the hero stays where
+  he stands (there is no walking to an access tile: being in reach is
+  enough), turns to face the target at 540 deg/s while the timer already
+  runs, and the thin progress ring shows. **Moving the stick out of the
+  dead zone cancels** (50% rule above). Main and Secondary taps during a
+  timed action do nothing. Attack during a timed action cancels it (same
+  50% rule: past 50% the swing is dropped) and swings. Quick-use during a
+  timed action works and does not cancel it. A zombie seeing him, a bite
+  or fire also cancels (5.4).
+- **Instant actions** (pick up, take, talk, open a panel, place, drink
+  from a collector) happen on the tap.
+
+**Main and secondary action by target** (Main first; "->" = state)
+
+| Target | Main | Secondary |
+|---|---|---|
+| Zombie | **Attack** (same as the Attack button) | **Shove** (5.4); greyed while on cooldown or beyond 1.5 tiles |
+| Door, closed, unjammed (interior) | **Open** (0.4 s) | **Dismantle** (crowbar; greyed "Needs crowbar") |
+| Door, open (interior) | **Close** (0.4 s; greyed "Something's in the way." while anyone's centre is on one of its two tiles) | **Dismantle** |
+| Door, broken (interior) | - (Dismantle moves up: 2 wood) | - |
+| Front door, unclaimed, closed / open | **Open** / **Close** | **Claim** (2 s) when the unit has no living zombie and the door is not broken; greyed "Too much to hold." at 3 claimed; else empty |
+| Front door, claimed (no barricade), closed / open | **Open** / **Close** | **Leave this place** (confirm) when allowed (5.3); else empty |
+| Front door, claimed, with the hero's barricade | **Inspect**: a thought by stage ("It'll hold." / "It's taken a beating." / "One more push and it's gone." / "There's nothing left of it.") | **Leave this place** (confirm) when allowed; else empty |
+| Jammed door (front, or Mara's bathroom) | **Open**: tries the handle, thought "It's stuck." (Mara's door: she answers, 5.7) | **Force**: one Noisy hit (3 hits open it), or **1 s** with a crowbar (`world.jammedDoorCrowbarSeconds`) |
+| Door barricaded from the other side (not the hero's) | **Open**: thought "Barricaded from the inside." | - |
+| Container, unsearched | **Search** (3 s, x light; greyed "Needs crowbar" on padlocked cages) | **Dismantle** |
+| Container, searched, loot left (bag was full) | **Take** (instant, what fits) | **Dismantle** |
+| Container, searched, empty | **Search** greyed ("Nothing left.") | **Dismantle** |
+| Drainable (toilet tank, water heater) | **Drain** (greyed "Needs wrench" / "Empty.") | **Dismantle** |
+| Bed or mattress in a claimed apartment | **Sleep** (5.2) | **Nap** (5.2; greyed with its reason) |
+| Bed or mattress elsewhere | **Sleep** greyed ("Not here. Not yet.") | **Dismantle** |
+| Workbench (fixture / built) | **Craft** (opens the workbench panel) | - / **Dismantle** |
+| Stash | **Open** (Bag on this stash's tab) | **Store all** |
+| Rain collector, water filter | **Collect** (all stored units into the bag); if the Thirsty moodle shows and it holds clean water: **Drink** (one unit now, +20 water) | **Dismantle**; while Main shows Drink: **Collect** |
+| Planter | **Collect** (crops); with none ready: **Water** (from the stash, 5.6) | **Dismantle** |
+| Oil lamp (placed) | **Add fuel** (greyed "Full." / "No fuel.") | **Dismantle** |
+| Survivor not recruited | **Talk** (dialogue); carrying their quest item: **Give** | - |
+| Recruited survivor | **Talk** (+5 morale, 12 h cooldown; greyed after) | - |
+| Material or bag pile | **Pick up** (what fits) | - |
+| Dog (M3) | **Offer food** / **Pet** / **Feed** (when hungry) | **Follow** / **Stay home** toggle |
+| Elevator door (M5) | **Use** (floor list) | - |
+| Placement spot (placement mode, 5.6) | **Place** | **Cancel** |
+
+Placeables not listed (survivor bed, M3+ devices) use **Use** on Main and
+**Dismantle** on Secondary. Objects with only Dismantle show it on Main.
+Main home bed and beds in claimed apartments cannot be dismantled (leave
+the place first).
+
+**Attack button** (`controls.attackBuffer`)
+- Shows the **equipped weapon** as its icon (fist, knife, bat; a weapon
+  that breaks switches it to the fist). Always shown, never greyed except
+  while asleep.
+- **Tap**: if there is a zombie candidate (the target, or while an action
+  locks the target, the best zombie candidate), the hero turns to it and
+  swings; the hit resolves against that zombie if it is still in weapon
+  range with a clear line at the swing. With no zombie candidate he
+  **swings at the air** in his facing: a whoosh, **0.5 energy**, no
+  durability, no noise, hits nothing. If the target is a jammed door,
+  Attack does the same as **Force** (one hit).
+- **Cooldown**: the weapon's cooldown; at most **1** tap is buffered
+  during it. **Holding** repeats a swing every cooldown.
+- **While moving**: the stick keeps moving him; for the swing he turns to
+  the zombie, then back to his movement direction (movement continues).
+
+**Quick-use slot** (`quickUse.*`)
+- Holds one **item type**, used from **carried** items only (not the
+  stash). Eligible types: consumables (food, water bottle, chocolate,
+  bandage, medkit), dirty and clean water, throwables (5.11).
+- **Default**: empty at New game. The first time the hero carries an
+  eligible item, the slot takes the first type he carries from
+  `quickUse.defaultOrder` (water bottle, clean water, canned food, dry
+  snack, chocolate, bandage). Once the player has chosen a type, it is
+  never changed automatically.
+- **Display**: the item's icon plus the carried count as small UI text in
+  the plate's corner. Count 0: the icon stays, greyed (alpha 0.3); a tap
+  shows "None left." The chosen type is game state (saved, not a
+  setting) and carries over to the next character on pass the torch.
+- **Tap**: uses one at once (same effect as Use in the Bag). If every stat
+  the item restores is already at 100, nothing is used and the thought
+  "Not now." shows. Then a **1 s** cooldown (`cooldownSeconds`): the
+  plate darkens and taps are ignored. Dirty water applies its health cost
+  as usual.
+- **Throwables**: the first tap **arms** (a faint iso ellipse of the
+  landing area at the aim point); a second tap within **3 s**
+  (`throwArmSeconds`) throws; otherwise, or on any Main/Secondary tap, it
+  disarms and keeps the item. **Aim point**: the nearest Visible zombie
+  within `throw.rangeTiles` (6), within **+-30 degrees** of his facing
+  (`throwAimConeDegrees` 60 total) and in line of sight; if none, the
+  last walkable tile in line of sight straight along his facing, at most
+  **4 tiles** away (`throwDefaultTiles`). Re-computed every frame while
+  armed, so walking or turning re-aims.
+- **Long-press** the slot for **0.5 s** (`longPressSeconds`): a picker
+  opens just above the button arc: one row of **96 px** cells, one per
+  eligible type he carries (icon + count) plus an **empty** cell to clear
+  the slot. Tap a cell to choose and close; tap anywhere else to close.
+  The world keeps running (real time; it is not a pause). With no
+  eligible item carried the picker does not open; the toast "Nothing to
+  keep at hand." shows.
+
+**Other inputs**
+
+| Input | Result |
+|---|---|
+| Tap a moodle icon | Shows its plain-text card (5.2). |
+| "Home" (top bar) | First tap shows the pressed state for **1 s**; a second tap within **1 s** sends the hero (**auto-walk**) to the main home's bed, pathing via the stairs if needed. |
+| Top bar icons | Bag (Inventory), Workbench, Survivors (Crew), Menu. Panels and menus opened from them stay tap-based (section 8). |
+
+- **Auto-walk** now exists only for **Home**: A* path (5.3), always a
+  quiet walk, never a run or creep. Using the stick cancels it at once.
+- **Menus and panels** (Bag, workbench/craft panel, Crew, Menu, moodle
+  cards, the quick-use picker, dialogue, notes) are tapped as before.
+  While a full panel (Bag, workbench, Crew, Menu, dialogue, a note) is
+  open, the stick and action buttons are hidden and ignored; moodle cards
+  and the quick-use picker leave them working.
 
 **Facing**: the hero has a continuous facing angle that drives the vision
 cone (5.17) and an 8-direction sprite. While walking or running (stick or
-auto-walk) he faces his movement direction, turning at **540 deg/s**
+Home auto-walk) he faces his movement direction, turning at **540 deg/s**
 (`controls.walkTurnDegreesPerSecond`). Idle, he keeps his last facing.
-Acting on an object, door or zombie, he faces it.
+Acting on a target (object, door or zombie), he turns to face it.
 - The facing angle is stored in **grid space** (angle of the direction
   vector in grid x/y). The **vision cone** (5.17) and zombie cones (5.4)
   use grid angles.
@@ -327,44 +525,49 @@ Acting on an object, door or zombie, he faces it.
   **45-degree sectors** (screen right, down-right, down, ... each sector
   centred on its direction, +-22.5 degrees). Zombies use the same rule.
 
-**Tap resolution (iso hit-testing)**, in this order; the first match wins:
-1. UI (bottom bar, moodles, open menus and panels).
-2. **Visible zombies**: hit rect **96x96 game px** centred on the sprite's
-   body (tile centre raised **40 px**, `iso.bodyRaisePx`). If several
-   contain the point, the front-most (highest draw order) wins.
-3. **The hero**: same 96x96 rect on his body.
-4. **Doors and objects** that are Visible or Remembered: hit rect = the
-   sprite's bounds padded to at least 96x96, centred on the sprite (tall
-   objects are tappable over their whole height). Doors use a 96x96 rect
-   centred on the door edge's midpoint, raised 40 px. Front-most wins.
-   Never-seen objects are not tappable.
-5. **Stair flight tiles** (diamond test).
-6. **Forgiveness**: snap to the interactable from steps 2-5 whose anchor is
-   nearest the tap within **96 game px** (`controls.tapSnapRadiusPx`).
-7. Otherwise **nothing happens** (floor taps never move the hero; the old
-   walk-to-tile and `controls.tapSnapWalkTiles` snap are removed). Only
-   while Throw is armed is the floor tile under the point used (5.11).
+**Removed with the context buttons** (CD decision): iso hit-testing of the
+world, the forgiveness snap (`controls.tapSnapRadiusPx`), the action menu
+over objects, auto-walk to objects/doors/zombies/stairs, tap on the hero
+to turn (`controls.heroTapTurnSeconds`, now the stick double tap,
+`controls.turnAroundSeconds`), the Look drag
+(`controls.lookTurnDegreesPerSecond`) and the Throw tap-to-aim. Keys are
+listed in `_deprecatedWorldTapKeys` in balance.json. Access tiles (5.15)
+stay as a placement rule (the hero must be able to stand in reach), not a
+walk target.
 
-**Action menu**: a small header with the object's name (e.g. "Kitchen
-cupboard") and up to **3** buttons, each **96x96 game px** (icon + label),
-side by side above the object (below it if it would leave the screen):
-**Primary** (*Search* containers, *Drain* water sources, *Use* workbench,
-planter, collector, survivor, lamp; *Open/Close* and *Claim* / *Leave this
-place* on doors; only if available) and **Dismantle**. Exception: a
-**sleepable bed** in a claimed apartment (bed or mattress) shows **Sleep**
-and **Nap** (5.2) and no Dismantle while it is the main home bed. If a
-needed tool is missing, the button is greyed with "Needs crowbar" and does
-nothing. A button tap sends the hero to the object's **access tile** (5.15);
-the action starts on arrival. A tap elsewhere closes the menu and counts as
-a normal tap. Objects with exactly one action skip the menu and act
-directly. A closed door always opens on tap without a menu.
+**HUD layout** (portrait 720x1280 base, game px, inside the safe area;
+keys `controls.buttons.*`, `ui.topBar.*`)
+- **Control band**: the bottom **400 px** (`controls.buttons.bandHeightPx`)
+  holds the stick zone (left) and the button arc (right). Thoughts, toasts
+  and flavour lines sit centred just above it: their bottom edge **440
+  px** above the safe-area bottom (`ui.hudTextBottomPx`).
+- **Button arc** (default Stick: Left, so buttons on the right). Centres
+  are given as (dx from the right edge, dy up from the bottom edge):
 
-Rules: a new acting tap or moving the stick cancels the current
-auto-walk/action, except a search or dismantle past 50% completes. At most
-**1** attack tap is buffered during cooldown. Targets inside a unit whose
-only way in is a jammed or barricaded (not by the hero) door are
-unreachable by auto-walk: the hero walks to the door and thinks "It's
-stuck." or "Barricaded from the inside."
+  | Button | Plate diameter | Hit circle diameter | Centre (dx, dy) |
+  |---|---|---|---|
+  | Main | 120 | 128 | (130, 170) |
+  | Attack | 96 | 104 | (270, 170), left of Main |
+  | Secondary | 88 | 96 | (229, 269), up-left of Main |
+  | Quick-use | 80 | 96 | (130, 310), above Main |
+
+  The three small buttons sit on an arc of radius **140 px** around Main
+  (left, up-left, up), so the right thumb rests on Main and rolls to the
+  others. Hit circles never overlap (closest gap 7 px, Attack-Secondary);
+  every hit area is at least **96 px**. Main stays **66 px** from the
+  screen edge, clear of Android's back-swipe zone. The arc's left edge
+  (dx 322) stays right of the stick zone's 55% edge (dx 324 on 720 px);
+  UI wins anyway where they meet.
+- **Stick: Right** mirrors the arc horizontally (dx measured from the
+  **left** edge) and the stick zone to the lower-right. Nothing else
+  moves.
+- **Top bar** (was the bottom bar): one row along the **top-left**, icons
+  only, same plate style (72 px plate in a 96 px hit area,
+  `ui.topBar.*`): **Home, Bag, Workbench, Survivors, Menu** (5 x 96 =
+  480 px). The moodle column stays top-right (max 6 icons, 72 px), so the
+  two never meet. The Throw button and the weapon pictogram are gone from
+  the bar (throwables: quick-use slot; weapon: Attack button icon).
+- The progress ring of timed actions stays on the hero in the world.
 
 ## 5. Mechanics
 All numbers below are starting values and live in
@@ -395,12 +598,20 @@ in 11.2.
 **Controls numbers**: joystick (`controls.joystick.*`): radius 120 px,
 dead zone 0.15, run at 0.70, zone 55% x 55% lower-left, tap in zone under
 0.25 s, fade 0.3 s, knob 44 px, door push 0.2 s, doorway assist 0.35
-tiles; hero collision radius 0.3 tiles (`hero.collisionRadiusTiles`);
-Look drag threshold 16 px (`controls.dragThresholdPx`), Home double tap
-1 s (`controls.homeDoubleTapSeconds`), camera lerp 0.12, hero clamp rect
-160x240 px, look-ahead 120 px, edge pad 96 px, buttons and hit areas 96 px
-(`controls.buttonSizePx`, `controls.minHitAreaPx`), tap snap 96 px, 1
-buffered attack tap (`controls.attackBuffer`). Removed with tap-to-move
+tiles, double tap to turn 0.3 s / 48 px, turn around 0.2 s
+(`controls.turnAroundSeconds`); hero collision radius 0.3 tiles
+(`hero.collisionRadiusTiles`); target (`controls.target.*`): object reach
+1.2 tiles, object cone 120 degrees, zombie cone 180 degrees (reach =
+weapon range), keep +0.3 tiles / +30 degrees, switch hold 0.15 s, angle
+buckets 15 degrees, outline 3 px `#0b0c0e` alpha 0.6, placement reach 1.5
+tiles; action buttons (`controls.buttons.*`): Main 120 / Attack 96 /
+Secondary 88 / Quick-use 80 px, confirm 2 s; quick-use (`quickUse.*`):
+long-press 0.5 s, cooldown 1 s, throw arm 3 s; shove (`combat.shove.*`);
+Home double tap 1 s (`controls.homeDoubleTapSeconds`), camera lerp 0.12,
+hero clamp rect 160x240 px, look-ahead 120 px, edge pad 96 px, minimum
+hit area 96 px (`controls.buttonSizePx`, `controls.minHitAreaPx`), 1
+buffered attack tap (`controls.attackBuffer`). Removed with the context
+buttons: see `_deprecatedWorldTapKeys`. Removed with tap-to-move
 (listed in `_deprecatedTapToMoveKeys`): `controls.lookHoldSeconds`,
 `runDoubleTapSeconds`, `runDoubleTapMaxDistancePx`,
 `cameraFollowPauseSeconds`, `cameraDragFrictionPerSecond`,
@@ -529,10 +740,11 @@ shows when the stat is **below** the N-th value of its `below` array
   `cleanWaterItemsPerFloor`). A rain collector (3 plastic, 2 metal) yields
   6.7 water/h against a 4/h drain, so it is self-sustaining once built; its
   cost is reachable on floors 14-16 in one 5-minute session.
-- **Sleep**: main home bed -> *Sleep* (+25 energy/h); any tap wakes. Closed
+- **Sleep**: a bed in a claimed apartment -> Main button *Sleep* (+25
+  energy/h); any button tap or stick push wakes. Closed
   app = characters in claimed apartments are asleep (offline +10/h).
-- **Quick nap** (`needs.energy.nap`): bed -> *Nap*. The active character
-  walks to the bed, lies down, the screen fades to black over **5 s**
+- **Quick nap** (`needs.energy.nap`): bed -> Secondary button *Nap*. The
+  active character lies down on the targeted bed, the screen fades to black over **5 s**
   (`durationSeconds`) and back. On completion: energy **+30** (capped at
   100), food **-5** and water **-5** (floored at 0), morale **+2**, and the
   cooldown of **4 h** real time starts (`cooldownHours`).
@@ -540,17 +752,18 @@ shows when the stat is **below** the N-th value of its `below` array
     apartment the **main home** (5.3).
   - The cooldown is one timer per save (`lastNapAt`, a `Date.now()`
     timestamp), runs online and offline; pass the torch does not reset it.
-  - **Button states**: ready = "Nap". Cooldown = greyed "Nap (2h 10m)",
-    remaining time rounded **up** to the minute, hours dropped under 1 h
-    ("Nap (45m)"). Energy at 100 = greyed "Nap (rested)". Unsafe = greyed
-    "Nap (not safe)" while any zombie on the hero's floor is aggroed or an
-    attack is in progress (attackers present). The **attack cue does not
-    grey the button** (it must stay easy to miss, 5.8). Tapping a greyed
-    button shows its reason as a toast and does nothing.
+  - **Button states** (icon only, section 4): ready = Nap icon. Greyed
+    with a toast on tap: cooldown "Not yet (2h 10m)", remaining time
+    rounded **up** to the minute, hours dropped under 1 h ("Not yet
+    (45m)"); energy at 100 "Rested."; unsafe "Not safe." while any zombie
+    on the hero's floor is aggroed or an attack is in progress (attackers
+    present). The **attack cue does not grey the button** (it must stay
+    easy to miss, 5.8). Tapping a greyed button shows its reason and does
+    nothing.
   - **Interrupts** (cancel the nap): a zombie seeing the character, a bite,
     fire, a zombie banging on a door of that apartment, the stairwell
     sounds of an attack cue (8 s before the attack: the character jolts
-    awake), any tap, or the app going to background. A cancelled nap gives
+    awake), any button tap or stick push, or the app going to background. A cancelled nap gives
     nothing, costs nothing and does **not** start the cooldown; the fade
     snaps back.
   - Remaining cooldown = clamp(cooldownHours - (now - lastNapAt), 0,
@@ -593,8 +806,8 @@ floor. Coordinates are (x, y), x = 0-29 along the corridor, y = 0-21 across.
 
 **Movement and pathfinding**
 - **Hero with the joystick**: free-angle movement with collision and wall
-  sliding (section 4). **Auto-walks** (taps on objects, doors, zombies,
-  stairs, Home), zombies and survivors move on the grid in **8
+  sliding (section 4). The **Home auto-walk** (the only hero auto-walk),
+  zombies and survivors move on the grid in **8
   directions** using A* (orthogonal cost 1, diagonal 1.414). A diagonal step is allowed only if
   both orthogonal neighbours it passes are walkable and no wall edge
   touches the corner being cut (no corner-cutting through walls, doors or
@@ -603,8 +816,8 @@ floor. Coordinates are (x, y), x = 0-29 along the corridor, y = 0-21 across.
   adds **+1 tile** of path cost (`doors.heroPathDoorCost`), so an equally
   short open route is preferred. Jammed doors are not passable.
 - **Search cap**: A* stops after **4000 node expansions**
-  (`path.maxExpansions`) and treats the target as unreachable (the tap
-  does nothing; same as a tap on an unreachable tile).
+  (`path.maxExpansions`) and treats the target as unreachable (Home: the
+  hero thinks "I can't get there from here." and stays).
 - Movement is continuous between tile centres; a character "is on" the tile
   containing its centre.
 - **Occupancy**: objects block their footprint tiles (5.15); **one zombie
@@ -618,15 +831,15 @@ floor. Coordinates are (x, y), x = 0-29 along the corridor, y = 0-21 across.
 - Hero walk **2.0 tiles/s** (`hero.walkTilesPerSecond`), run **3.4
   tiles/s** (`hero.runTilesPerSecond`). Corridor end to end (30 tiles):
   15 s walking. Zombie speeds: 5.4.
-- **Stairs**: tapping any tile of a flight auto-walks the hero to the
-  flight's landing-end tile (or he walks onto it with the stick and keeps
-  pushing into the flight for **0.2 s**, `controls.joystick.doorPushSeconds`),
-  then he climbs (up flight) or descends (down flight):
+- **Stairs**: the hero walks onto a flight's landing-end tile with the
+  stick and keeps pushing into the flight for **0.2 s**
+  (`controls.joystick.doorPushSeconds`; the Home auto-walk does the same
+  on its own), then he climbs (up flight) or descends (down flight):
   **1.4 s per floor** (`hero.stairSecondsPerFloor`), shown as the 0.3 s
   fade; he arrives on the landing-end tile of the **opposite** flight one
   floor up or down (you come up the down-flight of the floor above). In M2,
   floor 13's down flight and floor 17's up flight are blocked by rubble:
-  tap -> thought "Rubble. No way down." / "Rubble. No way up." Path
+  first bump -> thought "Rubble. No way down." / "Rubble. No way up." Path
   requests to another floor (Home double tap) chain: walk to the right
   flight, climb, repeat.
 
@@ -671,12 +884,12 @@ defense +5 each, no more wanderers).
   from the start and is the first **main home**. Its tiles start
   Remembered (5.17).
 - **Claim**: when a unit has **no living zombie inside it** and its front
-  door is not broken, the front door (tapped from inside or from the
-  corridor) offers **Claim**. The hero walks to the door and spends **2 s**
-  checking the lock (`home.claimSeconds`, quiet, interruptible like a
-  search). The unit becomes a **claimed apartment**. Burned units can be
-  claimed. Max **3** claimed at once (`home.maxClaimed`); a 4th shows the
-  greyed button "Claim (too much to hold)". All tiles of a claimed unit
+  door is not broken, the front door (targeted from inside or from the
+  corridor) shows **Claim** on the Secondary button. The hero spends
+  **2 s** checking the lock (`home.claimSeconds`, quiet, interruptible
+  like a search). The unit becomes a **claimed apartment**. Burned units
+  can be claimed. Max **3** claimed at once (`home.maxClaimed`); a 4th
+  shows Claim greyed, toast "Too much to hold.". All tiles of a claimed unit
   become Remembered.
 - **A claimed apartment gives**:
   - a **stash** (a pile of bags and boxes, 1 tile) placed on the free tile
@@ -704,14 +917,16 @@ defense +5 each, no more wanderers).
   items first, then the stash of the apartment the workbench is in.
 - **Leave this place**: a claimed apartment that is not the main home, has
   no survivor living in it and an empty stash can be unclaimed from its
-  front door (tap twice to confirm). Its placeables stay as ordinary
+  front door (Secondary button, tap twice within 2 s to confirm,
+  section 4). Its placeables stay as ordinary
   salvage; its barricade stays and still blocks zombies.
 
 ### 5.4 Combat and stealth (M2, in tiles)
 The dead are slow, heavy and many. Fights are dangerous; avoiding them is
 usually wiser.
-- Each tap on a zombie in range = one attack (weapon damage, range,
-  cooldown). An attack needs a **clear line**: attacker and target tiles
+- Each tap on **Attack** (or on Main while it shows Attack) with a zombie
+  targeted = one attack (weapon damage, range, cooldown; section 4).
+  Holding repeats it every cooldown. An attack needs a **clear line**: attacker and target tiles
   have no wall or closed door between them, and for a diagonal neighbour
   neither orthogonal corner is a wall (no hitting round corners). Hits
   shove the sprite **8 game px** (visual only, no tile change) and flash
@@ -733,7 +948,7 @@ usually wiser.
     fade out linearly over **600 s** (`decalFadeSeconds`) of online play
     and are not saved and not remembered (they are drawn only on Visible
     tiles). At most **30** per floor (`decalCapPerFloor`); a new decal over
-    the cap removes the oldest on that floor. Decals never block taps.
+    the cap removes the oldest on that floor. Decals are never targets.
   - **Drip**: after a kill, with chance **0.5** (`dripChance`), one extra
     drop falls from the corpse **450 ms** later (`dripDelayMs`). No sound.
   - Hits on barricades, doors and jammed doors make no blood (splinters
@@ -838,6 +1053,19 @@ usually wiser.
   (`zombies.attackRangeTiles`) with a clear line when the wind-up ends.
 - **Hit stun**: each hero hit stops the zombie for **0.35 s**
   (`zombies.tuning.hitStunSeconds`).
+- **Shove** (Secondary button on a zombie target; keys `combat.shove.*`):
+  works on a targeted zombie within **1.5 tiles** (`rangeTiles`, any
+  weapon) with a clear line. It pushes the zombie **0.5 tiles**
+  (`pushTiles`) straight away from the hero (stopping early at walls,
+  doors, objects, other zombies or the floor edge), stuns it for **0.8 s**
+  (`stunSeconds`) and **cancels its bite wind-up** (the wind-up restarts
+  from zero after the stun). No damage, no durability, silent (a grunt and
+  scuff, not noise). Costs **1 energy** (`energy`). Cooldown **2.5 s**
+  (`cooldownSeconds`, separate from the weapon cooldown); the button is
+  greyed while it runs. A shoved unaware zombie becomes aware (no x3 hit
+  after a shove). Design check: stun 0.8 + wind-up 0.9 = 1.7 s < 2.5 s
+  cooldown, so shoving alone can never lock a zombie; it buys a step back
+  or a door close, not a free kill.
 - **Corpse**: a killed zombie slumps and stays **1.5 s**
   (`zombies.tuning.corpseSeconds`), then fades.
 - **Barricades**: zombie damage to any barricade is multiplied by **0.4**
@@ -915,8 +1143,9 @@ tiles straight ahead. (`combat.weapons.<id>.rangeTiles`)
   (`inventory.itemStack`); materials to **20** (`inventory.materialStack`);
   weapons and tools never stack (`inventory.toolStack`).
 - Stash sizes: 5.3. Full inventory: search loot stays in the container;
-  dismantle yield drops as a tappable **material pile** on the object's
-  access tile (never despawns, does not block).
+  dismantle yield drops as a **material pile** on the object's access tile
+  (never despawns, does not block; targeted like an object, Main = Pick
+  up).
 
 ### 5.6 Everything is salvage
 Almost every object drawn in an apartment is usable. Walls, floors, the
@@ -1102,16 +1331,22 @@ Recipe rules (numbers in `recipes.<id>` and `barricade.*`):
   1x2, others 1x1).
 - **Paying for placeables**: crafting a placeable enters spot-pick mode:
   free spots of its type in the **claimed apartments on the hero's floor**
-  are outlined with a thin dashed off-white diamond (the only outline in
-  the game); spot-pick mode stays open while the player walks the hero with
-  the joystick (the camera follows) to bring far spots on screen; there is
-  no manual pan. A 1x2 placeable
-  is placed with one tap: the tapped tile is its first tile and it takes
-  whichever orientation fits, preferring its long side against a wall;
-  tiles where neither orientation passes the placement rules (5.15) are
-  not outlined. The cost is taken only when a spot is tapped. Cancel
-  (tap Workbench/elsewhere) is free. No free spot on this floor = recipe
-  greyed "No free spot here".
+  are outlined with a thin dashed off-white diamond (with the dark target
+  outline of section 4, the only outlines in the game); the panel closes
+  and the player walks the hero to a spot with the joystick (the camera
+  follows; no manual pan). **Placement targeting**: in this mode only
+  spots are object candidates (zombies still beat them): a spot whose
+  first tile (window spots: the window edge) is within **1.5 tiles**
+  (`controls.target.placeReachTiles`) and in the 120-degree cone, same
+  sorting and hysteresis as section 4. The targeted spot shows a ghost of
+  the placeable at alpha **0.5** (`controls.target.ghostAlpha`) in the
+  orientation it will take. **Main = Place** (the cost is taken now),
+  **Secondary = Cancel** (free; also cancelled by opening any panel). A
+  1x2 placeable takes the targeted tile as its first tile and whichever
+  orientation fits, preferring its long side against a wall; tiles where
+  neither orientation passes the placement rules (5.15) are not outlined.
+  A barricade (`front_door` spot) targets the claimed front door itself.
+  No free spot on this floor = recipe greyed "No free spot here".
 - **Barricade**: one per claimed front door, built on the door's inside.
   Lv2 needs Lv1 on that door and replaces it at full Lv2 HP. At 0 HP it
   gives no defense and zombies pass. The hero and survivors pass their own
@@ -1129,7 +1364,8 @@ Recipe rules (numbers in `recipes.<id>` and `barricade.*`):
   living wanderer is greyed "Something is still moving on floor N".
 - **Producers**: as M1 (`effect.intervalHours`, `effect.maxStored`,
   `effect.waterPerUnit`, water from the stash of the producer's apartment).
-  Output stays in the placeable until collected with *Use*.
+  Output stays in the placeable until collected (Main *Collect*, or
+  *Drink* from a water producer while Thirsty; section 4).
 
 **Storage pressure**: an apartment rarely fits in 10 carry slots, and
 stashes are per apartment, so where you claim matters: a second home near
@@ -1189,14 +1425,15 @@ the floors you scavenge saves walking.
   apartment they live in.
 - **Mara** (M1): floor 13, hiding in the **bathroom** of a flat-type unit
   (the generator forces one flat on floor 13 and puts her there; that
-  bathroom's door is jammed and she opens it when the hero taps it: "Who's
-  there?" -> dialogue). You hear her before you see her: a faint sob
+  bathroom's door is jammed and she opens it when the hero presses Open
+  or Force on it (no hit, no noise): "Who's there?" -> dialogue). You hear her before you see her: a faint sob
   through the door when the hero is within 6 tiles
   (`survivors.roster.mara.hearTiles`). Her quest: fetch her **medical bag**
   from floor 14. The generator places the bag in the bedroom wardrobe of a
   flat on floor 14, and a found note in her bathroom names the flat ("Left
   my bag at the Novaks', 14. Couldn't go back."); the bag container is
-  never empty. Hand-over: tap Mara while carrying the bag -> *Use*. She
+  never empty. Hand-over: target Mara while carrying the bag -> Main
+  *Give*. She
   joins only with a **free Survivor bed** in any claimed apartment ("I
   need a bed first.") and hero morale **25+** (`survivors.joinMinMorale`;
   else "You look worse than me. Come back when you've rested."). On
@@ -1425,33 +1662,35 @@ the stash of the apartment it is in.
   unlock a short radio note.
 
 **Elevator** (M5)
-- Built with the Elevator repair recipe. Tap the elevator door on any
-  landing -> a list (96 px rows) of floors with a claimed apartment and
+- Built with the Elevator repair recipe. Target the elevator door on any
+  landing -> Main *Use* -> a list (96 px rows) of floors with a claimed apartment and
   Secured floors -> travel at **0.3 s per floor**
   (`elevator.secondsPerFloor`). It needs 2 free power in the main home,
   else "No power." It is noisy on arrival (noise radius 8 tiles on the
   arrival floor). Zombies never use it.
 
 ### 5.11 Gear and throwables
-- **Throw** (M1): while a throwable is carried, a **Throw** button appears
-  in the bottom bar. Tap it to arm: a faint ring shows the range, **6
-  tiles** (`throw.rangeTiles`), drawn as an iso ellipse on the floor. The
-  next tap on a **Visible** tile within range and in line of sight throws
-  it (lands **0.5 s** later, `throw.landSeconds`); a tap on any other tile
-  or on Home disarms and keeps the item.
+- **Throw** (M1, via the **quick-use slot**, section 4): put the
+  throwable in the slot (long-press to pick). First tap arms: a faint iso
+  ellipse shows the landing area at the auto-aimed point (nearest Visible
+  zombie within **6 tiles**, `throw.rangeTiles`, +-30 degrees of facing,
+  in line of sight; else up to 4 tiles straight ahead). A second tap
+  within 3 s throws it (lands **0.5 s** later, `throw.landSeconds`);
+  timing out, or tapping Main/Secondary, disarms and keeps the item. The
+  old Throw bar button is removed.
 - **Molotov** (M1): a fire patch on the target tile and its 8 neighbours
   (radius **1 tile**, `molotov.radiusTiles`) for **4 s**, **15 damage/s**
   to zombies inside, **10/s** to the hero. Loud. It lights its tiles (Lit)
   while burning. Fire never spreads and never damages objects, doors or
   barricades.
-- **Cycling** (M3, once a second throwable type exists): while armed,
-  another tap on Throw switches to the next carried throwable type; going
-  past the last type disarms.
+- **Switching type** (M3, once a second throwable type exists): pick it
+  in the quick-use picker (long-press).
 - **Noise lure** (M3): rings **3 s** after landing for **20 s**
   (`lure.delaySeconds`, `lure.ringSeconds`). Every non-aggroed zombie on
   that floor that can reach it shambles to it and waits there until it
   stops. Its ringing is the sound, with no marker. Single use. It can be
-  thrown at a remembered tile within range (an exception to Visible).
+  thrown at a remembered tile within range (an exception to Visible: its
+  default aim point may be a Remembered walkable tile straight ahead).
 - **Flashlight** (M3, tool, carried): while it has charge, every tile in
   the hero's cone (not the close circle) up to **7 tiles** counts at least
   as **Grey** for the hero's vision (range and search time), and the cone
@@ -1513,10 +1752,10 @@ cold grey light. From M3:
   carried items) recruits it at once, with no quest and no survivor bed.
   Zombies ignore the dog: it never takes damage, cannot be bitten and
   cannot die.
-- **Action menu** on the dog: **Pet** (primary) and **Follow / Stay home**
-  (a toggle that replaces Dismantle). Pet plays a wag animation and gives
+- **Buttons** on the targeted dog: Main **Pet**, Secondary **Follow /
+  Stay home** (a toggle). Pet plays a wag animation and gives
   **+3 morale** (silent), once per **4 h** (`dog.petMorale`,
-  `dog.petCooldownHours`); taps in between only wag. When the app goes to
+  `dog.petCooldownHours`); Pet taps in between only wag. When the app goes to
   background or on pass the torch, the dog goes to the main home, keeps
   its mode and stays with the new character. "Home" for the dog is always
   the **main home**; if the main home changes, a staying dog moves there
@@ -1537,8 +1776,8 @@ cold grey light. From M3:
 - **Upkeep**: 1 food item + 1 water item (dirty is fine, no penalty) from
   the main home stash every **24 h** (`dog.upkeepHours`), online and
   offline. A missed meal makes it **hungry**: it lies by its bowl, gives
-  no growls, comfort, cue or defense, and its tap card says "He's
-  hungry." It stays hungry until fed (*Use* -> Feed). After **3** missed
+  no growls, comfort, cue or defense, and targeting it shows the thought
+  "He's hungry." It stays hungry until fed (Main *Feed*). After **3** missed
   meals in a row (`dog.leaveAfterMisses`) it runs back to floor 18 (morale
   -10; report: "Scout is gone. The bowl's still full of nothing."). Offer
   food recruits it again.
@@ -1796,9 +2035,10 @@ and tiles as charred shapes.
   the tutorial (section 8). The start flat does not count toward the
   per-floor food guarantee; another floor 15 unit holds it.
 - **Storage cages stay crowbar-only** (no slow or loud hand-opening). The
-  first time the hero taps Search on a padlocked cage without a crowbar,
-  the thought "Padlocked. A crowbar would do it." shows (once per game);
-  later taps show the same thought only, no action. A jammed front door can
+  first time the hero presses the greyed Search on a padlocked cage
+  without a crowbar, the thought "Padlocked. A crowbar would do it." shows
+  (once per game); later presses show the toast "Needs crowbar", no
+  action. A jammed front door can
   still be bashed open by hand (`world.jammedDoorHits`).
 - **Scarcity**: every consumable rolled is qty 1 (5.5); loot tables stay
   lean and most emptiness comes from `generator.conditions.*.emptyChance`
@@ -1831,10 +2071,11 @@ The hero sees only what his eyes reach. Keys `vision.*`.
   desaturated: floor, walls, doors (in the state last seen), windows and
   objects (in the state last seen: searched = ajar, dismantled = gone).
   **Zombies, corpses, decals and fire are never drawn on Remembered
-  tiles.** Remembered objects and doors can be tapped (the hero walks
-  there). Memory is saved and never fades in M2.
+  tiles.** Remembered things are not targets until they are Visible
+  again (in reach they always are, through the close circle). Memory is
+  saved and never fades in M2.
 - **Unknown**: never seen. Drawn near-black `#0b0c0e` (alpha 1). Nothing on
-  it is drawn or tappable except the floor itself (taps walk, section 4).
+  it is drawn or targetable.
 - A wall edge or door is drawn in the best state of its two neighbouring
   tiles. At New game, the start flat's tiles are Remembered; claiming a
   unit makes its tiles Remembered.
@@ -1928,7 +2169,7 @@ setting; CD decision, 12) (`vision.soundRipple.*`):
   (`sameSourceCooldownSeconds`), so a door being banged pulses with the
   bangs, not continuously. A ripple stops early if its source becomes
   Visible.
-- **Edge cases**: ripples show during actions, Look and panels with the
+- **Edge cases**: ripples show during actions and panels with the
   world dimmed, but not during a full-screen menu or while the game is
   paused. They never raise Panic, never interrupt actions, and never show
   sounds from other floors.
@@ -1941,11 +2182,11 @@ setting; CD decision, 12) (`vision.soundRipple.*`):
 - **Moodles**: Panic narrows the cone (5.2); Tired L3+ shortens the range.
 - **Light**: lamps and (M3) the flashlight extend what you see but make you
   easier to see (5.4, 5.11). Night (M3) turns Grey to Dim.
-- **Actions**: while searching or dismantling the hero faces the object;
-  the player can't look around without cancelling (except a Look drag,
-  section 4, which does not cancel an action in progress but turns the
-  hero: he keeps working while looking; the progress ring stays). Moving
-  the stick cancels the action (50% rule, section 4).
+- **Actions**: while searching or dismantling the hero faces the object,
+  so his back is exposed. The only way to look without cancelling is the
+  stick **double tap** (turn around, section 4): he keeps working facing
+  the other way and the progress ring stays. Moving the stick cancels the
+  action (50% rule, section 4).
 
 ### 5.18 Doors and claustrophobia (new, iso rebuild)
 **Doors** (keys `doors.*`)
@@ -1955,12 +2196,14 @@ setting; CD decision, 12) (`vision.soundRipple.*`):
 - **States**: open, closed, jammed (front doors 25%, Mara's bathroom),
   broken (permanently open, cannot be closed; a broken interior door can
   still be dismantled for **2 wood**, `doors.brokenYield`).
-- **Hero**: tap a closed door -> he walks to the nearest tile touching the
-  door and opens it in **0.4 s** (`doors.openSeconds`, quiet: a creak, not
-  noise). Tap an open door -> menu **Close** (0.4 s, `doors.closeSeconds`,
-  quiet) and Dismantle / Claim. A door cannot close while anyone (hero,
-  zombie, survivor) stands on one of the two tiles it touches; the hero
-  thinks "Something's in the way." Walking or running paths go through
+- **Hero**: a targeted closed door -> Main **Open** in **0.4 s**
+  (`doors.openSeconds`, quiet: a creak, not noise), or just push into it
+  with the stick (section 4). A targeted open door -> Main **Close** (0.4 s,
+  `doors.closeSeconds`, quiet); Secondary Dismantle / Claim / Leave (table
+  in section 4). A door cannot close while anyone (hero, zombie, survivor)
+  has their centre on one of the two tiles it touches (Close is greyed;
+  toast "Something's in the way."), so he closes it from one step back
+  (reach 1.2 tiles to the door edge). Walking or running paths go through
   closed, unjammed doors: the hero opens them on the way (0.4 s each) and
   **does not close them behind him**. A door opened by running bursts
   open: Noisy, radius **4 tiles** (`doors.runOpenNoiseTiles`).
@@ -1979,8 +2222,9 @@ setting; CD decision, 12) (`vision.soundRipple.*`):
   damage is not repaired in M2 and is shown in 3 stages by HP ratio
   (intact above 0.66, splintered above 0.33, hanging above 0;
   `doors.visualStages`), never as numbers.
-- **Front doors**: closed at New game; tapping a jammed one shows the
-  menu **Force** (3 hits, or 1 s with a crowbar, 5.3). A claimed unit's
+- **Front doors**: closed at New game; a targeted jammed one shows Main
+  **Open** ("It's stuck.") and Secondary **Force** (3 hits, or 1 s with a
+  crowbar, 5.3; Attack also hits it). A claimed unit's
   barricade sits on the inside of its front door (5.8).
 - **Saved**: every door's state and damage.
 
@@ -2044,21 +2288,29 @@ setting; CD decision, 12) (`vision.soundRipple.*`):
    door."), then fade into the start flat's bedroom: the hero stands by
    the bed facing the closed bedroom door.
 3. **Tutorial by doing (first ~60-90 s), no arrows, no highlights**: the
-   camera gently pans to each target and the hero thinks one line:
-   - Bedroom door (closed): "Dark in here." -> tap the door -> it opens
-     (teaches doors; the hallway beyond becomes Visible).
+   camera gently pans to each target and the hero thinks one line. Each
+   step is done by walking up to the thing (it gets the dark target
+   outline and its icon appears on the Main button) and pressing Main or
+   Secondary (section 4); the button arc is the only "teacher":
+   - Bedroom door (closed): "Dark in here." -> walk to the door, press
+     Main (Open) or push into it -> it opens (teaches the stick, the
+     target outline and the Main button; the hallway beyond becomes
+     Visible).
    - Fridge ("I need to eat something." -> Search -> 1 canned food).
-   - Chair, then table ("This could hold the door." -> Dismantle -> 6 wood).
+   - Chair, then table ("This could hold the door." -> Dismantle on Main,
+     since they have no other action -> 6 wood).
    - Kitchen drawer (Search -> 2 metal, "A tin of nails.").
-   - Workbench (craft Barricade Lv1, placed at the front door).
+   - Workbench (Main Craft -> Barricade Lv1 -> placement mode -> walk to
+     the front door -> Main Place).
    - Scratching from behind the hero, panned and muffled: "Behind me?" ->
-     the step completes when the hero faces the sound (tap himself to turn
-     round, drag to look, or walk toward it with the stick). Teaches
+     the step completes when the hero faces the sound (double tap the
+     stick zone to turn round, or walk toward it with the stick). Teaches
      turning without text.
    - Front door: the step completes when the hero is within **1.5 tiles**
      of the start flat's front door on floor 15 (`tutorial.doorTriggerTiles`,
      inclusive, walking or running); the door opens onto the corridor and
-     a crawler drags itself in (tap it). The crawler spawns on a
+     a crawler drags itself in (Attack it; Main shows Attack once it is
+     in reach). The crawler spawns on a
      **corridor tile**, not the landing: the walkable corridor tile
      **3 tiles** (path distance, `tutorial.crawlerSpawnCorridorTiles`)
      from the corridor tile just outside the start flat's front door,
@@ -2071,23 +2323,38 @@ setting; CD decision, 12) (`vision.soundRipple.*`):
      time a unit is clear; "Close it. Close it." the first time a zombie
      bangs a door the hero is behind).
 4. **Returning**: "While you were away" note (5.1, one tap closes).
-5. **Play**: the iso floor view with **no top HUD** except the moodle column
-   (top right). No need bars, day counter, attack timer, power readout,
-   minimap or compass. Bottom bar: Home, Inventory, Workbench, Survivors,
-   Menu, Throw when carried. Bottom bar follows the **muted UI style**
-   below: icons only, no text labels, ever (CD decision, 12).
+5. **Play**: the iso floor view. HUD (exact layout in section 4, "HUD
+   layout"): **top-left** icon bar (Home, Bag, Workbench, Survivors,
+   Menu); **top-right** moodle column; **lower-left** stick zone (the
+   stick is drawn only while held); **lower-right** button arc (Main 120,
+   Attack 96, Secondary 88, Quick-use 80 px); everything mirrored
+   left/right by the Stick: Right setting except the top bar and moodles.
+   No need bars, day counter, attack timer, power readout, minimap or
+   compass. All of it follows the **muted UI style** below: icons only,
+   no text labels, ever (CD decision, 12); the only text on a button is
+   the quick-use count.
 
 **Muted UI style (M2; keys `ui.*`)**. The UI must read as worn objects in a
 dark room, not as game buttons.
-- **Bottom bar**: icon buttons, no text, no outline. Plate **72 game px**
-  (`ui.bottomBar.iconPlatePx`) inside a **96 px** hit area; plate
-  near-black `#0b0c0e` at alpha **0.55**, pictogram UI text `#bdb8ab` at
-  alpha **0.7**, pressed alpha **0.9**. Icons: house (Home), bag
-  (Inventory), hammer (Workbench), two heads (Survivors), three dots
-  (Menu), bottle (Throw). The equipped weapon shows as a hand / knife / bat
-  pictogram on the bag-side slot (tap = Inventory weapon tab). Sound on/off
-  lives in Menu as a speaker icon (crossed when muted), not in the bar.
-  World taps under the bottom bar's 96 px band are not passed to the world.
+- **Top bar** (was the bottom bar): icon buttons, no text, no outline.
+  Plate **72 game px** (`ui.topBar.iconPlatePx`) inside a **96 px** hit
+  area; plate near-black `#0b0c0e` at alpha **0.55**, pictogram UI text
+  `#bdb8ab` at alpha **0.7**, pressed alpha **0.9**. Icons: house (Home),
+  bag (Inventory), hammer (Workbench), two heads (Survivors), three dots
+  (Menu). Sound on/off lives in Menu as a speaker icon (crossed when
+  muted), not in the bar.
+- **Action buttons** (section 4): round plates in the same near-black at
+  alpha **0.55**, pictograms in UI text colour at alpha **0.7**, pressed
+  **0.9**, unavailable **0.3**, empty plate **0.3** (`controls.buttons.*`).
+  No rings, glows or colour coding; Attack differs only by its weapon
+  icon. Pictograms (art-generator): open door, closed door, hand in box
+  (Search), hand taking (Take/Pick up), drop (Drain), cup (Drink), jar
+  (Collect), watering can (Water), flame (Add fuel), crowbar-and-plank
+  (Dismantle), shoulder (Force), open palm (Shove), speech mark (Talk),
+  hand giving (Give), bed (Sleep), half-moon (Nap), hammer (Craft), box
+  (stash Open), arrow-into-box (Store all), key (Claim), door with arrow
+  out (Leave this place), eye (Inspect), paw (Pet), lead (Follow / Stay),
+  diamond-with-tick (Place), cross (Cancel), fist / knife / bat (Attack).
 - **Panels** (inventory, workbench, survivor, moodle cards): background
   deep shadow `#16191d` at alpha **0.9**, world behind dimmed by **0.4**.
   Buttons are flat `#23272c` with UI text `#bdb8ab`; disabled `#5d6166`
@@ -2115,7 +2382,8 @@ dark room, not as game buttons.
 10. **Ending** (M5) -> text cards -> Leave/Stay -> epilogue -> stats.
 
 Toasts (short system lines such as "Needs crowbar") are off-white small
-text at the bottom for 2 s, no icon, no sound.
+text just above the control band (`ui.hudTextBottomPx`) for 2 s, no
+icon, no sound. Thoughts and flavour lines use the same position.
 
 ## 9. Art direction (M2, isometric)
 - **Look**: muted, desaturated, dark, damp. Think a grey wet evening with
@@ -2181,9 +2449,16 @@ text at the bottom for 2 s, no icon, no sound.
   splashes, floor stains and drips (5.4); no dismemberment or body parts;
   corpses slump and fade.
 - **No pulse, glow, sparkle or highlight on interactables.** The only
-  outline in the game is the dashed spot-pick diamond (5.6).
+  outlines in the game are the dashed spot-pick diamond (5.6) and the
+  **dark target outline** (section 4, CD decision): 1 art px (3 game px)
+  of `#0b0c0e` at alpha 0.6 drawn just **outside** the target sprite's
+  silhouette (outside a character's own 1 px outline, so a targeted zombie
+  reads as a 2 px dark edge). Never coloured, never animated beyond its
+  0.1 s fade.
+- **Action button pictograms**: 16x16 art px centred on the plate (Main:
+  20x20 art px), same line style as the top bar; list in section 8.
 - **UI art**: follows the muted UI style in section 8. Moodle pictograms
-  24x24 art px (72 game px); bottom-bar pictograms 16x16 art px centred on
+  24x24 art px (72 game px); top-bar pictograms 16x16 art px centred on
   the 72 px plate; floor numerals are stencil sprites 0-9, 10x16 art px,
   painted on the landing's back wall in iso perspective.
 - **App icon**: the dark tower silhouette in rain against a grey-green sky,
@@ -2301,9 +2576,12 @@ CD playtest on the phone.
        fade, draw order, one floor visible, camera follow with look-ahead,
        clamp (no manual pan).
     2. Movement: floating virtual joystick (walk, run past 70%, wall
-       sliding, doorway assist, door push), tap-to-act auto-walk (A*, 8
-       directions, no corner cutting), drag to look, tap hero to turn, iso
-       hit-testing with forgiveness.
+       sliding, doorway assist, door push, double tap to turn), **context
+       buttons** (target selection with hysteresis and dark outline, Main /
+       Secondary / Attack / Quick-use, shove, quick-use picker and throw
+       aim, placement by walking), top bar, Home auto-walk (A*, 8
+       directions, no corner cutting). World taps, drag to look and the
+       action menu are removed (CD decision after the joystick playtest).
     3. Vision: cone + close circle + LOS shadows (walls, doors), tile
        memory, zombies only on Visible tiles, soft edges, vignette,
        muffled positional zombie sounds.
@@ -2369,7 +2647,8 @@ pass positions change):
 - Combat stats (damage, cooldown, durability, hit sounds, unaware x3,
   stun, wind-up, corpse time), zombie HP/damage/intervals, hit FX numbers.
 - Lamp fuel, comfort, all M3-M5 systems (with distances converted).
-- Notes, flavour lines, thoughts, prose report, muted UI style, bottom bar,
+- Notes, flavour lines, thoughts, prose report, muted UI style, icon bar
+  (moved to the top),
   panels, moodle column, palette, audio direction and SFX list, the
   "Tap to start" flow, save/lifecycle core (`src/core/`).
 - `templates.json` room types, pools, flavour lines, notes and loot.json
@@ -2382,9 +2661,9 @@ pass positions change):
 | Walk 100 / run 170 px/s, run noise 250 px | 2.0 / 3.4 tiles/s, noise 5 tiles | `hero.walkTilesPerSecond`, `runTilesPerSecond`, `runNoiseRadiusTiles` |
 | Walking along x | A* 8-direction pathfinding, occupancy, doors on the way | 5.3 |
 | Camera: axis-locked drag, x dead zone, vertical floor scroll | Follow with look-ahead, 2D hero clamp rect, one floor; no manual pan (after Stage A) | `controls.cameraDeadzonePx`, `cameraLookAheadPx`, `cameraIsoEdgePadPx`, `floorFadeSeconds`, `zoom` |
-| Tap tests on side sprites | Iso hit-testing order, snap 96 px | `controls.tapSnapRadiusPx`, `tapSnapWalkTiles`, `iso.bodyRaisePx` |
-| Hold: none | Drag (outside the stick zone) to look; tap hero to turn (hold-to-look replaced after Stage A) | `controls.dragThresholdPx`, `lookTurnDegreesPerSecond`, `walkTurnDegreesPerSecond`, `heroTapTurnSeconds` |
-| Tap to walk, double tap to run | Floating virtual joystick (run past 70%); taps only act (after Stage A) | `controls.joystick.*`, `hero.collisionRadiusTiles` |
+| Tap tests on side sprites | ~~Iso hit-testing, snap 96 px~~ -> no world taps; target selection by reach and cone (context buttons) | `controls.target.*` (old `tapSnapRadiusPx`, `tapSnapWalkTiles` deprecated) |
+| Hold: none | ~~Drag to look, tap hero to turn~~ -> facing follows movement; double tap in the stick zone turns around | `controls.turnAroundSeconds`, `controls.joystick.doubleTap*`, `walkTurnDegreesPerSecond` |
+| Tap to walk, double tap to run | Floating virtual joystick (run past 70%) to move; context buttons to act | `controls.joystick.*`, `controls.buttons.*`, `quickUse.*`, `combat.shove.*`, `hero.collisionRadiusTiles` |
 | Room light Dark/Dim/Grey/Lit, Dark until entered | Tile light Lit/Grey/Dim/Dark by room type and lamp LOS; vision states Visible/Remembered/Unknown | `light.lampRadiusTiles`, `light.darkTimeMult`, `vision.*` |
 | Zombie facing left/right, sight by \|dx\| | 8 facings, 120-degree cone with LOS, ranges in tiles | `zombies.sight.coneDegrees`, `frontTiles`, `behindWalkTiles`, `behindRunTiles`, `idleTurnChances` |
 | Zombie speeds px/s, ranges px | tiles/s, tiles | `zombies.types.<id>.speedTilesPerSecond`, `zombies.attackRangeTiles`, `zombies.tuning.*Tiles`, `combat.weapons.<id>.rangeTiles` |
@@ -2536,10 +2815,21 @@ screen, seeing more than one floor at a time.
 - **Controls (Stage A playtest)**: **floating virtual joystick** in the
   lower-left 55% of the screen, where the thumb lands; push to walk in
   the screen direction, past 70% to run, release to stop; the hero faces
-  his movement and the cone follows; **tap** objects, doors and zombies
-  to auto-walk and act; tap on empty floor does nothing; **drag** outside
-  the stick to look; tap the hero to turn; camera always follows, no
+  his movement and the cone follows; ~~tap objects, doors and zombies
+  to auto-walk and act; drag outside the stick to look; tap the hero to
+  turn~~ (replaced by context buttons, below); camera always follows, no
   manual pan (section 4).
+- **Context buttons (joystick playtest)**: "The new joystick is much
+  better than tapping on the screen. Keep all interaction in a joystick
+  and buttons." The world is not touch-interactive. One big **Main**
+  button that changes with what is in front of the hero (Open / Close /
+  Search / Drain / Drink / Talk / Sleep / Craft / Attack when a zombie is
+  close), a smaller **Secondary** button for the alternative (Dismantle /
+  Close / Force / Shove ...), an always-present **Attack** button with the
+  weapon icon, and a **Quick-use** slot for a chosen item (long-press to
+  pick). The target gets a **subtle dark outline** (not glowing, not
+  coloured) and the Main button shows its **icon, no text**. Menus (Bag,
+  craft panel, Crew) stay tap-based (section 4).
 - **Audio (Stage A playtest)**: no constant hum/buzz/drone; natural,
   irregular recorded sounds only; nothing arcade-like (no synth tones,
   chimes, blips or stingers); music stays sparse and acoustic. Sources are
@@ -2573,13 +2863,29 @@ screen, seeing more than one floor at a time.
 - **Doors**: zombies can't open doors but bang them down (interior 60 HP,
   front 120 HP, x0.4 damage); the hero opens doors on his path but never
   closes them automatically.
-- Tap on the hero turns him around; a drag outside the stick zone looks
-  (both silent). Hold-to-look was dropped with the joystick.
+- ~~Tap on the hero turns him around; a drag outside the stick zone
+  looks~~ (removed with world touches). Context-button details (CD may
+  revisit at playtest): target reach 1.2 tiles / +-60 degrees for things,
+  weapon range / +-90 degrees for zombies, zombies always win, 15-degree
+  angle buckets then distance, keep +0.3 tiles / +15 degrees, 0.15 s to
+  switch, standing still keeps the target; actions are tap-to-start and
+  done from where he stands (no walk to access tiles), the stick cancels
+  (50% rule); objects with only Dismantle show it on Main, used-up main
+  actions stay greyed so Main never dismantles by surprise; Attack swings
+  at the air when nothing is in reach and repeats while held; Shove
+  (0.5 tiles, 0.8 s stun, cancels wind-up, 2.5 s cooldown, 1 energy);
+  quick-use: auto-default water/food/bandage, 1 s cooldown, "Not now."
+  when nothing to restore, also throws (two taps, auto-aim); Look drag
+  dropped, double tap in the stick zone turns around; buttons lower-right
+  arc (Main 120 / Attack 96 / Secondary 88 / Quick-use 80 px), icon bar
+  moved to the top-left; placement by walking to a spot and pressing
+  Place; Home keeps its auto-walk.
 - Joystick details (CD may revisit): three discrete gaits, creep / walk
   / run (not analog; creep added by CD decision below),
   free-angle movement with wall sliding and a doorway assist, pushing into
-  a closed door for 0.2 s opens it, a second finger can only attack an
-  in-range zombie while moving, empty-floor taps show no marker.
+  a closed door for 0.2 s opens it; ~~a second finger can only attack an
+  in-range zombie while moving, empty-floor taps show no marker~~ (world
+  taps removed; the second finger now presses the action buttons).
 - Camera-facing walls are cut for the hero's room and any room he can see
   into; other walls stay full height.
 - Attackers: max 3 at the door at once (the corridor is narrow).
@@ -2617,3 +2923,24 @@ screen, seeing more than one floor at a time.
 5. ~~Music after the audio change~~: Decided (above).
 6. ~~Walk speed with the stick~~: Decided, creep band (above). Check at
    playtest whether the 0.40 creep band feels too wide or too narrow.
+7. **Looking around without walking** (context buttons): Look drag is
+   gone; facing follows movement plus a stick double tap to turn round.
+   Is that enough? (a) keep as is (simplest); (b) add a **turn-in-place**
+   rule: a stick push more than 60 degrees off his facing turns him on the
+   spot before he steps; (c) bring back a Look drag in the upper half of
+   the screen (above the control band).
+8. **Two attack buttons**: Main shows Attack when a zombie is targeted and
+   the separate Attack button is always there. (a) keep both (Main for
+   one-thumb play, Attack for fighting while an object is targeted);
+   (b) Main never attacks (only the Attack button does; Main keeps
+   showing the object or Shove); (c) drop the Attack button and grow
+   Quick-use instead.
+9. **Hero high on screen?** The control band covers the bottom ~30% of
+   the screen; with the look-ahead the hero sometimes stands just above
+   it. (a) leave the camera as is; (b) shift the camera target down so the
+   hero sits ~120 px above centre; (c) shift only while a zombie is
+   Visible.
+10. **Target outline on zombies** reads as a thicker dark edge (zombies
+    already have a 1 px dark outline). Check at playtest: (a) fine;
+    (b) use alpha 0.85 on characters only; (c) no outline on zombies (the
+    Attack icon on Main is enough).

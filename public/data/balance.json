@@ -24,6 +24,10 @@
     "controls.lookHoldSeconds", "controls.runDoubleTapSeconds", "controls.runDoubleTapMaxDistancePx",
     "controls.cameraFollowPauseSeconds", "controls.cameraDragFrictionPerSecond", "controls.tapSnapWalkTiles"
   ],
+  "_deprecatedWorldTapKeys": [
+    "controls.tapSnapRadiusPx", "controls.heroTapTurnSeconds", "controls.lookTurnDegreesPerSecond",
+    "ui.bottomBar"
+  ],
   "time": {
     "tickSeconds": 1,
     "offlineCapHours": 12,
@@ -55,6 +59,35 @@
     "floorFadeSeconds": 0.3,
     "zoom": { "default": 1, "min": 1, "max": 1 },
     "maxPointers": 2,
+    "turnAroundSeconds": 0.2,
+    "target": {
+      "objectReachTiles": 1.2,
+      "objectConeDegrees": 120,
+      "zombieConeDegrees": 180,
+      "keepReachExtraTiles": 0.3,
+      "keepConeExtraDegrees": 30,
+      "angleBucketDegrees": 15,
+      "switchHoldSeconds": 0.15,
+      "placeReachTiles": 1.5,
+      "ghostAlpha": 0.5,
+      "outline": { "color": "#0b0c0e", "alpha": 0.6, "widthPx": 3, "fadeSeconds": 0.1 }
+    },
+    "buttons": {
+      "bandHeightPx": 400,
+      "main": { "sizePx": 120, "hitPx": 128, "offsetPx": [130, 170] },
+      "attack": { "sizePx": 96, "hitPx": 104, "offsetPx": [270, 170] },
+      "secondary": { "sizePx": 88, "hitPx": 96, "offsetPx": [229, 269] },
+      "quickUse": { "sizePx": 80, "hitPx": 96, "offsetPx": [130, 310] },
+      "plateColor": "#0b0c0e",
+      "plateAlpha": 0.55,
+      "iconColor": "#bdb8ab",
+      "iconAlpha": 0.7,
+      "pressedAlpha": 0.9,
+      "disabledIconAlpha": 0.3,
+      "emptyPlateAlpha": 0.3,
+      "iconSwapFadeSeconds": 0.1,
+      "confirmSeconds": 2
+    },
     "joystick": {
       "radiusPx": 120,
       "knobRadiusPx": 44,
@@ -66,6 +99,8 @@
       "zoneWidthFrac": 0.55,
       "zoneHeightFrac": 0.55,
       "tapMaxSeconds": 0.25,
+      "doubleTapSeconds": 0.3,
+      "doubleTapMaxDistancePx": 48,
       "fadeInSeconds": 0.1,
       "fadeSeconds": 0.3,
       "doorPushSeconds": 0.2,
@@ -416,6 +451,13 @@
     "knockbackPx": 8,
     "hitFlashMs": 60,
     "unawareHitMult": 3,
+    "shove": {
+      "rangeTiles": 1.5,
+      "pushTiles": 0.5,
+      "stunSeconds": 0.8,
+      "energy": 1,
+      "cooldownSeconds": 2.5
+    },
     "hitFx": {
       "decalChance": 0.35,
       "decalFadeSeconds": 600,
@@ -475,6 +517,15 @@
       "crawler": { "name": "Crawler", "hp": 20, "speed": 15, "speedTilesPerSecond": 0.3, "damage": 8, "attackIntervalSeconds": 2.5 },
       "walker": { "name": "Walker", "hp": 45, "speed": 26, "speedTilesPerSecond": 0.52, "damage": 14, "attackIntervalSeconds": 2.2 }
     }
+  },
+  "quickUse": {
+    "longPressSeconds": 0.5,
+    "cooldownSeconds": 1,
+    "eligibleTypes": ["consumable", "water", "throwable"],
+    "defaultOrder": ["water_bottle", "clean_water", "canned_food", "dry_snack", "chocolate", "bandage"],
+    "throwArmSeconds": 3,
+    "throwAimConeDegrees": 60,
+    "throwDefaultTiles": 4
   },
   "throw": {
     "rangePx": 300,
@@ -853,6 +904,17 @@
     }
   },
   "ui": {
+    "hudTextBottomPx": 440,
+    "topBar": {
+      "iconPlatePx": 72,
+      "hitAreaPx": 96,
+      "plateColor": "#0b0c0e",
+      "plateAlpha": 0.55,
+      "iconColor": "#bdb8ab",
+      "iconAlpha": 0.7,
+      "pressedAlpha": 0.9,
+      "order": ["home", "bag", "workbench", "survivors", "menu"]
+    },
     "bottomBar": {
       "iconPlatePx": 72,
       "hitAreaPx": 96,
