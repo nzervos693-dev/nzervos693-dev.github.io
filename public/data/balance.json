@@ -434,7 +434,18 @@
     "crowbar": { "type": "tool", "name": "Crowbar", "stack": "tool" },
     "wrench": { "type": "tool", "name": "Wrench", "stack": "tool" },
     "molotov": { "type": "throwable", "name": "Molotov", "stack": "item" },
-    "medical_bag": { "type": "quest", "name": "Medical bag", "stack": "tool" }
+    "medical_bag": { "type": "quest", "name": "Medical bag", "stack": "tool" },
+    "sheet_metal": { "type": "material", "name": "Sheet metal", "stack": "material", "milestone": "C2" },
+    "concrete_block": { "type": "material", "name": "Concrete block", "stack": "heavy", "milestone": "C2" },
+    "hammer": { "type": "tool", "name": "Hammer", "stack": "tool", "milestone": "C2" },
+    "sledgehammer": { "type": "tool", "name": "Sledgehammer", "stack": "tool", "milestone": "C2" },
+    "fire_axe": { "type": "weapon", "name": "Fire axe", "stack": "tool", "milestone": "C3" },
+    "pistol": { "type": "weapon", "name": "Pistol", "stack": "tool", "milestone": "C3" },
+    "shotgun": { "type": "weapon", "name": "Shotgun", "stack": "tool", "milestone": "C3" },
+    "hunting_rifle": { "type": "weapon", "name": "Hunting rifle", "stack": "tool", "milestone": "M3" },
+    "pistol_ammo": { "type": "ammo", "name": "Pistol ammo", "stack": "ammo", "milestone": "C3" },
+    "shotgun_shell": { "type": "ammo", "name": "Shotgun shells", "stack": "ammo", "milestone": "C3" },
+    "rifle_round": { "type": "ammo", "name": "Rifle rounds", "stack": "ammo", "milestone": "M3" }
   },
   "consumables": {
     "canned_food": { "name": "Canned food", "food": 30 },
@@ -472,7 +483,75 @@
     "weapons": {
       "fists": { "name": "Fists", "damage": 5, "rangePx": 40, "rangeTiles": 1.5, "cooldownSeconds": 0.4, "durability": null, "source": "default", "hitSound": "punch" },
       "kitchen_knife": { "name": "Kitchen knife", "damage": 10, "rangePx": 45, "rangeTiles": 1.5, "cooldownSeconds": 0.35, "durability": 40, "source": "loot", "hitSound": "stab" },
-      "spiked_bat": { "name": "Spiked bat", "damage": 14, "rangePx": 55, "rangeTiles": 1.6, "cooldownSeconds": 0.5, "durability": 50, "source": "crafted", "hitSound": "blunt" }
+      "spiked_bat": { "name": "Spiked bat", "damage": 14, "rangePx": 55, "rangeTiles": 1.6, "cooldownSeconds": 0.5, "durability": 50, "source": "crafted", "hitSound": "blunt" },
+      "hammer": { "name": "Hammer", "damage": 8, "rangeTiles": 1.4, "cooldownSeconds": 0.4, "durability": 40, "source": "loot_or_crafted", "hitSound": "blunt", "milestone": "C3" },
+      "crowbar": { "name": "Crowbar", "damage": 12, "rangeTiles": 1.5, "cooldownSeconds": 0.5, "durability": 40, "source": "tool", "hitSound": "blunt", "milestone": "C3" },
+      "sledgehammer": { "name": "Sledgehammer", "damage": 24, "rangeTiles": 1.6, "cooldownSeconds": 1.3, "durability": 60, "energyPerSwing": 1.5, "source": "loot_or_crafted", "hitSound": "blunt", "milestone": "C3" },
+      "fire_axe": { "name": "Fire axe", "damage": 30, "rangeTiles": 1.8, "cooldownSeconds": 0.9, "durability": 80, "source": "loot", "hitSound": "stab", "milestone": "C3" },
+      "pistol": {
+        "name": "Pistol", "firearm": true, "damage": 25, "rangeTiles": 7, "aimConeDegrees": 90, "cooldownSeconds": 0.45,
+        "magazine": 8, "reloadMode": "magazine", "reloadSeconds": 2.0, "ammo": "pistol_ammo",
+        "hitChanceNear": 0.9, "hitChanceFar": 0.55, "durability": 300, "noise": "gunshot", "hitSound": "gunshot", "source": "loot", "milestone": "C3"
+      },
+      "shotgun": {
+        "name": "Shotgun", "firearm": true, "damage": 40, "extraTargets": 2, "extraTargetDamage": 20, "spreadDegrees": 25,
+        "falloffFromTiles": 3, "falloffMult": 0.5, "rangeTiles": 5, "aimConeDegrees": 90, "cooldownSeconds": 1.0,
+        "magazine": 2, "reloadMode": "perRound", "reloadSeconds": 1.0, "ammo": "shotgun_shell",
+        "hitChanceNear": 1.0, "hitChanceFar": 0.7, "durability": 150, "noise": "gunshot", "hitSound": "gunshot", "source": "loot", "milestone": "C3"
+      },
+      "hunting_rifle": {
+        "name": "Hunting rifle", "firearm": true, "damage": 80, "pierceTargets": 1, "pierceDamageMult": 0.5, "rangeTiles": 9, "aimConeDegrees": 60,
+        "cooldownSeconds": 1.5, "magazine": 5, "reloadMode": "perRound", "reloadSeconds": 0.8, "ammo": "rifle_round",
+        "hitChanceNear": 0.95, "hitChanceFar": 0.85, "durability": 200, "noise": "gunshot", "hitSound": "gunshot", "source": "loot", "milestone": "M3"
+      }
+    }
+  },
+  "firearms": {
+    "holdRepeats": false,
+    "attackBuffer": 1,
+    "noUnawareBonus": true,
+    "hitChanceNearTiles": 3,
+    "lightHitMult": { "lit": 1.0, "grey": 1.0, "dim": 0.8, "dark": 0.6 },
+    "autoReloadIdleSeconds": 3,
+    "reloadPausedByRun": true,
+    "emptyGunMelee": { "damage": 6, "rangeTiles": 1.5, "cooldownSeconds": 0.6, "noise": "quiet", "usesDurability": false },
+    "muzzleFlashSeconds": 0.1,
+    "muzzleFlashRadiusTiles": 1.5,
+    "gunshotNoise": {
+      "sameFloor": "all",
+      "adjacentFloors": 1,
+      "adjacentHearTiles": 12,
+      "adjacentMaxResponders": 4,
+      "respondersStayAsWanderers": true,
+      "lookAroundSeconds": 10
+    },
+    "attackStrengthPerShot": 2,
+    "attackStrengthShotCap": 20,
+    "loot": {
+      "guns": {
+        "pistol": { "containers": ["wardrobe", "desk", "storage_cage"], "chancePerSearch": 0.02 },
+        "shotgun": { "containers": ["storage_cage", "wardrobe"], "chancePerSearch": 0.01 },
+        "hunting_rifle": { "containers": ["storage_cage"], "chancePerSearch": 0.005, "milestone": "M3" }
+      },
+      "ammo": {
+        "pistol_ammo": { "containers": ["wardrobe", "desk", "storage_cage", "utility_shelf"], "chancePerSearch": 0.04, "qty": [2, 5] },
+        "shotgun_shell": { "containers": ["storage_cage", "wardrobe", "utility_shelf"], "chancePerSearch": 0.03, "qty": [1, 3] },
+        "rifle_round": { "containers": ["storage_cage"], "chancePerSearch": 0.02, "qty": [1, 3], "milestone": "M3" }
+      },
+      "meleeExtra": {
+        "fire_axe": { "containers": ["utility_shelf", "storage_cage", "toolbox"], "rooms": ["utility", "janitor"], "chancePerSearch": 0.03, "floors": [13, 17] },
+        "hammer": { "containers": ["toolbox", "utility_shelf"], "chanceByContainer": { "toolbox": 0.15, "utility_shelf": 0.10 }, "utilityShelfRooms": ["janitor"], "milestone": "C2" },
+        "sledgehammer": { "containers": ["storage_cage", "utility_shelf"], "chancePerSearch": 0.05, "rooms": ["storage", "utility"], "milestone": "C2" }
+      },
+      "floorMultByDistance": { "0": 0, "1": 1, "2": 1.5 },
+      "magazineOnFind": [0, 3],
+      "ignoresConsumableQtyCap": true
+    },
+    "guarantees": {
+      "pistolPerGame": 1,
+      "pistolFloors": [13, 17],
+      "pistolContainers": ["wardrobe", "storage_cage"],
+      "pistolLoadedRounds": 4
     }
   },
   "zombies": {
@@ -525,7 +604,9 @@
   "quickUse": {
     "longPressSeconds": 0.5,
     "cooldownSeconds": 1,
-    "eligibleTypes": ["consumable", "water", "throwable"],
+    "eligibleTypes": ["consumable", "water", "throwable", "weapon"],
+    "drawSeconds": 0.5,
+    "weaponsAutoDefault": false,
     "defaultOrder": ["water_bottle", "clean_water", "canned_food", "dry_snack", "chocolate", "bandage"],
     "throwArmSeconds": 3,
     "throwAimConeDegrees": 60,
@@ -556,6 +637,8 @@
     "itemStack": 10,
     "materialStack": 20,
     "toolStack": 1,
+    "ammoStack": 30,
+    "heavyStack": 5,
     "stockpileSlots": 40,
     "shelfSlots": 20
   },
@@ -583,7 +666,9 @@
     "glass": { "name": "Glass" },
     "duct_tape": { "name": "Duct tape" },
     "chemicals": { "name": "Chemicals" },
-    "fuel": { "name": "Fuel" }
+    "fuel": { "name": "Fuel" },
+    "sheet_metal": { "name": "Sheet metal", "milestone": "C2" },
+    "concrete_block": { "name": "Concrete block", "milestone": "C2" }
   },
   "objects": {
     "chair": {
@@ -628,7 +713,7 @@
     "fridge": {
       "name": "Fridge", "size": "large", "tool": "wrench", "noise": "loud",
       "primary": { "type": "search", "lootTable": "fridge", "lootTags": ["food"] },
-      "yield": { "metal": 4, "plastic": 2, "parts": 1 }, "chanceYield": []
+      "yield": { "metal": 4, "plastic": 2, "parts": 1 }, "chanceYield": [{ "id": "sheet_metal", "qty": 1, "chance": 0.5, "milestone": "C2" }]
     },
     "microwave": {
       "name": "Microwave", "size": "small", "tool": null, "noise": "noisy", "primary": null,
@@ -650,7 +735,7 @@
     "water_heater": {
       "name": "Water heater", "size": "large", "tool": "wrench", "noise": "loud",
       "primary": { "type": "drain", "tool": "wrench", "yield": { "dirty_water": 6 } },
-      "yield": { "metal": 4, "parts": 1 }, "chanceYield": []
+      "yield": { "metal": 4, "parts": 1 }, "chanceYield": [{ "id": "sheet_metal", "qty": 1, "chance": 0.5, "milestone": "C2" }]
     },
     "kitchen_drawer": {
       "name": "Kitchen drawer", "size": "small", "tool": null, "noise": "quiet",
@@ -693,12 +778,12 @@
     "filing_cabinet": {
       "name": "Filing cabinet", "size": "medium", "tool": "crowbar", "noise": "noisy", "milestone": "M2",
       "primary": { "type": "search", "lootTable": "filing_cabinet", "lootTags": ["parts", "duct_tape"] },
-      "yield": { "metal": 4 }, "chanceYield": []
+      "yield": { "metal": 4 }, "chanceYield": [{ "id": "sheet_metal", "qty": 1, "chance": 0.4, "milestone": "C2" }]
     },
     "washing_machine": {
       "name": "Washing machine", "size": "large", "tool": "wrench", "noise": "loud", "milestone": "M2",
       "primary": { "type": "search", "lootTable": "washing_machine", "lootTags": ["cloth"] },
-      "yield": { "metal": 5, "parts": 2 }, "chanceYield": []
+      "yield": { "metal": 5, "parts": 2 }, "chanceYield": [{ "id": "sheet_metal", "qty": 1, "chance": 0.5, "milestone": "C2" }]
     },
     "laundry_basket": {
       "name": "Laundry basket", "size": "small", "tool": null, "noise": "quiet", "milestone": "M2",
@@ -708,7 +793,7 @@
     "storage_cage": {
       "name": "Storage cage", "size": "medium", "tool": "crowbar", "noise": "noisy", "milestone": "M2",
       "primary": { "type": "search", "tool": "crowbar", "lootTable": "storage_cage", "lootTags": ["fuel", "duct_tape", "metal", "canned_food"] },
-      "yield": { "metal": 3 }, "chanceYield": []
+      "yield": { "metal": 3 }, "chanceYield": [{ "id": "sheet_metal", "qty": 1, "chance": 0.3, "milestone": "C2" }]
     },
     "toy_box": {
       "name": "Toy box", "size": "small", "tool": null, "noise": "quiet", "milestone": "M2",
@@ -815,7 +900,137 @@
       "name": "Survivor bed", "use": "home", "workbenchLevel": 1,
       "cost": { "wood": 6, "cloth": 2 },
       "output": null, "effect": { "type": "survivor_bed", "beds": 1 }, "buildSpot": "floor"
+    },
+    "hammer": {
+      "name": "Hammer", "use": "tool", "workbenchLevel": 1, "milestone": "C2",
+      "cost": { "metal": 2, "wood": 1 },
+      "output": { "hammer": 1 }, "effect": null, "buildSpot": "none"
+    },
+    "sledgehammer": {
+      "name": "Sledgehammer", "use": "tool", "workbenchLevel": 1, "milestone": "C2",
+      "cost": { "metal": 4, "wood": 2, "duct_tape": 1 },
+      "output": { "sledgehammer": 1 }, "effect": null, "buildSpot": "none"
+    },
+    "sheet_metal": {
+      "name": "Sheet metal", "use": "material", "workbenchLevel": 1, "milestone": "C2",
+      "cost": { "metal": 3 },
+      "output": { "sheet_metal": 1 }, "effect": null, "buildSpot": "none"
+    },
+    "spike_strip": {
+      "name": "Spike strip", "use": "defense", "workbenchLevel": 1, "milestone": "C3",
+      "cost": { "wood": 4, "metal": 2 },
+      "output": null, "effect": { "type": "trap", "trap": "spike_strip" }, "buildSpot": "hq_floor"
+    },
+    "alarm_lure": {
+      "name": "Alarm lure", "use": "defense", "workbenchLevel": 1, "milestone": "C3",
+      "cost": { "metal": 2, "parts": 1, "duct_tape": 1 },
+      "output": null, "effect": { "type": "trap", "trap": "alarm_lure" }, "buildSpot": "hq_floor"
     }
+  },
+  "buildSpots": {
+    "hq_floor": { "where": ["hq", "landing"], "floor": 15, "requiresHqClaimed": true, "placementRules": "5.15" }
+  },
+  "hq": {
+    "floor": 15,
+    "claimSeconds": 5,
+    "claimTarget": "stairwell_fire_door",
+    "claimRequires": "floor_cleared",
+    "countsAsClaims": 1,
+    "countsAsSecured": true,
+    "newUnitStashSlots": 20,
+    "stashPool": true,
+    "canUnclaim": false,
+    "perimeterEdges": [
+      "12.10.N", "13.10.N", "14.10.N", "15.10.N", "16.10.N", "17.10.N",
+      "12.6.W", "12.7.W", "12.8.W", "12.9.W",
+      "18.6.W", "18.7.W", "18.8.W", "18.9.W"
+    ],
+    "gateEdges": ["14.10.N", "15.10.N"],
+    "perimeterWallsPlayerDemolishable": false,
+    "perimeterWallsZombieBreakable": true,
+    "attacks": {
+      "pathHpPerTile": 10,
+      "brokenWindowExtraCostTiles": 3,
+      "slotsPerEdge": 3,
+      "entriesByDay": [
+        { "fromDay": 0, "entries": 1 },
+        { "fromDay": 3, "entries": 2 },
+        { "fromDay": 6, "entries": 3 }
+      ],
+      "entryExclusionCost": 1000,
+      "maxAttackersOnFloor": 12,
+      "heartLootSecondsPerStack": 10,
+      "heartMaxStacksLost": 5,
+      "offline": {
+        "defenseScalesWithHp": true,
+        "trapMaxCounted": 3,
+        "trapAdjacencyTiles": 1,
+        "repelLossOrder": "outermostFirst",
+        "repelHpFloor": 1,
+        "lureDefenseOncePerAttack": true
+      }
+    }
+  },
+  "build": {
+    "pieces": ["wall", "door", "window", "boards", "plating", "barricade"],
+    "defaultPiece": "wall",
+    "facingSnapHysteresisDegrees": 10,
+    "edgeClearTiles": 0.4,
+    "fitRefundRatio": 0.5,
+    "upgradeRefund": false,
+    "materialsTakenAt": "completion",
+    "buildEnergy": 2,
+    "demolishEnergy": 3,
+    "blockDemolishEnergy": 5,
+    "buildNoise": "noisy",
+    "demolishNoise": "loud",
+    "requiresTool": {
+      "build": ["hammer"],
+      "upgrade": ["hammer"],
+      "repair": ["hammer"],
+      "fit": ["hammer", "sledgehammer"],
+      "demolish": ["sledgehammer", "fire_axe"]
+    },
+    "sledgehammerUses": 30,
+    "fireAxeDemolishTimeMult": 1.5,
+    "fireAxeDurabilityPerDemolish": 5,
+    "fireAxeDemolishable": ["partition", "wood_wall", "door", "window", "boards"],
+    "sealWarningConfirm": true,
+    "buildIconShownWhen": ["inHq", "carriesHammer", "carriesSledgehammer", "carriesFireAxe"],
+    "offOn": ["floorChange", "sleep", "nap", "death", "placementMode"],
+    "repairSeconds": 2,
+    "repairNoise": "noisy"
+  },
+  "structures": {
+    "damageMult": 0.4,
+    "brokenPiece": "gap",
+    "brokenWindowVaultSeconds": { "zombie": 1.5, "hero": 1.0 },
+    "walls": {
+      "partition": { "hp": 80, "defense": 4, "buildable": false, "demolishSeconds": 6, "yield": { "wood": 1, "metal": 1 }, "upgradeTo": "sheet_metal", "repair": { "material": "wood", "hpPerUnit": 20 } },
+      "wood": { "hp": 150, "defense": 10, "cost": { "wood": 6, "metal": 1 }, "buildSeconds": 6, "demolishSeconds": 4, "yield": { "wood": 3 }, "upgradeTo": "sheet_metal", "repair": { "material": "wood", "hpPerUnit": 20 } },
+      "sheet_metal": { "hp": 320, "defense": 20, "cost": { "sheet_metal": 3, "metal": 1 }, "buildSeconds": 8, "demolishSeconds": 8, "yield": { "wood": 3, "sheet_metal": 1 }, "upgradeTo": "block", "repair": { "material": "sheet_metal", "hpPerUnit": 60 } },
+      "block": { "hp": 600, "defense": 35, "cost": { "concrete_block": 6, "metal": 1 }, "buildSeconds": 12, "demolishSeconds": 14, "yield": { "concrete_block": 4 }, "upgradeTo": null, "fitRefund": { "concrete_block": 2 }, "repair": { "material": "concrete_block", "hpPerUnit": 100 } }
+    },
+    "doors": {
+      "generated_interior": { "hp": 60, "defense": 5, "buildable": false, "demolishSeconds": 4, "yield": { "wood": 5, "metal": 1 }, "upgradeTo": "reinforced", "repair": { "material": "wood", "hpPerUnit": 20 } },
+      "generated_front": { "hp": 120, "defense": 8, "buildable": false, "demolishSeconds": 6, "yield": { "wood": 4, "metal": 2 }, "upgradeTo": "reinforced", "repair": { "material": "wood", "hpPerUnit": 20 } },
+      "wood": { "hp": 100, "defense": 8, "cost": { "wood": 5, "metal": 1, "parts": 1 }, "buildSeconds": 6, "demolishSeconds": 4, "yield": { "wood": 3, "metal": 1 }, "upgradeTo": "reinforced", "repair": { "material": "wood", "hpPerUnit": 20 } },
+      "reinforced": { "hp": 250, "defense": 18, "cost": { "sheet_metal": 2, "metal": 1 }, "buildSeconds": 8, "demolishSeconds": 8, "yield": { "wood": 3, "sheet_metal": 1 }, "upgradeTo": "metal", "repair": { "material": "sheet_metal", "hpPerUnit": 60 } },
+      "metal": { "hp": 450, "defense": 30, "cost": { "sheet_metal": 3, "parts": 2 }, "buildSeconds": 10, "demolishSeconds": 12, "yield": { "sheet_metal": 2, "parts": 1 }, "upgradeTo": null, "repair": { "material": "sheet_metal", "hpPerUnit": 60 } }
+    },
+    "windows": {
+      "glass": { "hp": 30, "defense": 2, "cost": { "glass": 2, "wood": 2 }, "buildSeconds": 5, "demolishSeconds": 2, "yield": { "wood": 1 }, "repair": null, "blocksSight": false, "blocksSound": false, "blocksMovement": true, "breakNoise": "loud" },
+      "exterior": { "attackable": false, "overlaysAllowed": true, "demolishable": false }
+    },
+    "overlays": {
+      "boards": { "on": ["window"], "hp": 80, "defense": 6, "cost": { "wood": 3 }, "buildSeconds": 3, "demolishSeconds": 2, "yield": { "wood": 1 }, "blocksSight": true, "repair": { "material": "wood", "hpPerUnit": 20 } },
+      "plating": { "on": ["wall", "door", "window"], "hp": 200, "defense": 15, "cost": { "sheet_metal": 2, "parts": 1 }, "buildSeconds": 6, "demolishSeconds": 6, "yield": { "sheet_metal": 1 }, "blocksSight": true, "repair": { "material": "sheet_metal", "hpPerUnit": 60 } },
+      "barricade": { "on": ["door"], "levelsFrom": "barricade.levels", "costFrom": ["recipes.barricade_lv1", "recipes.barricade_lv2"], "buildSeconds": [6, 8], "demolishSeconds": 4, "yield": {}, "blocksSight": false, "repair": { "material": "wood", "hpPerUnit": 20 } }
+    }
+  },
+  "traps": {
+    "spike_strip": { "damage": 12, "onTileSpeedMult": 0.5, "durability": 12, "brokenYield": { "wood": 1, "metal": 1 }, "hurtsHero": false, "blocksMovement": false, "offlineDefense": 8, "offlineDurabilityCost": 2 },
+    "alarm_lure": { "windSeconds": 2, "ringSeconds": 30, "noise": "loud", "rings": 5, "triggersAt": "attackStart", "luresWanderers": true, "offlineDefense": 10 }
   },
   "barricade": {
     "repairHpPerWood": 20,
@@ -917,7 +1132,8 @@
       "iconColor": "#bdb8ab",
       "iconAlpha": 0.7,
       "pressedAlpha": 0.9,
-      "order": ["home", "bag", "workbench", "survivors", "menu"]
+      "order": ["home", "bag", "workbench", "survivors", "menu"],
+      "conditionalIcons": { "build": { "after": "menu", "milestone": "C2", "shownWhen": "build.buildIconShownWhen" } }
     },
     "bottomBar": {
       "iconPlatePx": 72,
