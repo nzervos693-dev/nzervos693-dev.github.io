@@ -41,10 +41,12 @@ Side-view Stage 2 archived on branch archive/m2-side-view-stage2.
 - [x] HQ direction recorded in GDD 5.19–5.21 (sandbox floor 15, structures/traps, firearms) + balance keys
 - [x] HQ art: wall/door/window tiers, damage overlays, traps, rubble, shoot anim, muzzle flash, icons
 - [ ] Stage C2: HQ building on floor 15 (build/demolish/upgrade walls, doors, windows; claim floor; attacks probe weak spots)
-  - [x] Piece 1: structure model + build/demolish/upgrade rules, save (review passed; QA pending)
-  - [ ] Piece 2: build buttons, ghost preview, art hookup
+  - [x] Piece 1: structure model + build/demolish/upgrade rules, save
+  - [x] Piece 2: build mode, edge targeting, ghost, claim the floor, structure art (BUG-051 fixed)
+  - [ ] CD playtest of HQ building
   - [ ] Piece 3: attacks on floor 15 probe weak spots (incl. partial wall re-bake on HP hits; door art on structures.damageStages)
-  - [ ] Piece 2 extras: vault/climb broken windows, zombie re-target on door demolish, seal-in warning, light time multiplier, no target on shaft/exterior edges, claim offer when Cleared on load, damage/plating/boards/door-tier art in wall re-bake
+  - [ ] Leftovers for piece 3: vault/climb broken windows, barricade in picker, heart in HQ, merged-unit stash + pooled HQ stash, zombie damage on built doors/walls → gap
+  - [ ] Minor: rebuilt-to-block wall art changes on reload (genTier); broken glass loads at 1 HP
 - [ ] Follow-ups: close BUG-050 in QA e2e; move stairs-blocked 0.5 to balance; fallback tests for craftingPanel
 - [ ] Stage B: floors 13–17, stairs, attacks, Mara, tutorial
 - [ ] Stage C: generator + claiming homes
