@@ -1,23 +1,27 @@
 /**
- * Top-left icon bar (GDD 4 "HUD layout", 8): Home, Bag, Workbench, Survivors, Menu. Icons only: a 72 px
+ * Top-left icon bar (GDD 4 "HUD layout", 8): Home, Bag, Workbench, Survivors, Menu, and from Stage C2 the Build
+ * icon (trowel) as the 6th, shown only while build mode is possible (setBuildShown). Icons only: a 72 px
  * plate in a 96 px hit area (ui.topBar.*), offset by the safe area. The moodle column stays top-right.
  * Also owns the Y of the thought / toast line: its bottom edge sits ui.hudTextBottomPx above the safe-area
  * bottom, just above the control band.
  */
 import { getSafeArea, onSafeAreaChange } from '../core/safeArea.js';
 import { plateButton, uiConfig, DEPTH } from './ui.js';
+import { frameOf, hasFrame } from './art.js';
 
-const FRAMES = { home: 'house', bag: 'bag', workbench: 'hammer', survivors: 'two_heads', menu: 'dots' };
+const FRAMES = { home: 'house', bag: 'bag', workbench: 'hammer', survivors: 'two_heads', menu: 'dots', build: 'hammer' };
 
 export default class IsoHud {
   /**
    * @param {Phaser.Scene} scene @param {object} balance
-   * @param {Record<'home'|'bag'|'workbench'|'survivors'|'menu', Function>} cb tap handlers
+   * @param {Record<'home'|'bag'|'workbench'|'survivors'|'menu'|'build', Function>} cb tap handlers
    */
   constructor(scene, balance, cb) {
     this.scene = scene;
     this.balance = balance;
-    this.order = balance.ui?.topBar?.order ?? ['home', 'bag', 'workbench', 'survivors', 'menu'];
+    this.order = [...(balance.ui?.topBar?.order ?? ['home', 'bag', 'workbench', 'survivors', 'menu']), 'build'];
+    this.buildShown = false;
+    this.buildOn = false;
     this.buttons = {};
     this.visible = true;
     for (const id of this.order) {
@@ -25,6 +29,9 @@ export default class IsoHud {
       b.setDepth(DEPTH.hud);
       this.buttons[id] = b;
     }
+    const bb = this.buttons.build;
+    if (hasFrame('action_icons', 'trowel')) bb.img.setTexture('action_icons', frameOf('action_icons', 'trowel')).setScale(2); // 24 px art x 2 = the 48 px of the other icons
+    bb.setVisible(false);
     this.layout();
     this.offSafe = onSafeAreaChange(() => this.layout());
     scene.events.once('shutdown', () => this.offSafe());
@@ -47,6 +54,9 @@ export default class IsoHud {
 
   /** Per frame: keeps the Home plate pressed while its double-tap window is open. */
   update() {
+    const bb = this.buttons.build;
+    const bAlpha = this.buildOn ? this.balance.ui.topBar.pressedAlpha : this.balance.ui.topBar.iconAlpha;
+    if (bb.img.alpha !== bAlpha && !this.scene.input.activePointer.isDown) bb.img.setAlpha(bAlpha); // pressed look while build mode is on
     const b = this.buttons.home;
     const on = this.scene.time.now < (this.homeUntil ?? 0);
     if (on !== this.homeOn) {
@@ -55,8 +65,19 @@ export default class IsoHud {
     } else if (on) b.img.setAlpha(this.balance.ui.topBar.pressedAlpha);
   }
 
+  /** Show the Build icon (build mode possible) and its pressed look (build mode on). */
+  setBuildState(shown, on) {
+    this.buildOn = on;
+    if (shown === this.buildShown) return;
+    this.buildShown = shown;
+    this.buttons.build.setVisible(shown && this.visible);
+  }
+
   /** Hide (and disable) the bar. */
-  setVisible(v) { this.visible = v; for (const b of Object.values(this.buttons)) b.setVisible(v); }
+  setVisible(v) {
+    this.visible = v;
+    for (const [id, b] of Object.entries(this.buttons)) b.setVisible(v && (id !== 'build' || this.buildShown));
+  }
 
   /** Centre Y of a one-line toast: its bottom edge sits `ui.hudTextBottomPx` above the safe-area bottom. */
   get toastY() {

@@ -3,7 +3,7 @@
  * hits, noise, bites and door bangs to the scene. Rules live in gameplay/isoZombies.js.
  */
 import {
-  isoZombieConfig, makeIsoEnv, makeIsoAi, fillOccupancy, stepIsoZombie, hearIsoNoise, hitIsoZombie, resetIsoZombie,
+  isoZombieConfig, makeIsoEnv, makeIsoAi, fillOccupancy, stepIsoZombie, hearIsoNoise, hitIsoZombie, resetIsoZombie, retargetAfterStructureChange,
   STEP_ATTACK, STEP_AGGRO, STEP_DOORHIT,
 } from '../gameplay/isoZombies.js';
 import { applyShove } from '../gameplay/isoCombat.js';
@@ -24,6 +24,17 @@ export default class IsoZombies {
       const rec = scene.state.zombies[id];
       if (!rec.dead) this.add(rec);
     }
+    // a built or demolished edge changes every path through it: zombies banging a door that is gone re-target
+    this.unsub = scene.world.structures?.onChange((st, ev) => { if (ev.structural) this.retargetAll(); });
+  }
+
+  retargetAll() {
+    for (let i = 0; i < this.list.length; i++) retargetAfterStructureChange(this.list[i].ai);
+  }
+
+  destroy() {
+    this.unsub?.();
+    this.unsub = null;
   }
 
   add(rec) {

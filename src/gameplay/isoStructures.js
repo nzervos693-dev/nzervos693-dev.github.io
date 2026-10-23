@@ -94,6 +94,7 @@ export class Structures {
     this.kinds = new Map();
     this.revision = 0;
     this.listeners = [];
+    this._ev = { structural: true, eid: -1 };
     const perim = new Set(balance.hq?.perimeterEdges ?? []);
     const gate = new Set(balance.hq?.gateEdges ?? []);
     this.perimeter = floor.number === balance.hq?.floor ? perim : new Set();
@@ -184,7 +185,12 @@ export class Structures {
     return out;
   }
 
-  /** Call `fn()` after every structure change (re-bake the wall layer). @returns {() => void} unsubscribe */
+  /**
+   * Call `fn(structures, ev)` after every change. `ev` is ONE reused object { structural, eid }:
+   *   structural true  an edge gained / lost its piece (place): rooms, sight and paths changed, re-bake the wall layer;
+   *   structural false only one edge's tier, HP, damage stage or overlay changed (`eid` = that edge, -1 = unknown):
+   *                    update that edge's sprites, nothing else.
+   * Do not keep `ev` after the call. @returns {() => void} unsubscribe */
   onChange(fn) {
     this.listeners.push(fn);
     return () => { this.listeners = this.listeners.filter((f) => f !== fn); };
@@ -216,7 +222,7 @@ export class Structures {
       g.setEdge(e.x, e.y, e.side, EDGE.NONE);
     } else {
       const overlay = spec.overlay ? { ...spec.overlay } : null;
-      rec = { eid, x: e.x, y: e.y, side: e.side, piece, tier: spec.tier ?? null, hp: 0, maxHp: 0, overlay, broken: !!spec.broken, door: null };
+      rec = { eid, x: e.x, y: e.y, side: e.side, piece, tier: spec.tier ?? null, genTier: null, hp: 0, maxHp: 0, overlay, broken: !!spec.broken, door: null };
       const def = pieceDef(this.balance, rec);
       const maxHp = def?.hp ?? 1;
       if (piece === PIECE.DOOR) {
@@ -224,7 +230,7 @@ export class Structures {
         door.maxHp = maxHp;
         door.tier = rec.tier;
         door.hp = Math.min(maxHp, spec.hp ?? maxHp);
-        if (spec.keep) { door.kind = spec.keep.kind; door.unit = spec.keep.unit; }
+        if (spec.keep) { door.kind = spec.keep.kind; door.unit = spec.keep.unit; } else door.built = true; // fitted by the player: removed with the sledgehammer in build mode, not dismantled with a crowbar
         rec.door = door;
         this.floor.doors.push(door);
       } else {
@@ -235,7 +241,7 @@ export class Structures {
       this.recs.set(eid, rec);
       this.syncSight(rec);
     }
-    this._changed();
+    this._changed(true, eid);
     return rec;
   }
 
@@ -247,7 +253,7 @@ export class Structures {
     rec.tier = tier;
     const def = pieceDef(this.balance, rec);
     if (rec.door) { rec.door.tier = tier; rec.door.maxHp = def.hp; rec.door.hp = def.hp; this.grid.version++; } else { rec.maxHp = def.hp; rec.hp = def.hp; }
-    this._changed();
+    this._changed(false, rec.eid);
   }
 
   /** Set or clear the overlay of a record: {kind:'boards'|'plating', hp, maxHp}. */
@@ -255,13 +261,13 @@ export class Structures {
     rec.overlay = overlay ? { ...overlay } : null;
     this.syncSight(rec);
     this.grid.version++; // overlay changes can change sight (boarded window)
-    this._changed();
+    this._changed(false, rec.eid);
   }
 
   /** Set HP of a record (no side effects; use damage() for gameplay hits). */
   setHp(rec, hp) {
     if (rec.door) rec.door.hp = hp; else rec.hp = hp;
-    this._changed();
+    this._changed(false, rec.eid);
   }
 
   /**
@@ -279,7 +285,7 @@ export class Structures {
     if (rec.overlay && rec.overlay.hp > 0) {
       rec.overlay.hp = Math.max(0, rec.overlay.hp - amount);
       const gone = rec.overlay.hp === 0;
-      if (gone) this.setOverlay(rec, null); else this._changed();
+      if (gone) this.setOverlay(rec, null); else this._changed(false, rec.eid);
       return { hit: 'overlay', destroyed: gone, noise: null };
     }
     if (rec.piece === PIECE.WINDOW) {
@@ -289,27 +295,27 @@ export class Structures {
         rec.broken = true;
         this.syncSight(rec);
         this.grid.version++;
-        this._changed();
+        this._changed(false, rec.eid);
         return { hit: 'piece', destroyed: true, noise: this.balance.structures.windows.glass.breakNoise ?? 'loud' };
       }
-      this._changed();
+      this._changed(false, rec.eid);
       return { hit: 'piece', destroyed: false, noise: null };
     }
     if (rec.piece === PIECE.DOOR) {
       const generated = rec.tier === 'generated_interior' || rec.tier === 'generated_front';
       if (generated) {
         const broke = this.grid.damageDoor(rec.door, amount);
-        this._changed();
+        this._changed(false, rec.eid);
         return { hit: 'piece', destroyed: broke, noise: null };
       }
       rec.door.hp = Math.max(0, rec.door.hp - amount);
       if (rec.door.hp === 0) { this.place(e, { piece: PIECE.GAP }); return { hit: 'piece', destroyed: true, noise: null }; }
-      this._changed();
+      this._changed(false, rec.eid);
       return { hit: 'piece', destroyed: false, noise: null };
     }
     rec.hp = Math.max(0, rec.hp - amount);
     if (rec.hp === 0) { this.place(e, { piece: PIECE.GAP }); return { hit: 'piece', destroyed: true, noise: null }; }
-    this._changed();
+    this._changed(false, rec.eid);
     return { hit: 'piece', destroyed: false, noise: null };
   }
 
@@ -421,13 +427,20 @@ export class Structures {
     return this.balance.structures.damageStages ?? [];
   }
 
-  /** Announce a change made outside place() (revision, rooms, listeners). */
-  touch() { this._changed(); }
+  /**
+   * Announce a change made outside this class (a door's HP or barricade changed in the Grid by the zombie code).
+   * @param {number} [eid] the edge, when known (-1: unknown, listeners refresh doors)
+   */
+  touch(eid = -1) { this._changed(false, eid); }
 
-  _changed() {
+  /** Announce a change. Rooms are recomputed only for structural changes (a piece appeared or went). */
+  _changed(structural = true, eid = -1) {
     this.revision++;
-    this.recomputeRooms();
-    for (const fn of this.listeners) fn(this);
+    if (structural) this.recomputeRooms();
+    const ev = this._ev;
+    ev.structural = structural;
+    ev.eid = eid;
+    for (const fn of this.listeners) fn(this, ev);
   }
 
   _sig(rec) {
@@ -482,7 +495,7 @@ export class Structures {
       const type = g.edges[eid];
       if (type === EDGE.NONE) return;
       const kind = this.kindOf(x, y, side);
-      const rec = { eid, x, y, side, piece: PIECE.WALL, tier: null, hp: 0, maxHp: 0, overlay: null, broken: false, door: null };
+      const rec = { eid, x, y, side, piece: PIECE.WALL, tier: null, genTier: null, hp: 0, maxHp: 0, overlay: null, broken: false, door: null };
       if (type === EDGE.DOOR) {
         const door = g.doors.get(eid);
         rec.piece = PIECE.DOOR;
@@ -500,6 +513,7 @@ export class Structures {
         rec.maxHp = this.balance.structures.walls[rec.tier].hp;
         rec.hp = rec.maxHp;
       }
+      rec.genTier = rec.tier; // art: a piece still at its generated tier keeps its generated look
       this.recs.set(eid, rec);
     };
     for (let y = 0; y <= H; y++) for (let x = 0; x < W; x++) add(x, y, 'N');

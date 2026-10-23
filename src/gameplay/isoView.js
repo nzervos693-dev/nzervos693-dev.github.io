@@ -93,6 +93,57 @@ export function doorFrameName(door, axis, stub, stages) {
   return `${front ? 'frontdoor' : 'door'}_${axis}_${h}_${st}`;
 }
 
+// ---- C2 structure art (iso_walls note: HQ frames) --------------------------------------------------------
+
+const BUILT_DOOR_TIERS = ['wood', 'reinforced', 'metal'];
+
+/**
+ * Door frame, from Stage C2 on: damage is NOT in the base frame any more (the dmg_* overlays show it, GDD 5.20
+ * "Damage stages"; doors.visualStages is no longer read). Fitted / upgraded doors use the tier frames; a door still
+ * at its generated tier keeps the interior / front door look. Front doors have no 'broken' frame of their own.
+ * @param {{state:string, kind?:string}} door @param {string} tier @param {string|null} genTier tier it was generated with
+ * @param {'x'|'y'} axis @param {boolean} stub
+ */
+export function doorArtFrame(door, tier, genTier, axis, stub) {
+  const h = stub ? 'stub' : 'full';
+  const st = door.state;
+  if (tier !== genTier && BUILT_DOOR_TIERS.includes(tier)) return `door_${axis}_${h}_${tier}_${st === 'broken' ? 'broken' : st === 'open' ? 'open' : 'closed'}`;
+  const front = door.kind === 'front' && st !== 'broken';
+  return `${front ? 'frontdoor' : 'door'}_${axis}_${h}_${st}`;
+}
+
+/** Tier art of a wall ('wood' | 'sheet_metal' | 'block'), or null to keep the room-finish look of a generated wall. */
+export function wallTierArt(tier, genTier) {
+  if (tier === 'wood' || tier === 'sheet_metal') return tier;
+  return tier === 'block' && genTier !== 'block' ? 'block' : null;
+}
+
+/** Window pane frame: whole glass, or the broken pane. */
+export const windowArtFrame = (axis, stub, broken) => `wall_${axis}_${stub ? 'stub' : 'full'}_window${broken ? '_broken' : ''}`;
+
+/** Material of the dmg_* overlays for a piece (null = none: glass has no crack art). */
+export function damageMaterial(piece, tier) {
+  if (piece === 'window') return null;
+  if (piece === 'door') return tier === 'reinforced' || tier === 'metal' ? 'sheet_metal' : 'wood';
+  return tier === 'sheet_metal' ? 'sheet_metal' : tier === 'block' ? 'block' : 'wood';
+}
+
+/**
+ * The transparent overlays on an edge: the damage frame and the cover frame (names in iso_walls, or null).
+ * The damage shown is the overlay's own when it is damaged (zombies hit it first), else the piece's.
+ * @param {{piece:string, tier:string, overlay:{kind:string}|null, stage:number, overlayStage:number}} e
+ */
+export function edgeExtraFrames(e, axis, stub) {
+  const h = stub ? 'stub' : 'full';
+  let cover = null;
+  if (e.overlay) cover = e.overlay.kind === 'boards' ? `cover_boards_${axis}_${h}` : e.piece === 'window' ? `cover_plating_${axis}_${h}` : `plating_${axis}_${h}`;
+  let mat;
+  let stage;
+  if (e.overlay && e.overlayStage > 0) { mat = e.overlay.kind === 'boards' ? 'wood' : 'sheet_metal'; stage = e.overlayStage; } else { mat = damageMaterial(e.piece, e.tier); stage = e.stage; }
+  const dmg = mat && stage > 0 ? `dmg_${mat}_${axis}_${h}_${Math.min(3, stage)}` : null;
+  return { dmg, cover };
+}
+
 /** Barricade art stage 0..2 from the 5-step barricadeStage (0,0,1,2,2). */
 export const barricadeArtStage = (stage5) => [0, 0, 1, 2, 2][Math.max(0, Math.min(4, stage5))];
 

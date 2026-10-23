@@ -123,11 +123,11 @@ describe('build', () => {
     expect(canBuild(w.ctx, shaft).code).toBe('shaft_wall');
     expect(canBuild(w.ctx, { x: 0, y: 5, side: 'W' }).code).toBe('exterior_wall');
   });
-  it('occupied when a character centre is within 0.4 tiles of the edge, or a footprint straddles it', () => {
+  it('occupied when a character stands in the gap (centre closer than its radius 0.3), or a footprint straddles it', () => {
     const w = armed(hqWorld(), { wood: 6, metal: 1 });
-    w.ctx.characters = [{ x: 14.5, y: 10.3 }];
+    w.ctx.characters = [{ x: 14.5, y: 10.2 }];
     expect(canBuild(w.ctx, GATE_A).code).toBe('occupied');
-    w.ctx.characters = [{ x: 14.5, y: 10.5 }];
+    w.ctx.characters = [{ x: 14.5, y: 10.5 }]; // 0.5 away: fine (the old 0.4 clearance is gone)
     expect(canBuild(w.ctx, GATE_A).ok).toBe(true);
     const o = { id: 'bed', blocks: true, tiles: [{ x: 14, y: 9 }, { x: 14, y: 10 }] };
     w.structures.floor.objects = [o];
@@ -252,8 +252,10 @@ describe('fit door / window', () => {
     const door = findEdge(w.structures, (d) => d.piece === 'door');
     expect(canFit(w.ctx, door, 'door').code).toBe('wrong_target');
     expect(canFit(w.ctx, PARTITION, 'barricade').code).toBe('wrong_target');
-    w.ctx.characters = [{ x: 4.9, y: 2.5 }];
-    expect(canFit(w.ctx, PARTITION, 'door').code).toBe('occupied');
+    w.ctx.characters = [{ x: 4.9, y: 2.5 }]; // pressed against the wall: a wall is a line, he never blocks a fit
+    expect(canFit(w.ctx, PARTITION, 'door').ok).toBe(true);
+    w.ctx.characters = [{ x: 5.0, y: 2.5 }]; // even standing on the line
+    expect(canFit(w.ctx, PARTITION, 'door').ok).toBe(true);
   });
 });
 

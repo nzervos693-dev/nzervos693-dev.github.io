@@ -2500,11 +2500,21 @@ touch-interactive)
 - **Energy and noise**: build/upgrade/fit/repair **2 energy**, **Noisy** (8
   tiles); demolish **3 energy** (block walls **5**), **Loud** (whole
   floor). Noise never reaches other floors (guns are the exception, 5.21).
-- **Blocked**: greyed "Something's in the way." when any character's
-  centre is within **0.4 tiles** of the edge (`build.edgeClearTiles`), the
-  edge runs **inside** a multi-tile object's footprint (bed, table...), or
-  a mounted object, curtains or window pane hangs on it (dismantle it
-  first).
+- **Blocked** (Producer ruling): greyed "Something's in the way." when
+  - **Build on a gap only**: a character (hero, zombie, survivor, dog) is
+    standing in the gap, i.e. the shortest distance from its centre to
+    the edge segment is **less than that character's collision radius**
+    (`hero.collisionRadiusTiles` 0.3; other characters use the same value
+    until they get their own key). Fit, Upgrade, Repair, adding an
+    overlay and Demolish are **never** blocked by characters: the piece is
+    already a line in the wall, so nobody stands in it.
+  - any action: the edge runs **inside** a multi-tile object's footprint
+    (bed, table...), or a mounted object, curtains or window pane hangs on
+    it (dismantle it first).
+- **Ghost vs outline** (unchanged, confirmed): the alpha-0.5 ghost of the
+  selected piece is shown **only on a gap**, and only when Main would
+  build there; an existing piece gets the dark target outline, never a
+  ghost.
 - **Sealing yourself in** (warn only): if a build or upgrade would leave
   no hero-passable route from the heart (or, with no heart in HQ, from the
   hero's tile) to the landing (doors and own barricades count as passable;

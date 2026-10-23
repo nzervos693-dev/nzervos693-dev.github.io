@@ -12,8 +12,11 @@
  *   { kind:'object', obj }                      a salvage object (container, drainable, bed, ...)
  *   { kind:'workbench' } { kind:'stash' } { kind:'pile', pile }
  *   { kind:'spot', label }                      a placement spot (placement mode)
+ *   { kind:'claim' }                            the stairwell fire door (Claim the floor, GDD 5.19)
+ *   { kind:'edge', edge }                       the build-mode edge cursor (Build / Upgrade / Fit / ... and Demolish)
  */
 import { barricadeStage, barricadeMaxHp } from './barricade.js';
+import { edgeSlots } from './isoBuildMode.js';
 
 /** Weapon id -> action_icons frame. */
 export const ATTACK_ICON = Object.freeze({
@@ -51,7 +54,7 @@ export function doorSlots(door, c) {
   const barricaded = door.barricade && door.barricade.hp > 0;
   const ownBarricade = barricaded && door.barricade.own;
   const interiorDef = c.balance.objects.interior_door;
-  const canDismantle = door.kind === 'interior' && !dismantled;
+  const canDismantle = door.kind === 'interior' && !dismantled && !door.built; // a fitted door comes out with the sledgehammer (build mode)
   const dis = canDismantle ? (door.state === 'broken' ? slot('dismantle', 'dismantle') : dismantleSlot(interiorDef, c)) : null;
   if (dismantled) return { main: null, secondary: null };
   if (door.state === 'broken') return { main: dis, secondary: null };
@@ -113,7 +116,8 @@ function bedSlots(o, def, c) {
  * @param {object|null} t target
  * @param {{balance:object, state:object, weapon:{id:string}, hasTool:(id:string)=>boolean,
  *   doorOccupied:(door:object)=>boolean, isHomeBed:(o:object)=>boolean, nap:{enabled:boolean,reason?:string},
- *   canStoreAll:boolean, shove:{ready:boolean, inRange:boolean}}} c
+ *   canStoreAll:boolean, shove:{ready:boolean, inRange:boolean}, claim?:{ok:boolean, message:string|null},
+ *   buildCtx?:object, selectedPiece?:string}} c
  * @returns {{main:object|null, secondary:object|null}}
  */
 export function describeTarget(t, c) {
@@ -131,6 +135,8 @@ export function describeTarget(t, c) {
     case 'stash': return { main: slot('stash', 'store'), secondary: c.canStoreAll ? slot('storeAll', 'store') : grey('storeAll', 'store', 'Nothing to store.') };
     case 'pile': return { main: slot('pickup', 'take'), secondary: null };
     case 'spot': return { main: slot('place', 'place'), secondary: slot('cancel', 'cancel') };
+    case 'claim': return { main: c.claim?.ok ? slot('claim', 'claim_floor') : grey('claim', 'claim_floor', c.claim?.message || 'Something is still moving here.'), secondary: null };
+    case 'edge': return edgeSlots(c.buildCtx, t.edge, c.selectedPiece);
     default: return none;
   }
 }

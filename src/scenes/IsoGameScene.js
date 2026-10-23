@@ -6,7 +6,11 @@ import { getSave, writeSave } from '../core/save.js';
 import { now, elapsedInfo } from '../core/clock.js';
 import { lifecycle } from '../core/lifecycle.js';
 import { loadIsoFloor } from '../iso/loader.js';
-import { restoreStructures, snapshotStructures } from '../gameplay/isoHq.js';
+import { restoreStructures, snapshotStructures, canClaimFloor, claimFloor, clearedThought, rememberHq, isHqClaimed, isHqTile } from '../gameplay/isoHq.js';
+import { mainAction, secondaryAction } from '../gameplay/isoBuild.js';
+import {
+  buildModeAvailable, selectedPiece, selectPiece, pieceCells, PIECE_ICON, actionSeconds, resultToast, sealsIn,
+} from '../gameplay/isoBuildMode.js';
 import { isoConfig, depthKey, LAYER, angleDiff, normalizeAngle } from '../iso/projection.js';
 import { VisionMap, visionConfig, coneAngle, viewRange, soundRipple } from '../iso/vision.js';
 import { IsoCamera, cameraConfig, floorBounds } from '../iso/camera.js';
@@ -159,6 +163,8 @@ export default class IsoGameScene extends Phaser.Scene {
     this.slots = { main: null, secondary: null };
     this.confirm = { id: null, t: 0 };
     this.placing = null;
+    this.buildMode = false;
+    this.buildCtx = { balance, structures: this.world.structures, state };
     this.nap = { enabled: false };
     this.camHero = { x: 0, y: 0 };
     this.tFlags = { held: false, locked: false, suppress: false };
@@ -201,6 +207,7 @@ export default class IsoGameScene extends Phaser.Scene {
       bag: () => { this.cancelPlacement(); this.toggleBag(); },
       workbench: () => { this.cancelPlacement(); this.moodles.closeCard(); this.craftPanel.isOpen ? this.craftPanel.close() : this.craftPanel.open(); },
       survivors: () => this.toast.show('Nobody else is here yet.', 1600),
+      build: () => this.toggleBuildMode(),
       menu: () => { this.cancelPlacement(); this.moodles.closeCard(); this.menuPanel.isOpen ? this.menuPanel.close() : this.menuPanel.open(); },
     });
     this.toast = new Toast(this, this.hud.toastY);
@@ -236,6 +243,7 @@ export default class IsoGameScene extends Phaser.Scene {
       onAction: (id) => this.onMoodleAction(id),
     });
     this.bus.on('noise', (n) => this.zombies.onNoise(n));
+    this.bus.on('floor-cleared', () => this.checkClearedThought());
     this.stickCfg = stickConfig(balance);
     this.stickView = new IsoStickView(this, this.stickCfg);
     this.stickEnv = { grid: this.grid, isBlocked: this.zombieAt, radius: this.stickCfg.collisionRadiusTiles, doorMin: DOOR_PUSH_MIN_COMPONENT, maxStep: this.stickCfg.maxSubstepTiles,
@@ -284,6 +292,7 @@ export default class IsoGameScene extends Phaser.Scene {
       this.applyOffline(info.elapsedMs, info.capped);
     }
     if (state.flags.heroDead) this.showGameOver();
+    this.time.delayedCall(1500, () => this.checkClearedThought()); // an already Cleared save: the thought fires once, here
     if (debugOn()) window.__floor15 = this;
     exposeScene(this);
   }
@@ -305,6 +314,7 @@ export default class IsoGameScene extends Phaser.Scene {
     this.events.once('shutdown', () => {
       this.soundscape.stopAll();
       this.targeting?.destroy();
+      this.zombies?.destroy();
       this.view?.destroy();
       this.bus.removeAllListeners();
       this.game.events.off('floor15:hide', onHide);
@@ -327,7 +337,8 @@ export default class IsoGameScene extends Phaser.Scene {
     const r = this.world.home.unitRect;
     const x = Math.floor(this.hero.x);
     const y = Math.floor(this.hero.y);
-    return x >= r[0] && y >= r[1] && x < r[0] + r[2] && y < r[1] + r[3];
+    if (x >= r[0] && y >= r[1] && x < r[0] + r[2] && y < r[1] + r[3]) return true;
+    return isHqClaimed(this.state) && isHqTile(this.world.structures, x, y); // the claimed HQ is one home (GDD 5.19)
   }
 
   zombieAt = (x, y) => this.zombies.at(x, y) !== null;
@@ -640,6 +651,9 @@ export default class IsoGameScene extends Phaser.Scene {
     const t = this.targeting.target;
     c.weapon = this.currentWeapon();
     c.canStoreAll = this.canStoreAll();
+    c.buildCtx = this.buildCtx;
+    c.selectedPiece = selectedPiece(this.state, this.balance);
+    if (t?.kind === 'claim') c.claim = canClaimFloor(this.state, this.balance, FLOOR);
     if (t?.kind === 'object' && this.isHomeBed(t.obj)) c.nap = this.napButton();
     if (t?.kind === 'zombie') {
       c.shove.ready = this.shoveCd.ready;
@@ -662,23 +676,25 @@ export default class IsoGameScene extends Phaser.Scene {
     if (!slot || !t) return;
     if (!slot.enabled) { if (slot.reason) this.toast.show(slot.reason, 1800); return; }
     if (slot.confirm && !this.confirmTap(slot.id)) return;
-    this.perform(slot.id, t);
+    this.perform(slot.id, t, slot);
     this.buttonsDirty = true;
   }
 
   /** Confirm taps (GDD 4): a second tap on the same action within controls.buttons.confirmSeconds. */
-  confirmTap(id) {
+  confirmTap(id, message = 'Tap again to leave this place.') {
     const now = performance.now();
     if (this.confirm.id === id && now - this.confirm.t < this.balance.controls.buttons.confirmSeconds * 1000) { this.confirm.id = null; return true; }
     this.confirm.id = id;
     this.confirm.t = now;
-    this.toast.show('Tap again to leave this place.', 1800);
+    this.toast.show(message, 1800);
     return false;
   }
 
   /** Run an action by id on a target (see gameplay/isoButtons.js). */
-  perform(id, t) {
+  perform(id, t, slot = null) {
     switch (id) {
+      case 'edgeMain': case 'edgeSecondary': this.pressEdge(slot, t.edge); break;
+      case 'claim': this.beginClaim(); break;
       case 'attack': this.attackPress(false); break;
       case 'shove': this.shovePress(t); break;
       case 'open': this.openPress(t.door); break;
@@ -729,6 +745,10 @@ export default class IsoGameScene extends Phaser.Scene {
     if (this.gameOver || this.dead) return;
     if (this.sleeping) { this.wake(); return; }
     this.moodles.closeCard();
+    if (this.buildMode) { // build mode: Quick-use is the piece selector (GDD 5.19); items can't be used
+      if (this.buttons.pickerOpen) this.buttons.closePicker(); else this.buttons.openPicker();
+      return;
+    }
     if (this.quick.armed) this.updateAim();
     const r = this.quick.tap(this.state, this.balance);
     switch (r.type) {
@@ -760,6 +780,11 @@ export default class IsoGameScene extends Phaser.Scene {
 
   /** The picker's choice: a type, or null to clear the slot. */
   onQuickPick(id) {
+    if (this.buildMode) {
+      if (selectPiece(this.state, this.balance, id)) this.save();
+      this.buttonsDirty = true;
+      return;
+    }
     this.quick.disarm();
     chooseQuick(this.state, id);
     this.buttonsDirty = true;
@@ -768,6 +793,7 @@ export default class IsoGameScene extends Phaser.Scene {
 
   /** Picker cells: one per carried eligible type plus the empty cell (nothing carried: no picker). */
   pickerItems() {
+    if (this.buildMode) return pieceCells(this.state, this.balance);
     const list = carriedEligible(this.state, this.balance);
     return list.length ? [...list.map((e) => ({ id: e.id, count: e.count })), { id: null, count: 0 }] : [];
   }
@@ -817,6 +843,124 @@ export default class IsoGameScene extends Phaser.Scene {
     if (!p) return;
     this.cancelPlacement();
     this.finishCraft(p.recipeId, {});
+  }
+
+  // ---------------------------------------------------------------- build mode and the HQ (GDD 5.19)
+
+  /** The Build icon: turn build mode on (if possible) or off. Off by itself on sleep, nap, death, placement. */
+  toggleBuildMode(force) {
+    if (this.gameOver || this.dead) return;
+    const on = force ?? !this.buildMode;
+    if (on === this.buildMode) return;
+    if (on) {
+      if (this.sleeping || !buildModeAvailable(this.state, this.balance, this.world.structures, this.hero)) return;
+      this.cancelPlacement();
+      this.quick.disarm();
+      this.throw.hideAim();
+    } else this.view.setEdgeGhost(null);
+    this.buildMode = on;
+    this.targeting.setBuildMode(on);
+    this.buttons.closePicker();
+    this.confirm.id = null;
+    this.buttonsDirty = true;
+  }
+
+  /** Per frame: the Build icon shows while build mode is possible; build mode ends when it no longer is. */
+  updateBuildMode() {
+    const avail = buildModeAvailable(this.state, this.balance, this.world.structures, this.hero);
+    if (this.buildMode && (!avail || this.sleeping || this.dead || this.placing || this.action?.spec.kind === 'nap')) this.toggleBuildMode(false);
+    this.hud.setBuildState(avail, this.buildMode);
+  }
+
+  /** Tap on Main / Secondary with the edge cursor as the target: start the timed action (or explain the refusal). */
+  pressEdge(slot, edge) {
+    if (!slot?.act) return;
+    // check again now (the slot may be up to 0.1 s old): refuse at once if it no longer works
+    const selected = selectedPiece(this.state, this.balance);
+    const act = slot.id === 'edgeMain' ? mainAction(this.buildCtx, edge, selected) : secondaryAction(this.buildCtx, edge);
+    if (!act.result.ok) { this.toast.show(resultToast(act.result, this.balance), 1800); this.buttonsDirty = true; return; }
+    if (sealsIn(this.buildCtx, act, this.hero) && !this.confirmTap(`seal:${edge.x}.${edge.y}.${edge.side}`, 'That seals you in.')) return;
+    this.beginEdgeAction(act, edge);
+  }
+
+  /**
+   * Build / upgrade / fit / cover / repair / demolish an edge as a timed action under the section 4 rules: the
+   * time is result.seconds x the light multiplier, nothing is paid until it completes (perform() checks again),
+   * moving or an interrupt cancels it for free. The noise is made when the hammering starts.
+   */
+  beginEdgeAction(act, edge) {
+    const r = act.result;
+    const seconds = actionSeconds(r, this.heroLight(), this.balance);
+    const spec = { kind: 'build', id: r.action, seconds, energy: r.energy, tool: r.tool, noise: r.noise };
+    this.action = { spec, edgeAct: act, edge: { x: edge.x, y: edge.y, side: edge.side }, elapsed: 0, duration: seconds };
+    this.bus.emit('action-start', { spec });
+    if (r.noiseTiles) {
+      const mx = edge.side === 'N' ? edge.x + 0.5 : edge.x;
+      const my = edge.side === 'N' ? edge.y : edge.y + 0.5;
+      this.noise(mx, my, r.noise, r.noiseTiles, `build:${edge.x}.${edge.y}.${edge.side}`);
+    }
+    playSfx(this, this.buildSound(r));
+    this.heroAnimNow = 'attack';
+  }
+
+  /** Hammering sound: metal and stone for the heavy materials, wood otherwise. */
+  buildSound(r) {
+    const heavy = ['sheet_metal', 'block', 'reinforced', 'metal', 'plating'];
+    const mats = [...(r.salvage || []), ...(r.cost || [])].some((e) => e.id === 'concrete_block' || e.id === 'sheet_metal');
+    return mats || heavy.includes(r.toTier) ? 'dismantle_metal' : 'dismantle_wood';
+  }
+
+  finishEdgeAction() {
+    const { edgeAct } = this.action;
+    this.action = null;
+    this.hideBar();
+    this.heroAnimNow = null;
+    const r = edgeAct.perform(); // checks the rules again, then takes the materials and changes the edge
+    if (r.ok) {
+      this.state.needs.energy = Math.max(0, this.state.needs.energy - (r.energy || 0));
+      if (r.toolBroke) this.refreshWeapon();
+      autoFill(this.state, this.balance);
+      this.view.refreshPiles();
+      this.panel.refresh();
+      this.updateVision(true);
+      this.bus.emit('action-done', { spec: { kind: 'build', id: r.action }, result: r });
+    }
+    this.buttonsDirty = true;
+    this.toast.show(resultToast(r, this.balance), 2400);
+    this.save();
+  }
+
+  /** Main on the stairwell fire door: Claim the floor (5 s, quiet). */
+  beginClaim() {
+    const c = canClaimFloor(this.state, this.balance, FLOOR);
+    if (!c.ok) { this.toast.show(c.message, 1800); return; }
+    const spec = { kind: 'claim', id: 'claim', seconds: c.seconds, energy: 0, tool: null, noise: 'quiet' };
+    const gx = this.balance.hq.gateEdges.map((k) => +k.split('.')[0]);
+    const gy = +this.balance.hq.gateEdges[0].split('.')[1];
+    this.faceTarget = { angle: angleTo(this.hero.x, this.hero.y, (Math.min(...gx) + Math.max(...gx) + 1) / 2, gy), rate: this.balance.controls.walkTurnDegreesPerSecond };
+    this.action = { spec, elapsed: 0, duration: spec.seconds };
+    this.bus.emit('action-start', { spec });
+  }
+
+  finishClaim() {
+    this.action = null;
+    this.hideBar();
+    const r = claimFloor(this.state, this.balance, FLOOR, now());
+    if (!r.ok) { this.toast.show(r.message, 1800); return; }
+    rememberHq(this.world.structures, this.vision.seen); // every HQ tile becomes Remembered
+    this.updateVision(true);
+    this.bus.emit('hq-claimed', {});
+    this.buttonsDirty = true;
+    this.toast.show(r.thought, 3000);
+    this.save();
+  }
+
+  /** "This whole floor could be mine." the first time floor 15 is Cleared (also when a Cleared save loads). Fires once. */
+  checkClearedThought() {
+    const t = clearedThought(this.state, this.balance, FLOOR);
+    if (!t) return;
+    this.toast.show(t, 3200);
+    this.save();
   }
 
   // ---------------------------------------------------------------- doors
@@ -1079,6 +1223,8 @@ export default class IsoGameScene extends Phaser.Scene {
     const kind = this.action.spec.kind;
     if (kind === 'nap') { this.finishNap(); return; }
     if (kind === 'pry') { this.finishPry(); return; }
+    if (kind === 'build') { this.finishEdgeAction(); return; }
+    if (kind === 'claim') { this.finishClaim(); return; }
     if (kind === 'door-open') { this.finishDoorOpen(); return; }
     if (kind === 'door-close') { this.finishDoorClose(); return; }
     const { spec, o, door, def: actionDef } = this.action;
@@ -1659,6 +1805,7 @@ export default class IsoGameScene extends Phaser.Scene {
     const panels = this.anyPanelOpen();
     if (this.placing && panels) this.cancelPlacement();
     if (panels) { this.quick.disarm(); this.buttons.closePicker(); }
+    this.updateBuildMode();
     const tf = this.tFlags;
     tf.held = this.stick.down;
     tf.locked = !!this.action && this.action.spec.kind !== 'nap';
@@ -1666,6 +1813,12 @@ export default class IsoGameScene extends Phaser.Scene {
     this.targeting.update(dt, tf);
     const t = this.targeting.target;
     if (this.placing) this.view.setGhost(t?.kind === 'spot' ? t.door : null, this.targeting.cfg.ghostAlpha);
+    // ghost of what Main would put on the targeted edge (while available and during the action)
+    if (this.buildMode) {
+      const m = this.slots.main;
+      const show = t?.kind === 'edge' && m?.enabled && m.act;
+      this.view.setEdgeGhost(show ? t.edge : null, show ? m.act : null, selectedPiece(this.state, this.balance), this.targeting.cfg.ghostAlpha);
+    }
     // aim ellipse of an armed throw
     if (this.quick.armed) { this.updateAim(); this.throw.showAim(this.aim.x, this.aim.y); } else this.throw.hideAim();
     this.btnT -= dt;
@@ -1686,12 +1839,19 @@ export default class IsoGameScene extends Phaser.Scene {
     v.quick.icon = q.id ? QUICK_ICON[this.balance.items[q.id]?.type] ?? 'eat' : null;
     if (q.id === 'bandage' || q.id === 'medkit') v.quick.icon = 'bandage';
     v.quick.armed = this.quick.armed;
+    if (this.buildMode) { // Quick-use shows the selected piece (tap = picker)
+      const piece = selectedPiece(this.state, this.balance);
+      v.quick.itemId = null;
+      v.quick.icon = PIECE_ICON[piece];
+      v.quick.count = 1;
+      v.quick.armed = this.buttons.pickerOpen;
+    }
     v.sleeping = this.sleeping;
     const cd = v.cd;
     cd.attack = this.combat.cdMax > 0 ? this.combat.cd / this.combat.cdMax : 0;
     cd.main = v.main?.id === 'attack' ? cd.attack : 0;
     cd.secondary = v.secondary?.id === 'shove' ? this.shoveCd.left / this.shoveCfg.cooldownSeconds : 0;
-    cd.quick = this.quick.cooldownFrac;
+    cd.quick = this.buildMode ? 0 : this.quick.cooldownFrac;
     this.buttons.setVisible(!panels);
     this.buttons.update(dt, v);
   }

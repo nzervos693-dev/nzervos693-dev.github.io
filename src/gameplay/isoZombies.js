@@ -166,6 +166,22 @@ export function hitIsoZombie(z, ai, damage, tune, fromX, fromY) {
   return false;
 }
 
+/**
+ * A wall, door or window was built or demolished (structures.onChange, structural): a zombie that was banging a
+ * door that is gone, or following a path through a changed edge, forgets the path and the door and re-paths at
+ * once (the chase goal is kept). Idle zombies are untouched.
+ * @returns {boolean} the AI was moving or banging and was told to re-path
+ */
+export function retargetAfterStructureChange(ai) {
+  if (ai.mode !== 'chase' && ai.mode !== 'return' && ai.mode !== 'wander') return false;
+  ai.blocked = null;
+  ai.path = null;
+  ai.pathI = 0;
+  ai.leg = false;
+  ai.repathT = 0;
+  return true;
+}
+
 /** Back to the spawn tile at rest (app hidden). Keeps hp. */
 export function resetIsoZombie(z, ai) {
   z.x = z.homeX;

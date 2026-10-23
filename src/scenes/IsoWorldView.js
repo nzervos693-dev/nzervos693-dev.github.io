@@ -15,10 +15,11 @@ import { frameOf, hasFrame } from './art.js';
 import { LAYER, depthKey, wallDepthKey, footprintDepthKey } from '../iso/projection.js';
 import { FLOOR_BY_TYPE, FINISH_BY_TYPE } from '../iso/loader.js';
 import { VIS } from '../iso/vision.js';
-import { PIECE, edgeTiles } from '../gameplay/isoStructures.js';
+import { PIECE, edgeTiles, damageStage } from '../gameplay/isoStructures.js';
 import {
-  tileBrightness, tintOf, shade, activeRooms, wallIsCut, doorFrameName, barricadeArtStage, propOrientation,
+  tileBrightness, tintOf, shade, activeRooms, wallIsCut, doorArtFrame, wallTierArt, windowArtFrame, edgeExtraFrames, barricadeArtStage, propOrientation,
 } from '../gameplay/isoView.js';
+import { ghostFrame, GHOST_TINT } from '../gameplay/isoBuildMode.js';
 import { barricadeStage, barricadeMaxHp } from '../gameplay/barricade.js';
 
 const S = 3; // 1 art px = 3 game px
@@ -55,7 +56,7 @@ export default class IsoWorldView {
     this.cutRate = 1 / this.balance.iso.cutawayFadeSeconds;
     this.occAlpha = this.balance.iso.occluderFadeAlpha;
     this.tall = new Set(this.balance.iso.tallObjects);
-    this.stages = this.balance.doors.visualStages;
+    this.thresholds = this.balance.structures.damageStages;
     this.entries = []; // everything tinted by tile brightness: {sprites:[], tiles:[], b, rem, hidden, forceHide}
     this.walls = [];
     this.doors = new Map(); // door id -> entry
@@ -64,12 +65,17 @@ export default class IsoWorldView {
     this.pileSprites = [];
     this.blood = [];
     this.dirty = true;
+    this.wallByEid = new Map(); // edge id -> wall record (for per-edge updates)
+    this.dirtyEdges = new Set(); // edges whose HP / stage / tier / overlay changed (redrawn without a re-bake)
+    this.doorsStale = false;
+    this.bakeCount = 0; // bumps on every full wall re-bake (outlines re-pick their sprite)
+    this.ghost = { sp: null, act: null, x: -1, y: -1, side: '', stub: false };
     this.occludedKey = '';
     this.lastRevision = -1;
     this.buildFloors();
     this.buildWalls();
     this.wallsStale = false;
-    this.unsubStructures = this.floor.structures?.onChange(() => { this.wallsStale = true; });
+    this.unsubStructures = this.floor.structures?.onChange((st, ev) => this.onStructures(ev));
     this.buildProps();
     this.buildStairs();
     this.buildStencil();
@@ -110,12 +116,23 @@ export default class IsoWorldView {
     }
   }
 
+  /**
+   * A structure change: a piece appeared or went (structural) -> re-bake the whole layer next frame; anything else
+   * (HP, stage, tier, overlay of one edge) -> redraw only that edge. eid -1 = unknown edge: refresh the doors.
+   */
+  onStructures(ev) {
+    if (ev.structural) this.wallsStale = true;
+    else if (ev.eid >= 0) this.dirtyEdges.add(ev.eid);
+    else this.doorsStale = true;
+  }
+
   wallFrame(w, stub) {
     const h = stub ? 'stub' : 'full';
     const f = this.floor;
-    if (w.kind === 'window') return `wall_${w.axis}_${h}_window`;
+    if (w.kind === 'window') return windowArtFrame(w.axis, stub, w.broken);
     if (w.kind === 'elevator') return `door_${w.axis}_${h}_closed`;
-    if ((w.tier === 'wood' || w.tier === 'sheet_metal') && hasFrame('iso_walls', `wall_${w.axis}_${h}_${w.tier}`)) return `wall_${w.axis}_${h}_${w.tier}`;
+    const tierArt = wallTierArt(w.tier, w.genTier);
+    if (tierArt && hasFrame('iso_walls', `wall_${w.axis}_${h}_${tierArt}`)) return `wall_${w.axis}_${h}_${tierArt}`;
     let ri = w.roomB >= 0 ? w.roomB : w.roomA;
     let finish = FINISH_BY_TYPE[f.rooms[ri].type] ?? 'plaster';
     if (w.roomB < 0 || w.roomA < 0) finish = w.roomB < 0 ? 'concrete' : finish;
@@ -139,7 +156,7 @@ export default class IsoWorldView {
       const kind = rec.piece === PIECE.DOOR ? 'door' : rec.piece === PIECE.WINDOW ? 'window' : 'wall';
       out.push({
         x: rec.x, y: rec.y, side: rec.side, axis: rec.side === 'N' ? 'x' : 'y', a, b, roomA: f.roomAt(a.x, a.y), roomB: f.roomAt(b.x, b.y),
-        kind, tier: rec.tier, doorId: rec.door?.id, curtains: !!curtains.get(rec.eid),
+        kind, tier: rec.tier, genTier: rec.genTier, broken: !!rec.broken, eid: rec.eid, doorId: rec.door?.id, curtains: !!curtains.get(rec.eid),
       });
     }
     return out;
@@ -151,12 +168,17 @@ export default class IsoWorldView {
     const occ = new Map(this.walls.filter((r) => r.occ).map((r) => [`${r.w.x}.${r.w.y}.${r.w.side}`, true]));
     for (const rec of this.walls) {
       for (const sp of [rec.full, rec.stub, rec.bar]) sp?.destroy();
+      for (const ex of rec.extras) ex.sp.destroy();
       dead.add(rec.entry);
     }
     this.entries = this.entries.filter((e) => !dead.has(e) && !e.curtain);
     this.walls = [];
     this.doors = new Map();
+    this.wallByEid.clear();
+    this.dirtyEdges.clear();
+    this.doorsStale = false;
     this.ghostId = null;
+    this.bakeCount++;
     this.buildWalls();
     this.wallsStale = false;
     for (const r of this.walls) r.occ = !!occ.get(`${r.w.x}.${r.w.y}.${r.w.side}`);
@@ -171,6 +193,7 @@ export default class IsoWorldView {
 
   /** Stop listening to structure changes (scene shutdown). */
   destroy() {
+    this.ghost.sp?.destroy();
     this.unsubStructures?.();
     this.unsubStructures = null;
   }
@@ -188,7 +211,7 @@ export default class IsoWorldView {
       const depth = isoDepth(wallDepthKey(w.x, w.y, w.side));
       const rec = {
         w, cut: false, fullA: 1, stubA: 0, fullT: 1, stubT: 0, occ: false, full: null, stub: null, door: null, bar: null,
-        vx, vy, tiles: [], tintFull: 0xffffff,
+        vx, vy, tiles: [], tintFull: 0xffffff, extras: [], eid: w.eid ?? -1,
       };
       const tiles = [];
       if (w.roomA >= 0) tiles.push(this.tileIdx(w.a.x, w.a.y));
@@ -202,8 +225,8 @@ export default class IsoWorldView {
         this.doors.set(door.id, e);
         rec.doorEntry = e;
       }
-      const nameFull = rec.door ? doorFrameName(rec.door, w.axis, false, this.stages) : this.wallFrame(w, false);
-      const nameStub = rec.door ? doorFrameName(rec.door, w.axis, true, this.stages) : this.wallFrame(w, true);
+      const nameFull = rec.door ? doorArtFrame(rec.door, w.tier, w.genTier, w.axis, false) : this.wallFrame(w, false);
+      const nameStub = rec.door ? doorArtFrame(rec.door, w.tier, w.genTier, w.axis, true) : this.wallFrame(w, true);
       rec.full = this.img('iso_walls', nameFull, px, py, 0, 0, depth);
       const cuttable = w.roomA >= 0;
       const sprites = [rec.full];
@@ -221,6 +244,9 @@ export default class IsoWorldView {
       rec.depth = depth;
       rec.entry = this.track(sprites, tiles);
       this.walls.push(rec);
+      if (rec.eid >= 0) this.wallByEid.set(rec.eid, rec);
+      const srec = this.floor.structures?.recs.get(rec.eid);
+      if (srec) this.syncExtras(rec, srec);
       if (w.kind === 'window' && w.curtains) this.addCurtains(w, tiles);
     }
     this.refreshDoors(true);
@@ -307,31 +333,105 @@ export default class IsoWorldView {
 
   // ---------------------------------------------------------------- state refresh
 
-  /** Doors (state, damage stage, barricade) as last seen: a door is redrawn only while one of its tiles is Visible. */
+  /** Key of everything a door's drawing depends on (redrawn only when it changes). */
+  doorKey(d, srec) {
+    const ov = srec?.overlay;
+    return `${d.state}|${Math.round(d.hp)}|${d.tier ?? ''}|${ov ? ov.kind + Math.round(ov.hp) : '-'}|${d.barricade ? Math.round(d.barricade.hp) : -1}`;
+  }
+
+  /** Doors (state, tier, damage, overlay, barricade) as last seen: a door is redrawn only while one of its tiles is Visible. */
   refreshDoors(force = false) {
-    const g = this.floor.grid;
-    const bar = this.state.build.barricade;
     for (const e of this.doors.values()) {
       const seen = this.vision.visible[e.ia] !== 0 || this.vision.visible[e.ib] !== 0;
       if (!seen && !force) continue;
-      const d = e.door;
-      const key = `${d.state}|${Math.round(d.hp)}|${d.barricade ? Math.round(d.barricade.hp) : -1}`;
-      if (key === e.shown) continue;
-      e.shown = key;
-      const rec = e.rec;
-      const ax = rec.w.axis;
-      rec.full.setFrame(frameOf('iso_walls', doorFrameName(d, ax, false, this.stages)));
-      rec.stub?.setFrame(frameOf('iso_walls', doorFrameName(d, ax, true, this.stages)));
-      const hasBar = d.barricade && d.barricade.hp > 0;
-      if (hasBar) {
-        const lvl = bar.level >= 2 ? 2 : 1;
-        const st = barricadeArtStage(barricadeStage(d.barricade.hp, barricadeMaxHp(this.state, this.balance), this.balance));
-        rec.bar.setFrame(frameOf('iso_walls', `barricade_${ax}_lv${lvl}_${st}`));
-      }
-      rec.barOn = !!hasBar;
-      rec.bar.setVisible(false);
+      this.refreshDoorEntry(e);
+    }
+  }
+
+  refreshDoorEntry(e) {
+    const bar = this.state.build.barricade;
+    const d = e.door;
+    const srec = this.floor.structures?.recs.get(e.rec.eid);
+    const key = this.doorKey(d, srec);
+    if (key === e.shown) return;
+    e.shown = key;
+    const rec = e.rec;
+    const w = rec.w;
+    w.tier = d.tier ?? w.tier;
+    rec.full.setFrame(frameOf('iso_walls', doorArtFrame(d, w.tier, w.genTier, w.axis, false)));
+    rec.stub?.setFrame(frameOf('iso_walls', doorArtFrame(d, w.tier, w.genTier, w.axis, true)));
+    if (srec) this.syncExtras(rec, srec);
+    const hasBar = d.barricade && d.barricade.hp > 0;
+    if (hasBar) {
+      const lvl = bar.level >= 2 ? 2 : 1;
+      const st = barricadeArtStage(barricadeStage(d.barricade.hp, barricadeMaxHp(this.state, this.balance), this.balance));
+      rec.bar.setFrame(frameOf('iso_walls', `barricade_${w.axis}_lv${lvl}_${st}`));
+    }
+    rec.barOn = !!hasBar;
+    rec.bar.setVisible(false);
+    rec.entry.b = -1;
+    this.dirty = true;
+  }
+
+  /** Is any tile beside this edge Visible now? (Changes out of sight stay unseen until he looks again.) */
+  edgeSeen(rec) {
+    for (let i = 0; i < rec.tiles.length; i++) if (this.vision.visible[rec.tiles[i]] !== 0) return true;
+    return false;
+  }
+
+  /**
+   * Redraw the edges whose HP / stage / tier / overlay changed (no re-bake). Edges out of sight wait until seen.
+   * Doors go through refreshDoorEntry (their state and barricade are drawn there).
+   */
+  flushEdges() {
+    for (const eid of this.dirtyEdges) {
+      const rec = this.wallByEid.get(eid);
+      if (!rec) { this.dirtyEdges.delete(eid); continue; }
+      if (!this.edgeSeen(rec)) continue;
+      this.dirtyEdges.delete(eid);
+      if (rec.doorEntry) { this.refreshDoorEntry(rec.doorEntry); continue; }
+      const srec = this.floor.structures.recs.get(eid);
+      if (!srec) continue;
+      const w = rec.w;
+      w.tier = srec.tier;
+      w.broken = !!srec.broken;
+      rec.full.setFrame(frameOf('iso_walls', this.wallFrame(w, false)));
+      rec.stub?.setFrame(frameOf('iso_walls', this.wallFrame(w, true)));
+      this.syncExtras(rec, srec);
+      rec.entry.b = -1;
       this.dirty = true;
     }
+  }
+
+  /**
+   * Damage and cover overlays of an edge (transparent iso_walls frames over the base frame): one pair (full, stub)
+   * each, created when first needed, reused after. They follow the wall's cutaway alpha and tint (applyTints).
+   */
+  syncExtras(rec, srec) {
+    const w = rec.w;
+    const ov = srec.overlay;
+    const e = {
+      piece: srec.piece, tier: srec.tier, overlay: ov,
+      stage: damageStage(this.floor.structures.hpOf(srec), this.floor.structures.maxHpOf(srec), this.thresholds),
+      overlayStage: ov ? damageStage(ov.hp, ov.maxHp, this.thresholds) : 0,
+    };
+    const full = edgeExtraFrames(e, w.axis, false);
+    const stub = edgeExtraFrames(e, w.axis, true);
+    this.setExtra(rec, 'dmgF', full.dmg, false, 0.4);
+    this.setExtra(rec, 'dmgS', stub.dmg, true, 0.4);
+    this.setExtra(rec, 'covF', full.cover, false, 0.2);
+    this.setExtra(rec, 'covS', stub.cover, true, 0.2);
+  }
+
+  setExtra(rec, slot, name, stub, depthEps) {
+    let ex = rec.extras.find((x) => x.slot === slot);
+    if (!name || !hasFrame('iso_walls', name)) { if (ex) { ex.on = false; ex.sp.setVisible(false); } return; }
+    if (!ex) {
+      const sp = this.img('iso_walls', name, rec.px, rec.py, 0, 0, rec.depth + EPS * depthEps).setVisible(false);
+      ex = { slot, sp, stub, on: true };
+      rec.extras.push(ex);
+    } else ex.sp.setFrame(frameOf('iso_walls', name));
+    ex.on = true;
   }
 
   /** Props: searched ones show their open frame, dismantled ones disappear. */
@@ -409,6 +509,10 @@ export default class IsoWorldView {
    */
   update(dt) {
     if (this.wallsStale) this.rebuildWalls();
+    else {
+      if (this.doorsStale) { this.doorsStale = false; this.refreshDoors(true); }
+      if (this.dirtyEdges.size) this.flushEdges();
+    }
     let moving = this.dirty;
     const step = this.fadeRate * dt;
     for (let i = 0; i < this.n; i++) {
@@ -459,15 +563,21 @@ export default class IsoWorldView {
       e.hidden = false;
       const tint = tintOf(shade(b, isRem), isRem);
       for (let m = 0; m < s.length; m++) s[m].setTint(tint).setVisible(true);
+      e.tint = tint;
       e.b = b;
       e.rem = isRem;
     }
     // wall alphas and barricade visibility (override visibility set above)
     for (let k = 0; k < this.walls.length; k++) {
       const w = this.walls[k];
-      if (w.entry.hidden) continue;
+      if (w.entry.hidden) { for (let i = 0; i < w.extras.length; i++) w.extras[i].sp.setVisible(false); continue; }
       w.full.setAlpha(w.fullA).setVisible(w.fullA > 0.01);
       if (w.stub) w.stub.setAlpha(w.stubA).setVisible(w.stubA > 0.01);
+      for (let i = 0; i < w.extras.length; i++) { // damage / cover overlays follow their wall's cutaway and tint
+        const ex = w.extras[i];
+        const a = ex.stub ? w.stubA : w.fullA;
+        ex.sp.setVisible(ex.on && a > 0.01).setAlpha(a).setTint(w.entry.tint ?? 0xffffff);
+      }
       if (w.bar) {
         const ghost = w.ghost > 0 && !w.barOn; // placement ghost of a barricade not built yet
         w.bar.setVisible(!!w.barOn || ghost).setAlpha(ghost ? w.ghost : w.cut ? w.stubA : w.fullA);
@@ -544,6 +654,39 @@ export default class IsoWorldView {
       if (!rec.barOn) rec.bar.setFrame(frameOf('iso_walls', `barricade_${rec.w.axis}_lv1_0`));
     }
     this.dirty = true;
+  }
+
+  /**
+   * Preview of what Main would put on an edge (GDD 5.19 "Edge cursor"): the piece's own frame, tinted green, at
+   * controls.target.ghostAlpha, in the low (cutaway) version where that wall is cut. One reused sprite; call
+   * every frame with the same arguments at no cost. Pass null to hide.
+   * @param {{x:number,y:number,side:string}|null} edge @param {{action:string,result:object}|null} act a Main act
+   * @param {string} selected selected piece @param {number} alpha
+   */
+  setEdgeGhost(edge, act, selected, alpha) {
+    const g = this.ghost;
+    if (!edge || !act) { if (g.sp?.visible) g.sp.setVisible(false); g.act = null; return; }
+    const axis = edge.side === 'N' ? 'x' : 'y';
+    const ri = this.floor.roomAt(edge.side === 'N' ? edge.x : edge.x - 1, edge.side === 'N' ? edge.y - 1 : edge.y);
+    const stub = ri >= 0 && this.active[ri] === 1;
+    // same edge, act and cutaway as last frame: nothing to do (no allocation)
+    if (g.act === act && g.x === edge.x && g.y === edge.y && g.side === edge.side && g.stub === stub) return;
+    g.act = act; g.x = edge.x; g.y = edge.y; g.side = edge.side; g.stub = stub;
+    let frame = ghostFrame(act, axis, stub);
+    if (frame && !hasFrame('iso_walls', frame)) frame = null;
+    if (!frame) { g.sp?.setVisible(false); return; }
+    const vx = (edge.x - edge.y) * 48;
+    const vy = (edge.x + edge.y) * 24;
+    const px = axis === 'x' ? vx : vx - 48;
+    const depth = isoDepth(wallDepthKey(edge.x, edge.y, edge.side)) + EPS * 0.9;
+    if (!g.sp) g.sp = this.img('iso_walls', frame, px, vy - WALL_H, 0, 0, depth);
+    g.sp.setFrame(frameOf('iso_walls', frame)).setPosition(px, vy - WALL_H).setDepth(depth).setTint(GHOST_TINT).setAlpha(alpha).setVisible(true);
+  }
+
+  /** The sprite to outline for the wall / door / window on an edge (the low version while it is cut), or null for a gap. */
+  edgeSprite(eid) {
+    const rec = this.wallByEid.get(eid);
+    return rec ? (rec.cut && rec.stub ? rec.stub : rec.full) : null;
   }
 
   // ---------------------------------------------------------------- queries

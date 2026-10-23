@@ -120,10 +120,19 @@ function distToEdge(px, py, e) {
   return Math.hypot(px - (x0 + t * dx), py - (y0 + t * dy));
 }
 
-/** A character within build.edgeClearTiles, or a multi-tile object footprint on the edge. */
-function blockedByBody(ctx, e) {
-  const clear = ctx.balance.build.edgeClearTiles;
-  for (const c of charactersOf(ctx)) if (distToEdge(c.x, c.y, e) <= clear) return true;
+/**
+ * A character is standing IN the gap: its centre is closer to the edge than its own collision radius
+ * (hero.collisionRadiusTiles; zombies use the same radius). Only building a wall on a gap checks this: fitting,
+ * upgrading and covering work on a wall, which is a line, so a hero pressed against it never blocks himself.
+ */
+function bodyInGap(ctx, e) {
+  const r = ctx.balance.hero.collisionRadiusTiles;
+  for (const c of charactersOf(ctx)) if (distToEdge(c.x, c.y, e) < r) return true;
+  return false;
+}
+
+/** A multi-tile object (bed, table ...) has its footprint on both sides of the edge. */
+function blockedByFootprint(ctx, e) {
   const [a, b] = edgeTiles(e);
   for (const o of ctx.structures.floor.objects ?? []) {
     if (!o.blocks || !o.tiles || o.tiles.length < 2) continue;
@@ -220,7 +229,7 @@ export function canBuild(ctx, edge) {
   const hq = hqRefusal(ctx, d);
   if (hq) return refuse(ctx, 'build', d, hq);
   if (d.piece !== PIECE.GAP) return refuse(ctx, 'build', d, BUILD_CODE.WRONG_TARGET);
-  if (blockedByBody(ctx, d) || blockedByMounted(ctx, d)) return refuse(ctx, 'build', d, BUILD_CODE.OCCUPIED);
+  if (bodyInGap(ctx, d) || blockedByFootprint(ctx, d) || blockedByMounted(ctx, d)) return refuse(ctx, 'build', d, BUILD_CODE.OCCUPIED);
   const def = ctx.balance.structures.walls.wood;
   return finish(ctx, 'build', d, toList(def.cost), { toTier: 'wood', seconds: def.buildSeconds });
 }
@@ -288,7 +297,7 @@ export function canFit(ctx, edge, piece) {
   if (hq) return refuse(ctx, action, d, hq);
   if (d.piece === PIECE.GAP) return refuse(ctx, action, d, BUILD_CODE.NEEDS_WALL);
   if (d.piece !== PIECE.WALL) return refuse(ctx, action, d, BUILD_CODE.WRONG_TARGET);
-  if (blockedByBody(ctx, d) || blockedByMounted(ctx, d)) return refuse(ctx, action, d, BUILD_CODE.OCCUPIED);
+  if (blockedByFootprint(ctx, d) || blockedByMounted(ctx, d)) return refuse(ctx, action, d, BUILD_CODE.OCCUPIED);
   const def = piece === PIECE.DOOR ? ctx.balance.structures.doors.wood : ctx.balance.structures.windows.glass;
   return finish(ctx, action, d, toList(def.cost), { toTier: piece === PIECE.DOOR ? 'wood' : 'glass', seconds: def.buildSeconds, salvage: fitRefund(ctx, d.tier) });
 }

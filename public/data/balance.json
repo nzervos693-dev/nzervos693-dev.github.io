@@ -982,7 +982,6 @@
     "pieces": ["wall", "door", "window", "boards", "plating", "barricade"],
     "defaultPiece": "wall",
     "facingSnapHysteresisDegrees": 10,
-    "edgeClearTiles": 0.4,
     "fitRefundRatio": 0.5,
     "upgradeRefund": false,
     "materialsTakenAt": "completion",

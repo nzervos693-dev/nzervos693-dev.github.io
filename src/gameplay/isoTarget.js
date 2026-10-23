@@ -11,6 +11,8 @@
  *   thing:  { id, kind:'thing', x0, y0, x1, y1, tiles }     footprint rect in grid units (an edge thing is a
  *           degenerate rect = its wall-edge segment); `tiles` = [{x,y}] footprint tiles (edge things: the two
  *           tiles beside the edge); optional `spot:true` (placement spot: uses placeReachTiles)
+ *   edge:   { id, kind:'edge', ... }  the build-mode edge cursor (GDD 5.19): at most one entry, always valid while
+ *           present; it competes with zombies only (zombies win), objects are not targets in build mode
  */
 
 /** Used when balance.controls.target lacks a key. */
@@ -80,6 +82,7 @@ export function evaluate(hero, e, cfg, ctx, loose, out) {
     out.angle = angle;
     return true;
   }
+  if (e.kind === 'edge') { out.dist = 0; out.angle = 0; return true; } // build-mode edge cursor: always in reach
   const near = nearestOnRect(e, hero.x, hero.y, NEAR);
   const dx = near.x - hero.x;
   const dy = near.y - hero.y;

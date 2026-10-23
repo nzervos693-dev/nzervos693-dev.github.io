@@ -30,7 +30,8 @@ export default class ActionButtons {
    * @param {Phaser.Scene} scene
    * @param {object} balance
    * @param {{onMain:Function, onSecondary:Function, onAttack:Function, onQuick:Function, onHold:(name:string)=>void,
-   *   onPick:(id:string|null)=>void, pickerItems:()=>{id:string|null, count:number}[], longPressSeconds:number, holdSeconds:number}} cb
+   *   onPick:(id:string|null)=>void, pickerItems:()=>{id:string|null, count:number, icon?:string, selected?:boolean}[],
+   *   longPressSeconds:number, holdSeconds:number}} cb  (a picker item with `icon` shows that action_icons pictogram: build mode pieces)
    */
   constructor(scene, balance, cb) {
     this.scene = scene;
@@ -241,10 +242,14 @@ export default class ActionButtons {
     const parts = [];
     items.forEach((it, i) => {
       const cx = x0 + PICK_CELL / 2 + i * (PICK_CELL + PICK_GAP);
-      const bg = scene.add.rectangle(cx, y, PICK_CELL, PICK_CELL, hex(this.cfg.plateColor), 0.85).setStrokeStyle(2, hex(this.cfg.iconColor), 0.3).setScrollFactor(0).setDepth(DEPTH.hud + 5).setInteractive().setData('picker', true);
+      const bg = scene.add.rectangle(cx, y, PICK_CELL, PICK_CELL, hex(this.cfg.plateColor), 0.85).setStrokeStyle(it.selected ? 4 : 2, hex(this.cfg.iconColor), it.selected ? 0.9 : 0.3).setScrollFactor(0).setDepth(DEPTH.hud + 5).setInteractive().setData('picker', true);
       bg.on('pointerup', () => { playSfx(scene, 'ui_tap', { volume: getBalance().audio?.uiVolume ?? 0.2 }); this.closePicker(); this.cb.onPick(it.id); });
       parts.push(bg);
-      if (it.id) {
+      if (it.icon) { // build-mode piece cell: an action_icons pictogram
+        const img = hasFrame('action_icons', it.icon) ? scene.add.image(cx, y, 'action_icons', frameOf('action_icons', it.icon)).setScale(ICON_SCALE.quick) : label(scene, cx, y, String(it.icon).slice(0, 2).toUpperCase(), 28, CSS.text, false);
+        img.setScrollFactor(0).setDepth(DEPTH.hud + 6).setAlpha(this.cfg.iconAlpha + 0.2);
+        parts.push(img);
+      } else if (it.id) {
         const fr = hasFrame('icons', it.id);
         const img = fr ? scene.add.image(cx, y - 8, 'icons', frameOf('icons', it.id)).setScale(ITEM_ICON_SCALE) : label(scene, cx, y - 8, it.id.slice(0, 2), 28, CSS.text, false);
         img.setScrollFactor(0).setDepth(DEPTH.hud + 6).setAlpha(this.cfg.iconAlpha + 0.2);

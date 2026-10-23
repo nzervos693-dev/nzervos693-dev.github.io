@@ -70,6 +70,17 @@ export function hqTiles(st) {
 }
 
 /**
+ * Claiming marks every HQ tile Remembered (GDD 5.19). @param {Uint8Array} seen the vision memory (y * width + x)
+ * @returns {number} tiles marked
+ */
+export function rememberHq(st, seen) {
+  const W = st.grid.width;
+  const tiles = hqTiles(st);
+  for (const t of tiles) seen[t.y * W + t.x] = 1;
+  return tiles.length;
+}
+
+/**
  * Fire the "this whole floor could be mine" thought once, the first time floor 15 is Cleared.
  * @returns {string|null} the thought to show, or null
  */
