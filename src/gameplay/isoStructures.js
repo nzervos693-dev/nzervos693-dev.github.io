@@ -222,7 +222,7 @@ export class Structures {
       g.setEdge(e.x, e.y, e.side, EDGE.NONE);
     } else {
       const overlay = spec.overlay ? { ...spec.overlay } : null;
-      rec = { eid, x: e.x, y: e.y, side: e.side, piece, tier: spec.tier ?? null, genTier: null, hp: 0, maxHp: 0, overlay, broken: !!spec.broken, door: null };
+      rec = { eid, x: e.x, y: e.y, side: e.side, piece, tier: spec.tier ?? null, genTier: spec.genTier ?? null, hp: 0, maxHp: 0, overlay, broken: !!spec.broken, door: null };
       const def = pieceDef(this.balance, rec);
       const maxHp = def?.hp ?? 1;
       if (piece === PIECE.DOOR) {
@@ -403,18 +403,30 @@ export class Structures {
       if (!e || !v || typeof v !== 'object') continue;
       if (!this.grid.inBounds(e.x, e.y) && !(e.side === 'N' ? e.y === this.grid.height : e.x === this.grid.width)) continue;
       const d = this.describe(e.x, e.y, e.side);
-      if (d.kind === EDGE_KIND.NONE || this.isImmutableKind(d.kind)) continue;
-      if (d.kind === EDGE_KIND.PERIMETER && v.piece !== PIECE.WALL && v.piece !== PIECE.GAP) continue; // never a door or window
+      if (d.kind === EDGE_KIND.NONE || d.kind === EDGE_KIND.SHAFT || d.kind === EDGE_KIND.VOID) continue;
+      // exterior and perimeter edges: HP, tier and overlay of the generated piece are restored (an exterior window keeps its
+      // boards / plating and damage, a perimeter door its HP); only a piece CHANGE the rules forbid is refused. A perimeter
+      // wall may be broken to a gap or rebuilt; nothing else ever changes on an exterior edge.
+      const cur = this.recs.get(d.eid);
+      if (d.kind === EDGE_KIND.EXTERIOR && v.piece !== cur?.piece) continue;
+      if (d.kind === EDGE_KIND.PERIMETER && v.piece !== PIECE.WALL && v.piece !== PIECE.GAP && v.piece !== cur?.piece) continue;
       if (v.piece === PIECE.GAP) { this.place(e, { piece: PIECE.GAP }); n++; continue; }
       if (![PIECE.WALL, PIECE.DOOR, PIECE.WINDOW].includes(v.piece) || typeof v.tier !== 'string') continue;
-      const probe = { piece: v.piece, tier: v.tier };
-      if (!pieceDef(this.balance, probe)) continue;
-      const ov = v.overlay && this.balance.structures.overlays[v.overlay.kind] && Number.isFinite(v.overlay.hp) ? { kind: v.overlay.kind, hp: v.overlay.hp, maxHp: v.overlay.maxHp ?? this.balance.structures.overlays[v.overlay.kind].hp } : null;
-      const wasDoor = this.recs.get(d.eid)?.door;
+      // sanitise: an exterior edge keeps its generated tier, is never broken and only a window takes an overlay
+      const exterior = d.kind === EDGE_KIND.EXTERIOR;
+      const tier = exterior ? cur.tier : v.tier;
+      const probe = { piece: v.piece, tier };
+      const def = pieceDef(this.balance, probe);
+      if (!def) continue;
+      const od = v.overlay && typeof v.overlay === 'object' ? this.balance.structures.overlays[v.overlay.kind] : null;
+      const overlayOk = !!od && Array.isArray(od.on) && od.on.includes(v.piece) && Number.isFinite(v.overlay.hp) && (!exterior || v.piece === PIECE.WINDOW);
+      const ov = overlayOk ? { kind: v.overlay.kind, hp: Math.max(1, Math.min(od.hp, v.overlay.hp)), maxHp: od.hp } : null;
+      const hpOk = Number.isFinite(v.hp) && (!exterior || v.piece === PIECE.WINDOW);
+      const wasDoor = cur?.door;
       this.place(e, {
-        piece: v.piece, tier: v.tier, hp: Number.isFinite(v.hp) ? v.hp : undefined, overlay: ov, broken: !!v.broken,
+        piece: v.piece, tier, hp: hpOk ? Math.max(1, Math.min(def.hp ?? v.hp, v.hp)) : undefined, overlay: ov, broken: exterior ? false : !!v.broken,
         state: ['open', 'closed', 'jammed', 'broken'].includes(v.door?.state) ? v.door.state : 'closed',
-        doorId: wasDoor?.id, keep: wasDoor ? { kind: wasDoor.kind, unit: wasDoor.unit } : null,
+        doorId: wasDoor?.id, keep: wasDoor ? { kind: wasDoor.kind, unit: wasDoor.unit } : null, genTier: cur?.genTier ?? null,
       });
       n++;
     }

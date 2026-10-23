@@ -133,6 +133,120 @@ describe('save / load', () => {
     expect(w.structures.describe(12, 10, 'N').piece).toBe('wall');
     expect(w.structures.describe(18, 6, 'W').piece).toBe('wall'); // void edge
   });
+  describe('overlays and damage on exterior and perimeter pieces survive a reload (BUG-051)', () => {
+    const edgeInfo = (st, x, y, side) => { const d = st.describe(x, y, side); return { piece: d.piece, tier: d.tier, hp: d.hp, overlay: d.overlay, stage: d.stage }; };
+    it('a plated, damaged exterior window', () => {
+      const w = hqWorld();
+      stock(w.state, { sheet_metal: 2, parts: 1 });
+      giveTool(w.state, 'hammer');
+      addOverlay(w.ctx, { x: 0, y: 2, side: 'W' }, 'plating');
+      const rec = w.structures.rec(0, 2, 'W'); // exterior edges take no zombie damage before M4: set the HP the way a later climber hit would
+      w.structures.setOverlay(rec, { ...rec.overlay, hp: 130 });
+      w.structures.setHp(rec, 20);
+      const before = edgeInfo(w.structures, 0, 2, 'W');
+      expect(before).toMatchObject({ hp: 20, overlay: { kind: 'plating', hp: 130 } });
+      const r = roundTrip(w);
+      expect(edgeInfo(r.structures, 0, 2, 'W')).toEqual(before);
+      expect(r.grid.edgeBlocksSight(r.grid.edgeId(0, 2, 'W'))).toBe(true); // plated: blocks sight
+    });
+    it('a boarded exterior window, and the window\'s own damage', () => {
+      const w = hqWorld();
+      stock(w.state, { wood: 3 });
+      giveTool(w.state, 'hammer');
+      addOverlay(w.ctx, { x: 0, y: 2, side: 'W' }, 'boards');
+      const rec = w.structures.rec(0, 2, 'W');
+      w.structures.setHp(rec, 12); // the pane under the boards is cracked
+      const before = edgeInfo(w.structures, 0, 2, 'W');
+      const r = roundTrip(w);
+      expect(edgeInfo(r.structures, 0, 2, 'W')).toEqual(before);
+      expect(r.structures.describe(0, 2, 'W')).toMatchObject({ hp: 12, overlay: { kind: 'boards', hp: 80 } });
+      // an unboarded window keeps only its damage
+      const w2 = hqWorld();
+      w2.structures.setHp(w2.structures.rec(0, 2, 'W'), 9);
+      expect(roundTrip(w2).structures.describe(0, 2, 'W')).toMatchObject({ hp: 9, overlay: null, tier: 'exterior' });
+    });
+    it('a damaged perimeter wall', () => {
+      const w = hqWorld();
+      w.structures.damage({ x: 12, y: 10, side: 'N' }, 250);
+      const r = roundTrip(w);
+      expect(r.structures.describe(12, 10, 'N')).toMatchObject({ piece: 'wall', tier: 'block', hp: 350 });
+    });
+    it('a perimeter door keeps its HP and overlay (a door on a perimeter edge exists when the plan has one)', () => {
+      const bal = { ...balance, hq: { ...balance.hq, perimeterEdges: [...balance.hq.perimeterEdges, '5.7.W'] } };
+      const mk = () => {
+        const floor = loadIsoFloor(floorsIso, 15, bal);
+        const state = createIsoState(bal, floor, 0);
+        return { floor, state, structures: restoreStructures(state, floor, bal) };
+      };
+      const w = mk();
+      expect(w.structures.describe(5, 7, 'W')).toMatchObject({ kind: 'perimeter', piece: 'door' });
+      w.structures.damage({ x: 5, y: 7, side: 'W' }, 20);
+      w.structures.setOverlay(w.structures.rec(5, 7, 'W'), { kind: 'plating', hp: 150, maxHp: 200 });
+      snapshotDoors(w.state, w.floor);
+      snapshotStructures(w.state, w.floor);
+      const saved = JSON.parse(JSON.stringify(w.state));
+      const floor = loadIsoFloor(floorsIso, 15, bal);
+      const state = normalizeIsoState(saved, bal, floor, 0);
+      const structures = restoreStructures(state, floor, bal);
+      applyDoorsToGrid(state, floor);
+      expect(structures.describe(5, 7, 'W')).toMatchObject({ piece: 'door', hp: 40, overlay: { kind: 'plating', hp: 150 } });
+    });
+    it('still refused: a piece change the rules forbid, and anything on void / shaft edges', () => {
+      const w = hqWorld();
+      const n = w.structures.applyOverrides({
+        '0.2.W': { piece: 'wall', tier: 'block', hp: 600 }, // exterior window cannot become a wall
+        '12.10.N': { piece: 'window', tier: 'glass', hp: 30 }, // no window on a perimeter wall
+        '18.6.W': { piece: 'gap' },
+      });
+      expect(n).toBe(0);
+      expect(w.structures.describe(0, 2, 'W').piece).toBe('window');
+      expect(w.structures.describe(12, 10, 'N').piece).toBe('wall');
+    });
+    it('crafted saves cannot change an exterior edge or fake an overlay', () => {
+      const w = hqWorld();
+      const gen = (x, y) => { const d = w.structures.describe(x, y, 'W'); return { piece: d.piece, tier: d.tier }; };
+      const g02 = gen(0, 2);
+      const g07 = gen(0, 7);
+      const g05 = gen(0, 5);
+      expect(g02.piece).toBe('window');
+      expect(g07.piece).toBe('window');
+      expect(g05.piece).toBe('wall');
+      w.structures.applyOverrides({
+        '0.2.W': { piece: 'window', tier: 'glass' },
+        '0.7.W': { piece: 'window', tier: 'exterior', broken: true },
+        '0.5.W': { piece: 'wall', tier: 'wood', hp: 1, overlay: { kind: 'boards', hp: 50 } },
+      });
+      expect(gen(0, 2)).toEqual(g02); // tier kept
+      expect(w.structures.describe(0, 7, 'W').broken).toBe(false);
+      expect(w.grid.edgeBlocksSight(w.grid.edgeId(0, 2, 'W'))).toBe(true);
+      expect(w.grid.edgeBlocksSight(w.grid.edgeId(0, 7, 'W'))).toBe(true);
+      expect(w.structures.describe(0, 5, 'W')).toMatchObject({ piece: 'wall', tier: g05.tier, overlay: null });
+      expect(w.structures.describe(0, 5, 'W').hp).toBe(w.structures.describe(0, 5, 'W').maxHp);
+    });
+    it('an overlay must fit the piece (boards only on windows, barricade not as an overlay), on every edge kind', () => {
+      const w = hqWorld();
+      w.structures.applyOverrides({
+        '5.2.W': { piece: 'wall', tier: 'wood', hp: 100, overlay: { kind: 'boards', hp: 50 } }, // boards on a wall
+        '3.10.N': { piece: 'wall', tier: 'wood', hp: 100, overlay: { kind: 'plating', hp: 9999 } }, // hp above max is clamped
+        '12.10.N': { piece: 'wall', tier: 'block', hp: 500, overlay: { kind: 'barricade', hp: 10 } },
+      });
+      expect(w.structures.describe(5, 2, 'W')).toMatchObject({ tier: 'wood', overlay: null });
+      expect(w.structures.describe(3, 10, 'N').overlay).toMatchObject({ kind: 'plating', hp: 200, maxHp: 200 });
+      expect(w.structures.describe(12, 10, 'N')).toMatchObject({ hp: 500, overlay: null });
+    });
+    it('restored generated walls and doors keep their generated look (genTier passes through)', () => {
+      const w = hqWorld();
+      const before = w.structures.rec(3, 10, 'N').genTier;
+      expect(before).toBe('block');
+      w.structures.damage({ x: 3, y: 10, side: 'N' }, 100);
+      const r = roundTrip(w);
+      expect(r.structures.rec(3, 10, 'N')).toMatchObject({ genTier: 'block', hp: 500 });
+      const door = w.floor.structures.recs.size && [...w.structures.recs.values()].find((x) => x.piece === 'door' && x.tier === 'generated_interior');
+      w.structures.setOverlay(door, { kind: 'plating', hp: 100, maxHp: 200 });
+      const r2 = roundTrip(w);
+      expect(r2.structures.recs.get(door.eid)).toMatchObject({ genTier: 'generated_interior' });
+    });
+  });
   it('a broken perimeter wall stays a gap after save and load', () => {
     const w = hqWorld();
     w.structures.place({ x: 13, y: 10, side: 'N' }, { piece: 'gap' });
