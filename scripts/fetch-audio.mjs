@@ -4,7 +4,8 @@
 //   node scripts/fetch-audio.mjs --key=door_open,creak_1     only these keys
 //   node scripts/fetch-audio.mjs --dry           show what would happen, touch nothing
 //   node scripts/fetch-audio.mjs --keep-wav      keep the intermediate wavs next to the cache (for listening/debug)
-//   AUDIO_CACHE=/some/dir ...                    where downloaded packs are cached (default: <tmp>/floor15-audio-cache)
+//   node scripts/fetch-audio.mjs --credits-only  rewrite CREDITS.md from audio-sources.json, no download, no encoding (oggs stay byte-identical)
+//   AUDIO_CACHE=/some/dir ...                    where downloaded packs are cached (default: ~/.cache/floor15-audio)
 //
 // Source of truth: scripts/audio-sources.json
 //   packs[id]    { name, page, url, file, kind: zip|7z|file, author, license, licensePage, extract?: [unzip patterns] }
@@ -19,9 +20,10 @@
 // Downloaded files are untrusted data: they are only ever decoded by ffmpeg / unzip / 7z (or py7zr), never executed.
 //
 // Requirements: node >= 20, curl, ffmpeg + ffprobe (libvorbis), unzip; 7z or python3 with py7zr for the .7z packs.
-import { readFileSync, writeFileSync, mkdirSync, existsSync, statSync, readdirSync, rmSync, copyFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, statSync, readdirSync, rmSync, copyFileSync, realpathSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { tmpdir } from 'node:os';
+import { homedir } from 'node:os';
 import { join, dirname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -30,24 +32,28 @@ const OUT = join(HERE, '..', 'public', 'assets', 'audio');
 const SRC = join(HERE, 'audio-sources.json'), MANIFEST = join(OUT, 'manifest.json'), CREDITS = join(OUT, 'CREDITS.md');
 const args = process.argv.slice(2), dry = args.includes('--dry'), keepWav = args.includes('--keep-wav');
 const onlyKeys = (args.find((a) => a.startsWith('--key=')) || '').slice(6).split(',').filter(Boolean);
-const CACHE = process.env.AUDIO_CACHE || join(tmpdir(), 'floor15-audio-cache');
+// per-user cache (not world-writable /tmp): $AUDIO_CACHE, else $XDG_CACHE_HOME or ~/.cache + /floor15-audio
+const CACHE = process.env.AUDIO_CACHE || join(process.env.XDG_CACHE_HOME || join(homedir(), '.cache'), 'floor15-audio');
+const creditsOnly = args.includes('--credits-only');
+// untrusted media: never let ffmpeg follow playlists/URLs inside a file
+const IN = (file) => ['-protocol_whitelist', 'file', '-i', file];
 const CC0_RE = /^(CC0|CC0 1\.0|Public Domain)\b/i;
 const PEAK_DB = -3.6, PEAK_LIMIT_DB = -3.2; // peaks must stay at or below -3 dBFS; -3.2 leaves room for rounding
 
 const run = (cmd, a, o = {}) => execFileSync(cmd, a, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 1 << 28, ...o });
 const ff = (a) => run('ffmpeg', ['-y', '-v', 'error', '-nostdin', ...a]);
 function ffStats(file, af = '') { // volumedetect on a decoded file -> {max, mean}
-  const r = spawnSync('ffmpeg', ['-hide_banner', '-nostdin', '-i', file, '-af', `${af ? af + ',' : ''}volumedetect`, '-f', 'null', '-'], { encoding: 'utf8', maxBuffer: 1 << 26 });
+  const r = spawnSync('ffmpeg', ['-hide_banner', '-nostdin', ...IN(file), '-af', `${af ? af + ',' : ''}volumedetect`, '-f', 'null', '-'], { encoding: 'utf8', maxBuffer: 1 << 26 });
   const mx = /max_volume:\s*(-?[\d.]+) dB/.exec(r.stderr), mn = /mean_volume:\s*(-?[\d.]+) dB/.exec(r.stderr);
   if (!mx) throw new Error(`cannot measure ${file}: ${r.stderr.split('\n').slice(-3).join(' ')}`);
   return { max: parseFloat(mx[1]), mean: parseFloat(mn[1]) };
 }
-const duration = (f) => parseFloat(run('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f]));
+const duration = (f) => parseFloat(run('ffprobe', ['-v', 'error', '-protocol_whitelist', 'file', '-show_entries', 'format=duration', '-of', 'csv=p=0', f]));
 const num = (v) => String(+v.toFixed(4));
 
 const doc = JSON.parse(readFileSync(SRC, 'utf8'));
 const manifest = JSON.parse(readFileSync(MANIFEST, 'utf8'));
-const entries = doc.entries.filter((e) => !onlyKeys.length || onlyKeys.includes(e.key));
+const entries = creditsOnly ? [] : doc.entries.filter((e) => !onlyKeys.length || onlyKeys.includes(e.key));
 
 // ---------- packs: download once, cache, extract ----------
 function sevenZip(archive, dest) {
@@ -56,7 +62,7 @@ function sevenZip(archive, dest) {
     if (!r.error && r.status === 0) return;
   }
   // python fallback: py7zr (pip install py7zr, or point PY7ZR_PATH at a pip --target dir). -I: no cwd / PYTHONPATH imports.
-  const py = 'import sys, os\nif os.environ.get("PY7ZR_PATH"): sys.path.insert(0, os.environ["PY7ZR_PATH"])\nimport py7zr\nwith py7zr.SevenZipFile(sys.argv[1]) as z: z.extractall(sys.argv[2])';
+  const py = 'import sys, os\nif os.environ.get("PY7ZR_PATH"): sys.path.insert(0, os.environ["PY7ZR_PATH"])\nimport py7zr\nv = tuple(int(x) for x in py7zr.__version__.split(".")[:3] if x.isdigit())\nif v < (0, 20, 2): sys.exit("py7zr >= 0.20.2 required, found " + py7zr.__version__)\nwith py7zr.SevenZipFile(sys.argv[1]) as z: z.extractall(sys.argv[2])';
   const r = spawnSync('python3', ['-I', '-c', py, archive, dest], { encoding: 'utf8' });
   if (r.status !== 0) throw new Error(`cannot unpack ${archive}: install p7zip (7z) or "pip install py7zr" (${(r.stderr || '').split('\n').slice(-2).join(' ')})`);
 }
@@ -68,12 +74,18 @@ function ensurePack(id) {
   if (!p.verified || !CC0_RE.test(p.license || '')) throw new Error(`pack ${id}: licence "${p.license}" is not CC0 / public domain or not verified`);
   const dir = join(CACHE, id), done = join(dir, '.done');
   if (!existsSync(done)) {
-    mkdirSync(dir, { recursive: true });
+    mkdirSync(dir, { recursive: true, mode: 0o700 });
     const file = join(dir, p.file);
     console.log(`download ${id} <- ${p.url}`);
     run('curl', ['-sSL', '--fail', '--retry', '3', '-o', file, p.url]);
     const head = readFileSync(file).subarray(0, 8);
-    const magicOk = p.kind === 'zip' ? head[0] === 0x50 && head[1] === 0x4b : p.kind === '7z' ? head[0] === 0x37 && head[1] === 0x7a : head.length > 4 && !/^<(!|h)/i.test(head.toString('latin1'));
+    const sha = createHash('sha256').update(readFileSync(file)).digest('hex');
+    if (!p.sha256 && args.includes('--update-sha')) p.sha256 = sha;
+    if (!p.sha256) throw new Error(`pack ${id}: no sha256 in audio-sources.json (downloaded file has ${sha}; run once with --update-sha after checking the source)`);
+    if (sha !== p.sha256) throw new Error(`pack ${id}: sha256 mismatch (expected ${p.sha256}, got ${sha}); the download changed or was tampered with`);
+    const ext = p.file.split('.').pop().toLowerCase(), tag = head.toString('latin1', 0, 4);
+    const fileMagic = { wav: 'RIFF', ogg: 'OggS', flac: 'fLaC' }[ext];
+    const magicOk = p.kind === 'zip' ? head[0] === 0x50 && head[1] === 0x4b : p.kind === '7z' ? head[0] === 0x37 && head[1] === 0x7a : !!fileMagic && tag === fileMagic;
     if (!magicOk) throw new Error(`pack ${id}: downloaded file is not a ${p.kind} archive (HTML error page?)`);
     const x = join(dir, 'x');
     mkdirSync(x, { recursive: true });
@@ -87,15 +99,17 @@ function ensurePack(id) {
 }
 function itemPath(it) {
   const base = ensurePack(it.pack), full = resolve(base, it.file);
-  if (!full.startsWith(resolve(base) + sep) || !existsSync(full)) throw new Error(`missing ${it.pack}:${it.file}`);
-  return full;
+  if (!existsSync(full)) throw new Error(`missing ${it.pack}:${it.file}`);
+  const real = realpathSync(full), realBase = realpathSync(base); // symlinks inside an archive must not escape the pack
+  if (!real.startsWith(realBase + sep)) throw new Error(`${it.pack}:${it.file} resolves outside the pack`);
+  return real;
 }
 
 // ---------- processing ----------
 function stage1(e, wav) { // mix of the items, master filters -> float wav at 44.1 kHz
   const items = e.items, inputs = [], fc = [];
   items.forEach((it, i) => {
-    inputs.push('-i', itemPath(it));
+    inputs.push(...IN(itemPath(it)));
     const f = [`[${i}:a]aformat=channel_layouts=mono`, 'aresample=44100'];
     if (it.start || it.dur) f.push(`atrim=start=${it.start || 0}${it.dur ? `:duration=${it.dur}` : ''}`, 'asetpts=PTS-STARTPTS');
     if (it.pitch) f.push(`asetrate=${Math.round(44100 * 2 ** (it.pitch / 12))}`, 'aresample=44100');
@@ -123,12 +137,12 @@ function stage2(e, wav, wav2) { // normalise + trim silence, or cut the seamless
     const fc = `[0:a]atrim=start=${s}:duration=${X},asetpts=PTS-STARTPTS,afade=t=in:d=${X}:curve=qsin[h];` +
       `[1:a]atrim=start=${s + L}:duration=${X},asetpts=PTS-STARTPTS,afade=t=out:d=${X}:curve=qsin[t];` +
       `[2:a]atrim=start=${s + X}:duration=${L - X},asetpts=PTS-STARTPTS[mid];[h][t]amix=inputs=2:normalize=0:duration=longest[x];[x][mid]concat=n=2:v=0:a=1[o]`;
-    ff(['-i', wav, '-i', wav, '-i', wav, '-filter_complex', fc, '-map', '[o]', '-c:a', 'pcm_f32le', wav2]);
+    ff([...IN(wav), ...IN(wav), ...IN(wav), '-filter_complex', fc, '-map', '[o]', '-c:a', 'pcm_f32le', wav2]);
   } else {
     const g = PEAK_DB - ffStats(wav).max, th = e.trimDb ?? -42, keep = (e.keepMs ?? 30) / 1000;
     const af = `volume=${num(g)}dB,areverse,silenceremove=start_periods=1:start_threshold=${th}dB:start_silence=${keep}:detection=peak,areverse,` +
       `silenceremove=start_periods=1:start_threshold=${th}dB:start_silence=0.004:detection=peak`;
-    ff(['-i', wav, '-af', af, '-c:a', 'pcm_f32le', wav2]);
+    ff([...IN(wav), '-af', af, '-c:a', 'pcm_f32le', wav2]);
   }
 }
 function stage3(e, wav2, ogg, extra) { // fades, final level (peak measured AFTER the fades), encode
@@ -137,7 +151,7 @@ function stage3(e, wav2, ogg, extra) { // fades, final level (peak measured AFTE
   const fades = e.loop ? '' : `afade=t=in:d=${fi},afade=t=out:st=${Math.max(0, dur - fo).toFixed(4)}:d=${fo.toFixed(4)}`;
   const g = (e.peakDb ?? PEAK_DB) - ffStats(wav2, fades).max + extra;
   const af = [fades, `volume=${num(g)}dB`].filter(Boolean).join(',');
-  ff(['-i', wav2, '-af', af, '-ac', '1', '-ar', String(sr), '-c:a', 'libvorbis', '-q:a', '3', ogg]);
+  ff([...IN(wav2), '-af', af, '-ac', '1', '-ar', String(sr), '-c:a', 'libvorbis', '-q:a', '3', ogg]);
   return dur;
 }
 
@@ -158,7 +172,7 @@ function describe(e) {
 }
 
 const tmp = join(CACHE, '_work');
-if (!dry) mkdirSync(tmp, { recursive: true });
+if (!dry && !creditsOnly) mkdirSync(tmp, { recursive: true, mode: 0o700 });
 let done = 0, failed = 0;
 for (const e of entries) {
   if (!manifest.sounds[e.key]) { console.log(`skip ${e.key}: not in manifest`); continue; }
@@ -191,7 +205,7 @@ for (const e of entries) {
 
 if (!dry) {
   writeFileSync(SRC, JSON.stringify(doc, null, 2) + '\n');
-  writeFileSync(MANIFEST, JSON.stringify(manifest, null, 2) + '\n');
+  if (!creditsOnly) writeFileSync(MANIFEST, JSON.stringify(manifest, null, 2) + '\n');
   // recorded table in CREDITS.md (between the markers); make-audio.mjs owns the rest of the file
   const rows = doc.entries.filter((e) => e.fetched).map((e) => {
     const src = e.items.map((it) => { const p = doc.packs[it.pack]; return `[${p.name}](${p.page}) / ${it.file.split('/').pop()}`; });

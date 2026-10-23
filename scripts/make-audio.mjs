@@ -416,10 +416,10 @@ def('music_sad_1', MUSIC_EVT + '. Piano model, A minor, ~55 s', 0.22, () => musi
   [[45, 52, 57, 60], [41, 48, 53, 57], [48, 55, 60, 64], [43, 50, 55, 59], [41, 48, 53, 57], [45, 52, 57, 60]],
   [[0, 2, 76], [1, 1, 72], [2, 2, 69], [3, 0, 72], [4, 2, 71], [5, 1, 67], [6, 2, 72], [7, 1, 71], [8, 2, 69], [9, 1, 65], [10, 2, 72], [11, 1.5, 69, 0.6]],
   [[1.5, 2, 0.35], [2.5, 3, 0.3]]), { norm: 0.7, music: true });
-def('music_sad_2', MUSIC_EVT + '. Low plucked strings (harp/kantele-like Karplus-Strong), D minor, ~42 s', 0.2, () => musicPiece(581, 46, 8, 'harp',
+def('music_sad_2', MUSIC_EVT + '. Low plucked strings (harp/kantele-like Karplus-Strong), D minor, ~42 s', 0.226, () => musicPiece(581, 46, 8, 'harp',
   [[38, 45, 50, 53], [34, 41, 46, 50], [43, 50, 55, 58], [33, 40, 45, 49]],
   [[0, 0.5, 62, 0.8], [1, 2, 65, 0.8], [2, 0.5, 62, 0.8], [3, 2, 58, 0.8], [4, 0.5, 67, 0.8], [5, 2, 65, 0.8], [6, 0.5, 64, 0.8], [7, 2, 61, 0.7]],
-  [[1, 2, 0.4], [2.5, 3, 0.35]]), { norm: 0.7, music: true });
+  [[1, 2, 0.4], [2.5, 3, 0.35]]), { norm: 0.62, music: true }); // norm 0.62 (was 0.7) keeps the encoded peak under -3 dBFS; volume 0.226 = 0.2 x 0.7/0.62 keeps the in-game loudness
 def('music_sad_3', MUSIC_EVT + '. Fingerpicked nylon guitar model (Karplus-Strong + body), E minor, ~32 s', 0.2, () => musicPiece(591, 60, 8, 'guitar',
   [[40, 47, 52, 55], [36, 43, 48, 52], [43, 50, 55, 59], [38, 45, 50, 54]],
   [[0, 3, 71, 0.5], [2, 3, 72, 0.5], [4, 3, 74, 0.5], [6, 3, 69, 0.5], [7, 2, 66, 0.5]],
@@ -490,7 +490,7 @@ writeFileSync(credits, `# Audio credits
 GDD section 10: every audio file shipped in the game is listed here. A file without a line does not ship.
 Only CC0 / public-domain sources are allowed (no CC-BY, no "free for games" licences).
 
-Status: almost every file is a real CC0 recording, processed by \`npm run audio:fetch\` (scripts/fetch-audio.mjs, sources and exact processing in scripts/audio-sources.json).
+Status: almost every file is a real or CC0 sound-designed recording, processed by \`npm run audio:fetch\` (scripts/fetch-audio.mjs, sources and exact processing in scripts/audio-sources.json).
 The first table lists the files that are still generated in code (no suitable real recording found yet); they are replaced as soon as a source is added.
 
 ## Still generated in-house

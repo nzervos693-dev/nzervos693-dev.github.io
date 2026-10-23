@@ -17,7 +17,8 @@
       "author": "Kenney (kenney.nl)",
       "license": "CC0 1.0",
       "licenseNote": "License.txt inside the zip: Creative Commons Zero (checked 2026-10-23)",
-      "verified": true
+      "verified": true,
+      "sha256": "029d734af1582474edf3a694d1b0cebc97c1c152f2f39fa34d4c2bafc5de77f8"
     },
     "KR": {
       "name": "Kenney - RPG Audio",
@@ -28,7 +29,8 @@
       "author": "Kenney (kenney.nl)",
       "license": "CC0 1.0",
       "licenseNote": "License.txt inside the zip: Creative Commons Zero (checked 2026-10-23)",
-      "verified": true
+      "verified": true,
+      "sha256": "6dbeaf8544da958d8f2adcb4a4a4b76c1ade34a05f8ab9edccd327da7375f38b"
     },
     "OWL": {
       "name": "OpenGameArt - Sound Effects Pack (Owlish Media)",
@@ -47,18 +49,8 @@
         "Impacts/*",
         "Water/*",
         "Paper/*"
-      ]
-    },
-    "MORE": {
-      "name": "OpenGameArt - 202 More Sound Effects (Owlish Media)",
-      "page": "https://opengameart.org/content/202-more-sound-effects",
-      "url": "https://opengameart.org/sites/default/files/MoreSounds.zip",
-      "file": "MoreSounds.zip",
-      "kind": "zip",
-      "author": "OwlishMedia",
-      "license": "CC0 1.0",
-      "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
-      "verified": true
+      ],
+      "sha256": "57d7059fe2c0ea5f47c7554ace22a538ea22ab40bfc0906b71aa259afffd3d18"
     },
     "LAL": {
       "name": "OpenGameArt - Various Sound Effects (27 phone recordings)",
@@ -69,7 +61,8 @@
       "author": "laleksic",
       "license": "CC0 1.0",
       "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
-      "verified": true
+      "verified": true,
+      "sha256": "82c945e5f3c97e4d38dbf18fa27bcea78dbed73b4078c5bbafc04ad89b4096db"
     },
     "DOORS": {
       "name": "OpenGameArt - Door Open, Door Close Set",
@@ -80,7 +73,8 @@
       "author": "qubodup",
       "license": "CC0 1.0",
       "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
-      "verified": true
+      "verified": true,
+      "sha256": "88502c82451a646fa4bc1b9021a26bbd3441b2850a613784a05336067b11a25d"
     },
     "HINGE": {
       "name": "OpenGameArt - Creaky Door Hinge Spooky",
@@ -91,7 +85,8 @@
       "author": "w.forster.1 (OpenGameArt user name)",
       "license": "CC0 1.0",
       "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
-      "verified": true
+      "verified": true,
+      "sha256": "8322ae01dd97c6cbb96fe3536a38ba736205b0bf3e6aa3c714236bf9fdb1db81"
     },
     "KDD": {
       "name": "OpenGameArt - Different steps on wood, stone, leaves, gravel and mud",
@@ -102,7 +97,8 @@
       "author": "TinyWorlds",
       "license": "CC0 1.0",
       "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
-      "verified": true
+      "verified": true,
+      "sha256": "987d072b7deaa65177e005ddd8185f2351be7c9a76cd7575dea560549c39b33b"
     },
     "WOOD35": {
       "name": "OpenGameArt - 35 wooden cracks/hits/destructions",
@@ -110,10 +106,11 @@
       "url": "https://opengameart.org/sites/default/files/independent_nu_ljudbank-wood_crack_hit_destruction.7z",
       "file": "wood-cracks.7z",
       "kind": "7z",
-      "author": "qubodup",
+      "author": "Independent.nu (submitted by qubodup)",
       "license": "CC0 1.0",
       "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
-      "verified": true
+      "verified": true,
+      "sha256": "2f9723be0147c32ea07db8ef7406229fb8f1a6ce8feabdf0dbf2dc5ee2aacd1a"
     },
     "M100": {
       "name": "OpenGameArt - 100 CC0 metal and wood SFX",
@@ -124,7 +121,8 @@
       "author": "rubberduck",
       "license": "CC0 1.0",
       "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
-      "verified": true
+      "verified": true,
+      "sha256": "be6eba63b03409ac0c77787a956b1503a7c186403d04aef9725c52644a4b7878"
     },
     "B75": {
       "name": "OpenGameArt - 75 CC0 breaking / falling / hit SFX",
@@ -135,7 +133,8 @@
       "author": "rubberduck",
       "license": "CC0 1.0",
       "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
-      "verified": true
+      "verified": true,
+      "sha256": "e6ee04d91c5f4d30cfda1260d2c9d1faf96fda36319287215fbd07bcb1a80451"
     },
     "WSHOP": {
       "name": "OpenGameArt - 68 Workshop Sounds",
@@ -146,7 +145,8 @@
       "author": "bart",
       "license": "CC0 1.0",
       "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
-      "verified": true
+      "verified": true,
+      "sha256": "79d7801041b5fbc8e181d9aaaa8dafb94b68bb51f325017e82fb37448e2fb1d3"
     },
     "WTB": {
       "name": "OpenGameArt - 40 wet towel club/pound/hit/attack sounds",
@@ -156,8 +156,9 @@
       "kind": "7z",
       "author": "qubodup",
       "license": "CC0 1.0",
-      "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
-      "verified": true
+      "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23); ignore the txt info file inside the 7z (it is not part of the licence terms and no file from it is used)",
+      "verified": true,
+      "sha256": "bbb7041df68d5ae19358457d5ffa7f562ea143c85af40e999d719478f388ae7a"
     },
     "SPLAT": {
       "name": "OpenGameArt - 8 wet squish, slurp impacts",
@@ -165,10 +166,11 @@
       "url": "https://opengameart.org/sites/default/files/independent_nu_ljudbank-wet_squish_slurp_impacts.7z",
       "file": "splat.7z",
       "kind": "7z",
-      "author": "qubodup",
+      "author": "Independent.nu (submitted by qubodup)",
       "license": "CC0 1.0",
       "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
-      "verified": true
+      "verified": true,
+      "sha256": "81fba6009d1b3e48c258b122eef735ed27e86a2dcace9b6a2c93d05b80c83515"
     },
     "THWACK": {
       "name": "OpenGameArt - Thwack Sounds",
@@ -179,7 +181,8 @@
       "author": "AntumDeluge",
       "license": "CC0 1.0",
       "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
-      "verified": true
+      "verified": true,
+      "sha256": "8edb002735a01369ef4d6259573be4885f9fe32c9a9efa89dfbbb14067c8c8e5"
     },
     "SWOSH": {
       "name": "OpenGameArt - Swish - bamboo stick weapon swooshes",
@@ -190,7 +193,8 @@
       "author": "qubodup",
       "license": "CC0 1.0",
       "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
-      "verified": true
+      "verified": true,
+      "sha256": "2d55b26f918a4d8042e2c97a4db81392757195f5aaac9039f5ec2c557b6f11f2"
     },
     "UND": {
       "name": "OpenGameArt - Undead Moans",
@@ -201,7 +205,8 @@
       "author": "AntumDeluge",
       "license": "CC0 1.0",
       "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
-      "verified": true
+      "verified": true,
+      "sha256": "013d2327338585d950e3d55422ec0233b443ed888cdbf9908961502690bbe67e"
     },
     "HG": {
       "name": "OpenGameArt - Hungry ghoul",
@@ -212,7 +217,8 @@
       "author": "Darsycho",
       "license": "CC0 1.0",
       "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
-      "verified": true
+      "verified": true,
+      "sha256": "efe8b72a072b38927a4faea0a5f200d1b4534a9430bae9ec4bccf317a7efad6c"
     },
     "ZM": {
       "name": "OpenGameArt - Zombie moans",
@@ -223,7 +229,8 @@
       "author": "Darsycho",
       "license": "CC0 1.0",
       "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
-      "verified": true
+      "verified": true,
+      "sha256": "49b0bd7a7908f2b3ea61ae93ccf584ab650705d62e8ed6d4c8c9f5b98ad37b05"
     },
     "GRUNT": {
       "name": "OpenGameArt - grunts of male death and pain",
@@ -234,18 +241,8 @@
       "author": "thebardofblasphemy",
       "license": "CC0 1.0",
       "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
-      "verified": true
-    },
-    "CRE": {
-      "name": "OpenGameArt - 80 CC0 creature SFX",
-      "page": "https://opengameart.org/content/80-cc0-creature-sfx",
-      "url": "https://opengameart.org/sites/default/files/80-CC0-creature-SFX_0.zip",
-      "file": "creature.zip",
-      "kind": "zip",
-      "author": "rubberduck",
-      "license": "CC0 1.0",
-      "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
-      "verified": true
+      "verified": true,
+      "sha256": "3f00fba827f20ff9ccea1bc07d2c21ab8d3a36e81b48a6005cf8459f02779586"
     },
     "GHOSTB": {
       "name": "OpenGameArt - Ghost breath",
@@ -256,7 +253,8 @@
       "author": "qubodup",
       "license": "CC0 1.0",
       "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
-      "verified": true
+      "verified": true,
+      "sha256": "f371839853a5dff7dbd5a8c81368f5cfab587f567df5ba962e981d4392c530bc"
     },
     "HB": {
       "name": "OpenGameArt - Heartbeat sounds",
@@ -267,7 +265,8 @@
       "author": "bart",
       "license": "CC0 1.0",
       "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
-      "verified": true
+      "verified": true,
+      "sha256": "ce5d2bbe4c9e2a8843fc76419070b9e88f71b2aa4ba7226a5f50a6b45d13be60"
     },
     "HBF": {
       "name": "OpenGameArt - Heartbeat sounds",
@@ -278,7 +277,8 @@
       "author": "bart",
       "license": "CC0 1.0",
       "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
-      "verified": true
+      "verified": true,
+      "sha256": "cda9235df232a5a06724a02798f7240e3e6eca96a992fa5560edd5b4b24823ce"
     },
     "CRUNCH": {
       "name": "OpenGameArt - 7 Eating Crunches",
@@ -289,7 +289,8 @@
       "author": "StarNinjas (sounds by Tito)",
       "license": "CC0 1.0",
       "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
-      "verified": true
+      "verified": true,
+      "sha256": "92017d0e4130d5b3fb4622ae9c17f4b4c099f5fdd08ea7c3322cea9e0b81f85f"
     },
     "BOTTLE": {
       "name": "OpenGameArt - Liquid Bottle Drink Set",
@@ -300,7 +301,8 @@
       "author": "qubodup",
       "license": "CC0 1.0",
       "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
-      "verified": true
+      "verified": true,
+      "sha256": "6d2b9dade6ff4c20cbe2b2a7c405cd219b901bfce7045b28f5ba8b8683c7a5e7"
     },
     "GUST": {
       "name": "OpenGameArt - Short wind sound",
@@ -311,7 +313,8 @@
       "author": "remaxim",
       "license": "CC0 1.0",
       "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
-      "verified": true
+      "verified": true,
+      "sha256": "4435f5ad1baf171f21f876f778d0a8a7447becea0c4955bb2566e0c63ab20f41"
     },
     "WIND1": {
       "name": "OpenGameArt - wind1 (wind loops)",
@@ -322,7 +325,8 @@
       "author": "Luke.RUSTLTD",
       "license": "CC0 1.0",
       "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
-      "verified": true
+      "verified": true,
+      "sha256": "a2856f794fbf77e05f8241dc4adeade7f62fa21c3c9dc49f7725b6c6218060c3"
     },
     "RAIN1": {
       "name": "OpenGameArt - AMB Rain Loop 1",
@@ -333,7 +337,8 @@
       "author": "Kresiek The Furry",
       "license": "CC0 1.0",
       "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
-      "verified": true
+      "verified": true,
+      "sha256": "ae578791d46218d180a0e3aebefb5d621dbdd3f1627899c25210379f57d480b0"
     },
     "DRIP": {
       "name": "OpenGameArt - Dripping water loop",
@@ -341,10 +346,11 @@
       "url": "https://opengameart.org/sites/default/files/atmosbasement.mp3_.flac",
       "file": "atmosbasement.flac",
       "kind": "file",
-      "author": "qubodup",
+      "author": "Independent.nu (submitted by qubodup)",
       "license": "CC0 1.0",
       "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
-      "verified": true
+      "verified": true,
+      "sha256": "247c0ef181c8ba8d190a6194f6ea02d9defb23b70194c52c7f9187b5b7b1cc61"
     },
     "FIRE": {
       "name": "OpenGameArt - Fire Crackling",
@@ -355,7 +361,8 @@
       "author": "AntumDeluge",
       "license": "CC0 1.0",
       "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
-      "verified": true
+      "verified": true,
+      "sha256": "f922929805bc6afdf0a35727fa3998033db544c1b6f62ed3aeab94341ed6ddeb"
     },
     "GLASS": {
       "name": "OpenGameArt - Glass Break",
@@ -363,10 +370,11 @@
       "url": "https://opengameart.org/sites/default/files/glass_breaking.wav",
       "file": "glass_breaking.wav",
       "kind": "file",
-      "author": "TinyWorlds",
+      "author": "Till Behrend (submitted by TinyWorlds)",
       "license": "CC0 1.0",
       "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
-      "verified": true
+      "verified": true,
+      "sha256": "37d29069c885afe3f7ca639293fa679fb6511a6a1e54316f0e403e4493f502b3"
     }
   },
   "stillSynthesised": [
