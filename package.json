@@ -11,6 +11,8 @@
     "icons": "node scripts/make-icons.mjs",
     "art": "node scripts/make-art.mjs",
     "audio": "node scripts/make-audio.mjs",
+    "audio:fetch": "node scripts/fetch-audio.mjs && node scripts/make-audio.mjs",
+    "audio:check": "python3 -I scripts/check-audio.py --all",
     "build:e2e": "vite build --mode e2e --outDir dist-e2e",
     "test:e2e": "npm run build:e2e && node tests/e2e/run.mjs"
   },

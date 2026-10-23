@@ -5,679 +5,753 @@
       "files": [
         "ui_tap.ogg"
       ],
-      "volume": 0.14,
+      "volume": 0.141,
       "loop": false,
-      "duration": 0.12,
-      "event": "Panel open / button tap: a faint paper rustle (GDD 10: very quiet, uiVolume 0.2)"
+      "duration": 0.13,
+      "event": "Panel open / button tap: a faint paper rustle (GDD 10: very quiet, uiVolume 0.2)",
+      "recorded": true
     },
     "footstep_wood_1": {
       "files": [
         "footstep_wood_1.ogg"
       ],
-      "volume": 0.804,
+      "volume": 0.412,
       "loop": false,
-      "duration": 0.29,
+      "duration": 0.23,
       "event": "Hero footstep on wood (3 variations, pick at random, pitch x0.95-1.05)",
+      "recorded": true,
       "surface": "wood"
     },
     "footstep_wood_2": {
       "files": [
         "footstep_wood_2.ogg"
       ],
-      "volume": 0.511,
+      "volume": 0.407,
       "loop": false,
-      "duration": 0.3,
+      "duration": 0.23,
       "event": "Hero footstep on wood (3 variations, pick at random, pitch x0.95-1.05)",
+      "recorded": true,
       "surface": "wood"
     },
     "footstep_wood_3": {
       "files": [
         "footstep_wood_3.ogg"
       ],
-      "volume": 0.365,
+      "volume": 0.32,
       "loop": false,
-      "duration": 0.28,
+      "duration": 0.32,
       "event": "Hero footstep on wood (3 variations, pick at random, pitch x0.95-1.05)",
+      "recorded": true,
       "surface": "wood"
     },
     "footstep_tile_1": {
       "files": [
         "footstep_tile_1.ogg"
       ],
-      "volume": 0.549,
+      "volume": 0.376,
       "loop": false,
-      "duration": 0.34,
+      "duration": 0.26,
       "event": "Hero footstep on tile (3 variations, pick at random, pitch x0.95-1.05)",
+      "recorded": true,
       "surface": "tile"
     },
     "footstep_tile_2": {
       "files": [
         "footstep_tile_2.ogg"
       ],
-      "volume": 0.6,
+      "volume": 0.305,
       "loop": false,
-      "duration": 0.35,
+      "duration": 0.22,
       "event": "Hero footstep on tile (3 variations, pick at random, pitch x0.95-1.05)",
+      "recorded": true,
       "surface": "tile"
     },
     "footstep_tile_3": {
       "files": [
         "footstep_tile_3.ogg"
       ],
-      "volume": 0.611,
+      "volume": 0.363,
       "loop": false,
-      "duration": 0.38,
+      "duration": 0.23,
       "event": "Hero footstep on tile (3 variations, pick at random, pitch x0.95-1.05)",
+      "recorded": true,
       "surface": "tile"
     },
     "footstep_carpet_1": {
       "files": [
         "footstep_carpet_1.ogg"
       ],
-      "volume": 0.129,
+      "volume": 0.091,
       "loop": false,
-      "duration": 0.24,
+      "duration": 0.1,
       "event": "Hero footstep on carpet (3 variations, pick at random, pitch x0.95-1.05)",
+      "recorded": true,
       "surface": "carpet"
     },
     "footstep_carpet_2": {
       "files": [
         "footstep_carpet_2.ogg"
       ],
-      "volume": 0.107,
+      "volume": 0.074,
       "loop": false,
-      "duration": 0.23,
+      "duration": 0.1,
       "event": "Hero footstep on carpet (3 variations, pick at random, pitch x0.95-1.05)",
+      "recorded": true,
       "surface": "carpet"
     },
     "footstep_carpet_3": {
       "files": [
         "footstep_carpet_3.ogg"
       ],
-      "volume": 0.107,
+      "volume": 0.09,
       "loop": false,
-      "duration": 0.25,
+      "duration": 0.1,
       "event": "Hero footstep on carpet (3 variations, pick at random, pitch x0.95-1.05)",
+      "recorded": true,
       "surface": "carpet"
     },
     "footstep_concrete_1": {
       "files": [
         "footstep_concrete_1.ogg"
       ],
-      "volume": 0.457,
+      "volume": 0.596,
       "loop": false,
-      "duration": 0.48,
+      "duration": 0.24,
       "event": "Hero footstep on concrete (3 variations, pick at random, pitch x0.95-1.05)",
+      "recorded": true,
       "surface": "concrete"
     },
     "footstep_concrete_2": {
       "files": [
         "footstep_concrete_2.ogg"
       ],
-      "volume": 0.362,
+      "volume": 0.452,
       "loop": false,
-      "duration": 0.49,
+      "duration": 0.26,
       "event": "Hero footstep on concrete (3 variations, pick at random, pitch x0.95-1.05)",
+      "recorded": true,
       "surface": "concrete"
     },
     "footstep_concrete_3": {
       "files": [
         "footstep_concrete_3.ogg"
       ],
-      "volume": 0.31,
+      "volume": 0.468,
       "loop": false,
-      "duration": 0.45,
+      "duration": 0.23,
       "event": "Hero footstep on concrete (3 variations, pick at random, pitch x0.95-1.05)",
+      "recorded": true,
       "surface": "concrete"
     },
     "step_1": {
       "files": [
         "step_1.ogg"
       ],
-      "volume": 0.408,
+      "volume": 0.324,
       "loop": false,
-      "duration": 0.31,
-      "event": "Legacy hero step (wood); use footstep_<surface>_N"
+      "duration": 0.3,
+      "event": "Legacy hero step (wood); use footstep_<surface>_N",
+      "recorded": true
     },
     "step_2": {
       "files": [
         "step_2.ogg"
       ],
-      "volume": 0.83,
+      "volume": 0.437,
       "loop": false,
-      "duration": 0.31,
-      "event": "Legacy hero step (wood); use footstep_<surface>_N"
+      "duration": 0.22,
+      "event": "Legacy hero step (wood); use footstep_<surface>_N",
+      "recorded": true
     },
     "stairs": {
       "files": [
         "stairs.ogg"
       ],
-      "volume": 0.409,
+      "volume": 0.638,
       "loop": false,
-      "duration": 1.26,
-      "event": "Hero changes floor via stairs (five steps, concrete stairwell)"
+      "duration": 1.33,
+      "event": "Hero changes floor via stairs (five steps, concrete stairwell)",
+      "recorded": true
     },
     "door_open": {
       "files": [
         "door_open.ogg"
       ],
-      "volume": 0.5,
+      "volume": 0.832,
       "loop": false,
-      "duration": 1.55,
-      "event": "Door opens (floor door or apartment): latch, hinge creak, soft stop"
+      "duration": 1.35,
+      "event": "Door opens (floor door or apartment): latch, hinge creak, soft stop",
+      "recorded": true
     },
     "door_close": {
       "files": [
         "door_close.ogg"
       ],
-      "volume": 0.5,
+      "volume": 0.543,
       "loop": false,
-      "duration": 1.13,
-      "event": "Door closes: short hinge creak, wooden clack and latch"
+      "duration": 0.61,
+      "event": "Door closes: short hinge creak, wooden clack and latch",
+      "recorded": true
     },
     "door_creak": {
       "files": [
         "door_creak.ogg"
       ],
-      "volume": 0.4,
+      "volume": 0.257,
       "loop": false,
       "duration": 2.1,
-      "event": "Door hinge creaking on its own or while held ajar (slow, long)"
+      "event": "Door hinge creaking on its own or while held ajar (slow, long)",
+      "recorded": true
     },
     "door_hit": {
       "files": [
         "door_hit.ogg"
       ],
-      "volume": 0.7,
+      "volume": 0.851,
       "loop": false,
-      "duration": 0.74,
-      "event": "Jammed or locked door hit / zombie pounds a door"
+      "duration": 0.58,
+      "event": "Jammed or locked door hit / zombie pounds a door",
+      "recorded": true
     },
     "door_bang": {
       "files": [
         "door_bang.ogg"
       ],
-      "volume": 0.7,
+      "volume": 0.501,
       "loop": false,
-      "duration": 1.18,
-      "event": "Zombie bangs on a door from outside: heavy wood hit, frame rattle, small bounce"
+      "duration": 0.63,
+      "event": "Zombie bangs on a door from outside: heavy wood hit, frame rattle, small bounce",
+      "recorded": true
     },
     "search_cupboard": {
       "files": [
         "search_cupboard.ogg"
       ],
-      "volume": 0.5,
+      "volume": 0.785,
       "loop": false,
-      "duration": 1.38,
-      "event": "Search a cupboard/cabinet: door scrape, wood knock, things shifted"
+      "duration": 1.34,
+      "event": "Search a cupboard/cabinet: door scrape, wood knock, things shifted",
+      "recorded": true
     },
     "search_drawer": {
       "files": [
         "search_drawer.ogg"
       ],
-      "volume": 0.5,
+      "volume": 0.684,
       "loop": false,
-      "duration": 1.08,
-      "event": "Search a drawer: wood slide, contents rattle and shift"
+      "duration": 1.2,
+      "event": "Search a drawer: wood slide, contents rattle and shift",
+      "recorded": true
     },
     "search_cloth": {
       "files": [
         "search_cloth.ogg"
       ],
-      "volume": 0.5,
+      "volume": 0.437,
       "loop": false,
-      "duration": 1.08,
-      "event": "Search clothes / bedding: cloth rummage"
+      "duration": 0.98,
+      "event": "Search clothes / bedding: cloth rummage",
+      "recorded": true
     },
     "search": {
       "files": [
         "search.ogg"
       ],
-      "volume": 0.5,
+      "volume": 0.452,
       "loop": false,
-      "duration": 1.01,
-      "event": "Search / scavenge rummage (generic, start of search): shifting cloth, small objects"
+      "duration": 0.99,
+      "event": "Search / scavenge rummage (generic, start of search): shifting cloth, small objects",
+      "recorded": true
     },
     "dismantle_wood": {
       "files": [
         "dismantle_wood.ogg"
       ],
-      "volume": 0.8,
+      "volume": 1,
       "loop": false,
-      "duration": 1.12,
-      "event": "Dismantle a wooden object: nail squeal, wood crack, drop"
+      "duration": 1,
+      "event": "Dismantle a wooden object: nail squeal, wood crack, drop",
+      "recorded": true
     },
     "dismantle_metal": {
       "files": [
         "dismantle_metal.ogg"
       ],
-      "volume": 0.5,
+      "volume": 0.794,
       "loop": false,
-      "duration": 1.33,
-      "event": "Dismantle a metal object: scrape of bent metal, two dull clanks"
+      "duration": 1.24,
+      "event": "Dismantle a metal object: scrape of bent metal, two dull clanks",
+      "recorded": true
     },
     "drain": {
       "files": [
         "drain.ogg"
       ],
-      "volume": 0.5,
+      "volume": 0.61,
       "loop": false,
-      "duration": 0.99,
-      "event": "Drain / collect water: pouring and glugging bubbles"
+      "duration": 1.1,
+      "event": "Drain / collect water: pouring and glugging bubbles",
+      "recorded": true
     },
     "pickup": {
       "files": [
         "pickup.ogg"
       ],
-      "volume": 0.3,
+      "volume": 0.468,
       "loop": false,
-      "duration": 0.3,
-      "event": "Item added to inventory: soft cloth/handling, no chime"
+      "duration": 0.22,
+      "event": "Item added to inventory: soft cloth/handling, no chime",
+      "recorded": true
     },
     "eat": {
       "files": [
         "eat.ogg"
       ],
-      "volume": 0.75,
+      "volume": 1,
       "loop": false,
-      "duration": 0.72,
-      "event": "Use food item (eat): crunchy bites and chewing"
+      "duration": 0.78,
+      "event": "Use food item (eat): crunchy bites and chewing",
+      "recorded": true
     },
     "drink": {
       "files": [
         "drink.ogg"
       ],
-      "volume": 0.5,
+      "volume": 0.933,
       "loop": false,
-      "duration": 0.84,
-      "event": "Use drink item (drink): lip slosh and three swallows"
+      "duration": 1.32,
+      "event": "Use drink item (drink): lip slosh and three swallows",
+      "recorded": true
     },
     "craft": {
       "files": [
         "craft.ogg"
       ],
-      "volume": 0.4,
+      "volume": 0.372,
       "loop": false,
-      "duration": 1.13,
-      "event": "Craft / build completes: cloth/tape rustle then two wooden taps"
+      "duration": 1.15,
+      "event": "Craft / build completes: cloth/tape rustle then two wooden taps",
+      "recorded": true
     },
     "swing": {
       "files": [
         "swing.ogg"
       ],
-      "volume": 0.4,
+      "volume": 0.582,
       "loop": false,
       "duration": 0.3,
-      "event": "Melee swing starts: air moving past a held object"
+      "event": "Melee swing starts: air moving past a held object",
+      "recorded": true
     },
     "hit_flesh": {
       "files": [
         "hit_flesh.ogg"
       ],
-      "volume": 0.65,
+      "volume": 0.684,
       "loop": false,
-      "duration": 0.29,
-      "event": "Player melee or thrown hit lands on a zombie"
+      "duration": 0.32,
+      "event": "Player melee or thrown hit lands on a zombie",
+      "recorded": true
     },
     "hit_stab_1": {
       "files": [
         "hit_stab_1.ogg"
       ],
-      "volume": 0.55,
+      "volume": 0.343,
       "loop": false,
       "duration": 0.31,
-      "event": "Stab weapon hits a zombie: puncture + wet squelch (1..3)"
+      "event": "Stab weapon hits a zombie: puncture + wet squelch (1..3)",
+      "recorded": true
     },
     "hit_stab_2": {
       "files": [
         "hit_stab_2.ogg"
       ],
-      "volume": 0.55,
+      "volume": 0.462,
       "loop": false,
-      "duration": 0.31,
-      "event": "Stab weapon hit (variation, deeper squelch)"
+      "duration": 0.38,
+      "event": "Stab weapon hit (variation, deeper squelch)",
+      "recorded": true
     },
     "hit_stab_3": {
       "files": [
         "hit_stab_3.ogg"
       ],
-      "volume": 0.55,
+      "volume": 0.339,
       "loop": false,
-      "duration": 0.31,
-      "event": "Stab weapon hit (variation, shorter and brighter)"
+      "duration": 0.33,
+      "event": "Stab weapon hit (variation, shorter and brighter)",
+      "recorded": true
     },
     "hit_blunt_1": {
       "files": [
         "hit_blunt_1.ogg"
       ],
-      "volume": 0.6,
+      "volume": 0.861,
       "loop": false,
-      "duration": 0.4,
-      "event": "Blunt weapon hits a zombie: heavy wet thud + dull crack (1..3)"
+      "duration": 0.33,
+      "event": "Blunt weapon hits a zombie: heavy wet thud + dull crack (1..3)",
+      "recorded": true
     },
     "hit_blunt_2": {
       "files": [
         "hit_blunt_2.ogg"
       ],
-      "volume": 0.6,
+      "volume": 0.556,
       "loop": false,
-      "duration": 0.4,
-      "event": "Blunt weapon hit (variation, deeper)"
+      "duration": 0.43,
+      "event": "Blunt weapon hit (variation, deeper)",
+      "recorded": true
     },
     "hit_blunt_3": {
       "files": [
         "hit_blunt_3.ogg"
       ],
-      "volume": 0.6,
+      "volume": 0.977,
       "loop": false,
-      "duration": 0.4,
-      "event": "Blunt weapon hit (variation, sharper crack)"
+      "duration": 0.37,
+      "event": "Blunt weapon hit (variation, sharper crack)",
+      "recorded": true
     },
     "hit_punch_1": {
       "files": [
         "hit_punch_1.ogg"
       ],
-      "volume": 0.55,
+      "volume": 0.473,
       "loop": false,
-      "duration": 0.2,
-      "event": "Fists hit a zombie: dull fleshy punch (1..2)"
+      "duration": 0.25,
+      "event": "Fists hit a zombie: dull fleshy punch (1..2)",
+      "recorded": true
     },
     "hit_punch_2": {
       "files": [
         "hit_punch_2.ogg"
       ],
-      "volume": 0.55,
+      "volume": 0.417,
       "loop": false,
-      "duration": 0.2,
-      "event": "Fists hit (variation)"
+      "duration": 0.25,
+      "event": "Fists hit (variation)",
+      "recorded": true
     },
     "weapon_break": {
       "files": [
         "weapon_break.ogg"
       ],
-      "volume": 0.65,
+      "volume": 0.902,
       "loop": false,
-      "duration": 0.74,
-      "event": "Weapon durability hits zero: snap, splinters, pieces dropping"
+      "duration": 0.67,
+      "event": "Weapon durability hits zero: snap, splinters, pieces dropping",
+      "recorded": true
     },
     "glass_shatter": {
       "files": [
         "glass_shatter.ogg"
       ],
-      "volume": 0.55,
+      "volume": 1,
       "loop": false,
-      "duration": 1,
-      "event": "Glass breaks (molotov lands, window smash): crack + shower of shards"
+      "duration": 1.1,
+      "event": "Glass breaks (molotov lands, window smash): crack + shower of shards",
+      "recorded": true
     },
     "glass_tinkle": {
       "files": [
         "glass_tinkle.ogg"
       ],
-      "volume": 0.25,
+      "volume": 0.407,
       "loop": false,
-      "duration": 1.45,
-      "event": "Ambient one-shot: small glass pieces settling somewhere"
+      "duration": 1.3,
+      "event": "Ambient one-shot: small glass pieces settling somewhere",
+      "recorded": true
     },
     "fire_whoosh": {
       "files": [
         "fire_whoosh.ogg"
       ],
-      "volume": 0.6,
+      "volume": 0.966,
       "loop": false,
-      "duration": 1.4,
-      "event": "Molotov ignites / fire bursts: gas catching with a roar and crackle"
+      "duration": 2.14,
+      "event": "Molotov ignites / fire bursts: gas catching with a roar and crackle",
+      "recorded": true
     },
     "zombie_groan_1": {
       "files": [
         "zombie_groan_1.ogg"
       ],
-      "volume": 0.55,
+      "volume": 0.537,
       "loop": false,
-      "duration": 1.58,
-      "event": "Zombie idle / spotted you (groan)"
+      "duration": 2.01,
+      "event": "Zombie idle / spotted you (groan)",
+      "recorded": true
     },
     "zombie_groan_2": {
       "files": [
         "zombie_groan_2.ogg"
       ],
-      "volume": 0.55,
+      "volume": 0.243,
       "loop": false,
-      "duration": 1.86,
-      "event": "Zombie idle / aggro (lower, longer groan)"
+      "duration": 3.21,
+      "event": "Zombie idle / aggro (lower, longer groan)",
+      "recorded": true
     },
     "zombie_hit": {
       "files": [
         "zombie_hit.ogg"
       ],
-      "volume": 0.65,
+      "volume": 0.376,
       "loop": false,
-      "duration": 0.44,
-      "event": "Zombie attacks / bites the hero: rasping lunge"
+      "duration": 0.97,
+      "event": "Zombie attacks / bites the hero: rasping lunge",
+      "recorded": true
     },
     "zombie_death": {
       "files": [
         "zombie_death.ogg"
       ],
-      "volume": 0.65,
+      "volume": 0.462,
       "loop": false,
-      "duration": 1.56,
-      "event": "Zombie killed: a last rattling breath, then the body slumps"
+      "duration": 2.19,
+      "event": "Zombie killed: a last rattling breath, then the body slumps",
+      "recorded": true
     },
     "hero_hurt": {
       "files": [
         "hero_hurt.ogg"
       ],
-      "volume": 0.65,
+      "volume": 0.367,
       "loop": false,
-      "duration": 0.35,
-      "event": "Hero takes damage: a short pained grunt"
+      "duration": 0.48,
+      "event": "Hero takes damage: a short pained grunt",
+      "recorded": true
     },
     "zombie_breath_1": {
       "files": [
         "zombie_breath_1.ogg"
       ],
-      "volume": 0.3,
+      "volume": 0.263,
       "loop": false,
-      "duration": 1.44,
-      "event": "Near zombie: wet exhale through a damaged throat"
+      "duration": 1.89,
+      "event": "Near zombie: wet exhale through a damaged throat",
+      "recorded": true
     },
     "zombie_breath_2": {
       "files": [
         "zombie_breath_2.ogg"
       ],
-      "volume": 0.3,
+      "volume": 0.141,
       "loop": false,
-      "duration": 2.43,
-      "event": "Near zombie: slower rattling breath in, then out"
+      "duration": 2.92,
+      "event": "Near zombie: slower rattling breath in, then out",
+      "recorded": true
     },
     "zombie_shuffle": {
       "files": [
         "zombie_shuffle.ogg"
       ],
-      "volume": 0.3,
+      "volume": 0.417,
       "loop": false,
-      "duration": 1.54,
-      "event": "Near zombie: dragging shuffle, 2 steps"
+      "duration": 0.78,
+      "event": "Near zombie: dragging shuffle, 2 steps",
+      "recorded": true
     },
     "distant_groan_1": {
       "files": [
         "distant_groan_1.ogg"
       ],
-      "volume": 0.3,
+      "volume": 0.266,
       "loop": false,
-      "duration": 3.75,
-      "event": "Far-away groan, 45-120 s apart; hides the attack cue. Pick randomly of 1..4"
+      "duration": 2.73,
+      "event": "Far-away groan, 45-120 s apart; hides the attack cue. Pick randomly of 1..4",
+      "recorded": true
     },
     "distant_groan_2": {
       "files": [
         "distant_groan_2.ogg"
       ],
-      "volume": 0.3,
+      "volume": 0.237,
       "loop": false,
-      "duration": 4.3,
-      "event": "Far-away groan (lower, long)"
+      "duration": 3.62,
+      "event": "Far-away groan (lower, long)",
+      "recorded": true
     },
     "distant_groan_3": {
       "files": [
         "distant_groan_3.ogg"
       ],
-      "volume": 0.28,
+      "volume": 0.221,
       "loop": false,
-      "duration": 3.5,
-      "event": "Far-away groan (higher, shorter)"
+      "duration": 2.34,
+      "event": "Far-away groan (higher, shorter)",
+      "recorded": true
     },
     "distant_groan_4": {
       "files": [
         "distant_groan_4.ogg"
       ],
-      "volume": 0.3,
+      "volume": 0.412,
       "loop": false,
-      "duration": 5.02,
-      "event": "Far-away groan (two-part moan)"
+      "duration": 6.21,
+      "event": "Far-away groan (two-part moan)",
+      "recorded": true
     },
     "barricade_hit": {
       "files": [
         "barricade_hit.ogg"
       ],
-      "volume": 0.7,
+      "volume": 0.75,
       "loop": false,
-      "duration": 0.9,
-      "event": "Zombies hit a barricade: boards thump and shift"
+      "duration": 0.51,
+      "event": "Zombies hit a barricade: boards thump and shift",
+      "recorded": true
     },
     "barricade_break": {
       "files": [
         "barricade_break.ogg"
       ],
-      "volume": 0.75,
+      "volume": 0.861,
       "loop": false,
-      "duration": 1.37,
-      "event": "A barricade is destroyed: planks crack, splinter and fall"
+      "duration": 1.39,
+      "event": "A barricade is destroyed: planks crack, splinter and fall",
+      "recorded": true
     },
     "amb_wind": {
       "files": [
         "amb_wind.ogg"
       ],
-      "volume": 0.22,
+      "volume": 0.186,
       "loop": true,
       "duration": 26,
-      "event": "Wind gusting past the building: broadband filtered noise, irregular non-periodic swells. Loop; quiet"
+      "event": "Wind gusting past the building: broadband filtered noise, irregular non-periodic swells. Loop; quiet",
+      "recorded": true
     },
     "amb_rain": {
       "files": [
         "amb_rain.ogg"
       ],
-      "volume": 0.18,
+      "volume": 0.266,
       "loop": true,
       "duration": 18,
-      "event": "Rain on a window: dense droplets + soft roof patter. Loop; louder near windows"
+      "event": "Rain on a window: dense droplets + soft roof patter. Loop; louder near windows",
+      "recorded": true
     },
     "stair_bang_1": {
       "files": [
         "stair_bang_1.ogg"
       ],
-      "volume": 0.5,
+      "volume": 0.417,
       "loop": false,
-      "duration": 2.29,
-      "event": "Attack cue (T-8 s): single heavy muffled bang from the stairwell below"
+      "duration": 0.57,
+      "event": "Attack cue (T-8 s): single heavy muffled bang from the stairwell below",
+      "recorded": true
     },
     "stair_bang_2": {
       "files": [
         "stair_bang_2.ogg"
       ],
-      "volume": 0.5,
+      "volume": 0.759,
       "loop": false,
-      "duration": 2.95,
-      "event": "Attack cue: two bangs, slightly uneven"
+      "duration": 1.27,
+      "event": "Attack cue: two bangs, slightly uneven",
+      "recorded": true
     },
     "stair_bang_3": {
       "files": [
         "stair_bang_3.ogg"
       ],
-      "volume": 0.5,
+      "volume": 0.484,
       "loop": false,
-      "duration": 3.57,
-      "event": "Attack cue: three bangs, building"
+      "duration": 1.82,
+      "event": "Attack cue: three bangs, building",
+      "recorded": true
     },
     "stair_shuffle": {
       "files": [
         "stair_shuffle.ogg"
       ],
-      "volume": 0.3,
+      "volume": 0.309,
       "loop": true,
       "duration": 6,
-      "event": "Loop: many feet shuffling in the stairwell, muffled. Fade in with the attack cue, out when it ends"
+      "event": "Loop: many feet shuffling in the stairwell, muffled. Fade in with the attack cue, out when it ends",
+      "recorded": true
     },
     "creak_1": {
       "files": [
         "creak_1.ogg"
       ],
-      "volume": 0.3,
+      "volume": 0.7,
       "loop": false,
-      "duration": 1.34,
-      "event": "Ambient one-shot: floorboard creak (long gaps)"
+      "duration": 1.33,
+      "event": "Ambient one-shot: floorboard creak (long gaps)",
+      "recorded": true
     },
     "creak_2": {
       "files": [
         "creak_2.ogg"
       ],
-      "volume": 0.3,
+      "volume": 0.367,
       "loop": false,
-      "duration": 2.13,
-      "event": "Ambient one-shot: slow door hinge creak somewhere"
+      "duration": 1.35,
+      "event": "Ambient one-shot: slow door hinge creak somewhere",
+      "recorded": true
     },
     "creak_3": {
       "files": [
         "creak_3.ogg"
       ],
-      "volume": 0.3,
+      "volume": 0.437,
       "loop": false,
-      "duration": 0.83,
-      "event": "Ambient one-shot: short wood settling"
+      "duration": 0.84,
+      "event": "Ambient one-shot: short wood settling",
+      "recorded": true
     },
     "muffled_thud_1": {
       "files": [
         "muffled_thud_1.ogg"
       ],
-      "volume": 0.4,
+      "volume": 0.302,
       "loop": false,
-      "duration": 1.64,
-      "event": "Ambient one-shot: distant thud from another floor"
+      "duration": 0.41,
+      "event": "Ambient one-shot: distant thud from another floor",
+      "recorded": true
     },
     "muffled_thud_2": {
       "files": [
         "muffled_thud_2.ogg"
       ],
-      "volume": 0.4,
+      "volume": 0.417,
       "loop": false,
-      "duration": 1.83,
-      "event": "Ambient one-shot: double thump far off"
+      "duration": 0.84,
+      "event": "Ambient one-shot: double thump far off",
+      "recorded": true
     },
     "pipe_knock_1": {
       "files": [
         "pipe_knock_1.ogg"
       ],
-      "volume": 0.3,
+      "volume": 0.638,
       "loop": false,
-      "duration": 1.89,
-      "event": "Ambient one-shot: pipe knocks twice"
+      "duration": 0.77,
+      "event": "Ambient one-shot: pipe knocks twice",
+      "recorded": true
     },
     "pipe_knock_2": {
       "files": [
         "pipe_knock_2.ogg"
       ],
-      "volume": 0.3,
+      "volume": 0.389,
       "loop": false,
-      "duration": 2.22,
-      "event": "Ambient one-shot: pipe tick-tick-knock (cooling metal)"
+      "duration": 1.07,
+      "event": "Ambient one-shot: pipe tick-tick-knock (cooling metal)",
+      "recorded": true
     },
     "heartbeat_soft": {
       "files": [
         "heartbeat_soft.ogg"
       ],
-      "volume": 0.3,
+      "volume": 0.279,
       "loop": true,
-      "duration": 1.1,
-      "event": "Low-health loop: soft heartbeat felt more than heard"
+      "duration": 0.9,
+      "event": "Low-health loop: soft heartbeat felt more than heard",
+      "recorded": true
     },
     "moodle_stomach": {
       "files": [
@@ -692,55 +766,61 @@
       "files": [
         "moodle_swallow.ogg"
       ],
-      "volume": 0.25,
+      "volume": 0.603,
       "loop": false,
-      "duration": 0.24,
-      "event": "Thirsty moodle: dry swallow"
+      "duration": 0.34,
+      "event": "Thirsty moodle: dry swallow",
+      "recorded": true
     },
     "moodle_yawn": {
       "files": [
         "moodle_yawn.ogg"
       ],
-      "volume": 0.25,
+      "volume": 0.272,
       "loop": false,
-      "duration": 1.5,
-      "event": "Tired moodle: a yawn"
+      "duration": 1.34,
+      "event": "Tired moodle: a yawn",
+      "recorded": true
     },
     "moodle_pain": {
       "files": [
         "moodle_pain.ogg"
       ],
-      "volume": 0.25,
+      "volume": 0.313,
       "loop": false,
-      "duration": 0.6,
-      "event": "Injured moodle: pained breath in through the teeth"
+      "duration": 0.39,
+      "event": "Injured moodle: pained breath in through the teeth",
+      "recorded": true
     },
     "moodle_sigh": {
       "files": [
         "moodle_sigh.ogg"
       ],
-      "volume": 0.25,
+      "volume": 0.335,
       "loop": false,
-      "duration": 1.3,
-      "event": "Low-spirits moodle: a long sigh"
+      "duration": 1.49,
+      "event": "Low-spirits moodle: a long sigh",
+      "recorded": true
     },
     "moodle_panic": {
       "files": [
         "moodle_panic.ogg"
       ],
-      "volume": 0.25,
+      "volume": 0.145,
       "loop": false,
-      "duration": 2.2,
-      "event": "Panic moodle: quiet fast heartbeat, ~2 s one-shot"
+      "duration": 2.09,
+      "event": "Panic moodle: quiet fast heartbeat, ~2 s one-shot",
+      "recorded": true
     },
     "blood_drip": {
       "files": [
         "blood_drip.ogg"
       ],
-      "volume": 0.3,
+      "volume": 0.197,
       "loop": false,
-      "duration": 1.44,
-      "event": "Quiet one-shot: a few drips on the floor after a hit/kill"
+      "duration": 1.5,
+      "event": "Quiet one-shot: a few drips on the floor after a hit/kill",
+      "recorded": true
     },
     "music_sad_1": {
       "files": [

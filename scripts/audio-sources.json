@@ -1,2420 +1,2687 @@
 {
   "_doc": [
-    "Source list for scripts/fetch-audio.mjs. Network was blocked when this was written, so NOTHING here is verified.",
-    "I (audio-designer) do not reliably remember specific freesound sound IDs, so freesoundId is null everywhere instead of guessed IDs; each entry has a pre-filtered CC0 search URL. Pick a sound, put its numeric id in freesoundId.",
-    "With env FREESOUND_TOKEN set, fetch-audio asks the freesound API for the licence and refuses anything that is not CC0, then downloads the HQ OGG preview.",
-    "For opengameart/wikimedia/pack files set downloadUrl (direct file URL), author, sourceUrl, license, and verified:true after reading the licence on the source page.",
-    "Fields: trim{start,duration} seconds; edit{highpassHz,lowpassHz,fadeInMs,fadeOutMs,pitchSemitones?}; norm = target peak (0..1); sr = output sample rate; fetched is set by the script.",
-    "Once an entry is fetched, make-audio.mjs stops regenerating that key and the CREDITS.md line moves to the recorded table."
+    "Source list for scripts/fetch-audio.mjs (npm run audio:fetch). Every shipped sound effect that is a real recording is built from CC0 / public-domain packs listed in `packs`.",
+    "packs[id]: name, page (licence page), url (direct download), file (cache file name), kind zip|7z|file, author, license, licenseNote, verified. Only verified CC0 / Public Domain packs are accepted by the script.",
+    "entries[]: one per manifest key. items = layers mixed together: {pack, file (path inside the pack), start/dur (seconds, cut), gain (dB), at (seconds, delay), pitch (semitones, tape style), hp/lp (Hz)}.",
+    "Entry options: hp (master high-pass, default 90 Hz for phone speakers), lp, echo (ffmpeg aecho args, small room/stairwell), eq, trimDb (silence threshold, default -42), fadeInMs, fadeOutMs, sr (22050 default), peakDb (default -3.6), loop {seconds, xfade, start}, volume (manifest volume).",
+    "Processing order and the exact ffmpeg chain are documented at the top of scripts/fetch-audio.mjs. Fields edits / measured are written back by the script.",
+    "Downloaded files are untrusted data and are only decoded by ffmpeg / unzip / 7z. Wikimedia Commons was rate limited (HTTP 429) during research and nothing was taken from it."
   ],
-  "packs": [
-    {
+  "packs": {
+    "KI": {
       "name": "Kenney - Impact Sounds",
-      "url": "https://kenney.nl/assets/impact-sounds",
+      "page": "https://kenney.nl/assets/impact-sounds",
+      "url": "https://kenney.nl/media/pages/assets/impact-sounds/87b4ddecda-1677589768/kenney_impact-sounds.zip",
+      "file": "kenney_impact-sounds.zip",
+      "kind": "zip",
       "author": "Kenney (kenney.nl)",
       "license": "CC0 1.0",
-      "covers": "footsteps (wood/tile/carpet/concrete/soft), hits, thuds, wood/metal/glass impacts",
-      "status": "to verify"
+      "licenseNote": "License.txt inside the zip: Creative Commons Zero (checked 2026-10-23)",
+      "verified": true
     },
-    {
+    "KR": {
       "name": "Kenney - RPG Audio",
-      "url": "https://kenney.nl/assets/rpg-audio",
+      "page": "https://kenney.nl/assets/rpg-audio",
+      "url": "https://kenney.nl/media/pages/assets/rpg-audio/8e99002d76-1677590336/kenney_rpg-audio.zip",
+      "file": "kenney_rpg-audio.zip",
+      "kind": "zip",
       "author": "Kenney (kenney.nl)",
       "license": "CC0 1.0",
-      "covers": "cloth, door open/close, footsteps, metal, coins/handling",
-      "status": "to verify"
+      "licenseNote": "License.txt inside the zip: Creative Commons Zero (checked 2026-10-23)",
+      "verified": true
     },
-    {
-      "name": "OpenGameArt - 50 CC0 wood, drop & clutter SFX",
-      "url": "https://opengameart.org/content/50-cc0-wood-drop-clutter-sfx",
+    "OWL": {
+      "name": "OpenGameArt - Sound Effects Pack (Owlish Media)",
+      "page": "https://opengameart.org/content/sound-effects-pack",
+      "url": "https://opengameart.org/sites/default/files/Owlish%20Media%20Sound%20Effects.zip",
+      "file": "owlish-sound-effects.zip",
+      "kind": "zip",
+      "author": "OwlishMedia",
+      "license": "CC0 1.0",
+      "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
+      "verified": true,
+      "extract": [
+        "Footsteps/*",
+        "Human/*",
+        "Cloth, Rustle/*",
+        "Impacts/*",
+        "Water/*",
+        "Paper/*"
+      ]
+    },
+    "MORE": {
+      "name": "OpenGameArt - 202 More Sound Effects (Owlish Media)",
+      "page": "https://opengameart.org/content/202-more-sound-effects",
+      "url": "https://opengameart.org/sites/default/files/MoreSounds.zip",
+      "file": "MoreSounds.zip",
+      "kind": "zip",
+      "author": "OwlishMedia",
+      "license": "CC0 1.0",
+      "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
+      "verified": true
+    },
+    "LAL": {
+      "name": "OpenGameArt - Various Sound Effects (27 phone recordings)",
+      "page": "https://opengameart.org/content/various-sound-effects",
+      "url": "https://opengameart.org/sites/default/files/sounds_8.zip",
+      "file": "sounds_8.zip",
+      "kind": "zip",
+      "author": "laleksic",
+      "license": "CC0 1.0",
+      "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
+      "verified": true
+    },
+    "DOORS": {
+      "name": "OpenGameArt - Door Open, Door Close Set",
+      "page": "https://opengameart.org/content/door-open-door-close-set",
+      "url": "https://opengameart.org/sites/default/files/qubodup-DoorSet.7z",
+      "file": "qubodup-DoorSet.7z",
+      "kind": "7z",
+      "author": "qubodup",
+      "license": "CC0 1.0",
+      "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
+      "verified": true
+    },
+    "HINGE": {
+      "name": "OpenGameArt - Creaky Door Hinge Spooky",
+      "page": "https://opengameart.org/content/creaky-door-hinge-spooky",
+      "url": "https://opengameart.org/sites/default/files/creaky_door_hinge.wav",
+      "file": "creaky_door_hinge.wav",
+      "kind": "file",
+      "author": "w.forster.1 (OpenGameArt user name)",
+      "license": "CC0 1.0",
+      "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
+      "verified": true
+    },
+    "KDD": {
+      "name": "OpenGameArt - Different steps on wood, stone, leaves, gravel and mud",
+      "page": "https://opengameart.org/content/different-steps-on-wood-stone-leaves-gravel-and-mud",
+      "url": "https://opengameart.org/sites/default/files/%5Bkdd%5DDifferentSteps_0.zip",
+      "file": "kdd-steps.zip",
+      "kind": "zip",
+      "author": "TinyWorlds",
+      "license": "CC0 1.0",
+      "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
+      "verified": true
+    },
+    "WOOD35": {
+      "name": "OpenGameArt - 35 wooden cracks/hits/destructions",
+      "page": "https://opengameart.org/content/35-wooden-crackshitsdestructions",
+      "url": "https://opengameart.org/sites/default/files/independent_nu_ljudbank-wood_crack_hit_destruction.7z",
+      "file": "wood-cracks.7z",
+      "kind": "7z",
+      "author": "qubodup",
+      "license": "CC0 1.0",
+      "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
+      "verified": true
+    },
+    "M100": {
+      "name": "OpenGameArt - 100 CC0 metal and wood SFX",
+      "page": "https://opengameart.org/content/100-cc0-metal-and-wood-sfx",
+      "url": "https://opengameart.org/sites/default/files/100-CC0-wood-metal-SFX.zip",
+      "file": "100-wood-metal.zip",
+      "kind": "zip",
       "author": "rubberduck",
       "license": "CC0 1.0",
-      "covers": "wood knocks, drops, clutter, drawers",
-      "status": "to verify"
+      "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
+      "verified": true
     },
-    {
-      "name": "OpenGameArt - 100 CC0 SFX",
-      "url": "https://opengameart.org/content/100-cc0-sfx",
+    "B75": {
+      "name": "OpenGameArt - 75 CC0 breaking / falling / hit SFX",
+      "page": "https://opengameart.org/content/75-cc0-breaking-falling-hit-sfx",
+      "url": "https://opengameart.org/sites/default/files/sfx_breaking_and_falling.zip",
+      "file": "breaking-falling.zip",
+      "kind": "zip",
       "author": "rubberduck",
       "license": "CC0 1.0",
-      "covers": "misc foley (metal, wood, impacts)",
-      "status": "to verify"
+      "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
+      "verified": true
     },
-    {
-      "name": "Musopen (public-domain recordings)",
-      "url": "https://musopen.org/",
-      "author": "various performers",
-      "license": "CC0 / public domain (check each recording)",
-      "covers": "solo piano / cello / guitar for music_sad_1..3",
-      "status": "to verify"
+    "WSHOP": {
+      "name": "OpenGameArt - 68 Workshop Sounds",
+      "page": "https://opengameart.org/content/68-workshop-sounds",
+      "url": "https://opengameart.org/sites/default/files/workshop.7z",
+      "file": "workshop.7z",
+      "kind": "7z",
+      "author": "bart",
+      "license": "CC0 1.0",
+      "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
+      "verified": true
     },
-    {
-      "name": "Wikimedia Commons - Category: Piano music (sound recordings)",
-      "url": "https://commons.wikimedia.org/wiki/Category:Piano_music_(sound_recordings)",
-      "author": "various",
-      "license": "check each file page: PD or CC0 only (no CC-BY / CC-BY-SA)",
-      "covers": "music_sad_1",
-      "status": "to verify"
+    "WTB": {
+      "name": "OpenGameArt - 40 wet towel club/pound/hit/attack sounds",
+      "page": "https://opengameart.org/content/40-wet-towel-clubpoundhitattack-sounds",
+      "url": "https://opengameart.org/sites/default/files/wet_towel_on_body.7z",
+      "file": "wet-towel-body.7z",
+      "kind": "7z",
+      "author": "qubodup",
+      "license": "CC0 1.0",
+      "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
+      "verified": true
+    },
+    "SPLAT": {
+      "name": "OpenGameArt - 8 wet squish, slurp impacts",
+      "page": "https://opengameart.org/content/8-wet-squish-slurp-impacts",
+      "url": "https://opengameart.org/sites/default/files/independent_nu_ljudbank-wet_squish_slurp_impacts.7z",
+      "file": "splat.7z",
+      "kind": "7z",
+      "author": "qubodup",
+      "license": "CC0 1.0",
+      "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
+      "verified": true
+    },
+    "THWACK": {
+      "name": "OpenGameArt - Thwack Sounds",
+      "page": "https://opengameart.org/content/thwack-sounds",
+      "url": "https://opengameart.org/sites/default/files/thwack-1.0.zip",
+      "file": "thwack.zip",
+      "kind": "zip",
+      "author": "AntumDeluge",
+      "license": "CC0 1.0",
+      "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
+      "verified": true
+    },
+    "SWOSH": {
+      "name": "OpenGameArt - Swish - bamboo stick weapon swooshes",
+      "page": "https://opengameart.org/content/swish-bamboo-stick-weapon-swhoshes",
+      "url": "https://opengameart.org/sites/default/files/swoshes.7z",
+      "file": "swoshes.7z",
+      "kind": "7z",
+      "author": "qubodup",
+      "license": "CC0 1.0",
+      "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
+      "verified": true
+    },
+    "UND": {
+      "name": "OpenGameArt - Undead Moans",
+      "page": "https://opengameart.org/content/undead-moans",
+      "url": "https://opengameart.org/sites/default/files/undead-moans.zip",
+      "file": "undead-moans.zip",
+      "kind": "zip",
+      "author": "AntumDeluge",
+      "license": "CC0 1.0",
+      "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
+      "verified": true
+    },
+    "HG": {
+      "name": "OpenGameArt - Hungry ghoul",
+      "page": "https://opengameart.org/content/hungry-ghoul",
+      "url": "https://opengameart.org/sites/default/files/hungry-ghoul_0.ogg",
+      "file": "hungry-ghoul.ogg",
+      "kind": "file",
+      "author": "Darsycho",
+      "license": "CC0 1.0",
+      "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
+      "verified": true
+    },
+    "ZM": {
+      "name": "OpenGameArt - Zombie moans",
+      "page": "https://opengameart.org/content/zombie-moans",
+      "url": "https://opengameart.org/sites/default/files/darsycho__zombie-moans_0.ogg",
+      "file": "zombie-moans.ogg",
+      "kind": "file",
+      "author": "Darsycho",
+      "license": "CC0 1.0",
+      "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
+      "verified": true
+    },
+    "GRUNT": {
+      "name": "OpenGameArt - grunts of male death and pain",
+      "page": "https://opengameart.org/content/grunts-male-death-and-pain",
+      "url": "https://opengameart.org/sites/default/files/death%20pain%20grunts.wav",
+      "file": "death-pain-grunts.wav",
+      "kind": "file",
+      "author": "thebardofblasphemy",
+      "license": "CC0 1.0",
+      "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
+      "verified": true
+    },
+    "CRE": {
+      "name": "OpenGameArt - 80 CC0 creature SFX",
+      "page": "https://opengameart.org/content/80-cc0-creature-sfx",
+      "url": "https://opengameart.org/sites/default/files/80-CC0-creature-SFX_0.zip",
+      "file": "creature.zip",
+      "kind": "zip",
+      "author": "rubberduck",
+      "license": "CC0 1.0",
+      "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
+      "verified": true
+    },
+    "GHOSTB": {
+      "name": "OpenGameArt - Ghost breath",
+      "page": "https://opengameart.org/content/ghost-breath",
+      "url": "https://opengameart.org/sites/default/files/ghostbreath.flac",
+      "file": "ghostbreath.flac",
+      "kind": "file",
+      "author": "qubodup",
+      "license": "CC0 1.0",
+      "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
+      "verified": true
+    },
+    "HB": {
+      "name": "OpenGameArt - Heartbeat sounds",
+      "page": "https://opengameart.org/content/heartbeat-sounds",
+      "url": "https://opengameart.org/sites/default/files/heartbeat_slow_0.wav",
+      "file": "heartbeat_slow_0.wav",
+      "kind": "file",
+      "author": "bart",
+      "license": "CC0 1.0",
+      "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
+      "verified": true
+    },
+    "HBF": {
+      "name": "OpenGameArt - Heartbeat sounds",
+      "page": "https://opengameart.org/content/heartbeat-sounds",
+      "url": "https://opengameart.org/sites/default/files/heartbeat_fast_0.wav",
+      "file": "heartbeat_fast_0.wav",
+      "kind": "file",
+      "author": "bart",
+      "license": "CC0 1.0",
+      "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
+      "verified": true
+    },
+    "CRUNCH": {
+      "name": "OpenGameArt - 7 Eating Crunches",
+      "page": "https://opengameart.org/content/7-eating-crunches",
+      "url": "https://opengameart.org/sites/default/files/crunch_-_tito.zip",
+      "file": "crunch.zip",
+      "kind": "zip",
+      "author": "StarNinjas (sounds by Tito)",
+      "license": "CC0 1.0",
+      "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
+      "verified": true
+    },
+    "BOTTLE": {
+      "name": "OpenGameArt - Liquid Bottle Drink Set",
+      "page": "https://opengameart.org/content/liquid-bottle-drink-set",
+      "url": "https://opengameart.org/sites/default/files/qubodup-bottle-and-drink-sounds.7z",
+      "file": "bottle.7z",
+      "kind": "7z",
+      "author": "qubodup",
+      "license": "CC0 1.0",
+      "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
+      "verified": true
+    },
+    "GUST": {
+      "name": "OpenGameArt - Short wind sound",
+      "page": "https://opengameart.org/content/short-wind-sound",
+      "url": "https://opengameart.org/sites/default/files/short%20wind%20sound.wav",
+      "file": "short_wind_sound.wav",
+      "kind": "file",
+      "author": "remaxim",
+      "license": "CC0 1.0",
+      "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
+      "verified": true
+    },
+    "WIND1": {
+      "name": "OpenGameArt - wind1 (wind loops)",
+      "page": "https://opengameart.org/content/wind1",
+      "url": "https://opengameart.org/sites/default/files/wind1.wav",
+      "file": "wind1.wav",
+      "kind": "file",
+      "author": "Luke.RUSTLTD",
+      "license": "CC0 1.0",
+      "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
+      "verified": true
+    },
+    "RAIN1": {
+      "name": "OpenGameArt - AMB Rain Loop 1",
+      "page": "https://opengameart.org/content/amb-rain-loop-1",
+      "url": "https://opengameart.org/sites/default/files/amb_rain_loop_1.ogg",
+      "file": "amb_rain_loop_1.ogg",
+      "kind": "file",
+      "author": "Kresiek The Furry",
+      "license": "CC0 1.0",
+      "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
+      "verified": true
+    },
+    "DRIP": {
+      "name": "OpenGameArt - Dripping water loop",
+      "page": "https://opengameart.org/content/dripping-water-loop",
+      "url": "https://opengameart.org/sites/default/files/atmosbasement.mp3_.flac",
+      "file": "atmosbasement.flac",
+      "kind": "file",
+      "author": "qubodup",
+      "license": "CC0 1.0",
+      "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
+      "verified": true
+    },
+    "FIRE": {
+      "name": "OpenGameArt - Fire Crackling",
+      "page": "https://opengameart.org/content/fire-crackling",
+      "url": "https://opengameart.org/sites/default/files/fire-1_0.ogg",
+      "file": "fire-1.ogg",
+      "kind": "file",
+      "author": "AntumDeluge",
+      "license": "CC0 1.0",
+      "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
+      "verified": true
+    },
+    "GLASS": {
+      "name": "OpenGameArt - Glass Break",
+      "page": "https://opengameart.org/content/glass-break",
+      "url": "https://opengameart.org/sites/default/files/glass_breaking.wav",
+      "file": "glass_breaking.wav",
+      "kind": "file",
+      "author": "TinyWorlds",
+      "license": "CC0 1.0",
+      "licenseNote": "OpenGameArt page lists CC0 as its only licence (checked 2026-10-23)",
+      "verified": true
     }
+  },
+  "stillSynthesised": [
+    "music_sad_1",
+    "music_sad_2",
+    "music_sad_3",
+    "moodle_stomach"
   ],
   "entries": [
     {
-      "key": "ui_tap",
-      "what": "Panel open / button tap: a faint paper rustle (GDD 10: very quiet, uiVolume 0.2)",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=paper+rustle+small&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 0.12
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
-    },
-    {
       "key": "footstep_wood_1",
-      "what": "Hero footstep on wood (3 variations, pick at random, pitch x0.95-1.05)",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=footstep+wooden+floor+single+step&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 0.49
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
+      "level": -31,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "KDD",
+          "file": "wood01.ogg"
+        },
+        {
+          "pack": "KR",
+          "file": "Audio/footstep02.ogg",
+          "gain": -6
+        }
+      ],
+      "hp": 80,
+      "volume": 0.412,
+      "edits": "mix of 2 layers, high-pass 80 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.23,
+        "peakDb": -4.3,
+        "meanDb": -23.3,
+        "bytes": 4901
+      }
     },
     {
       "key": "footstep_wood_2",
-      "what": "Hero footstep on wood (3 variations, pick at random, pitch x0.95-1.05)",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=footstep+wooden+floor+single+step&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 0.49
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
+      "level": -31,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "KDD",
+          "file": "wood02.ogg"
+        },
+        {
+          "pack": "KR",
+          "file": "Audio/footstep06.ogg",
+          "gain": -6
+        }
+      ],
+      "hp": 80,
+      "volume": 0.407,
+      "edits": "mix of 2 layers, high-pass 80 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.23,
+        "peakDb": -3.5,
+        "meanDb": -23.2,
+        "bytes": 5204
+      }
     },
     {
       "key": "footstep_wood_3",
-      "what": "Hero footstep on wood (3 variations, pick at random, pitch x0.95-1.05)",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=footstep+wooden+floor+single+step&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 0.49
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
+      "level": -31,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "KDD",
+          "file": "wood03.ogg"
+        },
+        {
+          "pack": "KR",
+          "file": "Audio/footstep09.ogg",
+          "gain": -6
+        }
+      ],
+      "hp": 80,
+      "volume": 0.32,
+      "edits": "mix of 2 layers, high-pass 80 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.32,
+        "peakDb": -3.7,
+        "meanDb": -21.1,
+        "bytes": 5365
+      }
     },
     {
       "key": "footstep_tile_1",
-      "what": "Hero footstep on tile (3 variations, pick at random, pitch x0.95-1.05)",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=footstep+tile+floor+single+step&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 0.51
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
+      "level": -31,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "KDD",
+          "file": "stone01.ogg"
+        },
+        {
+          "pack": "KR",
+          "file": "Audio/footstep03.ogg",
+          "gain": -4
+        }
+      ],
+      "echo": "0.8:0.5:28|61:0.30|0.16",
+      "volume": 0.376,
+      "edits": "mix of 2 layers, high-pass 90 Hz, short room echo (0.8:0.5:28|61:0.30|0.16), silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.26,
+        "peakDb": -3.6,
+        "meanDb": -22.5,
+        "bytes": 5348
+      }
     },
     {
       "key": "footstep_tile_2",
-      "what": "Hero footstep on tile (3 variations, pick at random, pitch x0.95-1.05)",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=footstep+tile+floor+single+step&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 0.51
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
+      "level": -31,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "KR",
+          "file": "Audio/footstep08.ogg"
+        },
+        {
+          "pack": "OWL",
+          "file": "Footsteps/hard-footstep2.wav",
+          "gain": -3
+        }
+      ],
+      "echo": "0.8:0.5:28|61:0.30|0.16",
+      "volume": 0.305,
+      "edits": "mix of 2 layers, high-pass 90 Hz, short room echo (0.8:0.5:28|61:0.30|0.16), silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.22,
+        "peakDb": -3.8,
+        "meanDb": -20.7,
+        "bytes": 4819
+      }
     },
     {
       "key": "footstep_tile_3",
-      "what": "Hero footstep on tile (3 variations, pick at random, pitch x0.95-1.05)",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=footstep+tile+floor+single+step&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 0.57
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
+      "level": -31,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "KR",
+          "file": "Audio/footstep01.ogg"
+        },
+        {
+          "pack": "KDD",
+          "file": "stone01.ogg",
+          "gain": -6
+        }
+      ],
+      "echo": "0.8:0.5:28|61:0.30|0.16",
+      "volume": 0.363,
+      "edits": "mix of 2 layers, high-pass 90 Hz, short room echo (0.8:0.5:28|61:0.30|0.16), silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.23,
+        "peakDb": -3.4,
+        "meanDb": -22.2,
+        "bytes": 5145
+      }
     },
     {
       "key": "footstep_carpet_1",
-      "what": "Hero footstep on carpet (3 variations, pick at random, pitch x0.95-1.05)",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=footstep+carpet+single+step&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 0.42
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
+      "level": -41,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "KI",
+          "file": "Audio/footstep_carpet_000.ogg"
+        }
+      ],
+      "lp": 3500,
+      "volume": 0.091,
+      "edits": "single take, high-pass 90 Hz, low-pass 3500 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.1,
+        "peakDb": -3.6,
+        "meanDb": -20.2,
+        "bytes": 4006
+      }
     },
     {
       "key": "footstep_carpet_2",
-      "what": "Hero footstep on carpet (3 variations, pick at random, pitch x0.95-1.05)",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=footstep+carpet+single+step&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 0.43
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
+      "level": -41,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "KI",
+          "file": "Audio/footstep_carpet_001.ogg"
+        }
+      ],
+      "lp": 3500,
+      "volume": 0.074,
+      "edits": "single take, high-pass 90 Hz, low-pass 3500 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.1,
+        "peakDb": -3.7,
+        "meanDb": -18.4,
+        "bytes": 4061
+      }
     },
     {
       "key": "footstep_carpet_3",
-      "what": "Hero footstep on carpet (3 variations, pick at random, pitch x0.95-1.05)",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=footstep+carpet+single+step&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 0.42
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
+      "level": -41,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "KI",
+          "file": "Audio/footstep_carpet_003.ogg"
+        }
+      ],
+      "lp": 3500,
+      "volume": 0.09,
+      "edits": "single take, high-pass 90 Hz, low-pass 3500 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.1,
+        "peakDb": -3.4,
+        "meanDb": -20.1,
+        "bytes": 3980
+      }
     },
     {
       "key": "footstep_concrete_1",
-      "what": "Hero footstep on concrete (3 variations, pick at random, pitch x0.95-1.05)",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=footstep+concrete+single+step&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 0.9
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
+      "level": -28,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "KI",
+          "file": "Audio/footstep_concrete_000.ogg"
+        },
+        {
+          "pack": "KR",
+          "file": "Audio/footstep05.ogg",
+          "gain": -6
+        }
+      ],
+      "echo": "0.8:0.5:55|113:0.34|0.2",
+      "volume": 0.596,
+      "edits": "mix of 2 layers, high-pass 90 Hz, short room echo (0.8:0.5:55|113:0.34|0.2), silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.24,
+        "peakDb": -4.1,
+        "meanDb": -23.5,
+        "bytes": 5147
+      }
     },
     {
       "key": "footstep_concrete_2",
-      "what": "Hero footstep on concrete (3 variations, pick at random, pitch x0.95-1.05)",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=footstep+concrete+single+step&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 0.88
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
+      "level": -28,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "KI",
+          "file": "Audio/footstep_concrete_001.ogg"
+        },
+        {
+          "pack": "KR",
+          "file": "Audio/footstep00.ogg",
+          "gain": -8
+        }
+      ],
+      "echo": "0.8:0.5:55|113:0.34|0.2",
+      "volume": 0.452,
+      "edits": "mix of 2 layers, high-pass 90 Hz, short room echo (0.8:0.5:55|113:0.34|0.2), silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.26,
+        "peakDb": -3.4,
+        "meanDb": -21.1,
+        "bytes": 5476
+      }
     },
     {
       "key": "footstep_concrete_3",
-      "what": "Hero footstep on concrete (3 variations, pick at random, pitch x0.95-1.05)",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=footstep+concrete+single+step&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 0.96
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
+      "level": -28,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "KI",
+          "file": "Audio/footstep_concrete_002.ogg"
+        },
+        {
+          "pack": "KR",
+          "file": "Audio/footstep07.ogg",
+          "gain": -8
+        }
+      ],
+      "echo": "0.8:0.5:55|113:0.34|0.2",
+      "volume": 0.468,
+      "edits": "mix of 2 layers, high-pass 90 Hz, short room echo (0.8:0.5:55|113:0.34|0.2), silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.23,
+        "peakDb": -3.4,
+        "meanDb": -21.4,
+        "bytes": 5210
+      }
     },
     {
       "key": "step_1",
-      "what": "Legacy hero step (wood); use footstep_<surface>_N",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=footstep+wooden+floor+single+step&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 0.48
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
+      "level": -31,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "KR",
+          "file": "Audio/footstep04.ogg"
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/footstep_wood_003.ogg",
+          "gain": -3
+        }
+      ],
+      "hp": 80,
+      "volume": 0.324,
+      "edits": "mix of 2 layers, high-pass 80 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.3,
+        "peakDb": -3.5,
+        "meanDb": -21.2,
+        "bytes": 5266
+      }
     },
     {
       "key": "step_2",
-      "what": "Legacy hero step (wood); use footstep_<surface>_N",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=footstep+wooden+floor+single+step&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 0.5
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
+      "level": -31,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "KR",
+          "file": "Audio/footstep07.ogg"
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/footstep_wood_001.ogg",
+          "gain": -3
+        }
+      ],
+      "hp": 80,
+      "volume": 0.437,
+      "edits": "mix of 2 layers, high-pass 80 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.22,
+        "peakDb": -3.7,
+        "meanDb": -23.8,
+        "bytes": 5016
+      }
     },
     {
       "key": "stairs",
-      "what": "Hero changes floor via stairs (five steps, concrete stairwell)",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=footsteps+concrete+stairs&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 1.68
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
+      "level": -28,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "KI",
+          "file": "Audio/footstep_concrete_000.ogg"
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/footstep_concrete_001.ogg",
+          "gain": -1,
+          "at": 0.24
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/footstep_concrete_002.ogg",
+          "gain": -1,
+          "at": 0.49
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/footstep_concrete_003.ogg",
+          "gain": -1.5,
+          "at": 0.74
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/footstep_concrete_004.ogg",
+          "gain": -2,
+          "at": 1
+        },
+        {
+          "pack": "KR",
+          "file": "Audio/footstep05.ogg",
+          "gain": -9
+        },
+        {
+          "pack": "KR",
+          "file": "Audio/footstep00.ogg",
+          "gain": -10,
+          "at": 0.49
+        },
+        {
+          "pack": "KR",
+          "file": "Audio/footstep07.ogg",
+          "gain": -11,
+          "at": 1
+        }
+      ],
+      "echo": "0.8:0.5:70|143|230:0.4|0.28|0.16",
+      "fadeOutMs": 150,
+      "volume": 0.638,
+      "edits": "mix of 8 layers, high-pass 90 Hz, short room echo (0.8:0.5:70|143|230:0.4|0.28|0.16), silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 1.33,
+        "peakDb": -3.7,
+        "meanDb": -24.1,
+        "bytes": 12650
+      }
     },
     {
       "key": "door_open",
-      "what": "Door opens (floor door or apartment): latch, hinge creak, soft stop",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=door+open+wood+latch&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 1.55
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
+      "level": -28,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "DOORS",
+          "file": "qubodup-DoorSet/flac/qubodup-DoorOpen07.flac"
+        },
+        {
+          "pack": "HINGE",
+          "file": "creaky_door_hinge.wav",
+          "start": 1.6,
+          "dur": 1.3,
+          "gain": -9,
+          "at": 0.05
+        }
+      ],
+      "fadeOutMs": 120,
+      "volume": 0.832,
+      "edits": "mix of 2 layers, cut 1.6s+1.3s, high-pass 90 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 1.35,
+        "peakDb": -3.5,
+        "meanDb": -26.4,
+        "bytes": 11337
+      }
     },
     {
       "key": "door_close",
-      "what": "Door closes: short hinge creak, wooden clack and latch",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=door+close+wood+latch&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 1.13
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
+      "level": -27,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "DOORS",
+          "file": "qubodup-DoorSet/flac/qubodup-DoorClose09.flac"
+        },
+        {
+          "pack": "LAL",
+          "file": "door_close.wav",
+          "gain": -8,
+          "at": 0.02
+        }
+      ],
+      "fadeOutMs": 100,
+      "volume": 0.543,
+      "edits": "mix of 2 layers, high-pass 90 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.61,
+        "peakDb": -4.2,
+        "meanDb": -21.7,
+        "bytes": 6884
+      }
     },
     {
       "key": "door_creak",
-      "what": "Door hinge creaking on its own or while held ajar (slow, long)",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=door+hinge+creak&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 2.1
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
+      "level": -32,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "HINGE",
+          "file": "creaky_door_hinge.wav",
+          "start": 0.15,
+          "dur": 2.2
+        }
+      ],
+      "fadeInMs": 120,
+      "fadeOutMs": 250,
+      "volume": 0.257,
+      "edits": "single take, cut 0.15s+2.2s, high-pass 90 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 2.1,
+        "peakDb": -3.7,
+        "meanDb": -20.2,
+        "bytes": 15085
+      }
     },
     {
       "key": "door_hit",
-      "what": "Jammed or locked door hit / zombie pounds a door",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=heavy+door+pound+knock&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 0.74
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
+      "level": -25,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "LAL",
+          "file": "cant_open.wav"
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/impactWood_heavy_001.ogg",
+          "gain": -5
+        },
+        {
+          "pack": "M100",
+          "file": "wood_hit_08.ogg",
+          "gain": -8,
+          "at": 0.02
+        }
+      ],
+      "volume": 0.851,
+      "edits": "mix of 3 layers, high-pass 90 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.58,
+        "peakDb": -3.7,
+        "meanDb": -23.6,
+        "bytes": 6699
+      }
     },
     {
       "key": "door_bang",
-      "what": "Zombie bangs on a door from outside: heavy wood hit, frame rattle, small bounce",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=heavy+door+pound+knock&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 1.18
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
-    },
-    {
-      "key": "search_cupboard",
-      "what": "Search a cupboard/cabinet: door scrape, wood knock, things shifted",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=cupboard+door+open+wood&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 1.38
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
-    },
-    {
-      "key": "search_drawer",
-      "what": "Search a drawer: wood slide, contents rattle and shift",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=drawer+open+wood+rummage&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 1.08
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
-    },
-    {
-      "key": "search_cloth",
-      "what": "Search clothes / bedding: cloth rummage",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=cloth+rustle+clothes+rummage&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 1.08
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
-    },
-    {
-      "key": "search",
-      "what": "Search / scavenge rummage (generic, start of search): shifting cloth, small objects",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=cloth+rustle+clothes+rummage&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 1.01
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
-    },
-    {
-      "key": "dismantle_wood",
-      "what": "Dismantle a wooden object: nail squeal, wood crack, drop",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=wood+plank+pry+crack+nail&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 1.12
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
-    },
-    {
-      "key": "dismantle_metal",
-      "what": "Dismantle a metal object: scrape of bent metal, two dull clanks",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=metal+scrape+clank&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 1.33
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
-    },
-    {
-      "key": "drain",
-      "what": "Drain / collect water: pouring and glugging bubbles",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=water+pour+glug+bottle&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 0.99
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
-    },
-    {
-      "key": "pickup",
-      "what": "Item added to inventory: soft cloth/handling, no chime",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=pick+up+object+cloth+handling&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 0.3
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
-    },
-    {
-      "key": "eat",
-      "what": "Use food item (eat): crunchy bites and chewing",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=eating+crunch+bite+chewing&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 0.72
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
-    },
-    {
-      "key": "drink",
-      "what": "Use drink item (drink): lip slosh and three swallows",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=drinking+gulp+swallow+water&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 0.84
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
-    },
-    {
-      "key": "craft",
-      "what": "Craft / build completes: cloth/tape rustle then two wooden taps",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=hammer+nail+wood+tape+tear&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 1.13
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
-    },
-    {
-      "key": "swing",
-      "what": "Melee swing starts: air moving past a held object",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=weapon+swing+whoosh+bat&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 0.3
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
-    },
-    {
-      "key": "hit_flesh",
-      "what": "Player melee or thrown hit lands on a zombie",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=punch+body+hit+flesh&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 0.29
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
-    },
-    {
-      "key": "hit_stab_1",
-      "what": "Stab weapon hits a zombie: puncture + wet squelch (1..3)",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=knife+stab+flesh+wet&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 0.31
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
-    },
-    {
-      "key": "hit_stab_2",
-      "what": "Stab weapon hit (variation, deeper squelch)",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=knife+stab+flesh+wet&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 0.31
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
-    },
-    {
-      "key": "hit_stab_3",
-      "what": "Stab weapon hit (variation, shorter and brighter)",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=knife+stab+flesh+wet&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 0.31
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
-    },
-    {
-      "key": "hit_blunt_1",
-      "what": "Blunt weapon hits a zombie: heavy wet thud + dull crack (1..3)",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=bat+hit+body+blunt+wet+thud&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 0.4
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
-    },
-    {
-      "key": "hit_blunt_2",
-      "what": "Blunt weapon hit (variation, deeper)",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=bat+hit+body+blunt+wet+thud&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 0.4
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
-    },
-    {
-      "key": "hit_blunt_3",
-      "what": "Blunt weapon hit (variation, sharper crack)",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=bat+hit+body+blunt+wet+thud&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 0.4
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
-    },
-    {
-      "key": "hit_punch_1",
-      "what": "Fists hit a zombie: dull fleshy punch (1..2)",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=punch+fist+hit+body&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 0.2
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
-    },
-    {
-      "key": "hit_punch_2",
-      "what": "Fists hit (variation)",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=punch+fist+hit+body&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 0.2
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
-    },
-    {
-      "key": "weapon_break",
-      "what": "Weapon durability hits zero: snap, splinters, pieces dropping",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=wood+snap+break+splinter&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 0.74
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
-    },
-    {
-      "key": "glass_shatter",
-      "what": "Glass breaks (molotov lands, window smash): crack + shower of shards",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=glass+window+break+shatter&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 1
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
-    },
-    {
-      "key": "glass_tinkle",
-      "what": "Ambient one-shot: small glass pieces settling somewhere",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=glass+shards+falling&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 1.45
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
-    },
-    {
-      "key": "fire_whoosh",
-      "what": "Molotov ignites / fire bursts: gas catching with a roar and crackle",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=fire+ignite+whoosh+gas&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 1.4
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
-    },
-    {
-      "key": "zombie_groan_1",
-      "what": "Zombie idle / spotted you (groan)",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=zombie+groan+moan&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 1.58
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
-    },
-    {
-      "key": "zombie_groan_2",
-      "what": "Zombie idle / aggro (lower, longer groan)",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=zombie+groan+moan&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 1.86
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
-    },
-    {
-      "key": "zombie_hit",
-      "what": "Zombie attacks / bites the hero: rasping lunge",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=zombie+growl+attack&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 0.44
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
-    },
-    {
-      "key": "zombie_death",
-      "what": "Zombie killed: a last rattling breath, then the body slumps",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=zombie+death+gasp+fall&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 1.56
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
-    },
-    {
-      "key": "hero_hurt",
-      "what": "Hero takes damage: a short pained grunt",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=male+pain+grunt+hurt&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 0.35
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
-    },
-    {
-      "key": "zombie_breath_1",
-      "what": "Near zombie: wet exhale through a damaged throat",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=raspy+breathing+wheeze&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 1.44
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
-    },
-    {
-      "key": "zombie_breath_2",
-      "what": "Near zombie: slower rattling breath in, then out",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=raspy+breathing+wheeze&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 2.43
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
-    },
-    {
-      "key": "zombie_shuffle",
-      "what": "Near zombie: dragging shuffle, 2 steps",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=dragging+feet+shuffle+floor&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 1.54
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
-    },
-    {
-      "key": "distant_groan_1",
-      "what": "Far-away groan, 45-120 s apart; hides the attack cue. Pick randomly of 1..4",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=zombie+groan+moan&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 3.75
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
-    },
-    {
-      "key": "distant_groan_2",
-      "what": "Far-away groan (lower, long)",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=zombie+groan+moan&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 4.3
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
-    },
-    {
-      "key": "distant_groan_3",
-      "what": "Far-away groan (higher, shorter)",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=zombie+groan+moan&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 3.5
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
-    },
-    {
-      "key": "distant_groan_4",
-      "what": "Far-away groan (two-part moan)",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=zombie+groan+moan&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 5.02
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
+      "level": -27,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "M100",
+          "file": "wood_hit_09.ogg"
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/impactWood_heavy_002.ogg",
+          "gain": -1
+        },
+        {
+          "pack": "M100",
+          "file": "wood_slam_04.ogg",
+          "gain": -9,
+          "at": 0.3
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/impactWood_medium_001.ogg",
+          "gain": -12,
+          "at": 0.42
+        }
+      ],
+      "echo": "0.8:0.5:45|97:0.3|0.18",
+      "fadeOutMs": 200,
+      "volume": 0.501,
+      "edits": "mix of 4 layers, high-pass 90 Hz, short room echo (0.8:0.5:45|97:0.3|0.18), silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.63,
+        "peakDb": -3.4,
+        "meanDb": -21,
+        "bytes": 6742
+      }
     },
     {
       "key": "barricade_hit",
-      "what": "Zombies hit a barricade: boards thump and shift",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=wood+door+pounding+planks&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 0.9
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
+      "level": -24,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "KI",
+          "file": "Audio/impactPlank_medium_001.ogg"
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/impactWood_heavy_003.ogg",
+          "gain": -3
+        },
+        {
+          "pack": "M100",
+          "file": "wood_falling_03.ogg",
+          "gain": -8,
+          "at": 0.14
+        }
+      ],
+      "fadeOutMs": 150,
+      "volume": 0.75,
+      "edits": "mix of 3 layers, high-pass 90 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.51,
+        "peakDb": -3.5,
+        "meanDb": -21.5,
+        "bytes": 6282
+      }
     },
     {
       "key": "barricade_break",
-      "what": "A barricade is destroyed: planks crack, splinter and fall",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=wood+planks+break+collapse&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 1.37
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
+      "level": -25,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "WOOD35",
+          "file": "wood_impact/crack04.mp3.flac",
+          "dur": 1.5
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/impactPlank_medium_003.ogg",
+          "gain": -4,
+          "at": 0.05
+        },
+        {
+          "pack": "M100",
+          "file": "wood_falling_01.ogg",
+          "gain": -6,
+          "at": 0.5
+        },
+        {
+          "pack": "M100",
+          "file": "wood_falling_05.ogg",
+          "gain": -9,
+          "at": 0.85
+        }
+      ],
+      "fadeOutMs": 250,
+      "volume": 0.861,
+      "edits": "mix of 4 layers, cut 0s+1.5s, high-pass 90 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 1.39,
+        "peakDb": -3.7,
+        "meanDb": -23.7,
+        "bytes": 13154
+      }
     },
     {
-      "key": "amb_wind",
-      "what": "Wind gusting past the building: broadband filtered noise, irregular non-periodic swells. Loop; quiet",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=wind+gust+howling+building&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 8
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
+      "key": "weapon_break",
+      "level": -26,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "M100",
+          "file": "wood_breaking_01.ogg"
+        },
+        {
+          "pack": "M100",
+          "file": "wood_falling_02.ogg",
+          "gain": -8,
+          "at": 0.38
+        },
+        {
+          "pack": "M100",
+          "file": "wood_cracking_04.ogg",
+          "gain": -4,
+          "at": 0.05
+        }
+      ],
+      "fadeOutMs": 150,
+      "volume": 0.902,
+      "edits": "mix of 3 layers, high-pass 90 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.67,
+        "peakDb": -3.7,
+        "meanDb": -25.1,
+        "bytes": 7343
+      }
     },
     {
-      "key": "amb_rain",
-      "what": "Rain on a window: dense droplets + soft roof patter. Loop; louder near windows",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=rain+on+window&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 8
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
+      "key": "dismantle_wood",
+      "level": -26,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "M100",
+          "file": "wood_squeak_01.ogg",
+          "gain": -3
+        },
+        {
+          "pack": "M100",
+          "file": "wood_cracking_03.ogg",
+          "at": 0.4
+        },
+        {
+          "pack": "M100",
+          "file": "wood_falling_04.ogg",
+          "gain": -6,
+          "at": 0.75
+        }
+      ],
+      "fadeOutMs": 150,
+      "volume": 1,
+      "edits": "mix of 3 layers, high-pass 90 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 1,
+        "peakDb": -3.3,
+        "meanDb": -30,
+        "bytes": 9517
+      }
+    },
+    {
+      "key": "dismantle_metal",
+      "level": -27,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "WSHOP",
+          "file": "workshop/workshop - dragging metal.wav",
+          "start": 0.7,
+          "dur": 0.9,
+          "gain": -6
+        },
+        {
+          "pack": "M100",
+          "file": "metal_hit_03.ogg",
+          "at": 0.8
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/impactMetal_medium_003.ogg",
+          "gain": -6,
+          "at": 1.1
+        }
+      ],
+      "fadeOutMs": 200,
+      "volume": 0.794,
+      "edits": "mix of 3 layers, cut 0.7s+0.9s, high-pass 90 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 1.24,
+        "peakDb": -3.2,
+        "meanDb": -25,
+        "bytes": 10141
+      }
+    },
+    {
+      "key": "swing",
+      "level": -26,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "SWOSH",
+          "file": "swosh-11.flac"
+        }
+      ],
+      "lp": 7000,
+      "fadeOutMs": 60,
+      "volume": 0.582,
+      "edits": "single take, high-pass 90 Hz, low-pass 7000 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.3,
+        "peakDb": -3.4,
+        "meanDb": -21.3,
+        "bytes": 5202
+      }
+    },
+    {
+      "key": "hit_flesh",
+      "level": -23,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "WTB",
+          "file": "wet_towel_on_body/wet_towel_on_body-03.flac",
+          "dur": 0.35
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/impactSoft_heavy_001.ogg",
+          "gain": -4
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/impactPunch_medium_001.ogg",
+          "gain": -5
+        }
+      ],
+      "volume": 0.684,
+      "edits": "mix of 3 layers, cut 0s+0.35s, high-pass 90 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.32,
+        "peakDb": -3.7,
+        "meanDb": -19.7,
+        "bytes": 5329
+      }
+    },
+    {
+      "key": "hit_stab_1",
+      "level": -28,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "KR",
+          "file": "Audio/knifeSlice.ogg",
+          "dur": 0.35
+        },
+        {
+          "pack": "SPLAT",
+          "file": "impsplat/impactsplat03.mp3.flac",
+          "dur": 0.35,
+          "gain": -2,
+          "at": 0.04
+        }
+      ],
+      "fadeOutMs": 80,
+      "volume": 0.343,
+      "edits": "mix of 2 layers, cut 0s+0.35s, 0s+0.35s, high-pass 90 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.31,
+        "peakDb": -3.5,
+        "meanDb": -18.7,
+        "bytes": 5387
+      }
+    },
+    {
+      "key": "hit_stab_2",
+      "level": -27,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "KR",
+          "file": "Audio/knifeSlice2.ogg",
+          "dur": 0.35
+        },
+        {
+          "pack": "SPLAT",
+          "file": "impsplat/impactsplat04.mp3.flac",
+          "dur": 0.35,
+          "gain": -2,
+          "at": 0.04
+        }
+      ],
+      "fadeOutMs": 80,
+      "volume": 0.462,
+      "edits": "mix of 2 layers, cut 0s+0.35s, 0s+0.35s, high-pass 90 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.38,
+        "peakDb": -3.8,
+        "meanDb": -20.3,
+        "bytes": 5593
+      }
+    },
+    {
+      "key": "hit_stab_3",
+      "level": -29,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "KR",
+          "file": "Audio/drawKnife3.ogg",
+          "dur": 0.35
+        },
+        {
+          "pack": "SPLAT",
+          "file": "impsplat/impactsplat07.mp3.flac",
+          "dur": 0.35,
+          "gain": -2,
+          "at": 0.04
+        }
+      ],
+      "fadeOutMs": 80,
+      "volume": 0.339,
+      "edits": "mix of 2 layers, cut 0s+0.35s, 0s+0.35s, high-pass 90 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.33,
+        "peakDb": -3.5,
+        "meanDb": -19.6,
+        "bytes": 5831
+      }
+    },
+    {
+      "key": "hit_blunt_1",
+      "level": -23,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "KI",
+          "file": "Audio/impactWood_heavy_000.ogg"
+        },
+        {
+          "pack": "WTB",
+          "file": "wet_towel_on_body/wet_towel_on_body-04.flac",
+          "dur": 0.4,
+          "gain": -2
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/impactSoft_heavy_000.ogg",
+          "gain": -3
+        }
+      ],
+      "volume": 0.861,
+      "edits": "mix of 3 layers, cut 0s+0.4s, high-pass 90 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.33,
+        "peakDb": -3.6,
+        "meanDb": -21.7,
+        "bytes": 5152
+      }
+    },
+    {
+      "key": "hit_blunt_2",
+      "level": -25,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "KI",
+          "file": "Audio/impactPunch_heavy_000.ogg"
+        },
+        {
+          "pack": "WTB",
+          "file": "wet_towel_on_body/wet_towel_on_body-07.flac",
+          "dur": 0.4,
+          "gain": -2
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/impactWood_heavy_001.ogg",
+          "gain": -4
+        }
+      ],
+      "volume": 0.556,
+      "edits": "mix of 3 layers, cut 0s+0.4s, high-pass 90 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.43,
+        "peakDb": -3.9,
+        "meanDb": -19.9,
+        "bytes": 5713
+      }
+    },
+    {
+      "key": "hit_blunt_3",
+      "level": -24,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "THWACK",
+          "file": "PCM/thwack-06.wav"
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/impactWood_medium_002.ogg",
+          "gain": -3
+        },
+        {
+          "pack": "WTB",
+          "file": "wet_towel_on_body/wet_towel_on_body-09.flac",
+          "dur": 0.4,
+          "gain": -4
+        }
+      ],
+      "volume": 0.977,
+      "edits": "mix of 3 layers, cut 0s+0.4s, high-pass 90 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.37,
+        "peakDb": -3.5,
+        "meanDb": -23.8,
+        "bytes": 5454
+      }
+    },
+    {
+      "key": "hit_punch_1",
+      "level": -26,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "KI",
+          "file": "Audio/impactPunch_medium_000.ogg",
+          "dur": 0.25
+        },
+        {
+          "pack": "WTB",
+          "file": "wet_towel_on_body/wet_towel_on_body-01.flac",
+          "dur": 0.25,
+          "gain": -4
+        }
+      ],
+      "fadeOutMs": 60,
+      "volume": 0.473,
+      "edits": "mix of 2 layers, cut 0s+0.25s, 0s+0.25s, high-pass 90 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.25,
+        "peakDb": -3.9,
+        "meanDb": -19.5,
+        "bytes": 4875
+      }
+    },
+    {
+      "key": "hit_punch_2",
+      "level": -25,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "KI",
+          "file": "Audio/impactPunch_medium_002.ogg",
+          "dur": 0.25
+        },
+        {
+          "pack": "WTB",
+          "file": "wet_towel_on_body/wet_towel_on_body-05.flac",
+          "dur": 0.25,
+          "gain": -4
+        }
+      ],
+      "fadeOutMs": 60,
+      "volume": 0.417,
+      "edits": "mix of 2 layers, cut 0s+0.25s, 0s+0.25s, high-pass 90 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.25,
+        "peakDb": -3.5,
+        "meanDb": -17.4,
+        "bytes": 4941
+      }
+    },
+    {
+      "key": "zombie_groan_1",
+      "level": -27,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "HG",
+          "file": "hungry-ghoul.ogg",
+          "start": 0.05,
+          "dur": 1.9,
+          "pitch": -1
+        }
+      ],
+      "lp": 4000,
+      "fadeInMs": 60,
+      "fadeOutMs": 250,
+      "volume": 0.537,
+      "edits": "single take, cut 0.05s+1.9s, pitch -1 st, high-pass 90 Hz, low-pass 4000 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 2.01,
+        "peakDb": -4.1,
+        "meanDb": -21.6,
+        "bytes": 14218
+      }
+    },
+    {
+      "key": "zombie_groan_2",
+      "level": -31,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "ZM",
+          "file": "zombie-moans.ogg",
+          "start": 3.6,
+          "dur": 2.7,
+          "pitch": -3
+        }
+      ],
+      "lp": 4000,
+      "fadeInMs": 60,
+      "fadeOutMs": 300,
+      "volume": 0.243,
+      "edits": "single take, cut 3.6s+2.7s, pitch -3 st, high-pass 90 Hz, low-pass 4000 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 3.21,
+        "peakDb": -3.2,
+        "meanDb": -18.7,
+        "bytes": 19509
+      }
+    },
+    {
+      "key": "zombie_hit",
+      "level": -27,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "HG",
+          "file": "hungry-ghoul.ogg",
+          "start": 23.25,
+          "dur": 1
+        }
+      ],
+      "lp": 5000,
+      "fadeInMs": 10,
+      "fadeOutMs": 150,
+      "volume": 0.376,
+      "edits": "single take, cut 23.25s+1s, high-pass 90 Hz, low-pass 5000 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.97,
+        "peakDb": -3.5,
+        "meanDb": -18.5,
+        "bytes": 8448
+      }
+    },
+    {
+      "key": "zombie_death",
+      "level": -26,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "HG",
+          "file": "hungry-ghoul.ogg",
+          "start": 31.95,
+          "dur": 2,
+          "pitch": -2
+        }
+      ],
+      "lp": 3800,
+      "fadeOutMs": 500,
+      "volume": 0.462,
+      "edits": "single take, cut 31.95s+2s, pitch -2 st, high-pass 90 Hz, low-pass 3800 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 2.19,
+        "peakDb": -3.9,
+        "meanDb": -19.3,
+        "bytes": 13074
+      }
+    },
+    {
+      "key": "hero_hurt",
+      "level": -24,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "GRUNT",
+          "file": "death-pain-grunts.wav",
+          "start": 6.9,
+          "dur": 0.5
+        }
+      ],
+      "fadeOutMs": 100,
+      "volume": 0.367,
+      "edits": "single take, cut 6.9s+0.5s, high-pass 90 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.48,
+        "peakDb": -3.6,
+        "meanDb": -15.3,
+        "bytes": 6159
+      }
+    },
+    {
+      "key": "zombie_breath_1",
+      "level": -34,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "OWL",
+          "file": "Human/breath-male.wav",
+          "start": 0.2,
+          "dur": 1.6,
+          "pitch": -3,
+          "lp": 3000
+        }
+      ],
+      "fadeInMs": 80,
+      "fadeOutMs": 300,
+      "volume": 0.263,
+      "edits": "single take, cut 0.2s+1.6s, pitch -3 st, high-pass 90 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 1.89,
+        "peakDb": -4.4,
+        "meanDb": -22.4,
+        "bytes": 12325
+      }
+    },
+    {
+      "key": "zombie_breath_2",
+      "level": -34,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "GHOSTB",
+          "file": "ghostbreath.flac",
+          "start": 0.1,
+          "dur": 2.6,
+          "pitch": -2,
+          "lp": 3000
+        }
+      ],
+      "fadeInMs": 150,
+      "fadeOutMs": 400,
+      "volume": 0.141,
+      "edits": "single take, cut 0.1s+2.6s, pitch -2 st, high-pass 90 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 2.92,
+        "peakDb": -3.3,
+        "meanDb": -17,
+        "bytes": 17313
+      }
+    },
+    {
+      "key": "zombie_shuffle",
+      "level": -35,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "KI",
+          "file": "Audio/footstep_grass_000.ogg",
+          "lp": 1100
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/footstep_grass_001.ogg",
+          "at": 0.62,
+          "lp": 1100
+        },
+        {
+          "pack": "OWL",
+          "file": "Impacts/scrape1.wav",
+          "gain": -4,
+          "lp": 1800
+        }
+      ],
+      "fadeOutMs": 150,
+      "volume": 0.417,
+      "edits": "mix of 3 layers, high-pass 90 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.78,
+        "peakDb": -3.6,
+        "meanDb": -27.4,
+        "bytes": 6358
+      }
+    },
+    {
+      "key": "distant_groan_1",
+      "level": -30,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "UND",
+          "file": "undead-1.ogg"
+        }
+      ],
+      "lp": 900,
+      "echo": "0.8:0.55:140|290|480:0.4|0.28|0.18",
+      "fadeInMs": 150,
+      "fadeOutMs": 500,
+      "volume": 0.266,
+      "edits": "single take, high-pass 90 Hz, low-pass 900 Hz, short room echo (0.8:0.55:140|290|480:0.4|0.28|0.18), silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 2.73,
+        "peakDb": -3.7,
+        "meanDb": -18.5,
+        "bytes": 14612
+      }
+    },
+    {
+      "key": "distant_groan_2",
+      "level": -31,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "ZM",
+          "file": "zombie-moans.ogg",
+          "start": 6.55,
+          "dur": 2.4,
+          "pitch": -5
+        }
+      ],
+      "lp": 900,
+      "echo": "0.8:0.55:140|290|480:0.4|0.28|0.18",
+      "fadeInMs": 150,
+      "fadeOutMs": 500,
+      "volume": 0.237,
+      "edits": "single take, cut 6.55s+2.4s, pitch -5 st, high-pass 90 Hz, low-pass 900 Hz, short room echo (0.8:0.55:140|290|480:0.4|0.28|0.18), silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 3.62,
+        "peakDb": -3.9,
+        "meanDb": -18.5,
+        "bytes": 20015
+      }
+    },
+    {
+      "key": "distant_groan_3",
+      "level": -31,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "UND",
+          "file": "undead-3.ogg",
+          "pitch": 2
+        }
+      ],
+      "lp": 900,
+      "echo": "0.8:0.55:140|290|480:0.4|0.28|0.18",
+      "fadeInMs": 150,
+      "fadeOutMs": 500,
+      "volume": 0.221,
+      "edits": "single take, pitch +2 st, high-pass 90 Hz, low-pass 900 Hz, short room echo (0.8:0.55:140|290|480:0.4|0.28|0.18), silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 2.34,
+        "peakDb": -3.6,
+        "meanDb": -17.9,
+        "bytes": 13255
+      }
+    },
+    {
+      "key": "distant_groan_4",
+      "level": -30,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "ZM",
+          "file": "zombie-moans.ogg",
+          "start": 9.25,
+          "dur": 5.3,
+          "pitch": -2
+        }
+      ],
+      "lp": 900,
+      "echo": "0.8:0.55:140|290|480:0.4|0.28|0.18",
+      "fadeInMs": 150,
+      "fadeOutMs": 500,
+      "volume": 0.412,
+      "edits": "single take, cut 9.25s+5.3s, pitch -2 st, high-pass 90 Hz, low-pass 900 Hz, short room echo (0.8:0.55:140|290|480:0.4|0.28|0.18), silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 6.21,
+        "peakDb": -3.5,
+        "meanDb": -22.3,
+        "bytes": 28699
+      }
     },
     {
       "key": "stair_bang_1",
-      "what": "Attack cue (T-8 s): single heavy muffled bang from the stairwell below",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=metal+door+bang+stairwell+echo&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 2.29
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
+      "level": -27,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "M100",
+          "file": "wood_hit_09.ogg"
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/impactWood_heavy_002.ogg",
+          "gain": -2
+        }
+      ],
+      "lp": 520,
+      "echo": "0.8:0.55:120|260|410:0.45|0.3|0.2",
+      "fadeOutMs": 400,
+      "volume": 0.417,
+      "edits": "mix of 2 layers, high-pass 90 Hz, low-pass 520 Hz, short room echo (0.8:0.55:120|260|410:0.45|0.3|0.2), silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.57,
+        "peakDb": -4.1,
+        "meanDb": -19.4,
+        "bytes": 5586
+      }
     },
     {
       "key": "stair_bang_2",
-      "what": "Attack cue: two bangs, slightly uneven",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=metal+door+bang+stairwell+echo&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 2.95
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
+      "level": -24,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "M100",
+          "file": "wood_hit_09.ogg"
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/impactWood_heavy_002.ogg",
+          "gain": -2
+        },
+        {
+          "pack": "M100",
+          "file": "wood_hit_08.ogg",
+          "gain": -2,
+          "at": 0.7
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/impactWood_heavy_000.ogg",
+          "gain": -4,
+          "at": 0.7
+        }
+      ],
+      "lp": 520,
+      "echo": "0.8:0.55:120|260|410:0.45|0.3|0.2",
+      "fadeOutMs": 400,
+      "volume": 0.759,
+      "edits": "mix of 4 layers, high-pass 90 Hz, low-pass 520 Hz, short room echo (0.8:0.55:120|260|410:0.45|0.3|0.2), silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 1.27,
+        "peakDb": -4.1,
+        "meanDb": -21.6,
+        "bytes": 7911
+      }
     },
     {
       "key": "stair_bang_3",
-      "what": "Attack cue: three bangs, building",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=metal+door+bang+stairwell+echo&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 3.57
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
+      "level": -28,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "M100",
+          "file": "wood_hit_09.ogg"
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/impactWood_heavy_002.ogg",
+          "gain": -2
+        },
+        {
+          "pack": "M100",
+          "file": "wood_hit_08.ogg",
+          "gain": -1,
+          "at": 0.65
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/impactWood_heavy_000.ogg",
+          "gain": -3,
+          "at": 0.65
+        },
+        {
+          "pack": "M100",
+          "file": "wood_hit_07.ogg",
+          "at": 1.25
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/impactWood_heavy_004.ogg",
+          "gain": -2,
+          "at": 1.25
+        }
+      ],
+      "lp": 520,
+      "echo": "0.8:0.55:120|260|410:0.45|0.3|0.2",
+      "fadeOutMs": 400,
+      "volume": 0.484,
+      "edits": "mix of 6 layers, high-pass 90 Hz, low-pass 520 Hz, short room echo (0.8:0.55:120|260|410:0.45|0.3|0.2), silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 1.82,
+        "peakDb": -4.1,
+        "meanDb": -21.7,
+        "bytes": 9735
+      }
     },
     {
       "key": "stair_shuffle",
-      "what": "Loop: many feet shuffling in the stairwell, muffled. Fade in with the attack cue, out when it ends",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=shuffling+footsteps+echo+stairwell&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
+      "level": -36,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "KI",
+          "file": "Audio/footstep_grass_000.ogg",
+          "pitch": -2
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/footstep_snow_001.ogg",
+          "gain": -1.5,
+          "at": 0.45
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/footstep_grass_003.ogg",
+          "gain": -3,
+          "at": 0.9
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/footstep_snow_003.ogg",
+          "gain": -4.5,
+          "at": 1.35,
+          "pitch": -2
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/footstep_grass_001.ogg",
+          "at": 1.8
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/footstep_snow_000.ogg",
+          "gain": -1.5,
+          "at": 2.4
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/footstep_grass_004.ogg",
+          "gain": -3,
+          "at": 2.8,
+          "pitch": -2
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/footstep_snow_002.ogg",
+          "gain": -4.5,
+          "at": 3.3
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/footstep_grass_002.ogg",
+          "at": 3.75
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/footstep_snow_004.ogg",
+          "gain": -1.5,
+          "at": 4.3,
+          "pitch": -2
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/footstep_grass_000.ogg",
+          "gain": -3,
+          "at": 4.7
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/footstep_snow_001.ogg",
+          "gain": -4.5,
+          "at": 5.25
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/footstep_grass_003.ogg",
+          "at": 5.7,
+          "pitch": -2
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/footstep_snow_003.ogg",
+          "gain": -1.5,
+          "at": 6.35
+        }
+      ],
+      "lp": 600,
+      "hp": 70,
+      "loop": {
+        "seconds": 6,
+        "xfade": 0.6
       },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 6
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
-    },
-    {
-      "key": "creak_1",
-      "what": "Ambient one-shot: floorboard creak (long gaps)",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=floorboard+creak+wood+settling&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 1.34
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
-    },
-    {
-      "key": "creak_2",
-      "what": "Ambient one-shot: slow door hinge creak somewhere",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=floorboard+creak+wood+settling&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 2.13
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
-    },
-    {
-      "key": "creak_3",
-      "what": "Ambient one-shot: short wood settling",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=floorboard+creak+wood+settling&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 0.83
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
+      "volume": 0.309,
+      "edits": "mix of 14 layers, pitch -2 st/-2 st/-2 st/-2 st/-2 st, high-pass 70 Hz, low-pass 600 Hz, 6 s seamless loop (0.6 s equal-power crossfade), peak -3.6 dBFS, no fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 6,
+        "peakDb": -3.7,
+        "meanDb": -25.8,
+        "bytes": 13408
+      }
     },
     {
       "key": "muffled_thud_1",
-      "what": "Ambient one-shot: distant thud from another floor",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=muffled+thud+distant+upstairs&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 1.64
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
+      "level": -30,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "KI",
+          "file": "Audio/impactPlank_medium_004.ogg"
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/impactWood_medium_002.ogg",
+          "gain": -3
+        }
+      ],
+      "lp": 450,
+      "hp": 100,
+      "echo": "0.8:0.5:90|210:0.4|0.25",
+      "fadeOutMs": 500,
+      "volume": 0.302,
+      "edits": "mix of 2 layers, high-pass 100 Hz, low-pass 450 Hz, short room echo (0.8:0.5:90|210:0.4|0.25), silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.41,
+        "peakDb": -3.7,
+        "meanDb": -19.6,
+        "bytes": 4812
+      }
     },
     {
       "key": "muffled_thud_2",
-      "what": "Ambient one-shot: double thump far off",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=muffled+thud+distant+upstairs&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 1.83
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
+      "level": -29,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "KI",
+          "file": "Audio/impactPlank_medium_002.ogg"
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/impactWood_medium_004.ogg",
+          "gain": -2,
+          "at": 0.5
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/impactPlank_medium_003.ogg",
+          "gain": -6,
+          "at": 0.5
+        }
+      ],
+      "lp": 450,
+      "hp": 100,
+      "echo": "0.8:0.5:90|210:0.4|0.25",
+      "fadeOutMs": 500,
+      "volume": 0.417,
+      "edits": "mix of 3 layers, high-pass 100 Hz, low-pass 450 Hz, short room echo (0.8:0.5:90|210:0.4|0.25), silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.84,
+        "peakDb": -3.6,
+        "meanDb": -21.4,
+        "bytes": 5593
+      }
     },
     {
       "key": "pipe_knock_1",
-      "what": "Ambient one-shot: pipe knocks twice",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=pipe+knock+metal+tick&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 1.89
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
+      "level": -30,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "KI",
+          "file": "Audio/impactMetal_heavy_001.ogg"
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/impactMetal_heavy_003.ogg",
+          "gain": -2,
+          "at": 0.55
+        }
+      ],
+      "lp": 2200,
+      "echo": "0.7:0.5:60|130:0.3|0.18",
+      "fadeOutMs": 250,
+      "volume": 0.638,
+      "edits": "mix of 2 layers, high-pass 90 Hz, low-pass 2200 Hz, short room echo (0.7:0.5:60|130:0.3|0.18), silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.77,
+        "peakDb": -3.4,
+        "meanDb": -26.1,
+        "bytes": 5429
+      }
     },
     {
       "key": "pipe_knock_2",
-      "what": "Ambient one-shot: pipe tick-tick-knock (cooling metal)",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=pipe+knock+metal+tick&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 2.22
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
+      "level": -34,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "KI",
+          "file": "Audio/impactTin_medium_000.ogg",
+          "gain": -3
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/impactTin_medium_002.ogg",
+          "gain": -4,
+          "at": 0.3
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/impactMetal_heavy_001.ogg",
+          "at": 0.85
+        }
+      ],
+      "lp": 2600,
+      "echo": "0.7:0.5:60|130:0.3|0.18",
+      "fadeOutMs": 250,
+      "volume": 0.389,
+      "edits": "mix of 3 layers, high-pass 90 Hz, low-pass 2600 Hz, short room echo (0.7:0.5:60|130:0.3|0.18), silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 1.07,
+        "peakDb": -3.8,
+        "meanDb": -25.8,
+        "bytes": 6793
+      }
     },
     {
-      "key": "heartbeat_soft",
-      "what": "Low-health loop: soft heartbeat felt more than heard",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=heartbeat+slow&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 1.1
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
+      "key": "search_cupboard",
+      "level": -33,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "LAL",
+          "file": "door_creak_open.wav",
+          "start": 0.1,
+          "dur": 0.8,
+          "gain": -3
+        },
+        {
+          "pack": "M100",
+          "file": "wood_close_01.ogg",
+          "gain": -3,
+          "at": 0.8
+        },
+        {
+          "pack": "KR",
+          "file": "Audio/handleSmallLeather.ogg",
+          "gain": -8,
+          "at": 1.15
+        }
+      ],
+      "fadeOutMs": 150,
+      "volume": 0.785,
+      "edits": "mix of 3 layers, cut 0.1s+0.8s, high-pass 90 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 1.34,
+        "peakDb": -3.6,
+        "meanDb": -30.9,
+        "bytes": 9017
+      }
     },
     {
-      "key": "moodle_stomach",
-      "what": "Hungry moodle: stomach growl (gurgling, no pitch)",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=stomach+growl&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 1.1
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
+      "key": "search_drawer",
+      "level": -26,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "LAL",
+          "file": "drawer_open.wav"
+        },
+        {
+          "pack": "WSHOP",
+          "file": "workshop/workshop - rummaging through nails.wav",
+          "start": 2.5,
+          "dur": 0.65,
+          "gain": -2,
+          "at": 0.55
+        }
+      ],
+      "fadeOutMs": 150,
+      "volume": 0.684,
+      "edits": "mix of 2 layers, cut 2.5s+0.65s, high-pass 90 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 1.2,
+        "peakDb": -3.9,
+        "meanDb": -22.7,
+        "bytes": 9844
+      }
     },
     {
-      "key": "moodle_swallow",
-      "what": "Thirsty moodle: dry swallow",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=swallow+gulp&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 0.24
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
+      "key": "search_cloth",
+      "level": -30,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "OWL",
+          "file": "Cloth, Rustle/320142__owlstorm__blanket-movement-4.wav",
+          "dur": 1.1
+        }
+      ],
+      "fadeInMs": 30,
+      "fadeOutMs": 200,
+      "volume": 0.437,
+      "edits": "single take, cut 0s+1.1s, high-pass 90 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.98,
+        "peakDb": -3.4,
+        "meanDb": -22.8,
+        "bytes": 8829
+      }
     },
     {
-      "key": "moodle_yawn",
-      "what": "Tired moodle: a yawn",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=yawn&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 1.5
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
+      "key": "search",
+      "level": -31,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "OWL",
+          "file": "Cloth, Rustle/320144__owlstorm__blanket-movement-6.wav",
+          "dur": 0.7
+        },
+        {
+          "pack": "KR",
+          "file": "Audio/cloth3.ogg",
+          "gain": -3,
+          "at": 0.55
+        },
+        {
+          "pack": "KR",
+          "file": "Audio/handleSmallLeather2.ogg",
+          "gain": -6,
+          "at": 0.8
+        }
+      ],
+      "fadeOutMs": 150,
+      "volume": 0.452,
+      "edits": "mix of 3 layers, cut 0s+0.7s, high-pass 90 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.99,
+        "peakDb": -3.5,
+        "meanDb": -24.1,
+        "bytes": 8813
+      }
     },
     {
-      "key": "moodle_pain",
-      "what": "Injured moodle: pained breath in through the teeth",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=inhale+through+teeth+pain+hiss&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 0.6
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
+      "key": "pickup",
+      "level": -31,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "KR",
+          "file": "Audio/handleSmallLeather.ogg"
+        }
+      ],
+      "fadeOutMs": 60,
+      "volume": 0.468,
+      "edits": "single take, high-pass 90 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.22,
+        "peakDb": -3.7,
+        "meanDb": -24.4,
+        "bytes": 4787
+      }
     },
     {
-      "key": "moodle_sigh",
-      "what": "Low-spirits moodle: a long sigh",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=sigh+exhale&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 1.3
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
+      "key": "ui_tap",
+      "level": -46,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "KR",
+          "file": "Audio/bookFlip2.ogg",
+          "dur": 0.16
+        }
+      ],
+      "hp": 250,
+      "fadeOutMs": 40,
+      "volume": 0.141,
+      "edits": "single take, cut 0s+0.16s, high-pass 250 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.13,
+        "peakDb": -3.6,
+        "meanDb": -29,
+        "bytes": 4419
+      }
     },
     {
-      "key": "moodle_panic",
-      "what": "Panic moodle: quiet fast heartbeat, ~2 s one-shot",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=heartbeat+slow&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 2.2
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
+      "key": "drain",
+      "level": -26,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "OWL",
+          "file": "Water/tap-water-2.wav",
+          "start": 3,
+          "dur": 1.1,
+          "lp": 4500
+        }
+      ],
+      "lp": 4500,
+      "fadeInMs": 120,
+      "fadeOutMs": 250,
+      "volume": 0.61,
+      "edits": "single take, cut 3s+1.1s, high-pass 90 Hz, low-pass 4500 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 1.1,
+        "peakDb": -3.5,
+        "meanDb": -21.7,
+        "bytes": 10046
+      }
+    },
+    {
+      "key": "eat",
+      "level": -28,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "CRUNCH",
+          "file": "crunch.4.ogg",
+          "dur": 0.7
+        },
+        {
+          "pack": "CRUNCH",
+          "file": "crunch.7.ogg",
+          "dur": 0.5,
+          "gain": -3,
+          "at": 0.4
+        }
+      ],
+      "lp": 7000,
+      "fadeOutMs": 120,
+      "volume": 1,
+      "edits": "mix of 2 layers, cut 0s+0.7s, 0s+0.5s, high-pass 90 Hz, low-pass 7000 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.78,
+        "peakDb": -3.9,
+        "meanDb": -28.7,
+        "bytes": 9058
+      }
+    },
+    {
+      "key": "drink",
+      "level": -31,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "OWL",
+          "file": "Human/drink-sip-and-swallow.wav",
+          "start": 0.05,
+          "dur": 0.5
+        },
+        {
+          "pack": "BOTTLE",
+          "file": "qubodup-bottle-and-drink-sounds/swallow-01.flac",
+          "at": 0.5
+        },
+        {
+          "pack": "BOTTLE",
+          "file": "qubodup-bottle-and-drink-sounds/swallow-03.flac",
+          "at": 0.9
+        }
+      ],
+      "fadeOutMs": 120,
+      "volume": 0.933,
+      "edits": "mix of 3 layers, cut 0.05s+0.5s, high-pass 90 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 1.32,
+        "peakDb": -3.6,
+        "meanDb": -30.4,
+        "bytes": 11524
+      }
+    },
+    {
+      "key": "craft",
+      "level": -33,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "OWL",
+          "file": "Cloth, Rustle/320144__owlstorm__blanket-movement-6.wav",
+          "dur": 0.5,
+          "gain": -3
+        },
+        {
+          "pack": "WSHOP",
+          "file": "workshop/workshop - wood hammering.wav",
+          "start": 7.35,
+          "dur": 0.95,
+          "at": 0.5
+        }
+      ],
+      "fadeOutMs": 150,
+      "volume": 0.372,
+      "edits": "mix of 2 layers, cut 0s+0.5s, 7.35s+0.95s, high-pass 90 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 1.15,
+        "peakDb": -3.6,
+        "meanDb": -24.4,
+        "bytes": 9525
+      }
+    },
+    {
+      "key": "glass_shatter",
+      "level": -30,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "B75",
+          "file": "bfh1_glass_breaking_03.ogg"
+        },
+        {
+          "pack": "B75",
+          "file": "bfh1_glass_falling_02.ogg",
+          "gain": -7,
+          "at": 0.3
+        }
+      ],
+      "sr": 44100,
+      "fadeOutMs": 200,
+      "volume": 1,
+      "edits": "mix of 2 layers, high-pass 90 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 44.1 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 1.1,
+        "peakDb": -4.3,
+        "meanDb": -32.4,
+        "bytes": 14598
+      }
+    },
+    {
+      "key": "glass_tinkle",
+      "level": -34,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "B75",
+          "file": "bfh1_glass_falling_01.ogg",
+          "gain": -4
+        },
+        {
+          "pack": "KI",
+          "file": "Audio/impactGlass_light_001.ogg",
+          "gain": -8,
+          "at": 0.45
+        },
+        {
+          "pack": "B75",
+          "file": "bfh1_glass_falling_04.ogg",
+          "gain": -10,
+          "at": 0.8
+        }
+      ],
+      "sr": 44100,
+      "lp": 9000,
+      "fadeOutMs": 250,
+      "volume": 0.407,
+      "edits": "mix of 3 layers, high-pass 90 Hz, low-pass 9000 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 44.1 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 1.3,
+        "peakDb": -4.6,
+        "meanDb": -26.2,
+        "bytes": 12300
+      }
+    },
+    {
+      "key": "fire_whoosh",
+      "level": -30,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "LAL",
+          "file": "match.wav",
+          "dur": 0.9
+        },
+        {
+          "pack": "FIRE",
+          "file": "fire-1.ogg",
+          "dur": 1.6,
+          "gain": -4,
+          "at": 0.55
+        }
+      ],
+      "fadeOutMs": 350,
+      "volume": 0.966,
+      "edits": "mix of 2 layers, cut 0s+0.9s, 0s+1.6s, high-pass 90 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 2.14,
+        "peakDb": -4,
+        "meanDb": -29.7,
+        "bytes": 14298
+      }
     },
     {
       "key": "blood_drip",
-      "what": "Quiet one-shot: a few drips on the floor after a hit/kill",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "freesound": "https://freesound.org/search/?q=water+drip+single&f=license%3A%22Creative+Commons+0%22&s=score+desc&advanced=0&g=1"
-      },
-      "note": "Pick a clean dry take (no music, no voice-over, no tonal hum). Fill freesoundId (number) or downloadUrl + verified:true.",
-      "trim": {
-        "start": 0,
-        "duration": 1.44
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 10000,
-        "fadeInMs": 4,
-        "fadeOutMs": 40
-      },
-      "norm": 0.79,
-      "sr": 22050
+      "level": -40,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "DRIP",
+          "file": "atmosbasement.flac",
+          "start": 1.4,
+          "dur": 1.5
+        }
+      ],
+      "hp": 220,
+      "fadeOutMs": 250,
+      "volume": 0.197,
+      "edits": "single take, cut 1.4s+1.5s, high-pass 220 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 1.5,
+        "peakDb": -3.6,
+        "meanDb": -25.9,
+        "bytes": 11783
+      }
     },
     {
-      "key": "music_sad_1",
-      "what": "Sparse sad piece, one-shot (not looped); on quiet moments only (first claim, after attack ends, survivor joins). Never in danger. Piano model, A minor, ~55 s",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "opengameart": "https://opengameart.org/art-search-advanced?keys=piano&field_art_licenses_tid%5B%5D=4&field_art_type_tid%5B%5D=12",
-        "wikimedia": "https://commons.wikimedia.org/wiki/Category:Piano_music_(sound_recordings)",
-        "musopen": "https://musopen.org/music/"
+      "key": "amb_wind",
+      "level": -36,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "WIND1",
+          "file": "wind1.wav",
+          "start": 0,
+          "dur": 40
+        },
+        {
+          "pack": "GUST",
+          "file": "short_wind_sound.wav",
+          "at": 8,
+          "fadeMs": 300
+        },
+        {
+          "pack": "GUST",
+          "file": "short_wind_sound.wav",
+          "gain": -1,
+          "at": 20,
+          "pitch": -2,
+          "fadeMs": 300
+        },
+        {
+          "pack": "GUST",
+          "file": "short_wind_sound.wav",
+          "gain": -2,
+          "at": 25.5,
+          "pitch": 1,
+          "fadeMs": 300
+        }
+      ],
+      "loop": {
+        "seconds": 26,
+        "xfade": 3,
+        "start": 4
       },
-      "note": "solo piano slow sad (public domain composition, CC0/PD recording). The recording must be CC0/PD, not just the composition. 20-60 s excerpt with natural fade out.",
-      "trim": {
-        "start": 0,
-        "duration": 60
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 9000,
-        "fadeInMs": 4,
-        "fadeOutMs": 1500
-      },
-      "norm": 0.7,
-      "sr": 44100
+      "hp": 70,
+      "volume": 0.186,
+      "edits": "mix of 4 layers, cut 0s+40s, pitch -2 st/+1 st, high-pass 70 Hz, 26 s seamless loop (3 s equal-power crossfade), peak -3.6 dBFS, no fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 26,
+        "peakDb": -3.7,
+        "meanDb": -21.4,
+        "bytes": 120854
+      }
     },
     {
-      "key": "music_sad_2",
-      "what": "Sparse sad piece, one-shot (not looped); on quiet moments only (first claim, after attack ends, survivor joins). Never in danger. Low plucked strings (harp/kantele-like Karplus-Strong), D minor, ~42 s",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "opengameart": "https://opengameart.org/art-search-advanced?keys=piano&field_art_licenses_tid%5B%5D=4&field_art_type_tid%5B%5D=12",
-        "wikimedia": "https://commons.wikimedia.org/wiki/Category:Piano_music_(sound_recordings)",
-        "musopen": "https://musopen.org/music/"
+      "key": "amb_rain",
+      "level": -33,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "RAIN1",
+          "file": "amb_rain_loop_1.ogg",
+          "start": 0,
+          "dur": 88
+        }
+      ],
+      "loop": {
+        "seconds": 18,
+        "xfade": 2,
+        "start": 10
       },
-      "note": "solo cello or harp slow (CC0/PD recording). The recording must be CC0/PD, not just the composition. 20-60 s excerpt with natural fade out.",
-      "trim": {
-        "start": 0,
-        "duration": 46.19
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 9000,
-        "fadeInMs": 4,
-        "fadeOutMs": 1500
-      },
-      "norm": 0.7,
-      "sr": 44100
+      "hp": 100,
+      "volume": 0.266,
+      "edits": "single take, cut 0s+88s, high-pass 100 Hz, 18 s seamless loop (2 s equal-power crossfade), peak -3.6 dBFS, no fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 18,
+        "peakDb": -4,
+        "meanDb": -21.5,
+        "bytes": 96810
+      }
     },
     {
-      "key": "music_sad_3",
-      "what": "Sparse sad piece, one-shot (not looped); on quiet moments only (first claim, after attack ends, survivor joins). Never in danger. Fingerpicked nylon guitar model (Karplus-Strong + body), E minor, ~32 s",
-      "status": "to verify",
-      "verified": false,
-      "fetched": false,
-      "freesoundId": null,
-      "downloadUrl": null,
-      "sourceUrl": null,
-      "author": null,
-      "license": "CC0 1.0 (to verify)",
-      "search": {
-        "opengameart": "https://opengameart.org/art-search-advanced?keys=piano&field_art_licenses_tid%5B%5D=4&field_art_type_tid%5B%5D=12",
-        "wikimedia": "https://commons.wikimedia.org/wiki/Category:Piano_music_(sound_recordings)",
-        "musopen": "https://musopen.org/music/"
+      "key": "creak_1",
+      "level": -31,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "LAL",
+          "file": "floor_creak1.wav",
+          "dur": 1.4
+        }
+      ],
+      "fadeInMs": 40,
+      "fadeOutMs": 250,
+      "volume": 0.7,
+      "edits": "single take, cut 0s+1.4s, high-pass 90 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 1.33,
+        "peakDb": -5.3,
+        "meanDb": -27.9,
+        "bytes": 10692
+      }
+    },
+    {
+      "key": "creak_2",
+      "level": -30,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "LAL",
+          "file": "door_creak_open.wav",
+          "lp": 3500
+        }
+      ],
+      "fadeInMs": 60,
+      "fadeOutMs": 300,
+      "volume": 0.367,
+      "edits": "single take, high-pass 90 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 1.35,
+        "peakDb": -3.6,
+        "meanDb": -21.3,
+        "bytes": 9227
+      }
+    },
+    {
+      "key": "creak_3",
+      "level": -30,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "LAL",
+          "file": "floor_creak3.wav",
+          "start": 0.25,
+          "dur": 0.9
+        }
+      ],
+      "fadeInMs": 40,
+      "fadeOutMs": 250,
+      "volume": 0.437,
+      "edits": "single take, cut 0.25s+0.9s, high-pass 90 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.84,
+        "peakDb": -3.8,
+        "meanDb": -22.8,
+        "bytes": 8174
+      }
+    },
+    {
+      "key": "heartbeat_soft",
+      "level": -31,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "HB",
+          "file": "heartbeat_slow_0.wav",
+          "dur": 2
+        }
+      ],
+      "hp": 45,
+      "loop": {
+        "seconds": 0.9,
+        "xfade": 0.04
       },
-      "note": "solo acoustic nylon guitar slow (CC0/PD recording). The recording must be CC0/PD, not just the composition. 20-60 s excerpt with natural fade out.",
-      "trim": {
-        "start": 0,
-        "duration": 33.82
-      },
-      "edit": {
-        "highpassHz": 40,
-        "lowpassHz": 9000,
-        "fadeInMs": 4,
-        "fadeOutMs": 1500
-      },
-      "norm": 0.7,
-      "sr": 44100
+      "volume": 0.279,
+      "edits": "single take, cut 0s+2s, high-pass 45 Hz, 0.9 s seamless loop (0.04 s equal-power crossfade), peak -3.6 dBFS, no fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.9,
+        "peakDb": -3.7,
+        "meanDb": -19.9,
+        "bytes": 4462
+      }
+    },
+    {
+      "key": "moodle_panic",
+      "level": -35,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "HBF",
+          "file": "heartbeat_fast_0.wav"
+        },
+        {
+          "pack": "HBF",
+          "file": "heartbeat_fast_0.wav",
+          "at": 1.13
+        }
+      ],
+      "hp": 45,
+      "fadeOutMs": 200,
+      "volume": 0.145,
+      "edits": "mix of 2 layers, high-pass 45 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 2.09,
+        "peakDb": -3.5,
+        "meanDb": -18.2,
+        "bytes": 7101
+      }
+    },
+    {
+      "key": "moodle_swallow",
+      "level": -31,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "BOTTLE",
+          "file": "qubodup-bottle-and-drink-sounds/swallow-01.flac"
+        }
+      ],
+      "fadeOutMs": 50,
+      "volume": 0.603,
+      "edits": "single take, high-pass 90 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.34,
+        "peakDb": -3.5,
+        "meanDb": -26.6,
+        "bytes": 5811
+      }
+    },
+    {
+      "key": "moodle_yawn",
+      "level": -31,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "OWL",
+          "file": "Human/yawn1.wav",
+          "start": 0.3,
+          "dur": 1.5
+        }
+      ],
+      "fadeInMs": 100,
+      "fadeOutMs": 300,
+      "volume": 0.272,
+      "edits": "single take, cut 0.3s+1.5s, high-pass 90 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 1.34,
+        "peakDb": -3.7,
+        "meanDb": -19.7,
+        "bytes": 10455
+      }
+    },
+    {
+      "key": "moodle_pain",
+      "level": -33,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "OWL",
+          "file": "Human/gasp1.wav",
+          "start": 0.05,
+          "dur": 0.5
+        }
+      ],
+      "fadeOutMs": 100,
+      "volume": 0.313,
+      "edits": "single take, cut 0.05s+0.5s, high-pass 90 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 0.39,
+        "peakDb": -3.4,
+        "meanDb": -22.9,
+        "bytes": 5792
+      }
+    },
+    {
+      "key": "moodle_sigh",
+      "level": -32,
+      "fetched": true,
+      "items": [
+        {
+          "pack": "OWL",
+          "file": "Human/breath-male.wav",
+          "start": 0.2,
+          "dur": 1.5
+        }
+      ],
+      "fadeInMs": 100,
+      "fadeOutMs": 350,
+      "volume": 0.335,
+      "edits": "single take, cut 0.2s+1.5s, high-pass 90 Hz, silence trimmed, peak -3.6 dBFS, short fades, mono 22.05 kHz OGG Vorbis q3",
+      "measured": {
+        "durationSec": 1.49,
+        "peakDb": -3.5,
+        "meanDb": -22.5,
+        "bytes": 11043
+      }
     }
   ]
 }

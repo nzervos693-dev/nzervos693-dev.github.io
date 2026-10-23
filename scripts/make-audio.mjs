@@ -1,5 +1,6 @@
-// In-house audio for Floor 15 (interim until real CC0 recordings are fetched, see scripts/fetch-audio.mjs).
-// Run: npm run audio. Deterministic (seeded). Writes mono 22.05 kHz OGG to public/assets/audio/, plus
+// In-house audio for Floor 15: ONLY the keys that have no suitable real recording yet (see "stillSynthesised" in
+// scripts/audio-sources.json: the music pieces and moodle_stomach). Every other key is a processed CC0 recording built
+// by scripts/fetch-audio.mjs (npm run audio:fetch). Run: npm run audio. Deterministic (seeded). Writes mono 22.05 kHz OGG to public/assets/audio/, plus
 // manifest.json and the generated table in CREDITS.md. Requires ffmpeg with libvorbis.
 //
 // Direction (GDD 10): natural sounds only, no continuous tonal bed, nothing arcade-like. Everything here is
@@ -489,11 +490,10 @@ writeFileSync(credits, `# Audio credits
 GDD section 10: every audio file shipped in the game is listed here. A file without a line does not ship.
 Only CC0 / public-domain sources are allowed (no CC-BY, no "free for games" licences).
 
-Status: the files in the first table are an interim set generated in code (no recordings could be downloaded yet).
-They are being replaced by real CC0 recordings via \`node scripts/fetch-audio.mjs\` (sources in scripts/audio-sources.json).
-Replaced files move to the second table automatically.
+Status: almost every file is a real CC0 recording, processed by \`npm run audio:fetch\` (scripts/fetch-audio.mjs, sources and exact processing in scripts/audio-sources.json).
+The first table lists the files that are still generated in code (no suitable real recording found yet); they are replaced as soon as a source is added.
 
-## Generated in-house (interim)
+## Still generated in-house
 
 ${G0}
 | File | What | Source | Author | License | Edits |
