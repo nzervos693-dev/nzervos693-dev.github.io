@@ -210,7 +210,7 @@ try {
     await sleep(900);
     const txt = await E(() => window.__floor15.toast.text?.text);
     await touch('touchEnd', []);
-    known(txt === 'The stairs are blocked.', 'BUG-050', `pushing the stick into a stair flight shows "The stairs are blocked." (${txt})`);
+    check(txt === 'The stairs are blocked.', `pushing the stick into a stair flight shows "The stairs are blocked." (${txt})`);
   } else check(false, 'found a walkable tile next to a stair flight');
 
   // ---- the turn band does not cancel a search (he keeps facing the fridge); creep does

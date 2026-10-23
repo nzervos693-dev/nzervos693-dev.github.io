@@ -35,7 +35,7 @@ try {
   await waitForServer();
   const browser = await chromium.launch();
   const ctx = await browser.newContext({
-    viewport: { width: 360, height: 800 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2,
+    viewport: { width: Number((process.env.E2E_VIEW || '360x800').split('x')[0]), height: Number((process.env.E2E_VIEW || '360x800').split('x')[1]) }, hasTouch: true, isMobile: true, deviceScaleFactor: 2,
   });
   const page = await ctx.newPage();
   const errors = [];
@@ -176,11 +176,33 @@ try {
   // (coordinates are converted once: each CDP touch event can take 100+ ms on a software renderer)
   const zp = await toClient(100, 1000);
   const rawTap = async () => { await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: zp.x, y: zp.y, id: 1 }] }); await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); };
-  await rawTap();
-  await rawTap();
-  await sleep(500);
-  const f1 = (await vis()).facing;
-  check(Math.abs(((f1 - f0 + 540) % 360) - 180) > 172, `a double tap in the stick zone turns him around (${f0.toFixed(0)} -> ${f1.toFixed(0)} deg)`);
+  // Timing-robust: under CPU load a CDP event can take 100+ ms, so the second touch-down may miss the 0.3 s window.
+  // An attempt only counts when the two taps were really landed inside the 0.3 s window (game-side times) (host clock, release 1 -> down 2 is
+  // shorter than that); slower attempts are discarded and retried (up to 6). A fast attempt must turn him around.
+  let f1 = f0; let fast = false; let tries = 0;
+  for (; tries < 10 && !fast; tries++) {
+    await E(() => { window.__floor15.hero.facing = 90; window.__floor15.faceTarget = null; });
+    await sleep(700); // let the previous tap leave the detector's window
+    // record the times the detector itself sees (game-side performance.now, after Phaser's frame-queued handling)
+    await E(() => {
+      const t = window.__floor15.isoInput.taps; window.__tl = [];
+      if (!t.__wrapped) { t.__wrapped = true; const d = t.down.bind(t); const u = t.up.bind(t); t.down = (tt, x, y) => { window.__tl.push(['d', tt]); return d(tt, x, y); }; t.up = (tt, l) => { window.__tl.push(['u', tt]); return u(tt, l); }; }
+    });
+    // pipelined (no round trip between the four events) so CDP latency under CPU load cannot stretch the gaps
+    const ev = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts });
+    const pt = [{ x: zp.x, y: zp.y, id: 1 }];
+    await Promise.all([ev('touchStart', pt), ev('touchEnd', []), ev('touchStart', pt), ev('touchEnd', [])]);
+    await sleep(300);
+    const tl = await E(() => window.__tl);
+    const cfg = await E(() => window.__floor15.isoInput.taps.cfg);
+    // valid only if the detector saw d,u,d,u with release 1 -> down 2 inside the window and each press short enough
+    const ok = tl.length === 4 && tl[2][1] - tl[1][1] <= cfg.doubleTapSeconds  && tl[1][1] - tl[0][1] <= cfg.tapMaxSeconds  && tl[3][1] - tl[2][1] <= cfg.tapMaxSeconds ;
+    const dt = ok ? 0 : 1e9; if (!ok) console.log('  (discarded attempt, detector saw', JSON.stringify(tl.map(([k, v]) => [k, +v.toFixed(3)])), ')');
+    await sleep(300);
+    if (dt <= 250) { fast = true; f1 = (await vis()).facing; }
+  }
+  check(fast, `got a double tap landed inside the 0.3 s window (game-side times) (${tries} tries)`);
+  check(Math.abs(((f1 - 90 + 540) % 360) - 180) > 172, `a double tap in the stick zone turns him around (90 -> ${f1.toFixed(0)} deg)`);
   // a single tap does nothing
   await rawTap();
   await sleep(500);

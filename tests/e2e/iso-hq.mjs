@@ -14,7 +14,7 @@ const check = (ok, msg) => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${msg}`); if 
 
 try {
   const browser = await chromium.launch();
-  const ctx = await browser.newContext({ viewport: { width: 360, height: 800 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 });
+  const ctx = await browser.newContext({ viewport: { width: Number((process.env.E2E_VIEW || '360x800').split('x')[0]), height: Number((process.env.E2E_VIEW || '360x800').split('x')[1]) }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 });
   const page = await ctx.newPage();
   const errors = [];
   const noise = /WebGL|GL Driver|GroupMarker/;
