@@ -23,4 +23,8 @@ def tonal(x, sr=22050, n=8192):
 keys = sys.argv[1:] or ['amb_wind','amb_rain']
 for k in keys:
     x = load(k); db, fr = tonal(x)
-    print(f'{k}: dur {len(x)/22050:.1f}s peak {np.abs(x).max():.2f} rms {np.sqrt((x**2).mean()):.3f} tonal peak/median {db:.1f} dB ({10**(db/10):.1f}x) at {fr:.0f} Hz')
+    X = np.abs(np.fft.rfft(x))**2; fq = np.fft.rfftfreq(len(x),1/22050); T = X.sum() or 1
+    lf120, lf250 = X[fq<120].sum()/T*100, X[fq<250].sum()/T*100
+    band = 20*np.log10(np.sqrt(X[(fq>=300)&(fq<=6000)].sum()/len(x)*2/len(x))+1e-12)
+    print(f'{k}: <120Hz {lf120:.0f}% <250Hz {lf250:.0f}% band300-6k {band:.1f} dB | ',end='')
+    print(f'dur {len(x)/22050:.1f}s peak {np.abs(x).max():.2f} rms {np.sqrt((x**2).mean()):.3f} tonal peak/median {db:.1f} dB ({10**(db/10):.1f}x) at {fr:.0f} Hz')

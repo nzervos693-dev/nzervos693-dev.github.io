@@ -63,29 +63,34 @@ const latch = (seed, g = 1) => knock(seed, 0.2, 0.3, 6000, [[2400, 0.012, 0.5], 
 const woodHit = (seed, f0 = 150, total = 0.6, hard = 1) => { const r = rng(seed); return knock(seed, total, 0.6 + 0.8 / hard, 2600 * hard, [[jit(r, f0), 0.07, 1], [jit(r, f0 * 2.1), 0.04, 0.55], [jit(r, f0 * 3.7), 0.025, 0.3], [f0 * 0.55, 0.09, 0.6]], 0.3); };
 const pipeHit = (seed, f0, total = 1.0, g = 1) => { const r = rng(seed); return knock(seed, total, 0.5, 5500, [[jit(r, f0), 0.4, 1], [jit(r, f0 * 2.76), 0.22, 0.5], [jit(r, f0 * 5.4), 0.12, 0.3], [jit(r, f0 * 8.9), 0.06, 0.15], [f0 * 0.5, 0.08, 0.4]], 0.15).map((v) => v * g); };
 
-// footsteps by surface: heel strike then toe, each an impact on a resonant floor
+// footsteps by surface: soft heel strike then toe, each a gentle impact on a floor.
+// Phone speakers cannot reproduce < ~120 Hz; the old version put 70-100% of the energy below 250 Hz at near full
+// scale, which rattled/buzzed ("distorted") on a phone. Now: body modes sit at 140-600 Hz with short (0.01 s) decays so they thud instead of ringing, contact noise is
+// low-passed and quiet, everything is high-passed at 110 Hz, and files peak at -6 dBFS.
 function footstepDry(surface, seed) {
-  const r = rng(seed), j = (v, s = 0.12) => jit(r, v, s), T = 0.45;
+  const r = rng(seed), j = (v, s = 0.08) => jit(r, v, s), T = 0.35;
   let heel, toe, tail = 0.1;
   if (surface === 'wood') {
-    heel = knock(seed, T, 1.2, 2200, [[j(105), 0.07, 1], [j(220), 0.045, 0.55], [j(410), 0.03, 0.35], [j(780), 0.02, 0.15]], 0.35);
-    toe = knock(seed + 1, T, 0.9, 2600, [[j(150), 0.05, 0.7], [j(330), 0.03, 0.4], [j(640), 0.02, 0.2]], 0.3);
+    heel = knock(seed, T, 1.5, 2000, [[j(190, 0.15), 0.012, 1], [j(330, 0.15), 0.01, 0.6], [j(560, 0.15), 0.008, 0.35], [j(900, 0.15), 0.006, 0.15]], 0.15);
+    toe = knock(seed + 1, T, 1.2, 2200, [[j(260, 0.15), 0.012, 0.7], [j(480, 0.15), 0.008, 0.4], [j(800, 0.15), 0.006, 0.2]], 0.15);
   } else if (surface === 'tile') {
-    heel = knock(seed, T, 0.5, 6500, [[j(150), 0.04, 0.45], [j(1900), 0.012, 0.5], [j(3300), 0.008, 0.3], [j(5200), 0.005, 0.2]], 0.6);
-    toe = knock(seed + 1, T, 0.4, 6500, [[j(1700), 0.01, 0.4], [j(3000), 0.007, 0.3], [j(120), 0.03, 0.3]], 0.6); tail = 0.085;
+    heel = knock(seed, T, 0.8, 4500, [[j(230, 0.3), 0.008, 0.15], [j(1500, 0.15), 0.006, 0.35], [j(2600, 0.15), 0.004, 0.2], [j(3800, 0.15), 0.003, 0.1]], 0.2);
+    toe = knock(seed + 1, T, 0.6, 4500, [[j(1400, 0.15), 0.005, 0.3], [j(2400, 0.15), 0.004, 0.2], [j(200, 0.3), 0.008, 0.1]], 0.2); tail = 0.085;
   } else if (surface === 'carpet') {
-    heel = knock(seed, T, 3.5, 700, [[j(70), 0.05, 1], [j(140), 0.03, 0.4]], 0.5);
-    mix(heel, rustle(0.12, seed + 2, { rate: 700, env: (t) => exp(t, 0.05), lo: 400, hi: 2600, grain: 0.003 }), 0.0, 0.3);
-    toe = knock(seed + 1, T, 3, 600, [[j(80), 0.04, 0.8]], 0.5); tail = 0.13;
+    heel = knock(seed, T, 3.0, 900, [[j(150, 0.25), 0.01, 1], [j(260, 0.25), 0.008, 0.4]], 0.25);
+    mix(heel, rustle(0.1, seed + 2, { rate: 600, env: (t) => exp(t, 0.04), lo: 400, hi: 2200, grain: 0.003 }), 0.0, 0.15);
+    toe = knock(seed + 1, T, 2.5, 800, [[j(170, 0.15), 0.012, 0.8]], 0.25); tail = 0.12;
   } else { // concrete
-    heel = knock(seed, T, 1.0, 4500, [[j(95), 0.06, 0.6], [j(210), 0.04, 0.4], [j(2300), 0.006, 0.3]], 0.5);
-    mix(heel, rustle(0.1, seed + 2, { rate: 900, env: (t) => exp(t, 0.04), lo: 1200, hi: 6000, grain: 0.0015 }), 0.012, 0.35);
-    toe = knock(seed + 1, T, 1.0, 4000, [[j(110), 0.05, 0.5], [j(2500), 0.005, 0.25]], 0.5);
-    mix(toe, rustle(0.06, seed + 3, { rate: 700, env: (t) => exp(t, 0.03), lo: 1500, hi: 6000, grain: 0.0015 }), 0.0, 0.2);
+    heel = knock(seed, T, 1.2, 3500, [[j(170, 0.15), 0.012, 0.6], [j(320, 0.15), 0.01, 0.4], [j(1800, 0.3), 0.003, 0.1]], 0.25);
+    mix(heel, rustle(0.08, seed + 2, { rate: 700, env: (t) => exp(t, 0.03), lo: 1200, hi: 4500, grain: 0.0015 }), 0.012, 0.15);
+    toe = knock(seed + 1, T, 1.2, 3200, [[j(190, 0.15), 0.012, 0.5], [j(2000, 0.3), 0.003, 0.08]], 0.25);
+    mix(toe, rustle(0.05, seed + 3, { rate: 600, env: (t) => exp(t, 0.025), lo: 1500, hi: 4500, grain: 0.0015 }), 0.0, 0.1);
   }
-  return layer(T, [[heel, 0, 1], [toe, tail + r() * 0.025, 0.5]]);
+  // heel is the loud part, toe a softer follow-up; no raw white-noise spikes, then a 110 Hz high-pass
+  return hp(layer(T, [[heel, 0, 1], [toe, tail + r() * 0.02, 0.45]]), 110, 0.7);
 }
-const ROOMS = { wood: [0.3, 0.25, 0.3], tile: [0.55, 0.45, 0.8], carpet: [0.15, 0.1, 0.1], concrete: [0.9, 0.5, 0.5] };
+// short, mostly dry rooms: long tails made consecutive steps overlap and smear
+const ROOMS = { wood: [0.25, 0.15, 0.3], tile: [0.4, 0.25, 0.6], carpet: [0.12, 0.05, 0.1], concrete: [0.5, 0.25, 0.4] };
 const footstep = (surface, seed) => room(footstepDry(surface, seed), ...ROOMS[surface], seed);
 
 // glass: contact crack plus a shower of tiny ringing shards (decaying density)
@@ -113,18 +118,22 @@ const def = (key, event, volume, fn, opts = {}) => { S[key] = { event, volume, l
 def('ui_tap', 'Panel open / button tap: a faint paper rustle (GDD 10: very quiet, uiVolume 0.2)', 0.14, () =>
   rustle(0.12, 1, { rate: 1100, env: (t) => bell(t / 0.12, 1.4), lo: 1400, hi: 7000, grain: 0.002 }), { norm: 0.5 });
 
+// Per-file volumes: files are peak-normalised at 0.5, but a phone only plays ~300 Hz-6 kHz, so volume is set per file
+// so that the loudness in that band matches the pre-fix recordings (carpet quietest, tile ~ wood, concrete in between).
+// Re-measure with: python3 scripts/check-audio.py <keys>  (band column) after changing any footstep recipe.
+const FOOT_VOL = {"footstep_wood_1": 0.804, "footstep_wood_2": 0.511, "footstep_wood_3": 0.365, "footstep_tile_1": 0.549, "footstep_tile_2": 0.6, "footstep_tile_3": 0.611, "footstep_carpet_1": 0.129, "footstep_carpet_2": 0.107, "footstep_carpet_3": 0.107, "footstep_concrete_1": 0.457, "footstep_concrete_2": 0.362, "footstep_concrete_3": 0.31, "step_1": 0.408, "step_2": 0.83, "stairs": 0.409};
 // ---- footsteps: footstep_<surface>_1..3 (GDD footstepSurfaceByRoom); step_1/step_2 = legacy wood keys ----
 for (const [surface, seed0] of [['wood', 1100], ['tile', 1200], ['carpet', 1300], ['concrete', 1400]])
   for (let v = 1; v <= 3; v++)
-    def(`footstep_${surface}_${v}`, `Hero footstep on ${surface} (3 variations, pick at random, pitch x0.95-1.05)`, surface === 'carpet' ? 0.55 : 0.45, () => footstep(surface, seed0 + v * 7), { norm: surface === 'carpet' ? 0.7 : 0.75, surface });
-def('step_1', 'Legacy hero step (wood); use footstep_<surface>_N', 0.45, () => footstep('wood', 11), { norm: 0.75 });
-def('step_2', 'Legacy hero step (wood); use footstep_<surface>_N', 0.45, () => footstep('wood', 12), { norm: 0.75 });
+    def(`footstep_${surface}_${v}`, `Hero footstep on ${surface} (3 variations, pick at random, pitch x0.95-1.05)`, FOOT_VOL[`footstep_${surface}_${v}`], () => footstep(surface, seed0 + v * 7), { norm: 0.5, surface });
+def('step_1', 'Legacy hero step (wood); use footstep_<surface>_N', FOOT_VOL.step_1, () => footstep('wood', 11), { norm: 0.5 });
+def('step_2', 'Legacy hero step (wood); use footstep_<surface>_N', FOOT_VOL.step_2, () => footstep('wood', 12), { norm: 0.5 });
 
-def('stairs', 'Hero changes floor via stairs (five steps, concrete stairwell)', 0.5, () => {
+def('stairs', 'Hero changes floor via stairs (five steps, concrete stairwell)', FOOT_VOL.stairs, () => {
   const o = buf(1.0);
   for (let k = 0; k < 5; k++) mix(o, footstepDry('concrete', 20 + k), 0.04 + k * 0.19 + (k % 2) * 0.012, 0.9 - k * 0.03);
-  return room(o, 1.1, 0.6, 0.5, 21);
-});
+  return room(o, 0.6, 0.3, 0.4, 21);
+}, { norm: 0.5 });
 
 // ---- doors ----
 def('door_open', 'Door opens (floor door or apartment): latch, hinge creak, soft stop', 0.5, () =>
