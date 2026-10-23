@@ -4,11 +4,14 @@
  * floor shuffles or breathes every audio.zombieSoundGapSeconds, panned by its screen x and muffled
  * (x audio.occludedVolumeMult, slower) when the hero has no line of sight to it. At most
  * audio.maxZombieVoices voices sound at once (breaths, shuffles and aggro groans share the cap).
- * No stairwell cue (no attacks in Stage A).
+ * The attack cue (GDD 5.8): the stairwell shuffling and the T-8 / T-5 / T-2.5 bangs are positional at the landing and fall off
+ * with the hero's distance in tiles (cue.bangFalloff); fight bangs are the structure hits themselves (IsoAttacks).
  */
 import Soundscape from './Soundscape.js';
 import { playSfx, playSwell, hasSfx } from './sfx.js';
 import { pickAmbient, ambientVolume } from '../gameplay/isoAudio.js';
+import { bangFalloff } from '../gameplay/cue.js';
+import { arrivalTile } from '../gameplay/isoOffline.js';
 
 /** How long a weather swell plays at most (seconds): GDD 10 gives each ambient one-shot 2-15 s. */
 const SWELL_SECONDS = [8, 15];
@@ -33,7 +36,31 @@ export default class IsoSoundscape extends Soundscape {
 
   cameraFloor() { return this.scene.state.hero.floor; }
 
-  updateStair() { /* no attacks in Stage A */ }
+  /** Tiles from the hero to the landing (where the cue is heard from). */
+  landingTile() { return (this.landing ??= arrivalTile(this.scene.world)); }
+
+  landingDistance() {
+    const h = this.scene.state.hero;
+    const l = this.landingTile();
+    return Math.hypot(l.x + 0.5 - h.x, l.y + 0.5 - h.y);
+  }
+
+  stairLevel() { return super.stairLevel() * bangFalloff(this.landingDistance(), this.scene.balance); }
+
+  /** Cue bang from the stairwell: positional at the landing, quieter with distance. */
+  bang(name) {
+    const { scene } = this;
+    if (!hasSfx(scene, name)) return;
+    const v = super.stairLevel() * bangFalloff(this.landingDistance(), scene.balance);
+    if (v <= 0) return;
+    const h = scene.state.hero;
+    const l = this.landingTile();
+    const sx = (l.x - l.y) - (h.x - h.y);
+    playSfx(scene, name, { volume: v, rate: 0.97 + this.rng() * 0.06, pan: Math.max(-1, Math.min(1, (sx * 48) / scene.balance.audio.panWidthPx)) });
+  }
+
+  /** No separate fight bangs: the hits on the structures are the bangs. */
+  randomBang() { /* see IsoAttacks.onStructHit */ }
 
   /** Weather is one-shots now (GDD 10), never looped gusts. */
   updateRain() { /* see ambient() */ }

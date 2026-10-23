@@ -9,11 +9,16 @@
  * Movement follows A* paths (core path.js, zombie mode, closed doors cost +10). When the next step of
  * the path crosses a closed, jammed or barricaded door it stops and bangs: the scene applies the damage
  * (env.doorHit). Zombies cannot open doors.
+ *
+ * Attackers (record flag siege, GDD 5.20) use mode 'siege': they follow the cost field of gameplay/isoSiege.js toward the
+ * heart, stand at the structure on their route and hit it (STEP_STRUCT, env.structHit), climb through broken windows slowly.
+ * If they see the hero they chase like any zombie; when they cannot reach him or lose him they go back to the siege.
  */
 import { findPath } from '../iso/path.js';
 import { MOVE } from '../iso/grid.js';
 import { angleDiff } from '../iso/projection.js';
 import { isAware } from './zombies.js';
+import { DECIDE } from './isoSiege.js';
 
 export { isAware };
 
@@ -22,12 +27,16 @@ export const STEP_AGGRO = 2;
 export const STEP_DOORHIT = 4;
 /** Zombie gave up the chase and turns for home. */
 export const STEP_LOST = 8;
+/** An attacker hits a structure edge now (env.structHit holds the edge id and the damage). */
+export const STEP_STRUCT = 16;
 
 const RAD = 180 / Math.PI;
+/** How long before each blow on a structure the swing animation plays (cosmetic; no balance key). */
+const SWING_SECONDS = 0.45;
 
 /** Defaults when balance.zombies.* lacks a key. */
 export const ISO_TUNE_DEFAULTS = {
-  attackWindupSeconds: 0.9, wanderSpeedMult: 0.4, wanderPauseSeconds: [2, 5], hitStunSeconds: 0.35, loseTrackSeconds: 8,
+  ignoreSightSeconds: 4, attackWindupSeconds: 0.9, wanderSpeedMult: 0.4, wanderPauseSeconds: [2, 5], hitStunSeconds: 0.35, loseTrackSeconds: 8,
   loseTrackDistanceTiles: 8, wanderRadiusTiles: 2, repathSeconds: 0.5, idleTurnSeconds: [4, 8], turnSeconds: 0.4,
 };
 
@@ -50,6 +59,10 @@ export function isoZombieConfig(balance) {
     attackRange: z.attackRangeTiles ?? 1.5,
     types: z.types,
     barricadeMult: z.barricadeDamageMult ?? 0.4,
+    structMult: balance.structures?.damageMult ?? 0.4,
+    ignoreSightSeconds: z.tuning?.ignoreSightSeconds ?? ISO_TUNE_DEFAULTS.ignoreSightSeconds,
+    swingSeconds: SWING_SECONDS,
+    climbExtraSeconds: balance.structures?.brokenWindowClimbExtraSeconds?.zombie ?? 1.5,
     doorMult: balance.doors?.zombieDamageMult ?? 0.4,
     doorCost: balance.doors?.zombiePathDoorCost ?? 10,
     noiseBangSeconds: balance.doors?.noiseBangSeconds ?? 10,
@@ -66,6 +79,8 @@ export function makeIsoEnv(grid, cfg, rng = Math.random) {
     grid, cfg, rng, occ: new Uint8Array(grid.width * grid.height),
     heroX: 0, heroY: 0, heroLight: 'dim', heroRunning: false, heroActive: false,
     doorHit: { door: null, damage: 0, jammed: false },
+    structHit: { eid: -1, damage: 0 },
+    siege: null, // the Siege of the running attack (gameplay/isoSiege.js), or null
     blockedFn: null,
   };
   env.blockedFn = (x, y) => env.occ[y * grid.width + x] !== 0;
@@ -79,6 +94,8 @@ export function makeIsoAi(rec, rng = Math.random, cfg = null) {
     mode: 'idle', cd: 0, stun: 0, pause: 1 + rng() * 3, facing: rec.facing ?? 90, moving: false, noticed: false,
     unseen: 0, last: null, path: null, pathI: 0, leg: false, repathT: rng() * rep, stagger: rng() * rep, wanderGoal: null,
     turnT: -1, turning: 0, windup: 0, noiseBang: 0, blocked: null, waitT: 0, sndT: rng() * 6,
+    // siege (attackers only)
+    sleg: false, sx: 0, sy: 0, sclimb: false, sill: 0, legRev: 0, epoch: 0, hitting: false, ignoreT: 0, entry: 0, tgt: -1, tgtA: 0, tgtB: 0, tgtStamp: -1, holdEid: -1,
   };
 }
 
@@ -90,6 +107,7 @@ export function fillOccupancy(env, records) {
     const z = records[i];
     if (z.dead) continue;
     env.occ[Math.floor(z.y) * W + Math.floor(z.x)] = 1;
+    if (z.rsv >= 0) env.occ[z.rsv] = 1; // an attacker's next tile is taken while it walks there
   }
 }
 
@@ -139,7 +157,7 @@ export function startIsoChase(ai, tune) {
  * @returns {boolean} newly alerted
  */
 export function hearIsoNoise(z, ai, noise, tune) {
-  if (z.dead || ai.mode === 'chase' || ai.mode === 'attack') return false;
+  if (z.dead || ai.mode === 'chase' || ai.mode === 'attack' || ai.mode === 'siege') return false; // attackers keep to the siege
   if (Math.hypot(z.x - noise.x, z.y - noise.y) > noise.radius) return false;
   startIsoChase(ai, tune);
   setLast(ai, Math.floor(noise.x), Math.floor(noise.y));
@@ -180,6 +198,80 @@ export function retargetAfterStructureChange(ai) {
   ai.leg = false;
   ai.repathT = 0;
   return true;
+}
+
+/** Put an attacker back on the siege (it lost the hero, or cannot reach him): ignores sight for a few seconds when it could not reach. */
+function resumeSiege(ai, ignoreSeconds = 0) {
+  ai.mode = 'siege';
+  ai.noticed = false;
+  ai.last = null;
+  ai.path = null;
+  ai.blocked = null;
+  ai.leg = false;
+  ai.windup = 0;
+  ai.noiseBang = 0;
+  ai.ignoreT = ignoreSeconds;
+}
+
+/** Drop the siege bookkeeping of an attacker that left it (chasing, dead): its slot and its reserved tile. */
+function leaveSiege(z, ai, env) {
+  env.siege?.release(ai);
+  ai.sleg = false;
+  ai.hitting = false;
+  z.rsv = -1;
+}
+
+/**
+ * One frame of an attacker in the siege: ask the Siege what to do from the tile it stands on, then walk the leg or hit.
+ * @returns {number} STEP_STRUCT flags
+ */
+function stepSiege(z, ai, env, dt, spec) {
+  const sg = env.siege;
+  ai.moving = false;
+  if (!sg) return 0;
+  const W = env.grid.width;
+  if (!ai.sleg) {
+    const d = sg.decide(z, ai, env.occ);
+    if (d.kind === DECIDE.HIT) {
+      ai.facing = Math.atan2(d.by + 0.5 - z.y, d.bx + 0.5 - z.x) * RAD;
+      if (!ai.hitting) { ai.hitting = true; ai.cd = Math.max(ai.cd, env.cfg.tune.attackWindupSeconds); } // a beat before the first blow
+      ai.windup = ai.cd < env.cfg.swingSeconds ? env.cfg.swingSeconds : 0; // the swing animation plays just before each blow
+      if (ai.cd > 0) return 0;
+      ai.cd = spec.attackIntervalSeconds;
+      env.structHit.eid = d.eid;
+      env.structHit.damage = spec.damage * env.cfg.structMult;
+      return STEP_STRUCT;
+    }
+    ai.hitting = false;
+    ai.windup = 0;
+    if (d.kind !== DECIDE.MOVE) return 0;
+    const nx = Math.floor(z.x) + d.dx;
+    const ny = Math.floor(z.y) + d.dy;
+    if (env.heroActive && Math.floor(env.heroX) === nx && Math.floor(env.heroY) === ny) return 0; // the hero stands there
+    ai.sx = nx;
+    ai.sy = ny;
+    ai.sclimb = d.climb;
+    ai.sill = d.climb ? env.cfg.climbExtraSeconds : 0; // pause at the sill, then the normal step
+    ai.legRev = sg.structRev;
+    ai.sleg = true;
+    z.rsv = ny * W + nx; // reserve it now: nobody else steps in
+    env.occ[z.rsv] = 1;
+  }
+  if (ai.legRev !== sg.structRev) { // a structure changed: is the step still there to take?
+    ai.legRev = sg.structRev;
+    if (!sg.stepOk(ai, Math.floor(z.x), Math.floor(z.y), ai.sx, ai.sy)) { ai.sleg = false; ai.sclimb = false; ai.sill = 0; z.rsv = -1; return 0; }
+  }
+  if (ai.sill > 0) { ai.sill -= dt; ai.facing = Math.atan2(ai.sy + 0.5 - z.y, ai.sx + 0.5 - z.x) * RAD; return 0; } // climbing in
+  const tx = ai.sx + 0.5;
+  const ty = ai.sy + 0.5;
+  const dx = tx - z.x;
+  const dy = ty - z.y;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  const step = spec.speedTilesPerSecond * dt;
+  if (dist > 1e-4) ai.facing = Math.atan2(dy, dx) * RAD;
+  ai.moving = true;
+  if (dist <= step) { z.x = tx; z.y = ty; ai.sleg = false; ai.sclimb = false; z.rsv = -1; } else { z.x += (dx / dist) * step; z.y += (dy / dist) * step; }
+  return 0;
 }
 
 /** Back to the spawn tile at rest (app hidden). Keeps hp. */
@@ -309,7 +401,7 @@ function pickWanderGoal(z, ai, env) {
 /**
  * Advance one living zombie by dt seconds (mutates z and ai).
  * @returns {number} flags: STEP_ATTACK (a bite lands now), STEP_AGGRO (just saw the hero),
- *   STEP_DOORHIT (env.doorHit holds the door and damage), STEP_LOST
+ *   STEP_DOORHIT (env.doorHit holds the door and damage), STEP_STRUCT (env.structHit), STEP_LOST
  */
 export function stepIsoZombie(z, ai, env, dt) {
   const cfg = env.cfg;
@@ -318,9 +410,11 @@ export function stepIsoZombie(z, ai, env, dt) {
   let out = 0;
   if (ai.cd > 0) ai.cd -= dt;
   ai.repathT -= dt;
+  if (ai.ignoreT > 0) ai.ignoreT -= dt;
+  if (ai.mode !== 'siege' && (ai.sleg || ai.holdEid >= 0)) leaveSiege(z, ai, env);
   if (ai.stun > 0) { ai.stun -= dt; ai.moving = false; return 0; }
 
-  const seen = env.heroActive && canSee(z, ai, env);
+  const seen = env.heroActive && ai.ignoreT <= 0 && !(ai.sclimb && ai.mode === 'siege') && canSee(z, ai, env); // mid-climb it finishes the climb first
   const fighting = ai.mode === 'chase' || ai.mode === 'attack';
   const dist = env.heroActive ? Math.hypot(env.heroX - z.x, env.heroY - z.y) : Infinity;
   if (!fighting && seen) {
@@ -376,7 +470,7 @@ export function stepIsoZombie(z, ai, env, dt) {
     }
     if (ai.repathT <= 0 || !ai.path) {
       ai.repathT = tune.repathSeconds;
-      repath(z, ai, env, goal.x, goal.y, 'chase');
+      if (!repath(z, ai, env, goal.x, goal.y, 'chase') && z.siege && env.siege) { resumeSiege(ai, env.cfg.ignoreSightSeconds); return out; } // cannot reach him: back to the siege
     }
     if (ai.path) {
       ai.moving = walkPath(z, ai, env, spec.speedTilesPerSecond, dt);
@@ -390,6 +484,9 @@ export function stepIsoZombie(z, ai, env, dt) {
     }
     return out;
   }
+
+  if (ai.mode === 'return' && z.siege && env.siege) resumeSiege(ai); // attackers have no home to go back to
+  if (ai.mode === 'siege') return out | stepSiege(z, ai, env, dt, spec);
 
   if (ai.mode === 'return') {
     const hx = Math.floor(z.homeX);

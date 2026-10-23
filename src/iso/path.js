@@ -13,6 +13,7 @@
  *    +doors.zombiePathDoorCost tiles, so a zombie may route around, but if the
  *    door is the best way the path goes through it and the zombie stops at the
  *    first entry of result.doors and bangs. Walls never pass.
+ *  - A broken window (MOVE.CLIMB, GDD 5.20) is passable only when opts.climbCost is given (its cost in tiles).
  *  - Search budget: opts.maxExpansions (default 4000 nodes, ~6x a 30x22 floor).
  *    Hitting it returns {found:false, truncated:true}.
  */
@@ -71,6 +72,7 @@ export function pathConfig(balance) {
  * @param {object} [opts]
  * @param {'hero'|'zombie'} [opts.mode='hero']
  * @param {number} [opts.doorCost] extra cost per closed/locked door (defaults PATH_DEFAULTS.heroDoorCost / zombieDoorCost); use pathConfig(balance)
+ * @param {number} [opts.climbCost] cost of climbing through a broken window (tiles); without it broken windows are walls
  * @param {number} [opts.squeezeCost] hero cost of squeezing through his own barricade (default PATH_DEFAULTS.squeezeSeconds * 2 tiles/s)
  * @param {boolean} [opts.throughLocked=false] hero: path through jammed/barricaded doors
  * @param {(x:number,y:number)=>boolean} [opts.isBlocked] extra occupancy test (tile unusable, except start/goal)
@@ -145,6 +147,9 @@ export function findPath(grid, start, goal, opts = {}) {
         if (zombie) extra = doorCost;
         else if (opts.throughLocked) extra = doorCost;
         else continue;
+      } else if (cls === MOVE.CLIMB) { // a broken window: only searches that ask for it (opts.climbCost) climb
+        if (opts.climbCost == null) continue;
+        extra = opts.climbCost;
       }
       const ni = ny * W + nx;
       if (s.closed[ni] === run) continue;

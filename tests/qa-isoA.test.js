@@ -300,12 +300,12 @@ describe('iso save (v2)', () => {
     expect(w2.grid.moveClass(again.edge)).toBe(MOVE.OPEN);
   });
 
-  it('a fresh state has no zombies dead, floor Infested, Stage A flags (no attacks, no tutorial)', () => {
+  it('a fresh state has no zombies dead, floor Infested, no tutorial, and the scripted first attack 10 min away (C2 piece 3)', () => {
     const w = world();
     const st = createIsoState(balance, w, 0);
     expect(Object.values(st.zombies).every((z) => !z.dead)).toBe(true);
     expect(st.floorStates[15]).toBe('Infested');
-    expect(st.attacks.scriptedDone).toBe(true);
+    expect(st.attacks).toMatchObject({ scriptedDone: false, kind: 'scripted', nextAt: balance.attacks.firstAttackDelayMinutes * 60000 });
     expect(st.story.tutorial).toBe('skipped');
   });
 });

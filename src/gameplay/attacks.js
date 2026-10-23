@@ -164,16 +164,17 @@ export function resolveOffline(state, balance, spec, rng, opts = {}) {
 /**
  * A fight that was interrupted (app closed or hidden mid-attack) settles offline with the strength
  * of the attackers that were left. Clears state.attacks.current.
+ * @param {Function} [resolver] resolves the attack (default resolveOffline: the barricade-only side-view rule; the iso scene passes the floor 15 resolver)
  * @returns {object|null} resolveOffline result (+ interrupted: true), or null when nothing was running
  */
-export function settleInterrupted(state, balance, nowMs, rng) {
+export function settleInterrupted(state, balance, nowMs, rng, resolver = resolveOffline) {
   const a = attackState(state);
   const cur = a.current;
   if (!cur) return null;
   const left = Math.max(0, cur.total - cur.killed);
   const spec = { kind: cur.kind, strength: left * balance.attacks.strengthPerZombie, types: [] }; // GDD 5.8: A = attackers left x 10
   a.kind = cur.kind;
-  const res = { ...resolveOffline(state, balance, spec, rng, { keepLatch: true, bonus: !cur.broke }), interrupted: true, atMs: nowMs };
+  const res = { ...resolver(state, balance, spec, rng, { keepLatch: true, bonus: !cur.broke }), interrupted: true, atMs: nowMs };
   finishAttack(state, balance, nowMs, rng);
   return res;
 }
@@ -184,10 +185,11 @@ export function settleInterrupted(state, balance, nowMs, rng) {
  * @param {object} state the game state (catchUp passes its own sim object to hooks, so close over this)
  * @param {() => number} rng
  * @param {number} startMs where the catch-up starts (for offsetMs)
+ * @param {Function} [resolver] attack resolver (default resolveOffline)
  * The hook also has hook.settle(nowMs, report): settles an interrupted fight first; it counts toward the same cap.
  * @returns {((sim:object, seconds:number, atMs:number, report:object) => void) & {settle:Function}}
  */
-export function makeAttackHook(state, balance, rng, startMs = 0) {
+export function makeAttackHook(state, balance, rng, startMs = 0, resolver = resolveOffline) {
   let resolved = 0;
   const hook = (_sim, _seconds, atMs, report) => {
     const a = attackState(state);
@@ -199,13 +201,13 @@ export function makeAttackHook(state, balance, rng, startMs = 0) {
       }
       const at = a.nextAt;
       const spec = attackSpec(state, balance, a.kind, at);
-      list.push({ ...resolveOffline(state, balance, spec, rng), atMs: at, offsetMs: Math.max(0, at - startMs) });
+      list.push({ ...resolver(state, balance, spec, rng), atMs: at, offsetMs: Math.max(0, at - startMs) });
       resolved++;
       finishAttack(state, balance, at, rng);
     }
   };
   hook.settle = (nowMs, report) => {
-    const r = settleInterrupted(state, balance, nowMs, rng);
+    const r = settleInterrupted(state, balance, nowMs, rng, resolver);
     if (r) { (report.attacks ||= []).push(r); resolved++; }
     return r;
   };

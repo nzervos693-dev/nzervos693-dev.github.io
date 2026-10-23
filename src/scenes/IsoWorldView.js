@@ -68,6 +68,9 @@ export default class IsoWorldView {
     this.wallByEid = new Map(); // edge id -> wall record (for per-edge updates)
     this.dirtyEdges = new Set(); // edges whose HP / stage / tier / overlay changed (redrawn without a re-bake)
     this.doorsStale = false;
+    this.landingMask = new Uint8Array(this.n); // stairwell tiles (landing and flights): the attack cue flickers them
+    for (let i = 0; i < this.n; i++) { const r = this.floor.roomIndex[i]; if (r >= 0 && this.floor.rooms[r].type === 'stairwell') this.landingMask[i] = 1; }
+    this.landingDip = 0;
     this.bakeCount = 0; // bumps on every full wall re-bake (outlines re-pick their sprite)
     this.ghost = { sp: null, act: null, x: -1, y: -1, side: '', stub: false };
     this.occludedKey = '';
@@ -274,24 +277,26 @@ export default class IsoWorldView {
   }
 
   buildProps() {
-    const f = this.floor;
-    const mk = (o) => {
-      const pf = this.propFrame(o);
-      if (!hasFrame(pf.key, pf.name)) return null;
-      const cx = o.tile[0] + o.span[0] / 2;
-      const cy = o.tile[1] + o.span[1] / 2;
-      const org = pf.big ? BIG_ORIGIN : PROP_ORIGIN;
-      const depth = isoDepth(footprintDepthKey(o.tile[0], o.tile[1], o.span[0], o.span[1], LAYER.OBJECT));
-      const sp = this.img(pf.key, pf.name, (cx - cy) * 48, (cx + cy) * 24, org[0], org[1], depth).setFlipX(pf.flip);
-      const tiles = o.tiles.map((t) => this.tileIdx(t.x, t.y));
-      const tall = this.tall.has(o.objectId);
-      const rec = { o, sp, pf, tiles, tall, a: 1, aT: 1, depth, cx: sp.x, cy: sp.y, big: pf.big };
-      rec.entry = this.track([sp], tiles);
-      this.props.push(rec);
-      this.propById.set(o.id, rec);
-      return rec;
-    };
-    for (const o of f.objects) mk(o);
+    for (const o of this.floor.objects) this.addProp(o);
+  }
+
+  /** The sprite of one object (also used when the HQ claim puts a new stash on the floor). @returns {object|null} the prop record */
+  addProp(o) {
+    const pf = this.propFrame(o);
+    if (!hasFrame(pf.key, pf.name)) return null;
+    const cx = o.tile[0] + o.span[0] / 2;
+    const cy = o.tile[1] + o.span[1] / 2;
+    const org = pf.big ? BIG_ORIGIN : PROP_ORIGIN;
+    const depth = isoDepth(footprintDepthKey(o.tile[0], o.tile[1], o.span[0], o.span[1], LAYER.OBJECT));
+    const sp = this.img(pf.key, pf.name, (cx - cy) * 48, (cx + cy) * 24, org[0], org[1], depth).setFlipX(pf.flip);
+    const tiles = o.tiles.map((t) => this.tileIdx(t.x, t.y));
+    const tall = this.tall.has(o.objectId);
+    const rec = { o, sp, pf, tiles, tall, a: 1, aT: 1, depth, cx: sp.x, cy: sp.y, big: pf.big };
+    rec.entry = this.track([sp], tiles);
+    this.props.push(rec);
+    this.propById.set(o.id, rec);
+    this.dirty = true;
+    return rec;
   }
 
   buildStairs() {
@@ -363,8 +368,9 @@ export default class IsoWorldView {
     if (srec) this.syncExtras(rec, srec);
     const hasBar = d.barricade && d.barricade.hp > 0;
     if (hasBar) {
-      const lvl = bar.level >= 2 ? 2 : 1;
-      const st = barricadeArtStage(barricadeStage(d.barricade.hp, barricadeMaxHp(this.state, this.balance), this.balance));
+      const lvl = (d.barricade.level ?? bar.level) >= 2 ? 2 : 1; // each door carries its own barricade level (HQ doors); the front door follows the workbench one
+      const lv = this.balance.barricade.levels.find((l) => l.level === lvl);
+      const st = barricadeArtStage(barricadeStage(d.barricade.hp, lv?.hp ?? barricadeMaxHp(this.state, this.balance), this.balance));
       rec.bar.setFrame(frameOf('iso_walls', `barricade_${w.axis}_lv${lvl}_${st}`));
     }
     rec.barOn = !!hasBar;
@@ -483,7 +489,7 @@ export default class IsoWorldView {
         const vis = v.visible[i];
         const seen = v.seen[i] === 1;
         const close = (x - hx) * (x - hx) + (y - hy) * (y - hy) <= 2.25;
-        this.target[i] = tileBrightness(this.vcfg, vis, seen, f.light[i], close);
+        this.target[i] = tileBrightness(this.vcfg, vis, seen, f.light[i], close) * (this.landingMask[i] ? 1 - this.landingDip : 1);
         this.remembered[i] = vis === VIS.NONE ? 1 : 0;
       }
     }
@@ -496,6 +502,20 @@ export default class IsoWorldView {
     this.refreshDoors();
     this.dirty = true;
     this.lastRevision = v.revision;
+  }
+
+  /**
+   * The emergency light on the landing dips (the attack cue, GDD 5.8): 0 = steady, 0.6 = a dark flicker. The landing tiles
+   * jump to the dimmed brightness at once (a flicker is quick); everything else is untouched.
+   * @param {number} dip 0..1
+   */
+  setLandingDip(dip) {
+    if (Math.abs(dip - this.landingDip) < 0.005) return;
+    this.landingDip = dip;
+    if (!this.lastHeroTile) return;
+    this.onVision(this.lastHeroTile);
+    for (let i = 0; i < this.n; i++) if (this.landingMask[i]) this.bright[i] = this.target[i];
+    this.dirty = true;
   }
 
   setWallTargets(w) {
@@ -706,6 +726,18 @@ export default class IsoWorldView {
       if (this.vision.seen[t]) best = 'remembered';
     }
     return best;
+  }
+
+  /** Shake the sprites of a wall, window or door edge (an attacker hit it). */
+  rattleEdge(eid) {
+    const rec = this.wallByEid.get(eid);
+    if (!rec || rec.doorEntry) return;
+    const targets = rec.rattleT || (rec.rattleT = []);
+    targets.length = 0;
+    if (rec.full) targets.push(rec.full);
+    if (rec.stub) targets.push(rec.stub);
+    for (let i = 0; i < rec.extras.length; i++) targets.push(rec.extras[i].sp); // damage and cover sprites shake with the wall
+    this.scene.tweens.add({ targets, x: '+=3', yoyo: true, duration: 50, repeat: 1, onComplete: rec.rattleDone || (rec.rattleDone = () => { for (const t of rec.rattleT) t.x = rec.px; }) });
   }
 
   /** Shake a door sprite pair (zombie banging, jammed hit). */

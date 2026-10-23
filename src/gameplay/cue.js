@@ -59,3 +59,17 @@ export function landingDip(step, max = 0.6) {
 
 /** Did the time left drop through `t` seconds between two frames? */
 export const crossed = (prevLeft, left, t) => prevLeft > t && left <= t;
+
+/**
+ * Volume multiplier for a bang by its straight-line distance in tiles from the hero (GDD 5.8 bang falloff,
+ * attacks.cue.bangFalloff): 1 up to nearTiles, linear down to minVolume at farTiles, minVolume beyond. Never silent on the floor.
+ */
+export function bangFalloff(distTiles, balance) {
+  const f = balance.attacks?.cue?.bangFalloff ?? {};
+  const near = f.nearTiles ?? 10;
+  const far = f.farTiles ?? 30;
+  const min = f.minVolume ?? 0.3;
+  if (distTiles <= near) return 1;
+  if (distTiles >= far) return min;
+  return 1 - (1 - min) * ((distTiles - near) / (far - near));
+}

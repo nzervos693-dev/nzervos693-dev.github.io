@@ -7,11 +7,12 @@ import { EDGE, TILE } from '../iso/grid.js';
 import { EDGE_KIND, PIECE } from './isoStructures.js';
 import { mainAction, secondaryAction } from './isoBuild.js';
 import { isHqClaimed, isHqTile } from './isoHq.js';
+import { heartStandTile } from './isoHeart.js';
 import { countItem } from './inventory.js';
 import { lightTimeMult } from './isoActions.js';
 
-/** Pieces the rules cannot place yet (barricades in the HQ come with the attack piece): hidden from the picker. */
-export const UNSUPPORTED_PIECES = Object.freeze(['barricade']);
+/** Pieces the rules cannot place yet and the picker hides. None now: barricades on any HQ door arrived with the attack piece (5.20). */
+export const UNSUPPORTED_PIECES = Object.freeze([]);
 
 /** action_icons frame of each selectable piece (the Quick-use button in build mode, the picker cells). */
 export const PIECE_ICON = Object.freeze({
@@ -153,7 +154,7 @@ export function resultToast(result, balance) {
   const list = (items) => items.map((e) => `${e.qty} ${name(e.id)}`).join(', ');
   const base = {
     build: 'Wall built.', upgrade: 'Stronger.', fit: result.toTier === 'glass' ? 'Window fitted.' : 'Door fitted.', repair: 'Patched up.',
-    overlay: result.toTier === 'boards' ? 'Boarded up.' : 'Plated.', demolish: 'Knocked out.',
+    overlay: result.toTier === 'boards' ? 'Boarded up.' : result.toTier === 'barricade' ? 'Barricaded.' : 'Plated.', demolish: 'Knocked out.',
   }[result.action] ?? 'Done.';
   const parts = [base];
   if (result.salvage?.length) parts.push(`+${list(result.salvage)}`);
@@ -219,14 +220,16 @@ function routeToLanding(st, sx, sy, blockedEdge) {
 /**
  * Would this act leave the hero with no passable route to the landing (GDD 5.19 "Sealing yourself in")? Only a
  * wall built on a gap can; an upgrade or a fit keeps the edge as blocked (or more open) as it was. The route is
- * measured from the hero's tile (there is no heart yet). Warn only: false when he is already sealed in.
- * @param {{structures:object}} bctx @param {{action:string, result:object}} act @param {{x:number,y:number}} hero
+ * measured from the heart (the bed last slept in) when the HQ has one, else from the hero's tile. Warn only: false when he is
+ * already sealed in.
+ * @param {{structures:object, state?:object, balance?:object}} bctx @param {{action:string, result:object}} act @param {{x:number,y:number}} hero
  */
 export function sealsIn(bctx, act, hero) {
   if (!act || act.action !== 'build' || !act.result.ok) return false;
   const st = bctx.structures;
-  const sx = Math.floor(hero.x);
-  const sy = Math.floor(hero.y);
+  const heart = bctx.state && bctx.balance && isHqClaimed(bctx.state) ? heartStandTile(st.floor, bctx.state, bctx.balance) : null;
+  const sx = heart ? heart.x : Math.floor(hero.x);
+  const sy = heart ? heart.y : Math.floor(hero.y);
   if (!st.grid.isFloor(sx, sy) || !routeToLanding(st, sx, sy, null)) return false;
   return !routeToLanding(st, sx, sy, act.result.edge);
 }

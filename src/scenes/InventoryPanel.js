@@ -19,6 +19,8 @@ const STOCK_ROWS = 5;
  * ctrl: { bag(): slots, stock(): slots,
  *         describe(slot, tab): {name, effect, canUse, useLabel?, canStore, canTake},
  *         badge?(slot, index, tab): string|null (replaces the count under the icon, e.g. "E" for equipped),
+ *         stockLabel?(): the stock tab's name ("HQ" once the HQ pools its stashes),
+ *         sections?(): [{ offset, slots, name }] the stashes that make up the stock array (named on the page caption),
  *         onUse(tab, i), onStore(i), onTake(i), onClose() }
  */
 export default class InventoryPanel {
@@ -84,7 +86,7 @@ export default class InventoryPanel {
     add(scene.add.rectangle(w / 2, top + panelH / 2, PANEL_W, panelH, COLORS.shadow).setStrokeStyle(4, COLORS.ink).setInteractive());
 
     const left = (w - PANEL_W) / 2 + PAD;
-    this.tabButtons = [['bag', 'Bag'], ['stock', 'Stockpile']].map(([id, text], i) => {
+    this.tabButtons = [['bag', 'Bag'], ['stock', this.ctrl.stockLabel?.() ?? 'Stockpile']].map(([id, text], i) => {
       const b = add(button(scene, {
         x: left + 100 + i * 212, y: top + 20 + 48, w: 200, h: CELL, text, size: 22, skin: false,
         onTap: () => { this.tab = id; this.page = 0; this.selected = -1; this.build(); },
@@ -133,6 +135,16 @@ export default class InventoryPanel {
     this.build();
   }
 
+  /** Names of the stashes on this page of the pooled stock ("  -  Your flat, North flat"), empty for a single stash. */
+  sectionNames() {
+    const secs = this.tab === 'stock' ? this.ctrl.sections?.() : null;
+    if (!secs || secs.length < 2) return '';
+    const first = this.page * STOCK_COLS * STOCK_ROWS;
+    const last = first + STOCK_COLS * STOCK_ROWS;
+    const names = secs.filter((e) => e.offset < last && e.offset + e.slots > first).map((e) => e.name);
+    return `  -  ${names.join(', ')}`;
+  }
+
   /** Refresh cell icons/counts, tab highlight and the detail row without rebuilding. */
   update() {
     const slots = this.slots();
@@ -158,7 +170,7 @@ export default class InventoryPanel {
     this.actionButtons.forEach((b) => b.setVisible(false));
     if (!sel) {
       this.nameText.setText('');
-      this.effectText.setText(slots.some(Boolean) ? 'Tap an item' : 'Empty');
+      this.effectText.setText((slots.some(Boolean) ? 'Tap an item' : 'Empty') + this.sectionNames());
       return;
     }
     const d = this.ctrl.describe(sel, this.tab);

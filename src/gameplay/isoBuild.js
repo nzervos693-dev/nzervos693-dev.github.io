@@ -44,7 +44,7 @@ export const BUILD_CODE = Object.freeze({
   FULL_HP: 'full_hp',
   CANNOT_REPAIR: 'cannot_repair', // glass
   BROKEN: 'broken', // a broken door: demolish it, don't repair / upgrade
-  UNSUPPORTED: 'unsupported', // barricade in HQ: a later piece
+  UNSUPPORTED: 'unsupported',
 });
 
 const MESSAGES = {
@@ -316,8 +316,29 @@ export function fit(ctx, edge, piece) {
 
 // ---- overlays: boards on windows, plating on walls / doors / windows -----------------------------------
 
+/** Keep the workbench front-door barricade record (state.build.barricade) in step with the barricade on that door. */
+function syncFrontBarricade(ctx, door) {
+  if (door.id !== ctx.structures.floor.home?.frontDoor || !ctx.state.build) return;
+  const b = door.barricade;
+  ctx.state.build.barricade = b && b.hp >= 0 ? { level: b.level ?? 1, hp: b.hp } : { level: 0, hp: 0 };
+}
+
+/** Barricade Lv1 / Lv2 on a door (GDD 5.20): the recipe's cost, buildSeconds[level - 1], the level's HP. Lv1 -> Lv2 is an upgrade. */
+function canBarricade(ctx, d, def) {
+  if (d.piece !== PIECE.DOOR) return refuse(ctx, 'overlay', d, BUILD_CODE.WRONG_TARGET);
+  if (d.broken) return refuse(ctx, 'overlay', d, BUILD_CODE.BROKEN);
+  const door = d.rec.door;
+  if (d.rec.overlay) return refuse(ctx, 'overlay', d, BUILD_CODE.ALREADY_COVERED);
+  const cur = door.barricade ? (door.barricade.level ?? 1) : 0;
+  const level = cur + 1;
+  const lv = ctx.balance.barricade.levels.find((l) => l.level === level);
+  if (!lv) return refuse(ctx, 'overlay', d, cur > 0 ? BUILD_CODE.MAX_TIER : BUILD_CODE.WRONG_TARGET);
+  const cost = toList(ctx.balance.recipes[`barricade_lv${level}`]?.cost);
+  return finish(ctx, 'overlay', d, cost, { toTier: 'barricade', level, seconds: def.buildSeconds[level - 1], action: cur > 0 ? 'upgrade' : 'overlay' });
+}
+
 /**
- * Can an overlay be added? `kind` is 'boards' or 'plating' ('barricade' returns UNSUPPORTED for now).
+ * Can an overlay be added? `kind` is 'boards' or 'plating' or 'barricade' (doors; Lv1, then Lv2 as an upgrade).
  * @param {'boards'|'plating'|'barricade'} kind
  */
 export function canAddOverlay(ctx, edge, kind) {
@@ -332,7 +353,7 @@ export function canAddOverlay(ctx, edge, kind) {
   const hq = hqRefusal(ctx, d);
   if (hq) return refuse(ctx, action, d, hq);
   if (d.piece === PIECE.GAP) return refuse(ctx, action, d, BUILD_CODE.NOTHING_TO_COVER);
-  if (kind === 'barricade') return refuse(ctx, action, d, BUILD_CODE.UNSUPPORTED);
+  if (kind === 'barricade') return canBarricade(ctx, d, def);
   if (!def.on.includes(d.piece)) return refuse(ctx, action, d, BUILD_CODE.WRONG_TARGET);
   if (d.overlay) return refuse(ctx, action, d, BUILD_CODE.ALREADY_COVERED);
   return finish(ctx, action, d, toList(def.cost), { toTier: kind, seconds: def.buildSeconds });
@@ -343,6 +364,15 @@ export function addOverlay(ctx, edge, kind) {
   return run(ctx, () => canAddOverlay(ctx, edge, kind), (r) => {
     takeMaterials(ctx.state, r.cost);
     r.consumed = r.cost;
+    if (kind === 'barricade') {
+      const rec = ctx.structures.rec(r.edge.x, r.edge.y, r.edge.side);
+      ctx.structures.grid.setBarricade(rec.door, { own: true, hp: ctx.balance.barricade.levels.find((l) => l.level === r.level).hp });
+      rec.door.barricade.level = r.level;
+      if (ctx.state.build) ctx.state.build.breachLatched = false;
+      syncFrontBarricade(ctx, rec.door);
+      ctx.structures.touch(rec.eid);
+      return;
+    }
     const hp = ctx.balance.structures.overlays[kind].hp;
     ctx.structures.setOverlay(ctx.structures.rec(r.edge.x, r.edge.y, r.edge.side), { kind, hp, maxHp: hp });
   });
@@ -384,7 +414,14 @@ export function repair(ctx, edge) {
     takeMaterials(ctx.state, r.cost);
     r.consumed = r.cost;
     const rec = ctx.structures.rec(r.edge.x, r.edge.y, r.edge.side);
-    if (r.target === 'overlay') {
+    if (r.target === 'overlay' && !rec.overlay) { // the barricade on a door
+      const bar = rec.door.barricade;
+      const view = ctx.structures.barricadeView(rec);
+      bar.hp = Math.min(view.maxHp, bar.hp + ctx.balance.structures.overlays.barricade.repair.hpPerUnit);
+      syncFrontBarricade(ctx, rec.door);
+      ctx.structures.grid.version++;
+      ctx.structures.touch(rec.eid);
+    } else if (r.target === 'overlay') {
       const hpu = ctx.balance.structures.overlays[rec.overlay.kind].repair.hpPerUnit;
       rec.overlay.hp = Math.min(rec.overlay.maxHp, rec.overlay.hp + hpu);
       ctx.structures.setOverlay(rec, rec.overlay);
@@ -422,8 +459,9 @@ export function canDemolish(ctx, edge, opts = {}) {
   const b = ctx.balance.build;
   const door = d.rec?.door ?? null;
   const bar = door?.barricade && door.barricade.hp > 0 ? door.barricade : null;
-  const target = bar || d.overlay ? 'overlay' : 'piece';
-  const overlayKind = bar ? 'barricade' : d.overlay?.kind;
+  const cover = d.overlay?.kind === 'barricade' ? null : d.overlay; // a broken (0 HP) barricade is not cover any more
+  const target = bar || cover ? 'overlay' : 'piece';
+  const overlayKind = bar ? 'barricade' : cover?.kind;
   if (d.kind === EDGE_KIND.SHAFT || d.kind === EDGE_KIND.VOID) return refuse(ctx, action, d, BUILD_CODE.SHAFT_WALL);
   if (d.piece === PIECE.GAP) return refuse(ctx, action, d, BUILD_CODE.NOTHING_HERE);
   if (target === 'piece') {
@@ -466,8 +504,8 @@ export function demolish(ctx, edge, opts) {
     const rec = ctx.structures.rec(r.edge.x, r.edge.y, r.edge.side);
     if (r.overlayKind === 'barricade') {
       ctx.structures.grid.setBarricade(rec.door, null);
-      if (rec.door.id === ctx.structures.floor.home?.frontDoor && ctx.state.build) ctx.state.build.barricade = { level: 0, hp: 0 };
-      ctx.structures.touch();
+      syncFrontBarricade(ctx, rec.door);
+      ctx.structures.touch(rec.eid);
     } else if (r.target === 'overlay') ctx.structures.setOverlay(rec, null);
     else ctx.structures.place(r.edge, { piece: PIECE.GAP });
     r.dropped = give(ctx, r.salvage);
@@ -502,7 +540,10 @@ export function mainAction(ctx, edge, selected) {
   if (selected === 'wall' && d.piece === PIECE.WALL) return pick('upgrade', canUpgrade(ctx, edge), () => upgrade(ctx, edge));
   if ((selected === 'door' || selected === 'window') && d.piece === PIECE.WALL) return pick('fit', canFit(ctx, edge, selected), () => fit(ctx, edge, selected));
   if (selected === 'door' && d.piece === PIECE.DOOR) return pick('upgrade', canUpgrade(ctx, edge), () => upgrade(ctx, edge));
-  if (OVERLAY_PIECES.includes(selected)) return pick('overlay', canAddOverlay(ctx, edge, selected), () => addOverlay(ctx, edge, selected));
+  if (OVERLAY_PIECES.includes(selected)) {
+    const r = canAddOverlay(ctx, edge, selected);
+    return pick(r.action === 'upgrade' ? 'upgrade' : 'overlay', r, () => addOverlay(ctx, edge, selected)); // Barricade Lv1 -> Lv2 counts as Upgrade
+  }
   return none(BUILD_CODE.WRONG_TARGET);
 }
 

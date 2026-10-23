@@ -65,16 +65,19 @@ export default class IsoTargeting {
       for (let x = x0; x < x1; x++) tiles.push({ x, y: y - 1 }, { x, y });
       this.statics.push({ id: 'claim', kind: 'thing', x0, y0: y, x1, y1: y, tiles, target: { kind: 'claim' } });
     }
-    for (const o of world.objects) {
-      const kind = o.stash ? 'stash' : o.fixture ? 'workbench' : 'object';
-      if (o.mounted) {
-        const r = mountedEdgeRect(o.tile, o.facingAngle);
-        this.statics.push({ id: o.id, kind: 'thing', ...r, tiles: [{ x: o.tile[0], y: o.tile[1] }], target: { kind, obj: o }, obj: o });
-        continue;
-      }
-      const tiles = o.tiles ?? footprintOf(o.tile, o.span);
-      this.statics.push({ id: o.id, kind: 'thing', x0: o.tile[0], y0: o.tile[1], x1: o.tile[0] + o.span[0], y1: o.tile[1] + o.span[1], tiles, target: { kind, obj: o }, obj: o });
+    for (const o of world.objects) this.addObject(o);
+  }
+
+  /** Make an object a target (also for a stash the HQ claim puts on the floor). */
+  addObject(o) {
+    const kind = o.stash ? 'stash' : o.fixture ? 'workbench' : 'object';
+    if (o.mounted) {
+      const r = mountedEdgeRect(o.tile, o.facingAngle);
+      this.statics.push({ id: o.id, kind: 'thing', ...r, tiles: [{ x: o.tile[0], y: o.tile[1] }], target: { kind, obj: o }, obj: o });
+      return;
     }
+    const tiles = o.tiles ?? footprintOf(o.tile, o.span);
+    this.statics.push({ id: o.id, kind: 'thing', x0: o.tile[0], y0: o.tile[1], x1: o.tile[0] + o.span[0], y1: o.tile[1] + o.span[1], tiles, target: { kind, obj: o }, obj: o });
   }
 
   /** Is this static thing still around (not dismantled)? */

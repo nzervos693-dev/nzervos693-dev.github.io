@@ -277,7 +277,7 @@ describe('overlays', () => {
     expect(canAddOverlay(w.ctx, PARTITION, 'boards').code).toBe('wrong_target');
     expect(addOverlay(w.ctx, PARTITION, 'plating')).toMatchObject({ ok: true, consumed: [{ id: 'sheet_metal', qty: 2 }, { id: 'parts', qty: 1 }] });
     expect(canAddOverlay(w.ctx, GATE_A, 'boards').code).toBe('nothing_to_cover');
-    expect(canAddOverlay(w.ctx, PARTITION, 'barricade').code).toBe('unsupported'); // barricades come in a later piece
+    expect(canAddOverlay(w.ctx, PARTITION, 'barricade').code).toBe('wrong_target'); // a barricade goes on a door
   });
   it('plating on a perimeter wall works; exterior window takes overlays, exterior wall does not', () => {
     const w = armed(hqWorld(), { sheet_metal: 2, parts: 1, wood: 3 });

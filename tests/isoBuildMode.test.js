@@ -138,8 +138,8 @@ describe('Main / Secondary button mapping for the edge cursor', () => {
 });
 
 describe('piece selection (Quick-use in build mode, GDD 5.19)', () => {
-  it('lists the pieces the rules support, in balance order (barricade comes with the attack piece)', () => {
-    expect(buildPieces(balance)).toEqual(['wall', 'door', 'window', 'boards', 'plating']);
+  it('lists the pieces the rules support, in balance order (barricade arrived with the attack piece)', () => {
+    expect(buildPieces(balance)).toEqual(['wall', 'door', 'window', 'boards', 'plating', 'barricade']);
     expect(PIECE_ICON.wall).toBe('build_wall');
   });
   it('defaults to wall, saves the choice, ignores unknown or unsupported ones', () => {
@@ -148,7 +148,9 @@ describe('piece selection (Quick-use in build mode, GDD 5.19)', () => {
     expect(selectPiece(w.state, balance, 'door')).toBe(true);
     expect(w.state.build.selectedPiece).toBe('door');
     expect(selectPiece(w.state, balance, 'door')).toBe(false);
+    expect(selectPiece(w.state, balance, 'barricade')).toBe(true);
     expect(selectPiece(w.state, balance, 'barricade')).toBe(false);
+    selectPiece(w.state, balance, 'door');
     expect(selectPiece(w.state, balance, 'nonsense')).toBe(false);
     expect(selectedPiece(w.state, balance)).toBe('door');
     w.state.build.selectedPiece = 'garbage';
@@ -158,7 +160,7 @@ describe('piece selection (Quick-use in build mode, GDD 5.19)', () => {
     const w = hqWorld();
     selectPiece(w.state, balance, 'window');
     const cells = pieceCells(w.state, balance);
-    expect(cells.map((c) => c.icon)).toEqual(['build_wall', 'fit_door', 'fit_window', 'board_window', 'plate_window']);
+    expect(cells.map((c) => c.icon)).toEqual(['build_wall', 'fit_door', 'fit_window', 'board_window', 'plate_window', 'barricade']);
     expect(cells.filter((c) => c.selected).map((c) => c.id)).toEqual(['window']);
   });
   it('build mode is possible inside the claimed HQ or with a tool in the bag', () => {

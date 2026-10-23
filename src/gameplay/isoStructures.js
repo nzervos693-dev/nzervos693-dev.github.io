@@ -93,8 +93,10 @@ export class Structures {
     this.base = new Map();
     this.kinds = new Map();
     this.revision = 0;
+    this.passRev = 0; // bumps when a window's cover changes (attackers mid-climb re-check their step)
     this.listeners = [];
     this._ev = { structural: true, eid: -1 };
+    this._tmpEdge = { x: 0, y: 0, side: 'N' };
     const perim = new Set(balance.hq?.perimeterEdges ?? []);
     const gate = new Set(balance.hq?.gateEdges ?? []);
     this.perimeter = floor.number === balance.hq?.floor ? perim : new Set();
@@ -156,10 +158,31 @@ export class Structures {
     if (!rec) return { ...base, kind, piece: PIECE.GAP, tier: null, hp: 0, maxHp: 0, stage: 0, broken: false, overlay: null, overlayStage: 0, rec: null };
     const hp = this.hpOf(rec);
     const maxHp = this.maxHpOf(rec);
+    const overlay = rec.overlay ?? this.barricadeView(rec);
     return {
       ...base, kind, piece: rec.piece, tier: rec.tier, hp, maxHp, stage: this.stageOf(rec), broken: !!rec.broken || (rec.door?.state === 'broken'),
-      overlay: rec.overlay, overlayStage: rec.overlay ? damageStage(rec.overlay.hp, rec.overlay.maxHp, this._thresholds('overlay')) : 0, rec,
+      overlay, overlayStage: overlay ? damageStage(overlay.hp, overlay.maxHp, this._thresholds('overlay')) : 0, rec,
     };
+  }
+
+  /**
+   * The barricade on a door as an overlay view { kind:'barricade', level, hp, maxHp }, or null. Barricades live on the Grid's
+   * door (movement, the workbench front-door barricade and the saved door record all use it); the structure model reads them
+   * through this view so "overlay first" and "one overlay per edge" cover them too.
+   */
+  barricadeView(rec) {
+    const b = rec.door?.barricade;
+    if (!b) return null;
+    const level = b.level ?? 1;
+    const lv = this.balance.barricade.levels.find((l) => l.level === level);
+    return { kind: 'barricade', level, hp: b.hp, maxHp: lv?.hp ?? b.hp };
+  }
+
+  /** Kind of the edge with this id (cached; same as kindOf without the coordinates). */
+  kindOfEid(eid) {
+    let k = this.kinds.get(eid);
+    if (k === undefined) { k = this._deriveKind(this._decode(eid)); this.kinds.set(eid, k); }
+    return k;
   }
 
   hpOf(rec) { return rec.door ? rec.door.hp : rec.hp; }
@@ -258,6 +281,7 @@ export class Structures {
 
   /** Set or clear the overlay of a record: {kind:'boards'|'plating', hp, maxHp}. */
   setOverlay(rec, overlay) {
+    if (rec.piece === PIECE.WINDOW) this.passRev++; // boards or plating on / off a window change who can climb through
     rec.overlay = overlay ? { ...overlay } : null;
     this.syncSight(rec);
     this.grid.version++; // overlay changes can change sight (boarded window)
@@ -282,6 +306,12 @@ export class Structures {
     if (!rec) return { hit: 'none', destroyed: false, noise: null };
     const kind = this.kindOf(e.x, e.y, e.side);
     if (this.isImmutableKind(kind)) return { hit: 'none', destroyed: false, noise: null };
+    const bar = rec.door?.barricade;
+    if (bar && bar.hp > 0 && !rec.overlay) { // a door barricade is the overlay (stays at 0 HP, broken, until repaired or demolished)
+      const broke = this.grid.damageBarricade(rec.door, amount);
+      this._changed(false, rec.eid);
+      return { hit: 'overlay', destroyed: broke, noise: null };
+    }
     if (rec.overlay && rec.overlay.hp > 0) {
       rec.overlay.hp = Math.max(0, rec.overlay.hp - amount);
       const gone = rec.overlay.hp === 0;
@@ -319,12 +349,18 @@ export class Structures {
     return { hit: 'piece', destroyed: false, noise: null };
   }
 
-  /** Make the Grid's sight flag of a window match its pane: glass and broken panes pass sight, boards / plating stop it. */
+  /** damage() by edge id (zombies hit edges they know by id); no allocation. */
+  damageEid(eid, amount) {
+    return this.damage(this._decode(eid, this._tmpEdge), amount);
+  }
+
+  /** Make the Grid's sight and climb flags of a window match its pane: glass and broken panes pass sight, boards / plating stop it; a broken pane with nothing over it can be climbed. */
   syncSight(rec) {
     if (rec.piece !== PIECE.WINDOW) return;
     const covered = !!rec.overlay;
     const see = !covered && (rec.tier === 'glass' || rec.broken);
     this.grid.setSeeThrough(rec.x, rec.y, rec.side, see);
+    this.grid.setClimbable(rec.x, rec.y, rec.side, !covered && !!rec.broken); // a broken pane with nothing over it: climb / vault through
   }
 
   // ---- rooms -------------------------------------------------------------
@@ -462,11 +498,12 @@ export class Structures {
       ? `${rec.piece}:${rec.tier}:${ov}` : `${rec.piece}:${rec.tier}:${this.hpOf(rec)}:${ov}:${rec.broken ? 1 : 0}`;
   }
 
-  _decode(eid) {
+  _decode(eid, out = {}) {
     const g = this.grid;
-    if (eid < g.hCount) return { x: eid % g.width, y: (eid / g.width) | 0, side: 'N' };
+    if (eid < g.hCount) { out.x = eid % g.width; out.y = (eid / g.width) | 0; out.side = 'N'; return out; }
     const k = eid - g.hCount;
-    return { x: k % (g.width + 1), y: (k / (g.width + 1)) | 0, side: 'W' };
+    out.x = k % (g.width + 1); out.y = (k / (g.width + 1)) | 0; out.side = 'W';
+    return out;
   }
 
   _unitOfTile(t) {

@@ -4,7 +4,7 @@
  */
 import {
   isoZombieConfig, makeIsoEnv, makeIsoAi, fillOccupancy, stepIsoZombie, hearIsoNoise, hitIsoZombie, resetIsoZombie, retargetAfterStructureChange,
-  STEP_ATTACK, STEP_AGGRO, STEP_DOORHIT,
+  STEP_ATTACK, STEP_AGGRO, STEP_DOORHIT, STEP_STRUCT,
 } from '../gameplay/isoZombies.js';
 import { applyShove } from '../gameplay/isoCombat.js';
 import { wantsDecal, HIT_FX } from '../gameplay/hitfx.js';
@@ -47,6 +47,31 @@ export default class IsoZombies {
 
   get(id) { return this.byId.get(id) || null; }
 
+  /**
+   * An attacker arrives (GDD 5.20): it starts in siege mode and is dealt to one of the wave's entries.
+   * @param {object} rec zombie record (siege: true) @param {import('../gameplay/isoSiege.js').Siege} siege
+   */
+  addAttacker(rec, siege) {
+    const rt = this.add(rec);
+    rt.ai.mode = 'siege';
+    rt.ai.facing = rec.facing ?? 90;
+    siege.assign(rt.ai);
+    return rt;
+  }
+
+  /** The app was hidden mid-attack: the attackers leave (their records and sprites go; the fight is settled offline). */
+  removeAttackers() {
+    for (let i = this.list.length - 1; i >= 0; i--) {
+      const rt = this.list[i];
+      if (!rt.rec.siege) continue;
+      this.env.siege?.release(rt.ai);
+      this.scene.actors.destroyZombie(rt);
+      delete this.scene.state.zombies[rt.rec.id];
+      this.byId.delete(rt.rec.id);
+      this.list.splice(i, 1);
+    }
+  }
+
   /** Living zombie standing on tile (x, y), or null. */
   at(x, y) {
     for (let i = 0; i < this.list.length; i++) {
@@ -75,6 +100,7 @@ export default class IsoZombies {
       const flags = stepIsoZombie(rt.rec, rt.ai, env, dt);
       if (flags & STEP_AGGRO) scene.onZombieAggro(rt, false);
       if (flags & STEP_DOORHIT) scene.onZombieDoorHit(rt, env.doorHit);
+      if (flags & STEP_STRUCT) scene.attacks.onStructHit(rt, env.structHit);
       if (flags & STEP_ATTACK) scene.onZombieBite(rt, this.cfg.types[rt.rec.type].damage);
       scene.actors.syncZombie(rt, dt);
     }
@@ -121,6 +147,7 @@ export default class IsoZombies {
   kill(rt) {
     rt.dying = true;
     rt.rec.dead = true;
+    this.env.siege?.release(rt.ai);
     this.scene.actors.die(rt, (this.cfg.tune.corpseSeconds ?? 1.5) * 1000);
     playSfx(this.scene, 'zombie_death');
     const i = this.list.indexOf(rt);

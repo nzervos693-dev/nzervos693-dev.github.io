@@ -113,9 +113,12 @@ export default class Soundscape {
     this.groanT = nextGroanGap(this.rng, this.scene.balance);
   }
 
+  /** How loud the stairwell shuffling is from where the player is (0..1): by floors here; the iso soundscape adds tiles. */
+  stairLevel() { return stairVolume(this.cameraFloor(), this.scene.tower.homeFloor, this.scene.balance); }
+
   updateStair(dt) {
     const st = this.stair;
-    const target = st.on ? stairVolume(this.cameraFloor(), this.scene.tower.homeFloor, this.scene.balance) * SHUFFLE_VOLUME : 0;
+    const target = st.on ? this.stairLevel() * SHUFFLE_VOLUME : 0;
     const step = dt / SHUFFLE_FADE_SECONDS;
     st.vol += Math.max(-step, Math.min(step, target - st.vol));
     if (st.vol > 0.001) { setLoopVolume('stair_shuffle', st.vol); st.playing = true; } else if (st.playing && !st.on) { stopSfx('stair_shuffle'); st.playing = false; }

@@ -73,6 +73,7 @@ export function attackLines(attacks, balance) {
   const lines = [];
   for (const a of attacks || []) {
     const at = a.atMs ? `Around ${clockTime(a.atMs)} something` : 'Something';
+    if (a.where !== undefined) { lines.push(...hqAttackLines(a, balance)); continue; } // resolved against floor 15 (isoOffline.js)
     if (a.repelled) {
       lines.push(`${at} beat on the door for a long time. It held.`);
       continue;
@@ -83,6 +84,26 @@ export function attackLines(attacks, balance) {
       const names = a.lost.map((l) => `${l.qty} ${lower(l.id, balance)}`).join(', ');
       lines.push(`Lost: ${names}.`);
     }
+  }
+  return lines;
+}
+
+/** "Around 03:10 they went for the east wall. It held." / "They came through the kitchen window." (floor 15, GDD 5.20) */
+function hqAttackLines(a, balance) {
+  const when = a.atMs ? `Around ${clockTime(a.atMs)} they` : 'They';
+  const where = a.where ?? 'the stairwell side';
+  const lines = [];
+  if (a.repelled) lines.push(a.where ? `${when} went for ${where}. It held.` : `${when} came and found nothing to break. It held.`);
+  else if (!a.where) {
+    lines.push(`${when} walked in.`);
+    if (a.hurt?.length) lines.push(`${a.hurt.map((h) => nameOf(h.id, balance)).join(' and ')} ${a.hurt.length > 1 || nameOf(a.hurt[0].id, balance) === 'You' ? 'are' : 'is'} hurt.`);
+    if (a.lost?.length) lines.push(`Lost: ${a.lost.map((l) => `${l.qty} ${lower(l.id, balance)}`).join(', ')}.`);
+  } else {
+    const broke = [...new Set(a.broke?.length ? a.broke : [where])];
+    const list = broke.length > 1 ? `${broke.slice(0, -1).join(', ')} and ${broke[broke.length - 1]}` : broke[0];
+    lines.push(/window/.test(broke[0]) && broke.length === 1 ? `${when} came through ${where}.` : `${when} broke through ${list}. They got in.`);
+    if (a.hurt?.length) lines.push(`${a.hurt.map((h) => nameOf(h.id, balance)).join(' and ')} ${a.hurt.length > 1 || nameOf(a.hurt[0].id, balance) === 'You' ? 'are' : 'is'} hurt.`);
+    if (a.lost?.length) lines.push(`Lost: ${a.lost.map((l) => `${l.qty} ${lower(l.id, balance)}`).join(', ')}.`);
   }
   return lines;
 }

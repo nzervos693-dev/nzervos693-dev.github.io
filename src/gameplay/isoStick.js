@@ -97,9 +97,9 @@ export function stickGridDir(iso, ux, uy, out = { x: 0, y: 0, angle: 0 }) {
 const EPS = 1e-6;
 /** Sideways stick component (0-1) above which steering away from a doorway centre cancels the assist. */
 const ASSIST_AWAY_MAX = 0.5;
-const MOVE_OUT = { code: 0, door: null, moved: false, assistAxis: -1, assistSign: 0 };
+const MOVE_OUT = { code: 0, door: null, moved: false, assistAxis: -1, assistSign: 0, dx: 0, dy: 0 };
 /** Result codes of stepStickMove. */
-export const STICK = Object.freeze({ MOVING: 0, DOOR: 1, LOCKED: 2, SQUEEZE: 3 });
+export const STICK = Object.freeze({ MOVING: 0, DOOR: 1, LOCKED: 2, SQUEEZE: 3, CLIMB: 4 });
 
 /**
  * Move the hero `dist` tiles along the unit grid vector (gx, gy). Mutates hero.x / hero.y.
@@ -108,7 +108,8 @@ export const STICK = Object.freeze({ MOVING: 0, DOOR: 1, LOCKED: 2, SQUEEZE: 3 }
  *   assistTiles:number, assistMinCos:number}} env (radius = hero collision radius in tiles)
  * @returns {{code:number, door:object|null, moved:boolean}} scratch object valid until the next call.
  *   DOOR: a closed door blocks the way (open it); LOCKED: jammed/foreign-barricaded door; SQUEEZE: the hero
- *   slipped through his own barricade (the door is returned so the scene can pause him).
+ *   slipped through his own barricade (the door is returned so the scene can pause him). CLIMB: he pushes into a broken window
+ *   (MOVE.CLIMB): out.dx / out.dy is the grid step across it; the scene vaults him over in structures.brokenWindowVaultSeconds.hero.
  */
 export function stepStickMove(hero, gx, gy, dist, env) {
   const out = MOVE_OUT;
@@ -165,6 +166,10 @@ function moveAxis(hero, axis, comp, d, env, out, other) {
       pass = true;
       out.code = STICK.SQUEEZE;
       out.door = env.grid.doors.get(env.grid.edgeBetween(cx, cy, cx + dx, cy + dy));
+    } else if (cls === MOVE.CLIMB && ac >= env.doorMin && out.code === STICK.MOVING) {
+      out.code = STICK.CLIMB;
+      out.dx = dx;
+      out.dy = dy;
     } else if ((cls === MOVE.CLOSED || cls === MOVE.LOCKED) && ac >= env.doorMin && out.code === STICK.MOVING) {
       out.code = cls === MOVE.CLOSED ? STICK.DOOR : STICK.LOCKED;
       out.door = env.grid.doors.get(env.grid.edgeBetween(cx, cy, cx + dx, cy + dy));

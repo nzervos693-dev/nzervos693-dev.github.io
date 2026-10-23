@@ -23,7 +23,7 @@
 
 export const TILE = Object.freeze({ VOID: 0, FLOOR: 1, STAIRS: 2 });
 export const EDGE = Object.freeze({ NONE: 0, WALL: 1, WINDOW: 2, DOOR: 3 });
-export const MOVE = Object.freeze({ OPEN: 0, BLOCK: 1, CLOSED: 2, LOCKED: 3, SQUEEZE: 4 });
+export const MOVE = Object.freeze({ OPEN: 0, BLOCK: 1, CLOSED: 2, LOCKED: 3, SQUEEZE: 4, CLIMB: 5 });
 
 const SIDE_DELTA = { N: [0, -1], S: [0, 1], W: [-1, 0], E: [1, 0] };
 
@@ -51,6 +51,8 @@ export class Grid {
     this.version = 0;
     /** @type {Set<number>} window edges that do NOT stop sight (built glass, broken panes; GDD 5.19). */
     this.seeThrough = new Set();
+    /** @type {Set<number>} window edges that can be climbed through (broken pane, nothing over it): MOVE.CLIMB. */
+    this.climbable = new Set();
   }
 
   // ---- building ----------------------------------------------------------
@@ -169,6 +171,7 @@ export class Grid {
     const eid = this.edgeId(x, y, side);
     this.edges[eid] = type;
     this.seeThrough.delete(eid);
+    this.climbable.delete(eid);
     this.version++;
   }
 
@@ -217,6 +220,15 @@ export class Grid {
     if (on && this.edges[eid] !== EDGE.WINDOW) return; // only windows can be see-through
     if (this.seeThrough.has(eid) === !!on) return;
     if (on) this.seeThrough.add(eid); else this.seeThrough.delete(eid);
+    this.version++;
+  }
+
+  /** Mark or clear a WINDOW edge as climbable (broken pane): moveClass returns MOVE.CLIMB. Bumps version on change. */
+  setClimbable(x, y, side, on) {
+    const eid = this.edgeId(x, y, side);
+    if (on && this.edges[eid] !== EDGE.WINDOW) return;
+    if (this.climbable.has(eid) === !!on) return;
+    if (on) this.climbable.add(eid); else this.climbable.delete(eid);
     this.version++;
   }
 
@@ -290,11 +302,11 @@ export class Grid {
     return s === 'closed' || s === 'jammed';
   }
 
-  /** Movement class of an edge: MOVE.OPEN | BLOCK | CLOSED | LOCKED | SQUEEZE. */
+  /** Movement class of an edge: MOVE.OPEN | BLOCK | CLOSED | LOCKED | SQUEEZE | CLIMB. */
   moveClass(eid) {
     const t = this.edges[eid];
     if (t === EDGE.NONE) return MOVE.OPEN;
-    if (t !== EDGE.DOOR) return MOVE.BLOCK;
+    if (t !== EDGE.DOOR) return t === EDGE.WINDOW && this.climbable.has(eid) ? MOVE.CLIMB : MOVE.BLOCK;
     const d = this.doors.get(eid);
     if (d.state === 'jammed') return MOVE.LOCKED;
     if (d.barricade && d.barricade.hp > 0) return d.barricade.own ? MOVE.SQUEEZE : MOVE.LOCKED;

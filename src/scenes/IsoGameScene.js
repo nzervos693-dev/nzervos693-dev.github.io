@@ -33,6 +33,10 @@ import { wearWord, itemWords } from '../gameplay/words.js';
 import { BARRICADE_WORDS, barricadeStage, barricadeMaxHp, latchBreach } from '../gameplay/barricade.js';
 import { EMPTY_LINES } from '../gameplay/storyText.js';
 import { catchUp } from '../gameplay/offline.js';
+import { makeAttackHook, dropLostAttackTime } from '../gameplay/attacks.js';
+import { makeIsoResolver, syncFrontBarricade } from '../gameplay/isoOffline.js';
+import { canSleepIn, setHeart, heartBed } from '../gameplay/isoHeart.js';
+import { createMergedStashes, ensureMergedStashes, applyStashesToFloor, stashSections } from '../gameplay/isoStash.js';
 import { heroCtx, objState, takeFromPile } from '../gameplay/gameState.js';
 import { moveAll, addItem, maxUses } from '../gameplay/inventory.js';
 import {
@@ -45,7 +49,7 @@ import { listActions, buildSpec, completeAction, heroHasTool } from '../gameplay
 import { pastKeepThreshold, spendToolUse, energyTimeMult } from '../gameplay/salvage.js';
 import { napAction, completeNap, napConfig } from '../gameplay/nap.js';
 import { getSafeArea } from '../core/safeArea.js';
-import { reportLines } from '../gameplay/report.js';
+import { reportLines, attackLines } from '../gameplay/report.js';
 import {
   recipeRows, useNames, craftCheck, costLines, effectText, performCraft, recipeKind,
 } from '../gameplay/crafting.js';
@@ -60,6 +64,7 @@ import ActionButtons from './ActionButtons.js';
 import IsoHud from './IsoHud.js';
 import IsoThrow from './IsoThrow.js';
 import IsoZombies from './IsoZombies.js';
+import IsoAttacks from './IsoAttacks.js';
 import IsoSoundscape from './IsoSoundscape.js';
 import { makeVignette, SoundRipples } from './IsoFx.js';
 import InventoryPanel from './InventoryPanel.js';
@@ -69,7 +74,7 @@ import MoodleView from './MoodleView.js';
 import MenuPanel from './MenuPanel.js';
 import GameOverPanel from './GameOverPanel.js';
 import CraftPanel from './CraftPanel.js';
-import { debugOn, skipFrontEnd, exposeScene } from './debug.js';
+import { debugOn, skipFrontEnd, attacksOn, exposeScene } from './debug.js';
 import { label, COLORS, CSS, DEPTH } from './ui.js';
 import { playSfx } from './sfx.js';
 
@@ -107,7 +112,8 @@ const PULSE_SECONDS = 0.1;
  *
  * Events on `this.bus`: 'noise' {x, y, radius, level, source} (tile units, radius Infinity = whole floor),
  * 'action-start' / 'action-done' / 'action-cancel', 'door-opened' {id}, 'door-closed' {id}, 'door-broken' {id},
- * 'zombie-killed' {id, type}, 'floor-cleared', 'hero-dead', 'crafted', 'barricade-built'.
+ * 'zombie-killed' {id, type}, 'floor-cleared', 'hero-dead', 'crafted', 'barricade-built', and the attack's 'attack-cue',
+ * 'attack-stairwell', 'attack-start', 'attack-end', 'hq-breached', 'structure-broken' {eid, piece}.
  */
 export default class IsoGameScene extends Phaser.Scene {
   constructor() { super('IsoGame'); }
@@ -132,6 +138,8 @@ export default class IsoGameScene extends Phaser.Scene {
     this.state = state;
     save.game = state;
     restoreStructures(state, this.world, balance); // built / demolished edges first, then door states
+    applyStashesToFloor(state, this.world); // the stashes of merged HQ units (GDD 5.19)
+    ensureMergedStashes(state, this.world, balance); // a claimed save from before they existed gets them now
     applyDoorsToGrid(state, this.world);
     this.hero = state.hero;
 
@@ -166,6 +174,7 @@ export default class IsoGameScene extends Phaser.Scene {
     this.buildMode = false;
     this.buildCtx = { balance, structures: this.world.structures, state };
     this.nap = { enabled: false };
+    this.vault = null;
     this.camHero = { x: 0, y: 0 };
     this.tFlags = { held: false, locked: false, suppress: false };
     this.btnView = { main: null, secondary: null, attack: { icon: 'attack_fists' }, quick: { itemId: null, icon: null, count: 0, armed: false }, cd: { main: 0, secondary: 0, attack: 0, quick: 0 }, sleeping: false };
@@ -220,6 +229,8 @@ export default class IsoGameScene extends Phaser.Scene {
       onStore: (i) => this.moveOne('bag', i),
       onTake: (i) => this.moveOne('stock', i),
       onClose: () => { this.buttonsDirty = true; },
+      stockLabel: () => (isHqClaimed(this.state) ? 'HQ' : 'Stockpile'),
+      sections: () => stashSections(this.state).map((e) => ({ offset: e.offset, slots: e.slots, name: this.world.units.find((u) => u.id === e.unit)?.name ?? 'Stash' })),
       badge: (slot, i, tab) => (tab === 'bag' && isEquipped(this.state, i) ? 'E' : slot.uses != null ? ' ' : null),
     });
     this.craftPanel = new CraftPanel(this, { rows: () => this.craftRows(), onCraft: (id) => this.onCraftTap(id), onClose: () => {} });
@@ -237,6 +248,9 @@ export default class IsoGameScene extends Phaser.Scene {
     this.gameOverPanel = new GameOverPanel(this);
     this.soundscape = new IsoSoundscape(this);
     this.zombies = new IsoZombies(this);
+    this.attacks = new IsoAttacks(this);
+    this.attacks.enabled = attacksOn(); // plain ?debug turns attacks off (GDD 11.3 is for real games)
+    this.resolver = makeIsoResolver(this.world);
     this.moodles = new MoodleView(this, balance, {
       getAction: (id) => moodleAction(id, this.state, this.balance, this.inHome()),
       hint: (id) => moodleHint(id),
@@ -244,6 +258,7 @@ export default class IsoGameScene extends Phaser.Scene {
     });
     this.bus.on('noise', (n) => this.zombies.onNoise(n));
     this.bus.on('floor-cleared', () => this.checkClearedThought());
+    this.bus.on('attack-stairwell', () => { if (this.action?.spec.kind === 'nap') { this.cancelAction(); this.toast.show('Nap interrupted!', 1600); } }); // GDD 5.2: the banging wakes a napper
     this.stickCfg = stickConfig(balance);
     this.stickView = new IsoStickView(this, this.stickCfg);
     this.stickEnv = { grid: this.grid, isBlocked: this.zombieAt, radius: this.stickCfg.collisionRadiusTiles, doorMin: DOOR_PUSH_MIN_COMPONENT, maxStep: this.stickCfg.maxSubstepTiles,
@@ -315,6 +330,7 @@ export default class IsoGameScene extends Phaser.Scene {
       this.soundscape.stopAll();
       this.targeting?.destroy();
       this.zombies?.destroy();
+      this.attacks?.destroy();
       this.view?.destroy();
       this.bus.removeAllListeners();
       this.game.events.off('floor15:hide', onHide);
@@ -480,6 +496,7 @@ export default class IsoGameScene extends Phaser.Scene {
     this.moving = false;
     this.creeping = false;
     if (this.pauseT > 0) { this.pauseT -= dt; return; }
+    if (this.vault) { this.updateVault(dt); return; }
     if (this.faceTarget && !this.walk) {
       h.facing = turnToward(h.facing, this.faceTarget.angle, this.faceTarget.rate, dt);
       if (Math.abs(angleDiff(h.facing, this.faceTarget.angle)) < 0.5) this.faceTarget = null;
@@ -513,6 +530,33 @@ export default class IsoGameScene extends Phaser.Scene {
         break;
       default:
     }
+  }
+
+  /**
+   * The hero pushes into a broken window: he vaults over it in structures.brokenWindowVaultSeconds.hero (1.0 s), a straight
+   * slide to the middle of the tile across (GDD 5.20). Nothing else moves him meanwhile.
+   */
+  beginVault(dx, dy) {
+    if (this.vault || this.action) return;
+    const h = this.hero;
+    const tx = Math.floor(h.x) + dx;
+    const ty = Math.floor(h.y) + dy;
+    if (!this.grid.isWalkable(tx, ty) || this.zombieAt(tx, ty)) return;
+    this.vault = { t: 0, dur: this.balance.structures.brokenWindowVaultSeconds.hero, x0: h.x, y0: h.y, x1: tx + 0.5, y1: ty + 0.5 };
+    h.facing = angleTo(h.x, h.y, tx + 0.5, ty + 0.5);
+    this.walk = null;
+    this.run = null;
+    playSfx(this, 'glass_tinkle', { volume: 0.6 });
+  }
+
+  updateVault(dt) {
+    const v = this.vault;
+    v.t += dt;
+    const k = Math.min(1, v.t / v.dur);
+    this.hero.x = v.x0 + (v.x1 - v.x0) * k;
+    this.hero.y = v.y0 + (v.y1 - v.y0) * k;
+    this.moving = true;
+    if (k >= 1) this.vault = null;
   }
 
   /**
@@ -592,6 +636,9 @@ export default class IsoGameScene extends Phaser.Scene {
         this.moving = false;
         this.onLockedDoor(r.door, true);
         break;
+      case STICK.CLIMB:
+        this.beginVault(r.dx, r.dy);
+        break;
       case STICK.SQUEEZE:
         if (performance.now() - this.squeezeAt < SQUEEZE_REPEAT_MS) break; // still crossing the same barricade
         this.squeezeAt = performance.now();
@@ -627,7 +674,8 @@ export default class IsoGameScene extends Phaser.Scene {
 
   objectDef(o) { return this.balance.objects[o.objectId]; }
 
-  isHomeBed(o) { return o.id === this.world.home.bed; }
+  /** Can the hero sleep / nap in this bed? The start flat's bed, and after the HQ claim any bed in the HQ (GDD 5.19). */
+  isHomeBed(o) { return canSleepIn(this.world, this.state, this.balance, o); }
 
   /**
    * Is something in the doorway (the door cannot close)? A zombie whose centre is on one of the door's two
@@ -702,7 +750,7 @@ export default class IsoGameScene extends Phaser.Scene {
       case 'force': this.forceDoor(t.door); break;
       case 'dismantle': if (t.kind === 'door') this.beginDoorDismantle(t.door); else this.startObjectAction(t.obj, 'dismantle'); break;
       case 'search': case 'take': case 'drain': this.startObjectAction(t.obj, id); break;
-      case 'sleep': this.faceObject(t.obj); this.startSleep(); break;
+      case 'sleep': this.faceObject(t.obj); this.markHeart(t.obj); this.startSleep(); break;
       case 'nap': this.faceObject(t.obj); this.startNap(t.obj); break;
       case 'craft': this.craftPanel.open(); break;
       case 'stash': this.panel.open('stock'); break;
@@ -948,6 +996,10 @@ export default class IsoGameScene extends Phaser.Scene {
     const r = claimFloor(this.state, this.balance, FLOOR, now());
     if (!r.ok) { this.toast.show(r.message, 1800); return; }
     rememberHq(this.world.structures, this.vision.seen); // every HQ tile becomes Remembered
+    for (const m of createMergedStashes(this.state, this.world, this.balance)) { // every merged unit without one gets a stash; they pool (GDD 5.19)
+      if (m.object) { this.view.addProp(m.object); this.targeting.addObject(m.object); }
+    }
+    this.panel.refresh();
     this.updateVision(true);
     this.bus.emit('hq-claimed', {});
     this.buttonsDirty = true;
@@ -1102,12 +1154,16 @@ export default class IsoGameScene extends Phaser.Scene {
     let broke = false;
     let sound = 'door_bang'; // a zombie pounding the door from outside
     if (!hit.jammed) {
-      if (door.barricade && door.barricade.hp > 0) {
-        broke = this.grid.damageBarricade(door, hit.damage);
-        this.state.build.barricade.hp = door.barricade.hp;
+      // every door takes its damage through the structure model (cover first, per-edge redraw): a generated door breaks open, a
+      // fitted one at 0 HP becomes a gap, a barricade stays broken until repaired (GDD 5.20)
+      const covered = door.barricade && door.barricade.hp > 0;
+      const r = this.world.structures.damageEid(door.edge, hit.damage);
+      if (door.id === this.world.home.frontDoor) syncFrontBarricade(this.world, this.state);
+      if (covered) {
+        broke = r.destroyed;
         sound = broke ? 'barricade_break' : 'barricade_hit';
-        if (broke && latchBreach(this.state)) this.state.needs.morale = Math.max(0, this.state.needs.morale + this.balance.needs.morale.events.barricadeBreached);
-      } else if (this.grid.damageDoor(door, hit.damage)) {
+        if (broke && door.id === this.world.home.frontDoor && latchBreach(this.state)) this.state.needs.morale = Math.max(0, this.state.needs.morale + this.balance.needs.morale.events.barricadeBreached);
+      } else if (r.destroyed) {
         broke = true;
         sound = 'barricade_break';
         this.bus.emit('door-broken', { id: door.id });
@@ -1279,10 +1335,20 @@ export default class IsoGameScene extends Phaser.Scene {
     this.toast.show('Sleeping. Push the stick to wake up.');
   }
 
+  /** The bed just slept or napped in becomes the heart (the attack target, GDD 5.19); the first change thinks "I'll sleep here now." */
+  markHeart(o) {
+    if (!setHeart(this.world, this.state, this.balance, o)) return;
+    this.buttonsDirty = true;
+    if (!this.state.thoughts.sleepHere) {
+      this.state.thoughts.sleepHere = true;
+      this.time.delayedCall(1800, () => this.toast.show("I'll sleep here now.", 2400));
+    }
+  }
+
   napButton() { return napAction(this.state, now(), this.balance, { unsafe: this.napUnsafe() }); }
 
   napUnsafe() {
-    return this.zombies.list.some((rt) => !rt.dying && (rt.ai.mode === 'chase' || rt.ai.mode === 'attack'));
+    return this.attacks.phase === 'fight' || this.zombies.list.some((rt) => !rt.dying && (rt.ai.mode === 'chase' || rt.ai.mode === 'attack'));
   }
 
   startNap(o) {
@@ -1291,6 +1357,7 @@ export default class IsoGameScene extends Phaser.Scene {
     const spec = { kind: 'nap', id: 'bed', seconds: napConfig(this.balance).durationSeconds, energy: 0, tool: null, noise: 'quiet' };
     this.action = { spec, o, elapsed: 0, duration: spec.seconds };
     this.bus.emit('action-start', { spec, target: o });
+    this.markHeart(o);
   }
 
   finishNap() {
@@ -1437,6 +1504,8 @@ export default class IsoGameScene extends Phaser.Scene {
     const z = rt.rec;
     this.state.stats.zombiesKilled += 1;
     this.bus.emit('zombie-killed', { id: z.id, type: z.type });
+    this.attacks.onKilled(z);
+    if (z.siege) delete this.state.zombies[z.id]; // attackers leave no record; authored zombies stay dead
     if (updateIsoFloorState(this.state, FLOOR)) this.bus.emit('floor-cleared', { floor: FLOOR });
     this.save();
   }
@@ -1445,6 +1514,7 @@ export default class IsoGameScene extends Phaser.Scene {
     if (this.dead) return;
     this.dead = true;
     this.cancelAction();
+    this.vault = null;
     this.walk = null;
     this.wake();
     this.cancelPlacement();
@@ -1615,7 +1685,7 @@ export default class IsoGameScene extends Phaser.Scene {
     const door = homeFrontDoor(this.world);
     if (!door) return;
     const b = this.state.build.barricade;
-    if (b.level > 0) this.grid.setBarricade(door, { own: true, hp: b.hp }); else if (door.barricade) this.grid.setBarricade(door, null);
+    if (b.level > 0) { this.grid.setBarricade(door, { own: true, hp: b.hp }); door.barricade.level = b.level; } else if (door.barricade) this.grid.setBarricade(door, null);
     this.view.refreshDoors(true);
   }
 
@@ -1636,6 +1706,7 @@ export default class IsoGameScene extends Phaser.Scene {
     state.times.lastTickAt = t;
     tickNeeds(state.needs, gap / 1000, { sleeping: this.sleeping }, balance);
     tickProducers(state, balance, gap / 1000);
+    this.attacks.check(t);
     if (this.sleeping && state.needs.energy >= balance.needs.max) { this.wake(); this.toast.show('Rested.'); }
     this.refreshMoodles();
     if (state.needs.health <= 0 && !this.dead) this.onHeroDeath();
@@ -1661,21 +1732,52 @@ export default class IsoGameScene extends Phaser.Scene {
     this.moodles.update(list);
   }
 
+  /**
+   * Offline catch-up on launch, resume or a long frame gap: needs, production and attacks, in 10-minute steps. An attack cut
+   * short by closing the app settles first. Attacks resolve against floor 15 (gameplay/isoOffline.js): the structures on the
+   * cheapest path to the heart wear or break, and the report says what held and what broke.
+   */
   applyOffline(elapsedMs, capped, awake = false) {
     const { state, balance } = this;
     if (state.flags.heroDead || this.gameOver) return;
     const t = now();
+    this.attacks.onHide(); // a fight cut short by a long gap settles below
+    const startMs = state.times.lastTickAt;
+    const attackResults = [];
+    const hook = makeAttackHook(state, balance, this.rng, startMs, this.resolver);
+    hook.settle(startMs, { attacks: attackResults }); // an interrupted fight first (it counts toward the cap)
     let report = null;
     if (elapsedMs > 0) {
       const sim = { needs: state.needs, stockpile: state.stockpile, ctx: heroCtx(state, balance) };
       const produce = (_s, seconds, _at, rep) => tickProducers(state, balance, seconds, rep);
-      report = catchUp(sim, elapsedMs, balance, { startMs: state.times.lastTickAt, awake, stepHooks: [produce] });
-      report.attacks = [];
+      const hooks = [produce];
+      if (this.attacks.enabled) hooks.push(hook);
+      report = catchUp(sim, elapsedMs, balance, { startMs, awake, stepHooks: hooks });
+      if (capped) dropLostAttackTime(state, balance, t, this.rng);
+      attackResults.push(...(report.attacks || []));
+      report.attacks = attackResults;
     }
-    if (report && elapsedMs >= 60000) this.popup.show('While you were away', reportLines(report, balance, capped));
+    if (report ? (elapsedMs >= 60000 || attackResults.length) : attackResults.length) {
+      this.popup.show('While you were away', report ? reportLines(report, balance, capped) : attackLines(attackResults, balance));
+    }
     state.times.lastTickAt = t;
+    if (attackResults.length) { this.syncBarricadeToDoor(); this.updateVision(true); }
+    this.buttonsDirty = true;
     this.panel.refresh();
     this.refreshMoodles();
+    this.save();
+  }
+
+  /** An attack came due while the game was not ticking (e.g. the app was open on the title): settle it offline. */
+  settleDueAttacks(t) {
+    const report = { attacks: [] };
+    makeAttackHook(this.state, this.balance, this.rng, t, this.resolver)(null, 0, t, report);
+    if (!report.attacks.length) return;
+    for (const a of report.attacks) a.missed = true;
+    this.popup.show('While you were away', attackLines(report.attacks, this.balance));
+    this.syncBarricadeToDoor();
+    this.updateVision(true);
+    this.panel.refresh();
     this.save();
   }
 
@@ -1689,6 +1791,8 @@ export default class IsoGameScene extends Phaser.Scene {
     this.throw.clear();
     this.buttons.closePicker();
     this.buttons.releaseAll();
+    this.attacks.onHide();
+    this.vault = null;
     this.zombies.resetAll();
     this.ripples.clear();
     this.walk = null;
@@ -1712,7 +1816,7 @@ export default class IsoGameScene extends Phaser.Scene {
       this.lastHomeTap = 0;
       if (this.sleeping) this.wake();
       this.cancelAction();
-      const bed = this.world.objectById.get(this.world.home.bed);
+      const bed = heartBed(this.world, this.state, this.balance); // Home goes to the bed last slept in
       this.cancelPlacement();
       if (bed) this.goToObject(bed, { kind: 'walk' });
       this.toast.show('Heading home.');
@@ -1770,6 +1874,7 @@ export default class IsoGameScene extends Phaser.Scene {
       this.updateHero(dt);
       this.updateCombat(dt);
     }
+    this.attacks.update(dt);
     this.zombies.update(dt);
     this.updateAction(dt);
     stepPanic(this.panic, this.countHunters(), dt, this.balance);
@@ -1892,6 +1997,14 @@ export default class IsoGameScene extends Phaser.Scene {
     this.hero.y = ty + 0.5;
     this.updateVision(true);
     this.snapCamera();
+  }
+
+  /** Make the next attack arrive in `seconds` (testing; needs ?debug&attacks). */
+  debugAttackIn(seconds, kind = 'scheduled') {
+    const a = this.state.attacks;
+    a.kind = kind;
+    a.nextAt = now() + seconds * 1000;
+    a.current = null;
   }
 
   /** Add items to the bag (testing). */
