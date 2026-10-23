@@ -1672,7 +1672,8 @@ the floors you scavenge saves walking.
     stacks of the main home's stash are lost (rounded down).
   - At most **2** attacks resolve per catch-up (`attacks.maxOfflineResolves`).
 - The report describes each attack in one sentence (5.1), never strength or
-  defense numbers.
+  defense numbers. With the HQ as main home it names the entry structure
+  by compass side ("the north wall", 5.20).
 - **Barricade look**: damage is shown only by the sprite, in 5 stages by
   HP ratio (`barricade.visualStages` 0.75 / 0.5 / 0.25 / 0): intact, a
   cracked plank, boards hanging and gaps, barely held, broken. Each hit
@@ -2419,8 +2420,12 @@ grid. Outer walls and the stairwell stay solid. Keys `hq.*`, `build.*`,
 - **Stashes**: existing stashes stay where they are; every merged unit
   without one gets a **20-slot** stash (`hq.newUnitStashSlots`) by the 5.3
   placement rule. Inside HQ, crafting, building and Store all treat **all
-  HQ stashes as one pool** (carried items first, then stashes nearest by
-  path). The Bag shows one "HQ" tab listing each stash as a section.
+  HQ stashes as one pool**. **Pool order** (accepted for C2): carried items
+  first, then the start flat's stash, then the merged units' stashes
+  nearest-first by straight-line distance from the start flat's stash;
+  the order is fixed at the claim (new stashes built later go last).
+  Materials are taken in that order. The Bag shows one "HQ" tab listing
+  each stash as a section, in the same order.
 - **Beds and the heart**: any bed or mattress in HQ can be slept in. When
   the bed last slept or napped in is in HQ, **the main home is the HQ** and
   that bed is the **heart** (the attack target, 5.20).
@@ -2523,7 +2528,7 @@ touch-interactive)
   "Needs sledgehammer" / "Load-bearing. Leave it." / "Nothing here."
 - **Costs and tools**: building, upgrading, fitting and repairing need a
   carried **hammer** (`build.requiresTool`); materials come from carried
-  items then the HQ stash pool and are taken **at completion** (a cancelled
+  items then the HQ stash pool (order below) and are taken **at completion** (a cancelled
   action costs nothing). Missing materials: greyed "Needs 6 wood" (one
   missing material named). These are **timed actions** under the section
   4 rules (stick creep+ cancels, 50% rule, Attack cancels, a zombie seeing
@@ -2636,9 +2641,14 @@ zombies can't open them). Door damage **can** now be repaired.
 
 **Windows** (`structures.windows.*`): a fitted **glass window** costs 2
 glass + 2 wood, 5 s, **30 HP**, defense 2; it blocks movement only. At 0
-HP it shatters (Loud, glass sound) into a **broken window**: zombies climb
-through in **1.5 s**, the hero in **1.0 s** (push into it,
-`structures.brokenWindowVaultSeconds`). Glass can't be repaired: demolish
+HP it shatters (Loud, glass sound) into a **broken window**. Climbing
+through must always be slower than walking: a **zombie** crossing it takes
+its **normal step time for that tile plus 1.5 s** standing at the sill
+(`structures.brokenWindowClimbExtraSeconds.zombie`; walker about 1.9 + 1.5
+= 3.4 s, crawler 3.3 + 1.5 = 4.8 s); the **hero** vaults in **1.0 s**
+flat (push into it, `structures.brokenWindowVaultSeconds.hero`, double his
+0.5 s walk step). A zombie that sees the hero mid-climb finishes the climb
+first. Glass can't be repaired: demolish
 (2 s, yields 1 wood) and fit again. **Exterior windows** can take overlays
 but are never attacked before M4 (H1, CD decided): attackers only come up
 the stairs. In **M4**, **climber** zombies (a new zombie type, numbers set
@@ -2706,7 +2716,19 @@ rules; keys `traps.*`)
   edge (`hq.attacks.slotsPerEdge`): from the tile across the edge and the
   2 tiles diagonally beside it, only if walkable and no wall touches the
   corner between (no hitting round corners). A **1-wide chokepoint**
-  therefore gets 1 attacker at a time. Others wait behind.
+  therefore gets 1 attacker at a time. An edge whose slots are all taken
+  costs **+6 tiles** more for the next attacker's path
+  (`hq.attacks.tuning.slotFullPenaltyTiles`), so a 4th attacker goes for
+  another edge if one is within about 6 tiles' extra cost; otherwise it
+  waits behind. Paths are rebuilt within **0.5 s** of an HP change and at
+  once when a piece appears or breaks (`hq.attacks.tuning.replanSeconds`).
+- **Unreachable hero**: an attacker that sees the hero but has no path to
+  him ignores sight for **4 s** (`zombies.tuning.ignoreSightSeconds`) and
+  goes back to its structure, so a hero behind glass or a barricade can't
+  stall a wave just by being seen.
+- **Code constants, not balance** (engineering tick rates with no feel
+  impact): the attack watch interval (0.25 s) and the heart goal refresh
+  (0.5 s) stay in code.
 - Throughput check: one walker = 14 x 0.4 / 2.2 s = **2.5 HP/s**; 3 walkers
   break a wood wall in ~20 s, sheet metal ~42 s, a block wall ~80 s, a
   metal door + Lv2 barricade (700) ~92 s.
@@ -2730,7 +2752,7 @@ rules; keys `traps.*`)
 - **Online breach**: when the first attacker crosses the HQ perimeter:
   morale -10 (`needs.morale.events.barricadeBreached`, same latch as 5.2).
   Each attacker standing in the heart room loses one random stack from the
-  HQ stash nearest the heart every **10 s** (`heartLootSecondsPerStack`),
+  HQ stash nearest the heart (straight-line distance) every **10 s** (`heartLootSecondsPerStack`),
   at most **5** stacks per attack (`heartMaxStacksLost`). Attackers only
   bite the active character (5.8 rule kept). Repelled online (all
   attackers dead, perimeter never crossed) = +5 morale.
@@ -2752,21 +2774,58 @@ the main home is HQ)
   spent). D = path defense + guards x 15 + secured floors x 5 + 10 if the
   active character is in HQ (5.8 terms; floor 15 counts as secured).
 - **D >= A, repelled**: the path's structures lose **A x 0.5** HP in total
-  (`attacks.repelBarricadeLossRatio`), applied outermost first, each
-  floored at **1 HP** (never broken by a repel).
+  (`attacks.repelBarricadeLossRatio`), applied **outermost first**
+  (confirmed; the only supported value of
+  `hq.attacks.offline.repelLossOrder`): the first structure on the path
+  from the landing takes loss down to its floor of **1 HP** (never broken
+  by a repel), then the remainder goes to the next one inward, and so on;
+  on each edge the overlay before the piece.
 - **D < A, breached**: every structure on the path goes to 0 (gaps; front
   overlays first); shortfall S = A - D; residents of HQ take S / 2 damage
   (floor 10) and S / 10 random stacks of HQ stashes are lost (5.8 terms).
 - **Offline still can't kill** (health floor 10, 5.2); max 2 offline
   attacks per catch-up (5.8). The report stays prose: "Around 03:10 they
-  went for the east wall. It held." / "They came through the kitchen
+  went for the east wall. It held." / "They came through the north
   window."
-- **Fairness check** (QA): day 3, A = 34. HQ with the gate walled in wood
-  (10) and the start flat's front door + Lv1 barricade (8 + 10) on the
-  path, character home (10), floor 15 secured (5): D = 43 >= 34, repelled.
-  Day 20, A = 85 needs roughly a metal-plated gate and one reinforced
-  inner door (e.g. sheet-metal gate wall 20 + plating 15 + reinforced
-  door 18 + Lv2 barricade 25 + 15 = 93).
+- **Naming in the report** (accepted for C2): rooms have no names after
+  merging, so the structure named is the **first one on the path** (the
+  entry), as "the <side> <piece>": piece = wall / door / window; side =
+  the 8-way compass direction from the heart to the edge's midpoint on the
+  grid (north = -y, as the build cursor). The gate is always "the
+  stairwell door" (gap or wall: "the stairwell side"). Never numbers or
+  tiers.
+- **Defence comes in layers**: every route from the landing to the heart
+  crosses exactly one **perimeter** edge (8 block walls at 35, or the
+  gate) and then whatever the player built inside, ending at the **heart
+  room's** walls. Attackers take the cheapest route by HP, so the weakest
+  perimeter edge and the weakest heart-room edge both count; making one
+  edge strong only moves the route. The way to scale is a strong gate
+  plus a small, strong **keep** around the bed (an exterior corner keeps
+  it to about 4 edges, since exterior walls are never attacked).
+- **Fairness checks** (QA; authored floor 15, heart in the start flat's
+  bedroom, no guards, character home 10 + floor 15 secured 5 = **15**):
+  - **Day 3, A = 34**: gate walled in wood (150 HP, 10); cheapest route =
+    gate -> corridor -> start flat front door + Lv1 barricade (8 + 10) ->
+    bedroom partition (80 HP, 4). Path 32, **D = 47 >= 34**, held.
+  Both routes below (gate -> corridor -> start flat front door, or a
+  landing wall straight into the start flat's living room) reach the
+  bedroom through the same 80 HP partition (+4).
+  - **Day 10, A = 55**: wood gate (150 HP, 10), front door + Lv1 (240 HP,
+    18), and a wood keep around the bed in a bedroom corner (3 wood walls
+    150 HP / 10, wood door + Lv1 220 HP). Gate route 150 + 240 + 80 + 150
+    = 620 HP beats the landing route (600 + 80 + 150 = 830). Path 10 + 18
+    + 4 + 10 = 42, **D = 57 >= 55**, held, barely: time to upgrade.
+  - **Day 20, A = 85**: upgrading only the gate fails: with a wood keep
+    the landing route (600 + 80 + 150) gives 35 + 4 + 10 = 49, D = 64.
+    Upgrading only the keep fails too: with a wood gate the gate route
+    gives 10 + 18 + 4 + 35 = 67, D = 82. **Sensible plan**: gate at sheet
+    metal (320 HP, 20) and the keep's 3 walls at sheet metal + plating
+    (520 HP, 35) with a metal door + Lv2 barricade (700 HP, 55). Gate
+    route 320 + 240 + 80 + 520 = 1160 HP beats the landing route (600 + 80
+    + 520 = 1200). Path 20 + 18 + 4 + 35 = 77, **D = 92 >= 85**, held
+    (the landing route would give 74, D = 89, also held). Cost: about 23
+    sheet metal (69 metal) over 20 days, the intended mid-game project;
+    a guard (+15, Stage B) or spike strips (C3) add margin.
 
 **Progression pacing** (what the player can build when)
 - **Early (first HQ days, Stage C2)**: wood walls, fitted wood doors,

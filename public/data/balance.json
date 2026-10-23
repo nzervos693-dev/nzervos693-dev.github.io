@@ -589,6 +589,7 @@
     "attackRangeTiles": 1.5,
     "barricadeDamageMult": 0.4,
     "tuning": {
+      "ignoreSightSeconds": 4,
       "attackWindupSeconds": 0.9,
       "wanderSpeedMult": 0.4,
       "wanderRadiusPx": 60,
@@ -978,6 +979,10 @@
       "maxAttackersOnFloor": 12,
       "heartLootSecondsPerStack": 10,
       "heartMaxStacksLost": 5,
+      "tuning": {
+        "slotFullPenaltyTiles": 6,
+        "replanSeconds": 0.5
+      },
       "offline": {
         "defenseScalesWithHp": true,
         "trapMaxCounted": 3,
@@ -1023,7 +1028,8 @@
     "damageMult": 0.4,
     "damageStages": [0.75, 0.5, 0.25],
     "brokenPiece": "gap",
-    "brokenWindowVaultSeconds": { "zombie": 1.5, "hero": 1.0 },
+    "brokenWindowVaultSeconds": { "hero": 1.0 },
+    "brokenWindowClimbExtraSeconds": { "zombie": 1.5 },
     "walls": {
       "partition": { "hp": 80, "defense": 4, "buildable": false, "demolishSeconds": 6, "yield": { "wood": 1, "metal": 1 }, "upgradeTo": "sheet_metal", "repair": { "material": "wood", "hpPerUnit": 20 } },
       "wood": { "hp": 150, "defense": 10, "cost": { "wood": 6, "metal": 1 }, "buildSeconds": 6, "demolishSeconds": 4, "yield": { "wood": 3 }, "upgradeTo": "sheet_metal", "repair": { "material": "wood", "hpPerUnit": 20 } },
