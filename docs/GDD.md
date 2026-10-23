@@ -170,27 +170,56 @@ from what the building already holds.
   400 px control band). Visible height = the safe-area height in game px.
   In camera terms: the camera centre is offset **down** from the hero by
   (0.5 - `heroScreenYFrac`) x visible height (128 px at 1280).
-- **Follow**: every frame the camera centre eases toward a target point =
-  the hero's screen position + the anchor offset above + a
-  **look-ahead** of **120 game px** in the screen direction the hero
-  faces (`controls.cameraLookAheadPx`), with lerp **0.12** per frame
-  (`controls.cameraLerp`), so more of the cone is on screen. The ease is
-  not limited by a dead zone; the **160 x 240 game px** rect
+- **Follow** (reworked twice after the CD found the old camera dizzying;
+  keys `camera.*`): every frame the camera centre eases toward a target
+  point = the hero's screen position + the anchor offset above + the
+  **look-ahead** offset. The ease is frame-rate independent, time
+  constant **0.3 s** (`camera.followSmoothSeconds`).
+- **Look-ahead follows movement, not facing**: it comes from the hero's
+  **smoothed movement velocity** (time constant **0.3 s**,
+  `camera.velocitySmoothSeconds`), so **turning in place never moves the
+  camera**. Its target length is **0** at or below **25 game px/s**
+  (`camera.lookAheadMinSpeedPx`) and ramps linearly to **45 game px**
+  (`camera.lookAheadPx`) at **120 game px/s**
+  (`camera.lookAheadFullSpeedPx`) and above. The applied offset eases
+  toward the target (time constant **0.7 s**,
+  `camera.lookAheadSmoothSeconds`); its rate of change is capped at
+  **40 game px/s** (`camera.lookAheadMaxPxPerSecond`) and its
+  acceleration at **300 game px/s²** (`camera.lookAheadMaxAccel`).
+  **Reversal**: while the look-ahead points against the movement, the
+  rate cap is x**4** (`camera.lookAheadReverseRateMult`), so turning
+  back doesn't leave the view looking the wrong way for long.
+- **Hero position on screen**: at steady speed the follow lag cancels most
+  of the look-ahead, so the hero sits **close to the anchor** whether
+  walking or standing; the look-ahead mainly shows up when he starts,
+  stops or turns.
+- **Soft clamp, then hard clamp**: the **160 x 240 game px** dead-zone rect
   (`controls.cameraDeadzonePx`, centred on the **anchor**, not the
-  screen centre) is only a **hard clamp**: after easing, if the hero's
-  screen position is outside that rect, the camera is moved the minimum
-  amount to put him back on its edge. So at rest the hero sits up to
-  120 px from the anchor, away from the way he faces: between about
-  y 392 and y 632 on the base screen, always above the control band
-  (top at y 880) and the HUD text line (y 840).
+  screen centre) is not a dead zone for the follow. Once the hero's
+  offset from the anchor passes **0.4** of the rect's half size on an
+  axis (`camera.softClampStartFrac`; 32 px across, 48 px up/down), the
+  follow tightens smoothly toward a tightness of **0.45**
+  (`camera.softClampTightness`), so the camera catches up gradually
+  instead of hitting a wall. The **hard clamp** stays as a last resort
+  only: if after easing the hero is still outside the rect, the camera
+  moves the minimum amount to put him back on its edge. The hero
+  therefore stays between about y 392 and y 632 on the base screen,
+  always above the control band (top at y 880) and the HUD text line
+  (y 840).
+- **Edge case, teleports**: a hero step faster than **1500 game px/s** in
+  one frame (`camera.teleportSpeedPx`) counts as **zero velocity**, so it
+  never kicks the look-ahead. A **floor change** or **load** snaps the
+  camera to its target and resets velocity and look-ahead. The Home
+  auto-walk is a normal walk and follows normally.
+- Old keys `controls.cameraLerp` and `controls.cameraLookAheadPx` are
+  removed from balance.json.
 - **Edge case**: the floor clamp below wins over the anchor; near the
   floor's lower edge the hero may sit lower than the anchor (the
   `cameraIsoEdgePadPx` pad keeps him at least partly clear of the band).
 - **No manual panning** (CD joystick decision, Stage A playtest): the view
   always follows the hero with the look-ahead above. Drags on the world
   do nothing (section 4); no two-finger pan.
-  While the joystick moves the hero, the look-ahead uses his facing, which
-  equals his movement direction.
+  The look-ahead uses his smoothed movement, never his facing alone.
 - **Clamp**: the view centre stays inside the current floor's iso bounding
   box plus a **96 game px** pad (`controls.cameraIsoEdgePadPx`), so edge
   objects can be centred away from Android's back-swipe zone.
@@ -668,8 +697,10 @@ alpha 0.75), placement reach 1.5
 tiles; action buttons (`controls.buttons.*`): Main 120 / Attack 96 /
 Secondary 88 / Quick-use 80 px, confirm 2 s; quick-use (`quickUse.*`):
 long-press 0.5 s, cooldown 1 s, throw arm 3 s; shove (`combat.shove.*`);
-Home double tap 1 s (`controls.homeDoubleTapSeconds`), camera lerp 0.12,
-hero clamp rect 160x240 px, look-ahead 120 px, edge pad 96 px, minimum
+Home double tap 1 s (`controls.homeDoubleTapSeconds`), camera follow
+0.3 s, velocity look-ahead up to 45 px, soft clamp from 0.4 of the rect
+(`camera.*`, section 2),
+hero clamp rect 160x240 px, edge pad 96 px, minimum
 hero anchor 40% from the top (`camera.heroScreenYFrac`), minimum
 hit area 96 px (`controls.buttonSizePx`, `controls.minHitAreaPx`), 1
 buffered attack tap (`controls.attackBuffer`). Removed with the context
@@ -3277,7 +3308,7 @@ pass positions change):
 | Positions in px on a 3120 x 240 strip | Tiles on a 30 x 22 grid, iso projection | `iso.*`, `grid.*` |
 | Walk 100 / run 170 px/s, run noise 250 px | 2.0 / 3.4 tiles/s, noise 5 tiles | `hero.walkTilesPerSecond`, `runTilesPerSecond`, `runNoiseRadiusTiles` |
 | Walking along x | A* 8-direction pathfinding, occupancy, doors on the way | 5.3 |
-| Camera: axis-locked drag, x dead zone, vertical floor scroll | Follow with look-ahead, 2D hero clamp rect, one floor; no manual pan (after Stage A) | `controls.cameraDeadzonePx`, `cameraLookAheadPx`, `cameraIsoEdgePadPx`, `floorFadeSeconds`, `zoom` |
+| Camera: axis-locked drag, x dead zone, vertical floor scroll | Follow with velocity look-ahead (camera rework), soft clamp then hard clamp rect, one floor; no manual pan (after Stage A) | `camera.heroScreenYFrac`, `followSmoothSeconds`, `velocitySmoothSeconds`, `lookAheadPx`, `lookAheadMinSpeedPx`, `lookAheadFullSpeedPx`, `lookAheadSmoothSeconds`, `lookAheadMaxPxPerSecond`, `lookAheadMaxAccel`, `lookAheadReverseRateMult`, `softClampStartFrac`, `softClampTightness`, `teleportSpeedPx`; `controls.cameraDeadzonePx`, `cameraIsoEdgePadPx`, `floorFadeSeconds`, `zoom` |
 | Tap tests on side sprites | ~~Iso hit-testing, snap 96 px~~ -> no world taps; target selection by reach and cone (context buttons) | `controls.target.*` (old `tapSnapRadiusPx`, `tapSnapWalkTiles` deprecated) |
 | Hold: none | ~~Drag to look, tap hero to turn~~ -> facing follows movement; double tap in the stick zone turns around | `controls.turnAroundSeconds`, `controls.joystick.doubleTap*`, `walkTurnDegreesPerSecond` |
 | Tap to walk, double tap to run | Floating virtual joystick (run past 70%) to move; context buttons to act | `controls.joystick.*`, `controls.buttons.*`, `quickUse.*`, `combat.shove.*`, `hero.collisionRadiusTiles` |

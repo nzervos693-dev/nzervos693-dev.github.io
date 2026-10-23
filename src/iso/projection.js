@@ -27,7 +27,7 @@ const FACING_NAMES = Object.keys(FACINGS);
  * Extract the projection config from balance.json.
  * @param {object} balance full balance object
  * @returns {{tileW:number,tileH:number,halfW:number,halfH:number,bodyRaise:number,
- *   tapSnapRadius:number,tapSnapWalkTiles:number,minHit:number,lookAheadPx:number}}
+ *   tapSnapRadius:number,tapSnapWalkTiles:number,minHit:number}}
  */
 export function isoConfig(balance) {
   const iso = balance.iso;
@@ -41,7 +41,6 @@ export function isoConfig(balance) {
     tapSnapRadius: c.tapSnapRadiusPx,
     tapSnapWalkTiles: c.tapSnapWalkTiles,
     minHit: c.minHitAreaPx,
-    lookAheadPx: c.cameraLookAheadPx,
   };
 }
 

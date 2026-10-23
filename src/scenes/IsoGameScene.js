@@ -405,7 +405,7 @@ export default class IsoGameScene extends Phaser.Scene {
   /** Snap the camera to the hero (hero at the anchor). */
   snapCamera() {
     const hs = this.actors.toScreen(this.hero.x, this.hero.y, { x: 0, y: 0 });
-    this.camera.snapTo(hs.x, hs.y + this.anchorDy(), this.hero.facing);
+    this.camera.snapTo(hs.x, hs.y + this.anchorDy());
   }
 
   /**
@@ -1780,7 +1780,7 @@ export default class IsoGameScene extends Phaser.Scene {
     this.updateVision();
     this.camHero.x = this.heroSp.x;
     this.camHero.y = this.heroSp.y + this.anchorDy();
-    this.camera.update(dt, this.camHero, this.hero.facing);
+    this.camera.update(dt, this.camHero);
     this.applyCamera();
     this.view.update(dt);
     this.actors.update(dt);

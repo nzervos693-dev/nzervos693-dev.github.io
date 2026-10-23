@@ -133,7 +133,7 @@ try {
   const hero0 = await E(() => { const g = window.__floor15; return [g.hero.x, g.hero.y]; });
   let taps = 0;
   for (const o of targets) {
-    await E(([x, y]) => { const g = window.__floor15; g.camera.snapTo(x, y, 0); g.camera.followPause = 5; g.applyCamera(); }, [o.cx, o.cy]);
+    await E(([x, y]) => { const g = window.__floor15; g.camera.snapTo(x - 110, y); g.camera.followPause = 5; /* prop right of centre: clear of the stick zone (no look-ahead on snap any more) */ g.applyCamera(); }, [o.cx, o.cy]);
     await sleep(80);
     for (const [wx, wy] of o.pts) {
       const p = await E(([x, y]) => {

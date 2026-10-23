@@ -39,7 +39,6 @@
     "homeDoubleTapSeconds": 1,
     "cameraFollowPauseSeconds": 2,
     "cameraDeadzoneXPx": 160,
-    "cameraLerp": 0.12,
     "runDoubleTapSeconds": 0.3,
     "runDoubleTapMaxDistancePx": 48,
     "buttonSizePx": 96,
@@ -53,7 +52,6 @@
     "tapSnapRadiusPx": 96,
     "tapSnapWalkTiles": 1.5,
     "cameraDeadzonePx": [160, 240],
-    "cameraLookAheadPx": 120,
     "cameraIsoEdgePadPx": 96,
     "cameraDragFrictionPerSecond": 5,
     "floorFadeSeconds": 0.3,
@@ -120,7 +118,19 @@
     }
   },
   "camera": {
-    "heroScreenYFrac": 0.4
+    "heroScreenYFrac": 0.4,
+    "lookAheadPx": 45,
+    "lookAheadMinSpeedPx": 25,
+    "lookAheadFullSpeedPx": 120,
+    "lookAheadSmoothSeconds": 0.7,
+    "lookAheadMaxPxPerSecond": 40,
+    "lookAheadReverseRateMult": 4,
+    "lookAheadMaxAccel": 300,
+    "velocitySmoothSeconds": 0.3,
+    "followSmoothSeconds": 0.3,
+    "softClampStartFrac": 0.4,
+    "softClampTightness": 0.45,
+    "teleportSpeedPx": 1500
   },
   "tutorial": {
     "doorTriggerPx": 60,
