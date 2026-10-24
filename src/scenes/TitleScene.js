@@ -5,6 +5,7 @@ import Popup from './Popup.js';
 import { isMuted, toggleMute, onMuteChange } from '../core/audio.js';
 import { getSafeArea } from '../core/safeArea.js';
 import { button, label, COLORS, CSS } from './ui.js';
+import { BUILD_STAMP, notifySafePoint } from '../core/update.js';
 import { exposeScene } from './debug.js';
 
 /**
@@ -46,7 +47,9 @@ export default class TitleScene extends Phaser.Scene {
     const off = onMuteChange(upSound);
     this.events.once('shutdown', off);
     if (stale) this.time.delayedCall(60, () => new Popup(this).show(STALE_SAVE_LINE, []));
+    this.buildText = label(this, w / 2, h - 24 - sa.bottom, BUILD_STAMP, 18, CSS.dim).setAlpha(0.6);
     exposeScene(this);
+    notifySafePoint(); // a pending app update is applied here (nothing to lose on the title screen)
   }
 
   /** Confirm before a save is deleted. */

@@ -8,6 +8,8 @@ import { initSafeArea } from './core/safeArea.js';
 import { initLifecycle } from './core/lifecycle.js';
 import { initAudio } from './core/audio.js';
 import { loadSave } from './core/save.js';
+import { registerSW } from 'virtual:pwa-register';
+import { initUpdates } from './core/update.js';
 
 export const GAME_WIDTH = 720;
 export const GAME_HEIGHT = 1280;
@@ -38,3 +40,4 @@ initSafeArea(game);
 initAudio(game);
 // Save and reset hero position when the app is hidden (GameScene listens).
 initLifecycle(game, { onHide: () => game.events.emit('floor15:hide') });
+initUpdates(game, registerSW);
