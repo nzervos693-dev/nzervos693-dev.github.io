@@ -93,13 +93,15 @@ function hqAttackLines(a, balance) {
   const when = a.atMs ? `Around ${clockTime(a.atMs)} they` : 'They';
   const where = a.where ?? 'the stairwell side';
   const lines = [];
-  if (a.repelled) lines.push(a.where ? `${when} went for ${where}. It held.` : `${when} came and found nothing to break. It held.`);
+  const names = a.named?.length ? a.named : [where];
+  const said = names.length > 1 ? `${names[0]} and ${names[1]}` : names[0];
+  if (a.repelled) lines.push(a.where ? `${when} went for ${said}. It held.` : `${when} came and found nothing to break. It held.`);
   else if (!a.where) {
     lines.push(`${when} walked in.`);
     if (a.hurt?.length) lines.push(`${a.hurt.map((h) => nameOf(h.id, balance)).join(' and ')} ${a.hurt.length > 1 || nameOf(a.hurt[0].id, balance) === 'You' ? 'are' : 'is'} hurt.`);
     if (a.lost?.length) lines.push(`Lost: ${a.lost.map((l) => `${l.qty} ${lower(l.id, balance)}`).join(', ')}.`);
   } else {
-    const broke = [...new Set(a.broke?.length ? a.broke : [where])];
+    const broke = [...new Set(a.named?.length ? a.named : a.broke?.length ? a.broke : [where])];
     const list = broke.length > 1 ? `${broke.slice(0, -1).join(', ')} and ${broke[broke.length - 1]}` : broke[0];
     lines.push(/window/.test(broke[0]) && broke.length === 1 ? `${when} came through ${where}.` : `${when} broke through ${list}. They got in.`);
     if (a.hurt?.length) lines.push(`${a.hurt.map((h) => nameOf(h.id, balance)).join(' and ')} ${a.hurt.length > 1 || nameOf(a.hurt[0].id, balance) === 'You' ? 'are' : 'is'} hurt.`);

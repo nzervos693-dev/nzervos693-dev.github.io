@@ -419,6 +419,29 @@ describe('the report says what held and what broke, in prose (GDD 5.1, 5.20)', (
     expect(l.slice(1)).toEqual(['You are hurt.', 'Lost: 4 wood.']);
     expect(l.join(' ').replace(/\d\d:\d\d/, '')).not.toMatch(/\d{2,}/); // no strength / defense figures, only the clock time
   });
+  it('names at most two structures, the entry and the last one before the heart room, for repel and breach', () => {
+    const mk = (named, repelled) => ({ ...base, repelled, where: named[0], named, broke: ['x', 'y', 'z', 'w'], hurt: [], lost: [] });
+    expect(attackLines([mk(['the south-east door'], true)], balance)).toEqual(['Around 03:10 they went for the south-east door. It held.']);
+    expect(attackLines([mk(['the south-east door', 'the south-east wall'], true)], balance)).toEqual(['Around 03:10 they went for the south-east door and the south-east wall. It held.']);
+    expect(attackLines([mk(['the stairwell side', 'the east wall'], true)], balance)[0]).toBe('Around 03:10 they went for the stairwell side and the east wall. It held.');
+    expect(attackLines([mk(['the south-east door'], false)], balance)).toEqual(['Around 03:10 they broke through the south-east door. They got in.']);
+    expect(attackLines([mk(['the south-east door', 'the south-east wall'], false)], balance)).toEqual(['Around 03:10 they broke through the south-east door and the south-east wall. They got in.']);
+    expect(attackLines([mk(['the stairwell side', 'the east wall'], false)], balance)[0]).toBe('Around 03:10 they broke through the stairwell side and the east wall. They got in.');
+  });
+  it('resolveOfflineHq names the first and last crossing, deduplicated (1, 2 and 3 crossings)', () => {
+    const w = hqWorld({ claimed: false });
+    const spec = { kind: 'scheduled', strength: 1, types: [] };
+    const one = resolveOfflineHq({ floor: w.floor }, w.state, balance, spec, seeded(1));
+    expect(one.named).toHaveLength(2); // front door ... bedroom partition (2 crossings pre-claim)
+    w.structures.place({ x: 5, y: 4, side: 'W' }, { piece: 'gap' }); // open the partition: only the door is left
+    expect(resolveOfflineHq({ floor: w.floor }, w.state, balance, spec, seeded(1)).named).toEqual([one.named[0]]);
+    const f = hqWorld();
+    giveTool(f.state, 'hammer'); stock(f.state, { wood: 30, metal: 6 });
+    for (const g of gate) build(f.ctx, g);
+    const three = resolveOfflineHq({ floor: f.floor }, f.state, balance, spec, seeded(1));
+    expect(three.where).toBe('the stairwell side');
+    expect(three.named).toEqual([three.where, expect.stringMatching(/^the .* wall$/)]); // 3 crossings: the middle one is not named
+  });
   it('a breach with nothing on the path to break reads "They walked in."', () => {
     expect(attackLines([{ ...base, repelled: false, where: null, broke: [], hurt: [], lost: [] }], balance)).toEqual(['Around 03:10 they walked in.']);
   });

@@ -151,7 +151,7 @@ function residents(state) {
  * @param {{floor:object}} ctx floor model with .structures
  * @param {{keepLatch?:boolean, bonus?:boolean}} [opts] as attacks.js resolveOffline
  * @returns {{kind:string, strength:number, defense:number, repelled:boolean, barricadeLoss:number, shortfall:number,
- *   hurt:{id:string,damage:number}[], lost:{id:string,qty:number}[], where:string|null, broke:string[]}}
+ *   hurt:{id:string,damage:number}[], lost:{id:string,qty:number}[], where:string|null, broke:string[], named:string[]}}
  */
 export function resolveOfflineHq(ctx, state, balance, spec, rng, opts = {}) {
   const a = balance.attacks;
@@ -163,6 +163,7 @@ export function resolveOfflineHq(ctx, state, balance, spec, rng, opts = {}) {
   const res = {
     kind: spec.kind, strength: spec.strength, defense, repelled: defense >= spec.strength, barricadeLoss: 0, shortfall: 0, hurt: [], lost: [],
     where: route.crossings[0]?.label ?? null, broke: [],
+    named: [...new Set([route.crossings[0]?.label, route.crossings[route.crossings.length - 1]?.label].filter(Boolean))], // the entry and the last structure before the heart room (GDD 5.20)
   };
   if (!opts.keepLatch) resetBreachLatch(state);
   const events = balance.needs.morale.events;
