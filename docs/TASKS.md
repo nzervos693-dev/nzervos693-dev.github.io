@@ -44,8 +44,9 @@ Side-view Stage 2 archived on branch archive/m2-side-view-stage2.
   - [x] Piece 1: structure model + build/demolish/upgrade rules, save
   - [x] Piece 2: build mode, edge targeting, ghost, claim the floor, structure art (BUG-051 fixed)
   - [ ] CD playtest of HQ building
-  - [ ] Piece 3: attacks on floor 15 probe weak spots (incl. partial wall re-bake on HP hits; door art on structures.damageStages)
-  - [ ] Leftovers for piece 3: vault/climb broken windows, barricade in picker, heart in HQ, merged-unit stash + pooled HQ stash, zombie damage on built doors/walls → gap
+  - [x] Piece 3: attacks on floor 15 probe weak spots, breach, climb, barricades, heart, pooled stash, offline report
+  - [ ] BUG-052: layered-defence balance on real floor 15 (game-designer)
+  - [ ] Later: safety timeout for unreachable attackers; cue restart on resume; 12-attacker frame time on a real phone
   - [ ] Minor: rebuilt-to-block wall art changes on reload (genTier); broken glass loads at 1 HP
 - [ ] Follow-ups: close BUG-050 in QA e2e; move stairs-blocked 0.5 to balance; fallback tests for craftingPanel
 - [ ] Stage B: floors 13–17, stairs, attacks, Mara, tutorial
