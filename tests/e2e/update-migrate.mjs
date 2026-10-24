@@ -3,6 +3,7 @@
  * current 'prompt' build. Builds the legacy ref with git archive in a temp dir, loads it, then "deploys"
  * the current dist-e2e over it with a changed .ogg and checks that, after ONE relaunch of the same
  * tab (other clients stay open), the new .ogg is served and the new SW controls the page.
+ * Needs the legacy commit in git history (not a shallow clone): run `git fetch --unshallow` first if needed.
  */
 import { chromium } from 'playwright-core';
 import { serve } from './server.mjs';
@@ -46,8 +47,10 @@ try {
   writeFileSync(join(site, 'sw.js'), sw.replace(oldRev, md5(readFileSync(ogg))));
   const newLen = readFileSync(ogg).length;
 
-  await page.evaluate(async () => { await (await navigator.serviceWorker.getRegistration()).update(); });
+  await page.evaluate(async () => { window.__marker = 'old-page'; await (await navigator.serviceWorker.getRegistration()).update(); });
   await page.waitForTimeout(4000);
+  const survived = await page.evaluate(() => window.__marker).catch(() => undefined);
+  check(survived === 'old-page', `old page was not reloaded by the takeover (marker ${survived})`);
   // relaunch the tab once (the old page may already have reloaded itself)
   await page.reload(); await title(); await page.waitForTimeout(2000);
   const r = await page.evaluate(async (u) => ({
@@ -59,6 +62,16 @@ try {
   check(!!r.stamp, `new build running (stamp ${r.stamp})`);
   const cachedLen = await page.evaluate(async (u) => { const c = await caches.open((await caches.keys())[0]); const m = await c.match(u, { ignoreSearch: true }); return m ? (await m.arrayBuffer()).byteLength : -1; }, '/' + oggRel);
   check(cachedLen === newLen, 'precache holds the new .ogg');
+
+  // a second deploy after the move must wait (mid-game, nothing reloads or skips waiting)
+  await page.goto(server.url + '?debug'); await page.waitForFunction(() => window.__floor15?.state, null, { timeout: 30000 });
+  await page.evaluate(() => { window.__marker = 'game'; });
+  const sw2 = readFileSync(join(site, 'sw.js'), 'utf8');
+  writeFileSync(join(site, 'sw.js'), sw2 + `\n// deploy 3 ${Date.now()}\n`);
+  await page.evaluate(async () => { await (await navigator.serviceWorker.getRegistration()).update(); });
+  await page.waitForTimeout(4000);
+  const st = await page.evaluate(async () => ({ waiting: !!(await navigator.serviceWorker.getRegistration()).waiting, marker: window.__marker }));
+  check(st.waiting && st.marker === 'game', `second deploy stays waiting mid-game (waiting ${st.waiting}, marker ${st.marker})`);
 } finally {
   await browser.close(); server.close(); rmSync(work, { recursive: true, force: true });
 }
