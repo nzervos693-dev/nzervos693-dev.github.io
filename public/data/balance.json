@@ -1034,7 +1034,7 @@
       "partition": { "hp": 80, "defense": 4, "buildable": false, "demolishSeconds": 6, "yield": { "wood": 1, "metal": 1 }, "upgradeTo": "sheet_metal", "repair": { "material": "wood", "hpPerUnit": 20 } },
       "wood": { "hp": 150, "defense": 10, "cost": { "wood": 6, "metal": 1 }, "buildSeconds": 6, "demolishSeconds": 4, "yield": { "wood": 3 }, "upgradeTo": "sheet_metal", "repair": { "material": "wood", "hpPerUnit": 20 } },
       "sheet_metal": { "hp": 320, "defense": 20, "cost": { "sheet_metal": 3, "metal": 1 }, "buildSeconds": 8, "demolishSeconds": 8, "yield": { "wood": 3, "sheet_metal": 1 }, "upgradeTo": "block", "repair": { "material": "sheet_metal", "hpPerUnit": 60 } },
-      "block": { "hp": 600, "defense": 35, "cost": { "concrete_block": 6, "metal": 1 }, "buildSeconds": 12, "demolishSeconds": 14, "yield": { "concrete_block": 4 }, "upgradeTo": null, "fitRefund": { "concrete_block": 2 }, "repair": { "material": "concrete_block", "hpPerUnit": 100 } }
+      "block": { "hp": 600, "defense": 40, "cost": { "concrete_block": 6, "metal": 1 }, "buildSeconds": 12, "demolishSeconds": 14, "yield": { "concrete_block": 4 }, "upgradeTo": null, "fitRefund": { "concrete_block": 2 }, "repair": { "material": "concrete_block", "hpPerUnit": 100 } }
     },
     "doors": {
       "generated_interior": { "hp": 60, "defense": 5, "buildable": false, "demolishSeconds": 4, "yield": { "wood": 5, "metal": 1 }, "upgradeTo": "reinforced", "repair": { "material": "wood", "hpPerUnit": 20 } },

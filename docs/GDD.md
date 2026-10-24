@@ -1672,8 +1672,8 @@ the floors you scavenge saves walking.
     stacks of the main home's stash are lost (rounded down).
   - At most **2** attacks resolve per catch-up (`attacks.maxOfflineResolves`).
 - The report describes each attack in one sentence (5.1), never strength or
-  defense numbers. With the HQ as main home it names the entry structure
-  by compass side ("the north wall", 5.20).
+  defense numbers. With the HQ as main home it names the entry and the
+  last structure by compass side ("the north wall", 5.20).
 - **Barricade look**: damage is shown only by the sprite, in 5 stages by
   HP ratio (`barricade.visualStages` 0.75 / 0.5 / 0.25 / 0): intact, a
   cracked plank, boards hanging and gaps, barely held, broken. Each hit
@@ -2498,7 +2498,11 @@ touch-interactive)
   build mode (leave it to eat or throw).
 - **Main** (first rule that applies, icon = the action; greyed reasons as
   toasts):
-  1. Piece or overlay below full HP -> **Repair** (overlay first).
+  1. Piece or overlay below full HP -> **Repair** (overlay first). This
+     wins even when an overlay is selected (confirmed): a damaged door
+     with barricade selected repairs first, and the barricade comes on a
+     later press once the door is at full HP. One simple rule, and the
+     piece behind a new overlay is always whole.
   2. Gap + selected **wall** -> **Build** wood wall. This includes a
      **broken perimeter edge** (a zombie breach, online or offline, leaves
      a gap): rebuilding it counts as reinforcing, so the CD's
@@ -2620,7 +2624,7 @@ refund; build on a gap always makes a wood wall)
 | Partition (generated only) | 80 | 4 | - | - | 6 | 1 wood + 1 metal | 1 wood / 20 HP |
 | Wood | 150 | 10 | 6 wood + 1 metal | 6 | 4 | 3 wood | 1 wood / 20 HP |
 | Sheet metal | 320 | 20 | 3 sheet metal + 1 metal | 8 | 8 | 3 wood + 1 sheet metal | 1 sheet metal / 60 HP |
-| Block | 600 | 35 | 6 concrete blocks + 1 metal | 12 | 14 | 4 concrete blocks | 1 concrete block / 100 HP |
+| Block | 600 | 40 (was 35; raised so the pre-built block perimeter is a real first layer, BUG-052) | 6 concrete blocks + 1 metal | 12 | 14 | 4 concrete blocks | 1 concrete block / 100 HP |
 
 Partition upgrades straight to sheet metal. Generated block walls
 (between units, unit-corridor, landing) are full-HP block walls.
@@ -2788,44 +2792,51 @@ the main home is HQ)
   went for the east wall. It held." / "They came through the north
   window."
 - **Naming in the report** (accepted for C2): rooms have no names after
-  merging, so the structure named is the **first one on the path** (the
-  entry), as "the <side> <piece>": piece = wall / door / window; side =
+  merging, so the report names at most **two** structures: the **first
+  one on the path** (the entry) and, when different, the **last one**
+  before the heart room ("They came through the stairwell door and the
+  south-east wall." / "They went for the south-east door and the
+  south-east wall. It held."). Each is "the <side> <piece>": piece =
+  wall / door / window; side =
   the 8-way compass direction from the heart to the edge's midpoint on the
   grid (north = -y, as the build cursor). The gate is always "the
   stairwell door" (gap or wall: "the stairwell side"). Never numbers or
   tiers.
 - **Defence comes in layers**: every route from the landing to the heart
-  crosses exactly one **perimeter** edge (8 block walls at 35, or the
+  crosses exactly one **perimeter** edge (8 block walls at 40, or the
   gate) and then whatever the player built inside, ending at the **heart
   room's** walls. Attackers take the cheapest route by HP, so the weakest
   perimeter edge and the weakest heart-room edge both count; making one
-  edge strong only moves the route. The way to scale is a strong gate
-  plus a small, strong **keep** around the bed (an exterior corner keeps
-  it to about 4 edges, since exterior walls are never attacked).
-- **Fairness checks** (QA; authored floor 15, heart in the start flat's
-  bedroom, no guards, character home 10 + floor 15 secured 5 = **15**):
-  - **Day 3, A = 34**: gate walled in wood (150 HP, 10); cheapest route =
-    gate -> corridor -> start flat front door + Lv1 barricade (8 + 10) ->
-    bedroom partition (80 HP, 4). Path 32, **D = 47 >= 34**, held.
-  Both routes below (gate -> corridor -> start flat front door, or a
-  landing wall straight into the start flat's living room) reach the
-  bedroom through the same 80 HP partition (+4).
-  - **Day 10, A = 55**: wood gate (150 HP, 10), front door + Lv1 (240 HP,
-    18), and a wood keep around the bed in a bedroom corner (3 wood walls
-    150 HP / 10, wood door + Lv1 220 HP). Gate route 150 + 240 + 80 + 150
-    = 620 HP beats the landing route (600 + 80 + 150 = 830). Path 10 + 18
-    + 4 + 10 = 42, **D = 57 >= 55**, held, barely: time to upgrade.
-  - **Day 20, A = 85**: upgrading only the gate fails: with a wood keep
-    the landing route (600 + 80 + 150) gives 35 + 4 + 10 = 49, D = 64.
-    Upgrading only the keep fails too: with a wood gate the gate route
-    gives 10 + 18 + 4 + 35 = 67, D = 82. **Sensible plan**: gate at sheet
-    metal (320 HP, 20) and the keep's 3 walls at sheet metal + plating
-    (520 HP, 35) with a metal door + Lv2 barricade (700 HP, 55). Gate
-    route 320 + 240 + 80 + 520 = 1160 HP beats the landing route (600 + 80
-    + 520 = 1200). Path 20 + 18 + 4 + 35 = 77, **D = 92 >= 85**, held
-    (the landing route would give 74, D = 89, also held). Cost: about 23
-    sheet metal (69 metal) over 20 days, the intended mid-game project;
-    a guard (+15, Stage B) or spike strips (C3) add margin.
+  edge strong only moves the route. The way to scale is a gate at least
+  as costly as a landing wall plus a small, strong **keep** around the
+  bed (exterior walls are never attacked, so they are free keep walls).
+- **Fairness checks** (QA, measured on the real floor 15 by
+  `tests/qa-c2p3-layers.test.js`; heart = the start flat bed, 2x2 at
+  tiles (3..4, 0..1); no guards; character home 10 + floor 15 secured 5
+  = **15**). The smallest keep around that bed is tiles (3..4, 0..2):
+  3 west edges, the bedroom's 3 east partition edges at x = 5 (upgraded),
+  2 south edges, one of them the keep door. Because the bed touches the
+  east partition, the keep's east wall **is** that partition: no extra
+  partition layer is crossed once a keep exists.
+  - **Day 3, A = 34** (no keep): wood gate (10) -> start flat front door
+    + Lv1 (8 + 10) -> bedroom partition (4). Path 32, **D = 47**, held.
+  - **Day 10, A = 55**, sensible build = **sheet-metal gate (320 HP, 20)
+    + wood keep** (wood walls 10; wood door + Lv1). Cheapest route =
+    landing block wall (40) -> keep east wall (10). Path 50, **D = 65**,
+    held (margin 10). The all-wood version (wood gate) routes gate (10)
+    -> front door + Lv1 (18) -> keep wall (10): path 38, **D = 53**, holds
+    to day 9 (A = 52) and falls at day 10: the cue to upgrade the gate.
+  - **Day 20, A = 85**, single layers fail: **gate only** (the day-10
+    build) D = **65**; **keep only** (wood gate, keep walls sheet metal +
+    plating 35, metal door + Lv2) routes gate 10 -> front door 18 -> keep
+    wall 35: path 63, D = **78**.
+  - **Day 20 full plan**: sheet-metal gate + the plated sheet-metal keep
+    + metal door + Lv2. Cheapest route = landing block wall (40) -> plated
+    keep wall (35): path 75, **D = 90**, held with margin 5 (the gate
+    route, if it were cheaper, gives 20 + 18 + 35 = 73, D = 88, still
+    held). Cost: gate 3 sheet metal; keep 7 walls x 5 + door 5 = 40;
+    about **43 sheet metal** (~130 metal) by day 20, the long mid-game
+    project. A guard (+15, Stage B) or spike strips (C3) add margin.
 
 **Progression pacing** (what the player can build when)
 - **Early (first HQ days, Stage C2)**: wood walls, fitted wood doors,

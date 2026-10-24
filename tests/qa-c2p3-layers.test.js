@@ -17,12 +17,12 @@ const KEEP_WALLS = [{ x: 3, y: 0, side: 'W' }, { x: 3, y: 1, side: 'W' }, { x: 3
 const KEEP_DOOR = { x: 3, y: 3, side: 'N' };
 const plating = { kind: 'plating', hp: 200, maxHp: 200 };
 
-function world({ gate, keepTier, keepOverlay, keepDoor, doorBarricade }) {
+function world({ gate, keepTier, keepOverlay, keepDoor, doorBarricade, noKeep = false }) {
   const w = hqWorld();
   const st = w.structures;
   for (const g of GATE) st.place(g, { piece: 'wall', tier: gate });
-  for (const k of KEEP_WALLS) st.place(k, { piece: 'wall', tier: keepTier, overlay: keepOverlay ? { ...plating } : null });
-  st.place(KEEP_DOOR, { piece: 'door', tier: keepDoor, state: 'closed' });
+  if (!noKeep) for (const k of KEEP_WALLS) st.place(k, { piece: 'wall', tier: keepTier, overlay: keepOverlay ? { ...plating } : null });
+  if (!noKeep) st.place(KEEP_DOOR, { piece: 'door', tier: keepDoor, state: 'closed' });
   const front = w.floor.doors.find((d) => d.id === w.floor.home.frontDoor);
   giveTool(w.state, 'hammer');
   stock(w.state, { wood: 200, metal: 40, duct_tape: 8, parts: 8, sheet_metal: 20 }, 'stockpile');
@@ -38,39 +38,38 @@ const route = (w) => {
 };
 const resolve = (w, A) => resolveOfflineHq({ floor: w.floor }, w.state, balance, { kind: 'scheduled', strength: A, types: [] }, seeded(3));
 
-describe('GDD 5.20 layered defence on the real floor 15 (QA measurements)', () => {
-  it('day 10, A = 55: wood gate + wood keep (door + Lv1) holds (GDD: path 42, D 57)', () => {
-    const w = world({ gate: 'wood', keepTier: 'wood', keepDoor: 'wood', doorBarricade: 1 });
-    const r = route(w);
-    console.log('DAY10', JSON.stringify(r));
-    const res = resolve(w, 55);
-    console.log('DAY10 D =', res.defense, 'repelled', res.repelled);
-    
-    // MEASURED on the authored floor: the bed (2x2 at x 3..4) lies against the bedroom's east partition, so a keep around it
-    // shares that wall with the living room: the cheapest route crosses it directly, with no extra 80 HP partition first.
-    // Path defense 38 (GDD 42), D = 53 (GDD 57) < A = 55: NOT held (GDD says held, barely). See BUG-052.
+describe('GDD 5.20 layered defence on the real floor 15 (QA measurements, block wall defence 40)', () => {
+  const measure = (name, o, A) => { const w = world(o); const r = route(w); const res = resolve(w, A); console.log(name, JSON.stringify(r), 'D =', res.defense); return { r, res }; };
+  it('day 3, A = 34: wood gate, no keep: D 47, held', () => {
+    const { res } = measure('DAY3', { gate: 'wood', noKeep: true, doorBarricade: 0 }, 34);
+    expect(res.defense).toBe(47);
+    expect(res.repelled).toBe(true);
+  });
+  it('day 10, A = 55, all wood (gate, keep, door + Lv1): D 53, breached', () => {
+    const { r, res } = measure('DAY10 all wood', { gate: 'wood', keepTier: 'wood', keepDoor: 'wood', doorBarricade: 1 }, 55);
+    expect(r.defense).toBe(38);
     expect(res.defense).toBe(53);
     expect(res.repelled).toBe(false);
   });
-  it('day 20, A = 85: gate alone at sheet metal fails (GDD: path 49, D 64)', () => {
-    const w = world({ gate: 'sheet_metal', keepTier: 'wood', keepDoor: 'wood', doorBarricade: 1 });
-    console.log('DAY20 gate only', JSON.stringify(route(w)), 'D=', resolve(w, 85).defense);
-    expect(resolve(w, 85).repelled).toBe(false);
+  it('day 10, A = 55, sheet-metal gate + wood keep: D 65, held', () => {
+    const { res } = measure('DAY10 sensible', { gate: 'sheet_metal', keepTier: 'wood', keepDoor: 'wood', doorBarricade: 1 }, 55);
+    expect(res.defense).toBe(65);
+    expect(res.repelled).toBe(true);
   });
-  it('day 20, A = 85: keep alone fails (GDD: path 67, D 82)', () => {
-    const w = world({ gate: 'wood', keepTier: 'sheet_metal', keepOverlay: true, keepDoor: 'metal', doorBarricade: 2 });
-    console.log('DAY20 keep only', JSON.stringify(route(w)), 'D=', resolve(w, 85).defense);
-    expect(resolve(w, 85).repelled).toBe(false);
+  it('day 20, A = 85: gate alone (sheet metal gate, wood keep): D 65, breached', () => {
+    const { res } = measure('DAY20 gate only', { gate: 'sheet_metal', keepTier: 'wood', keepDoor: 'wood', doorBarricade: 1 }, 85);
+    expect(res.defense).toBe(65);
+    expect(res.repelled).toBe(false);
   });
-  it('day 20, A = 85: gate sheet metal + plated sheet-metal keep + metal door + Lv2 barricade holds (GDD: path 77, D 92)', () => {
-    const w = world({ gate: 'sheet_metal', keepTier: 'sheet_metal', keepOverlay: true, keepDoor: 'metal', doorBarricade: 2 });
-    const r = route(w);
-    const res = resolve(w, 85);
-    console.log('DAY20 plan', JSON.stringify(r), 'D=', res.defense);
-    // MEASURED: the cheapest route is the landing's block wall (35) straight into the living room, then the plated keep wall (35):
-    // path 70, D = 85 = A, repelled with zero margin (GDD: landing route 74, D 89, gate route 77, D 92).
-    expect(r.defense).toBe(70);
-    expect(res.defense).toBe(85);
+  it('day 20, A = 85: keep alone (wood gate, plated sheet-metal keep, metal door + Lv2): D 78, breached', () => {
+    const { res } = measure('DAY20 keep only', { gate: 'wood', keepTier: 'sheet_metal', keepOverlay: true, keepDoor: 'metal', doorBarricade: 2 }, 85);
+    expect(res.defense).toBe(78);
+    expect(res.repelled).toBe(false);
+  });
+  it('day 20, A = 85: full plan: D 90, held with margin 5', () => {
+    const { r, res } = measure('DAY20 plan', { gate: 'sheet_metal', keepTier: 'sheet_metal', keepOverlay: true, keepDoor: 'metal', doorBarricade: 2 }, 85);
+    expect(r.defense).toBe(75);
+    expect(res.defense).toBe(90);
     expect(res.repelled).toBe(true);
   });
 });
