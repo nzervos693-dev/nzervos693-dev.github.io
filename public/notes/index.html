@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
+  <title>Notes</title>
+  <meta name="description" content="Simple, fast, offline notes." />
+  <meta name="theme-color" content="#f7f5f0" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#16171a" media="(prefers-color-scheme: dark)" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" href="./icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+  <link rel="stylesheet" href="./notes.css" />
+</head>
+<body>
+  <!-- LIST VIEW -->
+  <section id="list-view" class="view">
+    <header class="bar">
+      <h1>Notes</h1>
+      <button class="icon-btn" id="menu-btn" aria-label="More options">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+      </button>
+    </header>
+    <div class="search-wrap">
+      <svg viewBox="0 0 24 24" class="search-icon"><path d="M10 4a6 6 0 1 0 3.9 10.6l4.7 4.7 1.4-1.4-4.7-4.7A6 6 0 0 0 10 4zm0 2a4 4 0 1 1 0 8 4 4 0 0 1 0-8z"/></svg>
+      <input id="search" type="search" placeholder="Search notes" autocomplete="off" enterkeyhint="search" />
+    </div>
+    <main id="notes" aria-live="polite"></main>
+    <p id="empty" hidden>No notes yet.<br />Tap <strong>+</strong> to write one.</p>
+    <button id="new-btn" class="fab" aria-label="New note">
+      <svg viewBox="0 0 24 24"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>
+    </button>
+  </section>
+
+  <!-- EDITOR VIEW -->
+  <section id="edit-view" class="view" hidden>
+    <header class="bar">
+      <button class="icon-btn" id="back-btn" aria-label="Back">
+        <svg viewBox="0 0 24 24"><path d="M20 11H7.8l5.6-5.6L12 4l-8 8 8 8 1.4-1.4L7.8 13H20z"/></svg>
+      </button>
+      <span class="spacer"></span>
+      <button class="icon-btn" id="pin-btn" aria-label="Pin note" aria-pressed="false">
+        <svg viewBox="0 0 24 24"><path d="M16 3H8v2h1v6l-3 3v2h5v5h2v-5h5v-2l-3-3V5h1z"/></svg>
+      </button>
+      <button class="icon-btn" id="color-btn" aria-label="Note colour">
+        <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 0 0 0 18c1 0 1.5-.7 1.5-1.4 0-.4-.2-.7-.4-1-.2-.3-.4-.6-.4-1 0-.8.7-1.5 1.5-1.5H16a5 5 0 0 0 5-5c0-4.4-4-8.1-9-8.1zM6.5 12a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3-4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3 4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>
+      </button>
+      <button class="icon-btn" id="delete-btn" aria-label="Delete note">
+        <svg viewBox="0 0 24 24"><path d="M9 3h6l1 1h4v2H4V4h4zM6 8h12l-1 13H7z"/></svg>
+      </button>
+    </header>
+    <div id="palette" class="palette" hidden></div>
+    <div class="editor">
+      <input id="title" placeholder="Title" autocomplete="off" enterkeyhint="next" />
+      <textarea id="body" placeholder="Note"></textarea>
+    </div>
+    <footer id="meta" class="meta"></footer>
+  </section>
+
+  <!-- MENU SHEET -->
+  <div id="sheet-backdrop" class="backdrop" hidden></div>
+  <div id="sheet" class="sheet" role="dialog" aria-label="Options" hidden>
+    <button data-act="export">Export backup</button>
+    <button data-act="import">Import backup</button>
+    <button data-act="sort">Sort: <span id="sort-label"></span></button>
+    <p class="sheet-note">Notes are stored only on this device.</p>
+  </div>
+  <input id="import-file" type="file" accept="application/json,.json" hidden />
+
+  <div id="snackbar" class="snackbar" role="status" hidden>
+    <span id="snack-text"></span>
+    <button id="snack-action"></button>
+  </div>
+
+  <script type="module" src="./notes.js"></script>
+</body>
+</html>

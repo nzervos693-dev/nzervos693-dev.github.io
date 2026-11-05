@@ -79,3 +79,7 @@ Side-view Stage 2 archived on branch archive/m2-side-view-stage2.
 - [ ] Creative Director: apply for production access and publish
 
 ## Done
+
+## Side project – Notes app (separate from the game)
+- [x] Offline notes PWA at `/notes/` (public/notes/): create/edit, autosave, search, pin, colours, delete + undo, backup export/import, dark mode; own service worker and manifest so PWABuilder can package it as its own Android app
+- [ ] Creative Director: try it on phone at https://nzervos693-dev.github.io/notes/ once merged to main
