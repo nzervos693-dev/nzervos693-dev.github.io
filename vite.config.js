@@ -62,8 +62,9 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,json,png,webp,jpg,svg,ogg,mp3,wav,webmanifest,woff2}'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         navigateFallback: 'index.html',
+        navigateFallbackDenylist: [/^\/notes\//], // the Notes app (public/notes/) has its own SW
         importScripts: ['sw-migrate.js'], // one-time escape from the legacy autoUpdate SW
-        globIgnores: ['sw-migrate.js'],
+        globIgnores: ['sw-migrate.js', 'notes/**'],
         cleanupOutdatedCaches: true,
         clientsClaim: true, // new SW takes over right after we send SKIP_WAITING, which triggers the reload
         manifestTransforms: [revisionFromContent],
